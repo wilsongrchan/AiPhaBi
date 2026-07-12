@@ -64,10 +64,11 @@
                 ]
               },
               "ex": "的",
-              "count": 6,
+              "count": 8,
               "seen": [
                 "的",
-                "是"
+                "是",
+                "能"
               ],
               "learned": true
             }
@@ -127,13 +128,13 @@
     {
       "letter": "E",
       "hint": "上下穿",
-      "notes": "E=上下穿，與 F=穿橫 的分別需明文寫成規則。",
+      "notes": "",
       "intentions": []
     },
     {
       "letter": "F",
       "hint": "穿橫",
-      "notes": "此行字根最多，辨認信心最低。",
+      "notes": "",
       "intentions": [
         {
           "desc": "“下”字及類似字形",
@@ -217,9 +218,31 @@
                 ]
               },
               "ex": "在",
-              "count": 1,
+              "count": 2,
               "seen": [
                 "在"
+              ],
+              "learned": true
+            }
+          ]
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "能",
+                "strokes": [
+                  6,
+                  7
+                ]
+              },
+              "ex": "能",
+              "count": 2,
+              "seen": [
+                "能"
               ],
               "learned": true
             }
@@ -231,7 +254,29 @@
       "letter": "G",
       "hint": "",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "“ㄙ”及類似字形",
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "能",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "能",
+              "count": 3,
+              "seen": [
+                "能"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "H",
@@ -305,7 +350,7 @@
                 ]
               },
               "ex": "這",
-              "count": 7,
+              "count": 8,
               "seen": [
                 "這",
                 "就"
@@ -395,6 +440,32 @@
               "learned": true
             }
           ]
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": []
+        },
+        {
+          "desc": "豎鉤",
+          "tier": "secondary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "可",
+                "strokes": [
+                  4
+                ]
+              },
+              "ex": "可",
+              "count": 1,
+              "seen": [
+                "可"
+              ],
+              "learned": true
+            }
+          ]
         }
       ]
     },
@@ -421,7 +492,7 @@
                 ]
               },
               "ex": "以",
-              "count": 5,
+              "count": 6,
               "seen": [
                 "以",
                 "就"
@@ -477,7 +548,7 @@
                 ]
               },
               "ex": "就",
-              "count": 2,
+              "count": 3,
               "seen": [
                 "就"
               ],
@@ -546,11 +617,12 @@
                 ]
               },
               "ex": "這",
-              "count": 6,
+              "count": 8,
               "seen": [
                 "這",
                 "就",
-                "個"
+                "個",
+                "可"
               ],
               "learned": true
             }
@@ -604,7 +676,7 @@
                 ]
               },
               "ex": "的",
-              "count": 11,
+              "count": 12,
               "seen": [
                 "的",
                 "以",
@@ -774,7 +846,7 @@
                 ]
               },
               "ex": "有",
-              "count": 10,
+              "count": 12,
               "seen": [
                 "有",
                 "就",

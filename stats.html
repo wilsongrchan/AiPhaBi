@@ -128,13 +128,21 @@
 </main>
 <div class="tip" id="tip"></div>
 
+<script src="/assets/shape.js"></script>
+<script src="/assets/zigen.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 const LETTERS = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
 
-let codes = {}, zigen = null, rank = new Map();
+let codes = {}, zigen = null, rules = null, rank = new Map();
+
+/* 打字實際要按的碼（超過上限的取前 head 碼 + 末碼）。統計、重碼都以它為準，
+   而不是完整碼 —— 使用者按的是縮短後那幾個鍵。 */
+const maxRule = () => rules && rules.rules.find(r =>
+  r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
+const finalOf = r => Zigen.shorten(r.code, maxRule());   /* 永遠現算，免得規則改了還用舊值 */
 
 /* ---------- 長條圖：名目類別 → 單一顏色；用得多的用強調色 + 直接標數字 ----------
    （不用深淺漸層：長度已經表示大小，再用顏色重複編碼只會浪費唯一的顏色通道） */
@@ -192,13 +200,15 @@ let zigenCount = {};
 function render() {
   const entries = Object.entries(codes).filter(([, r]) => r.code);
   const all = {}, first = {}, byCode = new Map();
-  let codeLen = 0;
+  let codeLen = 0, cut = 0;
   for (const [ch, r] of entries) {
-    codeLen += r.code.length;
-    for (const L of r.code) all[L] = (all[L] || 0) + 1;
-    first[r.code[0]] = (first[r.code[0]] || 0) + 1;
-    if (!byCode.has(r.code)) byCode.set(r.code, []);
-    byCode.get(r.code).push(ch);
+    const code = finalOf(r);                 /* ← 縮短後的碼 */
+    if (code.length < r.code.length) cut++;
+    codeLen += code.length;
+    for (const L of code) all[L] = (all[L] || 0) + 1;
+    first[code[0]] = (first[code[0]] || 0) + 1;
+    if (!byCode.has(code)) byCode.set(code, []);
+    byCode.get(code).push(ch);
   }
   zigenCount = {};
   for (const L of zigen.letters)
@@ -219,7 +229,8 @@ function render() {
     kpi(dups.length, '重碼組', dups.length > 0) +
     kpi(entries.length ? (dupChars / entries.length * 100).toFixed(1) + '%' : '0%',
         '重碼率（重碼字 ÷ 已取碼字）', dupChars > 0) +
-    kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數');
+    kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數') +
+    kpi(cut, '被縮短的字（超過碼長上限）');
 
   bars(all, '#chartAll', '#axisAll', '#tableAll');
   bars(first, '#chartFirst', '#axisFirst', '#tableFirst');
@@ -237,8 +248,9 @@ function render() {
 
   /* 重碼 */
   $('#dupsub').innerHTML = entries.length
-    ? `同一組碼對應多於一個字，打字時就要再選一次。目前 <b>${dups.length}</b> 組重碼、
-       涉及 <b>${dupChars}</b> 個字。依最常用的成員排序 —— 排在前面的最值得處理。`
+    ? `同一組碼對應多於一個字，打字時就要再選一次。以<b>實際要按的碼</b>（縮短後）計算。
+       目前 <b>${dups.length}</b> 組重碼、涉及 <b>${dupChars}</b> 個字。
+       依最常用的成員排序 —— 排在前面的最值得處理。`
     : '還沒有取碼資料。';
   const box = $('#dups');
   if (!dups.length) {
@@ -276,9 +288,10 @@ for (const [btn, tbl, chart, axis] of [
 let stamp = null;
 const fetchStamp = () => fetch('/api/state').then(r => r.json());
 async function load() {
-  [codes, zigen] = await Promise.all([
+  [codes, zigen, rules] = await Promise.all([
     fetch('/api/codes').then(r => r.json()),
     fetch('/api/zigen').then(r => r.json()),
+    fetch('/api/rules').then(r => r.json()),
   ]);
   render();
   $('#meta').textContent = '隨字根表／碼表自動更新';

@@ -208,6 +208,16 @@
     return [fmt(taken, cost)];
   }
 
+  /* 碼長上限：超過就取前 head 碼 + 後 tail 碼（例：QFJJQXLQ → QFJQ）。
+     完整碼仍保留在資料裡，但打字、統計、重碼都以縮短後的碼為準。 */
+  function shorten(code, rule) {
+    const max = rule?.params?.max ?? 4;
+    const head = rule?.params?.head ?? 3;
+    const tail = rule?.params?.tail ?? 1;
+    if (!code || code.length <= max) return code;
+    return code.slice(0, head) + (tail ? code.slice(-tail) : '');
+  }
+
   global.Zigen = { SAME_SHAPE, TIERS, tierOf, getGlyph, allShapes, shapesOf, buildLibrary,
-                   merge, predict, strokeKind };
+                   merge, predict, strokeKind, shorten };
 })(window);

@@ -105,7 +105,11 @@
   .newz b { color:var(--warn); }
 
   .code { font:700 30px/1.2 ui-monospace,Menlo,monospace; letter-spacing:.1em; color:var(--accent);
-    min-height:38px; word-break:break-all; }
+    min-height:38px; word-break:break-all; display:flex; align-items:baseline;
+    flex-wrap:wrap; gap:6px; }
+  .code .full { font-size:19px; color:var(--muted); letter-spacing:.06em; }
+  .code .arrow { font-size:15px; color:var(--muted); }
+  .code .short { color:var(--accent); }
   .seg { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
     border-radius:9px; padding:5px 8px; background:var(--card); margin-bottom:5px; }
   .seg svg { width:34px; height:34px; flex:none; }
@@ -364,26 +368,39 @@ function renderSegs() {
   });
   renderCode();
 }
+/* 打字實際要按的碼：超過上限時取前 head 碼 + 尾 tail 碼 */
+const finalOf = code => Zigen.shorten(code, rules && rules.rules.find(r =>
+  r.id === 'max_code_length' && r.enabled && r.kind === 'enforced'));
+
 function renderCode() {
   const code = segs.map(s => s.letter).join('');
-  $('#code').textContent = code || '—';
+  const fin = finalOf(code);
   const max = maxLen();
-  $('#code').style.color = code.length > max ? 'var(--warn)' : 'var(--accent)';
+  const cut = code.length > max;
+
+  /* 完整碼保留在畫面上（看得到拆解），箭頭後是實際要按的碼 */
+  $('#code').innerHTML = !code ? '—'
+    : cut ? `<span class="full">${code}</span><span class="arrow">→</span>` +
+            `<span class="short">${fin}</span>`
+          : code;
+  $('#code').classList.toggle('cut', cut);
+
   const left = strokes.length - segs.reduce((n, s) => n + s.strokes.length, 0) - skipped.length;
   const bits = [];
-  if (code.length > max) bits.push(`<span style="color:var(--warn)">超過 ${max} 碼</span>`);
+  if (cut) bits.push(`<span style="color:var(--warn)">${code.length} 碼超過上限 ${max}</span>` +
+    `　取前 ${max - 1} 碼加末碼 → <b style="color:var(--accent)">${fin}</b>`);
   if (skipped.length) bits.push(`略過 ${skipped.length} 筆`);
   bits.push(left ? `尚有 ${left} 筆未指派`
     : '<span style="color:var(--ok)">全部筆畫已處理</span>');
   $('#ref').innerHTML = bits.join('　');
 
-  /* 重碼提醒：這個碼是不是已經被別的字用了 */
-  const clash = code ? Object.entries(codes)
-    .filter(([ch, r]) => ch !== cur && r.code === code).map(([ch]) => ch) : [];
+  /* 重碼提醒：以「實際要按的碼」判斷，不是完整碼 */
+  const clash = fin ? Object.entries(codes)
+    .filter(([ch, r]) => ch !== cur && r.code && finalOf(r.code) === fin).map(([ch]) => ch) : [];
   const w = $('#clash');
   if (clash.length) {
     w.style.display = 'block';
-    w.innerHTML = `⚠ <b>重碼</b>：<code>${code}</code> 已經是 ` +
+    w.innerHTML = `⚠ <b>重碼</b>：<code>${fin}</code> 已經是 ` +
       clash.map(ch => `<span class="ch">${ch}</span>`).join('、') +
       ` 的碼。可以接受（打字時多選一次），或改用別的拆法／字根。`;
   } else w.style.display = 'none';
@@ -543,7 +560,8 @@ function renderQueue() {
   for (const c of pool().slice(0, shown)) {
     const d = el('div', 'qi' + (c === cur ? ' on' : '') + (isDone(c) ? '' : ' todo'));
     d.append(el('div', 'c', c));
-    d.append(el('div', 'cd', isDone(c) ? codes[c].segments.map(s => s.letter).join('') : '·'));
+    d.append(el('div', 'cd', isDone(c)
+      ? finalOf(codes[c].segments.map(s => s.letter).join('')) : '·'));
     d.onclick = () => load(c);
     box.append(d);
   }
@@ -566,12 +584,14 @@ async function save() {
       if (!r.merged) zigenDirty = true;
       else zigenDirty = true;                       /* count/seen 也要存 */
     }
+    const full = segs.map(s => s.letter).join('');
     codes[cur] = { ...(codes[cur] || {}), segments: segs.map(s => ({ ...s })),
-                   code: segs.map(s => s.letter).join(''),
+                   code: full,              /* 完整碼：保留拆解的全貌 */
+                   final: finalOf(full),    /* 實際要按的碼：統計、重碼、匯出都用它 */
                    skipped: skipped.length ? [...skipped] : undefined,
                    note: $('#note').value || undefined };
   } else if (cur && codes[cur]) {
-    delete codes[cur].segments; delete codes[cur].code;
+    delete codes[cur].segments; delete codes[cur].code; delete codes[cur].final;
   }
   $('#status').textContent = '儲存中…';
   const puts = [fetch('/api/codes', { method: 'PUT',
@@ -628,10 +648,12 @@ for (const b of document.querySelectorAll('.filters button'))
     renderQueue();
   };
 $('#export').onclick = () => {
-  const lines = ['# 愛發筆碼表\t字\t碼\t筆畫分組'];
-  for (const [c, r] of Object.entries(codes)) if (r.segments)
-    lines.push(`${c}\t${r.segments.map(s => s.letter).join('')}\t` +
+  const lines = ['# 愛發筆碼表\t字\t碼(實際)\t完整碼\t筆畫分組'];
+  for (const [c, r] of Object.entries(codes)) if (r.segments) {
+    const full = r.segments.map(s => s.letter).join('');
+    lines.push(`${c}\t${finalOf(full)}\t${full}\t` +
       r.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+'));
+  }
   const a = el('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
   a.download = 'aiphabi.dict.txt'; a.click();
