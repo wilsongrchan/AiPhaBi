@@ -21,9 +21,12 @@
     return cache.get(c);
   }
 
-  const shapesOf = L => [...L.intentions.map(i => i.shapes), L.secondary, L.tertiary];
+  const TIERS = ['primary', 'secondary', 'tertiary'];
+  const tierOf = it => it.tier || 'primary';
+  const shapesOf = L => L.intentions.map(i => i.shapes);
   const allShapes = z => z.letters.flatMap(L =>
-    shapesOf(L).flatMap(arr => arr.map(s => ({ letter: L.letter, shape: s }))));
+    L.intentions.flatMap(it => it.shapes.map(
+      s => ({ letter: L.letter, shape: s, tier: tierOf(it), intention: it }))));
 
   /* 把字根表算成向量庫；只認 glyph（筆畫式）字根，Unicode 字根沒有筆畫資料 */
   async function buildLibrary(z) {
@@ -31,7 +34,7 @@
     const srcs = [...new Set(allShapes(z).filter(x => x.shape.glyph)
       .map(x => x.shape.glyph.src))];
     await Promise.all(srcs.map(getGlyph));      /* 一次併發抓完，別逐個 await */
-    for (const { letter, shape } of allShapes(z)) {
+    for (const { letter, shape, tier } of allShapes(z)) {
       if (!shape.glyph) continue;
       const g = await getGlyph(shape.glyph.src);
       if (!g) continue;
@@ -39,7 +42,7 @@
       if (med.some(m => !m)) continue;
       const vec = Shape.strokeVec(med);
       if (!vec) continue;
-      lib.push({ letter, shape, vec, n: med.length,
+      lib.push({ letter, shape, vec, tier, n: med.length,
                  label: `${shape.glyph.src}[${shape.glyph.strokes.map(i => i + 1).join('')}]` });
     }
     return lib;
@@ -67,10 +70,13 @@
       ex: char, count: 1, seen: [char], learned: true,
     };
     const L = z.letters.find(x => x.letter === letter);
-    let bucket = L.intentions.find(i => i.auto);
-    if (!bucket) { bucket = { desc: '', auto: true, shapes: [] }; L.intentions.push(bucket); }
+    let bucket = L.intentions.find(i => i.auto && tierOf(i) === 'primary');
+    if (!bucket) {
+      bucket = { desc: '', auto: true, tier: 'primary', shapes: [] };
+      L.intentions.push(bucket);
+    }
     bucket.shapes.push(shape);
-    lib.push({ letter, shape, vec, n,
+    lib.push({ letter, shape, vec, tier: 'primary', n,
                label: `${char}[${strokeIdx.map(i => i + 1).join('')}]` });
     return { merged: false, shape };
   }
@@ -78,7 +84,7 @@
   /* ================= 整字拆解預測 =================
      候選字根 = 筆順上連續的一段筆畫，或「一段 + 後面補一筆」（包圍結構的收口筆，
      例：囗 = 第 1,2 筆 + 最後一筆）。再搜出成本最低、且覆蓋全部筆畫的拆法。   */
-  function candidates(medians, lib, thr) {
+  function candidates(medians, lib, thr, tierPenalty = 0) {
     const n = medians.length, out = [], seen = new Set();
     const sizes = [...new Set(lib.map(e => e.n))].filter(k => k > 0 && k <= n);
     const consider = idx => {
@@ -91,9 +97,13 @@
       for (const e of lib) {
         if (e.n !== idx.length) continue;
         const d = Shape.dist(vec, e.vec);
-        if (!best || d < best.d) best = { d, letter: e.letter, label: e.label };
+        if (d >= thr) continue;
+        /* 優次等原則：同樣配得上，優等的成本較低 */
+        const cost = d + tierPenalty * TIERS.indexOf(e.tier || 'primary');
+        if (!best || cost < best.cost)
+          best = { d, cost, letter: e.letter, label: e.label, tier: e.tier || 'primary' };
       }
-      if (best && best.d < thr)
+      if (best)
         out.push({ idx, mask: idx.reduce((m, i) => m | (1 << i), 0), ...best });
     };
     for (const k of sizes) {
@@ -103,7 +113,7 @@
         for (let j = i + k - 1; j < n; j++) consider([...run, j]);
       }
     }
-    return out.sort((a, b) => a.d - b.d);
+    return out.sort((a, b) => (a.cost ?? a.d) - (b.cost ?? b.d));
   }
 
   /* 一筆的走向：橫、豎，或其他（撇、捺、折…）。孤筆略過原則只放行橫與豎。 */
@@ -125,10 +135,11 @@
     const thr = opts.thr || SAME_SHAPE;
     const segPenalty = opts.segPenalty ?? 0.05;   /* 「能合不分」：字根愈少愈好 */
     const skip = opts.skip || null;               /* 孤筆略過原則：{penalty, allow:['橫','豎']} */
+    const tierPenalty = opts.tierPenalty ?? 0;   /* 優次等原則 */
     const maxNodes = opts.maxNodes || 60000;
     const n = medians.length;
     if (!lib.length || !n) return [];
-    const cand = candidates(medians, lib, thr);
+    const cand = candidates(medians, lib, thr, tierPenalty);
     if (!cand.length) return [];
     const FULL = n === 31 ? 0x7fffffff : (1 << n) - 1;
 
@@ -157,7 +168,8 @@
       while (cur.mask & (1 << low)) low++;          /* 最低的未覆蓋筆畫 */
       for (const c of byLowest[low]) {
         if (cur.mask & c.mask) continue;
-        heap.push({ mask: cur.mask | c.mask, cost: cur.cost + c.d + segPenalty,
+        heap.push({ mask: cur.mask | c.mask,
+                    cost: cur.cost + (c.cost ?? c.d) + segPenalty,
                     segs: [...cur.segs, c] });
       }
       if (heap.length > 5000) heap = heap.slice(0, 2500);
@@ -171,7 +183,7 @@
         total: n,
         /* 筆順原則：按各字根的首筆先後排序 */
         segments: [...segs].sort((a, b) => a.idx[0] - b.idx[0])
-          .map(s => ({ strokes: s.idx, letter: s.letter, label: s.label, d: s.d })),
+          .map(s => ({ strokes: s.idx, letter: s.letter, label: s.label, d: s.d, tier: s.tier })),
       };
     };
     if (results.length) return results.map(r => fmt(r.segs, r.cost));
@@ -182,12 +194,12 @@
     let mask = 0, cost = 0;
     for (const c of cand) {
       if (mask & c.mask) continue;
-      mask |= c.mask; taken.push(c); cost += c.d;
+      mask |= c.mask; taken.push(c); cost += c.cost ?? c.d;
     }
     if (!taken.length) return [];
     return [fmt(taken, cost)];
   }
 
-  global.Zigen = { SAME_SHAPE, getGlyph, allShapes, shapesOf, buildLibrary, merge, predict,
-                   strokeKind };
+  global.Zigen = { SAME_SHAPE, TIERS, tierOf, getGlyph, allShapes, shapesOf, buildLibrary,
+                   merge, predict, strokeKind };
 })(window);

@@ -52,9 +52,12 @@
       "id": "tier_priority",
       "name": "優次等原則",
       "desc": "可以取優等碼，不取次等碼；可以取次等碼，不取三等碼。",
-      "kind": "manual",
+      "kind": "enforced",
       "enabled": true,
-      "note": "字根表分優／次／三等；預測時尚未按等級加權（將來可加）。"
+      "note": "預測時，次等字根每個加一份成本、三等加兩份，所以「可以取優等，就不取次等」。",
+      "params": {
+        "penalty": 0.05
+      }
     },
     {
       "id": "enclosure",

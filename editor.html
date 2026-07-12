@@ -91,7 +91,10 @@
     outline:1px dashed var(--accent); }
   .addbtns { display:flex; flex-direction:column; gap:3px; justify-content:center; }
   .addbtns button { padding:2px 7px; font-size:12px; }
-  .tier-label { font-size:11px; color:var(--muted); letter-spacing:.06em; margin:10px 0 2px; }
+  .tier-label { font-size:11px; color:var(--muted); letter-spacing:.08em; margin:2px 0 4px;
+    text-transform:none; font-weight:600; }
+  .tier { border-top:1px solid var(--line); padding-top:7px; margin-top:9px; }
+  .tier:first-of-type { border-top:none; margin-top:2px; }
   .mini { font-size:12px; padding:3px 8px; color:var(--muted); }
   .codes { display:flex; flex-wrap:wrap; gap:6px; }
   .code-item { display:flex; align-items:center; gap:3px; border:1px solid var(--line);
@@ -236,9 +239,15 @@ const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#
    OR                 {glyph:{src:"笑", strokes:[0,1,2]}}  (a stroke subset of a source char).
    The second form is what lets 字根 exist that Unicode has no codepoint for. */
 const shapeKey = s => s.z || `${s.glyph.src}#${s.glyph.strokes.join(',')}`;
-const shapeLists = L => [...L.intentions.map(i => i.shapes), L.secondary, L.tertiary];
+const TIERS = [
+  ['primary',   '優等字根'],
+  ['secondary', '次等 · 孤立字根'],
+  ['tertiary',  '三等 · 保全字根'],
+];
+const tierOf = it => it.tier || 'primary';
+const intentionsOf = (L, tier) => L.intentions.filter(it => tierOf(it) === tier);
 const allShapes = () => data.letters.flatMap(L =>
-  shapeLists(L).flatMap(a => a.map(s => ({ letter: L.letter, s }))));
+  L.intentions.flatMap(it => it.shapes.map(s => ({ letter: L.letter, s, tier: tierOf(it) }))));
 
 function duplicates() {
   const m = new Map();
@@ -292,41 +301,46 @@ function render() {
     const card = el('div', 'card');
     card.append(el('div', 'key', L.letter));
 
-    L.intentions.forEach((it, ii) => {
-      const box = el('div', 'intent');
-      const ih = el('div', 'intent-head');
-      ih.append(el('div', 'num', String(ii + 1)));
-      const desc = el('input', 'desc');
-      desc.value = it.desc || '';
-      desc.placeholder = it.auto
-        ? '未分類（逐字取碼自動學來）— 寫下取形意圖即可歸類'
-        : '取形意圖，例：「人」下有一橫或有一點';
-      desc.oninput = () => { it.desc = desc.value; if (desc.value) delete it.auto; touch(); };
-      ih.append(desc);
-      const del = el('span', '', '✕');
-      del.style.cssText = 'cursor:pointer;color:var(--muted);font-size:11px;padding:0 4px';
-      del.title = '刪除此意圖';
-      del.onclick = () => { L.intentions.splice(ii, 1); touch(); render(); };
-      ih.append(del);
-      box.append(ih);
+    for (const [tier, label] of TIERS) {
+      const sec = el('div', 'tier');
+      sec.append(el('div', 'tier-label', label));
 
-      const shapes = dropZone(el('div', 'shapes'), it.shapes);
-      it.shapes.forEach((s, si) => shapes.append(chip(it.shapes, si, s, dup, L, it)));
-      shapes.append(addButtons(it.shapes));
-      box.append(shapes);
-      card.append(box);
-    });
+      intentionsOf(L, tier).forEach(it => {
+        const ii = L.intentions.indexOf(it);
+        const box = el('div', 'intent');
+        const ih = el('div', 'intent-head');
+        ih.append(el('div', 'num', String(intentionsOf(L, tier).indexOf(it) + 1)));
+        const desc = el('input', 'desc');
+        desc.value = it.desc || '';
+        desc.placeholder = it.auto
+          ? '未分類（逐字取碼自動學來）— 寫下取形意圖即可歸類'
+          : '取形意圖，例：「人」下有一橫或有一點';
+        desc.oninput = () => { it.desc = desc.value; if (desc.value) delete it.auto; touch(); };
+        ih.append(desc);
+        const del = el('span', '', '✕');
+        del.style.cssText = 'cursor:pointer;color:var(--muted);font-size:11px;padding:0 4px';
+        del.title = '刪除此意圖';
+        del.onclick = () => {
+          if (it.shapes.length && !confirm(`「${it.desc || '未命名'}」底下還有 ${it.shapes.length} 個字根，一併刪除？`)) return;
+          L.intentions.splice(ii, 1); touch(); render();
+        };
+        ih.append(del);
+        box.append(ih);
 
-    const addI = el('button', 'mini', '＋ 新增意圖');
-    addI.onclick = () => { L.intentions.push({ desc: '', shapes: [] }); touch(); render(); };
-    card.append(addI);
+        const shapes = dropZone(el('div', 'shapes'), it.shapes);
+        it.shapes.forEach((s, si) => shapes.append(chip(it.shapes, si, s, dup, L, it)));
+        shapes.append(addButtons(it.shapes));
+        box.append(shapes);
+        sec.append(box);
+      });
 
-    for (const [k, label] of [['secondary', '次等 · 孤立字根'], ['tertiary', '三等 · 保全字根']]) {
-      card.append(el('div', 'tier-label', label));
-      const row = dropZone(el('div', 'shapes'), L[k]);
-      L[k].forEach((s, si) => row.append(chip(L[k], si, s, dup, L, null)));
-      row.append(addButtons(L[k]));
-      card.append(row);
+      const addI = el('button', 'mini', '＋ 新增意圖');
+      addI.onclick = () => {
+        L.intentions.push({ desc: '', tier, shapes: [] });
+        touch(); render();
+      };
+      sec.append(addI);
+      card.append(sec);
     }
 
     const nt = el('textarea', 'notes');
@@ -404,14 +418,12 @@ function chip(arr, i, s, dup, L, it) {
 
 /* 把一個字根移到同一字母下的另一個意圖（學來的字根預設落在「未分類」） */
 function moveShape(arr, i, s, L, from) {
+  const label = t => TIERS.find(x => x[0] === t)[1];
   const opts = L.intentions.map((it, n) =>
-    `${n + 1}. ${it.desc || (it.auto ? '未分類' : '（未命名）')}`).join('\n');
-  const ans = prompt(`把這個字根移到 ${L.letter} 的哪個意圖？\n\n${opts}\n\n輸入編號（或 0 = 新增一個意圖）：`);
+    `${n + 1}. [${label(tierOf(it))}] ${it.desc || (it.auto ? '未分類' : '（未命名）')}`).join('\n');
+  const ans = prompt(`把這個字根移到 ${L.letter} 的哪個意圖？（也可以直接用拖的）\n\n${opts}\n\n輸入編號：`);
   if (ans === null) return;
-  const n = parseInt(ans, 10);
-  let target;
-  if (n === 0) { target = { desc: '', shapes: [] }; L.intentions.push(target); }
-  else target = L.intentions[n - 1];
+  const target = L.intentions[parseInt(ans, 10) - 1];
   if (!target || target === from) return;
   arr.splice(i, 1);
   target.shapes.push(s);
@@ -503,8 +515,10 @@ function renderStats() {
   const sh = allShapes();
   const dup = duplicates();
   const uses = sh.reduce((n, x) => n + (x.s.count || 0), 0);
+  const byTier = t => sh.filter(x => x.tier === t).length;
   $('#stats').innerHTML =
-    `字根 <b>${sh.length}</b>　` +
+    `字根 <b>${sh.length}</b>（優 <b>${byTier('primary')}</b> ·` +
+    ` 次 <b>${byTier('secondary')}</b> · 三 <b>${byTier('tertiary')}</b>）　` +
     `累計指派 <b>${uses}</b>　` +
     `意圖 <b>${data.letters.reduce((n, L) => n + L.intentions.filter(i => !i.auto).length, 0)}</b>　` +
     `重複 <b style="color:var(--dupe)">${dup.length}</b>`;

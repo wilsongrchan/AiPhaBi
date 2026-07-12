@@ -6,25 +6,24 @@
     "source": "手稿 2026-07-12（二版）",
     "max_code_length": 4,
     "wildcard_key": "Z",
-    "note": "字根表由「逐字取碼」頁學習而成：每確認一個筆畫組合→字母的指派，該字根就會併入本表（相同形狀自動合併並計次）。也可在此手動新增／刪除／改分意圖。",
-    "merge_threshold": 0.25
+    "note": "每個字母下的字根依「等級」（優／次／三）再依「取形意圖」分組。逐字取碼確認的字根會學進來（預設落在優等的未分類），可拖放改意圖或等級。",
+    "merge_threshold": 0.25,
+    "tiers": {
+      "primary": "優等字根",
+      "secondary": "次等 · 孤立字根",
+      "tertiary": "三等 · 保全字根"
+    }
   },
   "letters": [
     {
       "letter": "A",
       "hint": "人下有一横或一点、直框中有一横或一点。",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "B",
       "hint": "",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -48,25 +47,20 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "C",
       "hint": "左右框",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "整行手稿較淡，需核對。",
       "intentions": []
     },
     {
       "letter": "D",
       "hint": "月",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -89,25 +83,20 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "E",
       "hint": "上下穿",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "E=上下穿，與 F=穿橫 的分別需明文寫成規則。",
       "intentions": []
     },
     {
       "letter": "F",
       "hint": "穿橫",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "此行字根最多，辨認信心最低。",
       "intentions": [
         {
@@ -131,7 +120,8 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         },
         {
           "desc": "",
@@ -153,34 +143,26 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "G",
       "hint": "",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "H",
       "hint": "並聯",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "I",
       "hint": "橫",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -201,48 +183,14 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "J",
       "hint": "撇",
-      "secondary": [
-        {
-          "glyph": {
-            "src": "的",
-            "strokes": [
-              0
-            ]
-          },
-          "ex": "的",
-          "count": 6,
-          "seen": [
-            "的",
-            "人",
-            "就",
-            "我"
-          ],
-          "learned": true
-        },
-        {
-          "glyph": {
-            "src": "我",
-            "strokes": [
-              0
-            ]
-          },
-          "ex": "我",
-          "count": 3,
-          "seen": [
-            "我"
-          ],
-          "learned": true
-        }
-      ],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -265,6 +213,45 @@
               ],
               "learned": true
             }
+          ],
+          "tier": "primary"
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "secondary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "的",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "的",
+              "count": 6,
+              "seen": [
+                "的",
+                "人",
+                "就",
+                "我"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "我",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "我",
+              "count": 3,
+              "seen": [
+                "我"
+              ],
+              "learned": true
+            }
           ]
         }
       ]
@@ -272,18 +259,12 @@
     {
       "letter": "K",
       "hint": "竹／水",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "L",
       "hint": "乙／豎彎",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -304,7 +285,15 @@
                 "就"
               ],
               "learned": true
-            },
+            }
+          ],
+          "tier": "primary"
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "secondary",
+          "shapes": [
             {
               "glyph": {
                 "src": "人",
@@ -328,27 +317,18 @@
     {
       "letter": "M",
       "hint": "巾／小",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "N",
       "hint": "几／豎",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "O",
       "hint": "包（全包）",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -371,25 +351,20 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "P",
       "hint": "",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "Q",
       "hint": "點／貫",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -427,25 +402,20 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "R",
       "hint": "斜包",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "S",
       "hint": "紐",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -467,16 +437,14 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "T",
       "hint": "十／木",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -498,43 +466,32 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "U",
       "hint": "半包／艇",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "V",
       "hint": "",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "W",
       "hint": "山／心",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": []
     },
     {
       "letter": "X",
       "hint": "乂／又",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -559,16 +516,14 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "Y",
       "hint": "人／大",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "",
       "intentions": [
         {
@@ -619,16 +574,14 @@
               ],
               "learned": true
             }
-          ]
+          ],
+          "tier": "primary"
         }
       ]
     },
     {
       "letter": "Z",
       "hint": "萬用鍵（wildcard）",
-      "secondary": [],
-      "tertiary": [],
-      "examples": [],
       "notes": "萬用鍵：匹配任何一碼。",
       "intentions": []
     }

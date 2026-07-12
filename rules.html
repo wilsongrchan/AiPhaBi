@@ -92,6 +92,7 @@ const PARAMS = {
   merge_over_split: [['seg_penalty', '每多一個字根的成本（越大越傾向合併）', 0.01, 0, 1]],
   skip_isolated_hv: [['penalty', '略過一筆的成本（越小越容易略過）', 0.05, 0, 2]],
   max_code_length: [['max', '最多幾碼', 1, 1, 8]],
+  tier_priority: [['penalty', '降一個等級的成本（越大越堅持用優等）', 0.01, 0, 1]],
 };
 
 function render() {
