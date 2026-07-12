@@ -25,7 +25,7 @@
     {
       "id": "skip_isolated_hv",
       "name": "孤筆略過原則",
-      "desc": "若有一橫或一豎無法與其他筆畫組成字根，則略過不取碼。",
+      "desc": "若有一橫或一豎無法與其他筆畫組成字根，則略過不取碼。除非該孤立一橫為最後一劃，則取“I”。\n",
       "kind": "enforced",
       "enabled": true,
       "params": {
@@ -33,9 +33,10 @@
         "allow": [
           "橫",
           "豎"
-        ]
+        ],
+        "last_stroke_letter": "I"
       },
-      "note": "預測時允許把落單的橫／豎留空不取；取碼時也可手動選取筆畫後按 space 標為略過。"
+      "note": "程式讀得懂的部分：penalty＝略過一筆的成本；allow＝哪些筆畫可以略過；last_stroke_letter＝孤立的『末筆橫』不略過，改取這個字母（留空則照樣略過）。取碼時也可手動選取筆畫後按 space 標為略過。"
     },
     {
       "id": "max_code_length",

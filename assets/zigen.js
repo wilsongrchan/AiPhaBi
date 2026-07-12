@@ -146,11 +146,19 @@
     const byLowest = Array.from({ length: n }, () => []);
     for (const c of cand) byLowest[c.idx[0]].push(c);
 
-    /* 略過原則：讓落單的橫／豎可以不被任何字根覆蓋，代價是一點成本 */
+    /* 孤筆略過原則：讓落單的橫／豎可以不被任何字根覆蓋，代價是一點成本。
+       例外：最後一筆若是孤立的橫，不略過，取指定的字母（lastLetter，預設「I」）。 */
     if (skip) medians.forEach((m, i) => {
-      if (skip.allow.includes(strokeKind(m)))
-        byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty, skip: true,
-                           letter: '', label: `略過（${strokeKind(m)}）` });
+      const kind = strokeKind(m);
+      if (!skip.allow.includes(kind)) return;
+      if (kind === '橫' && i === n - 1 && skip.lastLetter) {
+        byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty,
+                           letter: skip.lastLetter.toUpperCase(),
+                           label: `末筆橫 → ${skip.lastLetter.toUpperCase()}` });
+        return;
+      }
+      byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty, skip: true,
+                         letter: '', label: `略過（${kind}）` });
     });
 
     const results = [], visited = new Map();

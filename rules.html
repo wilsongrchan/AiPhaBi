@@ -75,6 +75,8 @@
   <div class="intro">
     標「<span class="tag enforced">會執行</span>」的原則會實際影響「逐字取碼」頁的自動預測；
     標「<span class="tag manual">僅記錄</span>」的是你自己取碼時遵守的準則，程式暫時不會執行。
+    <b>注意：程式讀的是下面的「參數」，不是文字說明。</b>
+    改了說明文字而沒有對應的參數，預測不會跟著變 —— 那種情況要我改程式。
     改動即時生效（另一頁會自動同步）。
   </div>
   <div id="list"></div>
@@ -90,7 +92,10 @@ const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#
 
 const PARAMS = {
   merge_over_split: [['seg_penalty', '每多一個字根的成本（越大越傾向合併）', 0.01, 0, 1]],
-  skip_isolated_hv: [['penalty', '略過一筆的成本（越小越容易略過）', 0.05, 0, 2]],
+  skip_isolated_hv: [
+    ['penalty', '略過一筆的成本（越小越容易略過）', 0.05, 0, 2],
+    ['last_stroke_letter', '孤立的末筆橫改取哪個字母（留空＝照樣略過）', 'text'],
+  ],
   max_code_length: [['max', '最多幾碼', 1, 1, 8]],
   tier_priority: [['penalty', '降一個等級的成本（越大越堅持用優等）', 0.01, 0, 1]],
 };
@@ -133,9 +138,17 @@ function render() {
       for (const [key, label, step, min, max] of ps) {
         const l = el('label');
         l.append(el('span', '', label));
-        const inp = el('input'); inp.type = 'number';
-        inp.value = r.params[key]; inp.step = step; inp.min = min; inp.max = max;
-        inp.oninput = () => { r.params[key] = +inp.value; touch(); };
+        const inp = el('input');
+        if (step === 'text') {
+          inp.type = 'text'; inp.maxLength = 1; inp.style.width = '40px';
+          inp.style.textTransform = 'uppercase';
+          inp.value = r.params[key] ?? '';
+          inp.oninput = () => { r.params[key] = inp.value.toUpperCase(); touch(); };
+        } else {
+          inp.type = 'number';
+          inp.value = r.params[key]; inp.step = step; inp.min = min; inp.max = max;
+          inp.oninput = () => { r.params[key] = +inp.value; touch(); };
+        }
         l.append(inp);
         box.append(l);
       }

@@ -390,7 +390,8 @@ async function predict() {
   const out = Zigen.predict(medians, lib, {
     thr,
     segPenalty: merge ? merge.params.seg_penalty : 0.05,
-    skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow } : null,
+    skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
+                 lastLetter: sk.params.last_stroke_letter || '' } : null,
     tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
   });
   predBusy = false;
