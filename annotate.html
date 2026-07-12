@@ -162,12 +162,14 @@
 
     <div class="hintbar">
       點筆畫 → 按 <kbd>A</kbd>–<kbd>Z</kbd> 指派字母，即成一個字根（並自動寫入字根表）。
-      <kbd>X</kbd> 略過選取的筆畫（孤筆略過原則）　<kbd>space</kbd> 筆順　
-      <kbd>⌫</kbd> 刪最後字根　<kbd>enter</kbd> 儲存並下一字
+      <kbd>space</kbd> 略過選取的筆畫（孤筆略過原則）　<kbd>/</kbd> 顯示筆順
+      <kbd>⌫</kbd> 刪最後字根　<kbd>esc</kbd> 清除選取　<kbd>enter</kbd> 儲存並下一字
     </div>
     <div style="display:flex;gap:6px">
+      <button id="skipSel">略過選取 ␣</button>
       <button id="clearSel">清除選取</button>
       <button id="undoSeg">刪最後字根</button>
+      <button id="nums">顯示筆順 /</button>
       <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
     </div>
   </div>
@@ -587,6 +589,13 @@ async function pollZigen() {
 }
 
 $('#saveNext').onclick = saveNext;
+function toggleNums() {
+  showNums = !showNums;
+  $('#nums').classList.toggle('primary', showNums);
+  drawGlyph();
+}
+$('#nums').onclick = toggleNums;
+$('#skipSel').onclick = skipSelected;
 $('#clearSel').onclick = () => { sel = []; drawGlyph(); suggest(); };
 $('#undoSeg').onclick = () => { segs.pop(); touch(); drawGlyph(); renderSegs(); };
 $('#note').oninput = touch;
@@ -609,11 +618,12 @@ $('#export').onclick = () => {
 };
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if (e.key === ' ') { e.preventDefault(); showNums = !showNums; drawGlyph(); }
+  /* A–Z 全部留給字根指派，所以略過用 space，顯示筆順改用 / */
+  if (e.key === ' ') { e.preventDefault(); skipSelected(); }
+  else if (e.key === '/') { e.preventDefault(); toggleNums(); }
   else if (e.key === 'Enter') { e.preventDefault(); saveNext(); }
   else if (e.key === 'Backspace') { e.preventDefault(); segs.pop(); touch(); drawGlyph(); renderSegs(); }
   else if (e.key === 'Escape') { sel = []; drawGlyph(); suggest(); }
-  else if (e.key === 'x' || e.key === 'X') { e.preventDefault(); skipSelected(); }
   else if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); commit(e.key); }
   else if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
 });

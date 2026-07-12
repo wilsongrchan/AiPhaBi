@@ -147,7 +147,7 @@
                 ]
               },
               "ex": "我",
-              "count": 1,
+              "count": 3,
               "seen": [
                 "我"
               ],
@@ -208,7 +208,39 @@
     {
       "letter": "J",
       "hint": "撇",
-      "secondary": [],
+      "secondary": [
+        {
+          "glyph": {
+            "src": "的",
+            "strokes": [
+              0
+            ]
+          },
+          "ex": "的",
+          "count": 6,
+          "seen": [
+            "的",
+            "人",
+            "就",
+            "我"
+          ],
+          "learned": true
+        },
+        {
+          "glyph": {
+            "src": "我",
+            "strokes": [
+              0
+            ]
+          },
+          "ex": "我",
+          "count": 3,
+          "seen": [
+            "我"
+          ],
+          "learned": true
+        }
+      ],
       "tertiary": [],
       "examples": [],
       "notes": "",
@@ -217,23 +249,6 @@
           "desc": "",
           "auto": true,
           "shapes": [
-            {
-              "glyph": {
-                "src": "的",
-                "strokes": [
-                  0
-                ]
-              },
-              "ex": "的",
-              "count": 6,
-              "seen": [
-                "的",
-                "人",
-                "就",
-                "我"
-              ],
-              "learned": true
-            },
             {
               "glyph": {
                 "src": "不",
@@ -247,20 +262,6 @@
               "seen": [
                 "不",
                 "就"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "我",
-                "strokes": [
-                  0
-                ]
-              },
-              "ex": "我",
-              "count": 1,
-              "seen": [
-                "我"
               ],
               "learned": true
             }
