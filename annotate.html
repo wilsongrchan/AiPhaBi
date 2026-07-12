@@ -128,6 +128,21 @@
     border:1px solid var(--bad,#c0392b); color:var(--ink);
     background:color-mix(in srgb, var(--bad,#c0392b) 8%, transparent); }
   .clash code { font:700 12px ui-monospace,monospace; color:var(--bad,#c0392b); }
+  .chk { display:flex; gap:7px; align-items:flex-start; font-size:12px; line-height:1.5;
+    padding:6px 8px; border-radius:8px; border:1px solid var(--line); margin-bottom:5px;
+    background:var(--card); }
+  .chk .ic { flex:none; font-size:11px; width:14px; text-align:center; }
+  .chk.warn { border-color:var(--warn); }
+  .chk.warn .ic { color:var(--warn); }
+  .chk.info .ic { color:var(--muted); }
+  .chk.ok { border-color:var(--ok); color:var(--muted); }
+  .chk.ok .ic { color:var(--ok); }
+  .chk .body { flex:1; }
+  .chk b { color:var(--ink); }
+  .chk .rule { color:var(--muted); font-size:11px; }
+  .chk .act { flex:none; display:flex; gap:4px; }
+  .chk .act button { padding:1px 6px; font-size:11px; }
+  .chk.muted { opacity:.5; }
   .clash .ch { font-size:17px; font-family:"PingFang TC",serif; }
   textarea { width:100%; border:1px solid var(--line); border-radius:7px; background:var(--card);
     color:var(--ink); padding:5px 8px; font:inherit; font-size:13px; min-height:40px; resize:vertical; }
@@ -195,6 +210,9 @@
 
     <div class="lbl">已取字根（按筆順）</div>
     <div id="segs"></div>
+
+    <div class="lbl">檢查</div>
+    <div id="checks"></div>
 
     <div class="lbl">備註</div>
     <textarea id="note" placeholder="例外／約定原則…"></textarea>
@@ -367,6 +385,7 @@ function renderSegs() {
     box.append(d);
   });
   renderCode();
+  renderChecks();
 }
 /* 打字實際要按的碼：超過上限時取前 head 碼 + 尾 tail 碼 */
 const finalOf = code => Zigen.shorten(code, rules && rules.rules.find(r =>
@@ -404,6 +423,141 @@ function renderCode() {
       clash.map(ch => `<span class="ch">${ch}</span>`).join('、') +
       ` 的碼。可以接受（打字時多選一次），或改用別的拆法／字根。`;
   } else w.style.display = 'none';
+}
+
+/* ---------- 檢查：這個拆解有沒有違反已訂的原則 ----------
+   每一條都可以「忽略」——記在該字的 overrides 裡，下次不再提醒。 */
+function bestMatch(strokeIdx, letter) {
+  const vec = Shape.strokeVec(strokeIdx.map(i => medians[i]));
+  if (!vec) return null;
+  const pool = lib.filter(e => e.n === strokeIdx.length &&
+    (letter === undefined || e.letter === letter));
+  let best = null;
+  for (const e of pool) {
+    const d = Shape.dist(vec, e.vec);
+    if (!best || d < best.d) best = { d, e };
+  }
+  return best;
+}
+
+function checks() {
+  const out = [];
+  const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const on = id => rules && rules.rules.find(r =>
+    r.id === id && r.enabled && r.kind === 'enforced');
+  const TIER_NAME = { primary: '優等', secondary: '次等', tertiary: '三等' };
+
+  /* 1. 筆順原則：字根要按首筆先後排列 */
+  if (on('stroke_order') && segs.length > 1) {
+    const firsts = segs.map(s => Math.min(...s.strokes));
+    const sorted = [...firsts].every((v, i) => i === 0 || firsts[i - 1] <= v);
+    if (!sorted) out.push({ key: 'order', lvl: 'warn', rule: '筆順原則',
+      msg: '字根沒有按首筆先後排列。' });
+  }
+
+  segs.forEach((sg, i) => {
+    const mine = bestMatch(sg.strokes, sg.letter);
+    const any = bestMatch(sg.strokes);
+
+    /* 2. 這組筆畫跟你選的字母的既有字根對不上，但很像別的字母的字根 */
+    if (any && any.d < thr && (!mine || mine.d >= thr) && any.e.letter !== sg.letter) {
+      out.push({ key: `letter:${i}`, lvl: 'warn', rule: '字根比對',
+        msg: `第 ${i + 1} 個字根指派給 <b>${sg.letter}</b>，但它的形狀跟 ` +
+             `<b>${any.e.letter}</b> 的既有字根 ${any.e.label} 幾乎一樣（距離 ${any.d.toFixed(3)}）。` });
+    }
+    /* 3. 全新的形狀：不是錯，只是提醒會新增一條字根 */
+    else if (!mine || mine.d >= thr) {
+      out.push({ key: `new:${i}`, lvl: 'info', rule: '新字根',
+        msg: `第 ${i + 1} 個字根（${sg.letter}）是新形狀，儲存後會在 ${sg.letter} 底下新增一條字根。` });
+    }
+
+    /* 4. 優次等原則：用了次／三等，但同一組筆畫也配得上某個優等字根 */
+    if (on('tier_priority') && mine && mine.d < thr && mine.e.tier !== 'primary') {
+      const better = lib.filter(e => e.n === sg.strokes.length && e.tier === 'primary')
+        .map(e => ({ e, d: Shape.dist(Shape.strokeVec(sg.strokes.map(k => medians[k])), e.vec) }))
+        .filter(x => x.d < thr).sort((a, b) => a.d - b.d)[0];
+      if (better) out.push({ key: `tier:${i}`, lvl: 'warn', rule: '優次等原則',
+        msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}（${sg.letter}），` +
+             `但同一組筆畫也配得上<b>優等</b>字根 ${better.e.label}（<b>${better.e.letter}</b>）。` });
+    }
+  });
+
+  /* 5. 能合不分：相鄰兩個字根若能併成一個既有字根，就不該分兩碼 */
+  if (on('merge_over_split')) {
+    const order = [...segs].sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+    for (let i = 0; i + 1 < order.length; i++) {
+      const union = [...order[i].strokes, ...order[i + 1].strokes].sort((a, b) => a - b);
+      const m = bestMatch(union);
+      if (m && m.d < thr) out.push({ key: `merge:${i}`, lvl: 'warn', rule: '能合不分原則',
+        msg: `第 ${i + 1}、${i + 2} 個字根合起來剛好是既有字根 ${m.e.label}` +
+             `（<b>${m.e.letter}</b>）—— 可以一碼取盡，不必分兩碼。` });
+    }
+  }
+
+  /* 6. 孤筆略過原則：只有指定的筆畫可以略過；末筆孤立的橫應取指定字母 */
+  const sk = on('skip_isolated_hv');
+  if (sk) for (const i of skipped) {
+    const kind = Zigen.strokeKind(medians[i]);
+    if (!sk.params.allow.includes(kind)) {
+      out.push({ key: `skip:${i}`, lvl: 'warn', rule: '孤筆略過原則',
+        msg: `第 ${i + 1} 筆是「${kind}」，不在可略過的筆畫（${sk.params.allow.join('、')}）之內。` });
+    } else if (kind === '橫' && i === strokes.length - 1 && sk.params.last_stroke_letter) {
+      out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則',
+        msg: `末筆是孤立的橫，依原則應取 <b>${sk.params.last_stroke_letter}</b>，不是略過。` });
+    }
+  }
+  return out;
+}
+
+function renderChecks() {
+  const box = $('#checks'); box.innerHTML = '';
+  const rec = codes[cur] || {};
+  const ignored = new Set(rec.overrides || []);
+  const list = checks();
+  const active = list.filter(c => !ignored.has(c.key));
+
+  if (!segs.length) { box.innerHTML = '<div class="newz">還沒取碼。</div>'; return; }
+  if (!active.length) {
+    box.innerHTML = '<div class="chk ok"><span class="ic">✓</span>' +
+      '<div class="body">符合目前所有「會執行」的取碼原則。</div></div>';
+  }
+  for (const c of active) {
+    const d = el('div', 'chk ' + c.lvl);
+    d.append(el('span', 'ic', c.lvl === 'warn' ? '⚠' : 'ℹ'));
+    const body = el('div', 'body');
+    body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}</span>`;
+    d.append(body);
+    if (c.lvl === 'warn') {
+      const act = el('div', 'act');
+      const ig = el('button', '', '忽略');
+      ig.title = '這個字是例外，不用再提醒';
+      ig.onclick = () => {
+        rec.overrides = [...(rec.overrides || []), c.key];
+        codes[cur] = rec;
+        touch(); renderChecks();
+      };
+      act.append(ig);
+      d.append(act);
+    }
+    box.append(d);
+  }
+  /* 已忽略的仍列出來（淡色），可以還原 */
+  for (const c of list.filter(c => ignored.has(c.key))) {
+    const d = el('div', 'chk muted');
+    d.append(el('span', 'ic', '⊘'));
+    const body = el('div', 'body');
+    body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}（已忽略）</span>`;
+    d.append(body);
+    const act = el('div', 'act');
+    const un = el('button', '', '還原');
+    un.onclick = () => {
+      rec.overrides = (rec.overrides || []).filter(k => k !== c.key);
+      if (!rec.overrides.length) delete rec.overrides;
+      touch(); renderChecks();
+    };
+    act.append(un); d.append(act);
+    box.append(d);
+  }
 }
 
 /* ---------- 整字預測 ---------- */
