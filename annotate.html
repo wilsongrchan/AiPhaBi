@@ -7,11 +7,11 @@
 <style>
   :root {
     --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
-    --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --ghost:#cfc8bb;
+    --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --ghost:#cfc8bb; --bad:#c0392b;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
-            --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --ghost:#4a463c; }
+            --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --ghost:#4a463c; --bad:#e57373; }
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); height:100vh; display:flex;
@@ -120,6 +120,11 @@
   .ref { font-size:12px; color:var(--muted); }
   .ref b { color:var(--warn); font-family:ui-monospace,monospace; }
   .ref .good { color:var(--ok); } .ref .bad { color:var(--dupe,#c0392b); }
+  .clash { margin-top:6px; font-size:12px; line-height:1.5; padding:6px 9px; border-radius:8px;
+    border:1px solid var(--bad,#c0392b); color:var(--ink);
+    background:color-mix(in srgb, var(--bad,#c0392b) 8%, transparent); }
+  .clash code { font:700 12px ui-monospace,monospace; color:var(--bad,#c0392b); }
+  .clash .ch { font-size:17px; font-family:"PingFang TC",serif; }
   textarea { width:100%; border:1px solid var(--line); border-radius:7px; background:var(--card);
     color:var(--ink); padding:5px 8px; font:inherit; font-size:13px; min-height:40px; resize:vertical; }
 </style>
@@ -127,7 +132,7 @@
 <body>
 <header>
   <h1>愛發筆</h1>
-  <nav><a href="/">字根表</a><a href="/annotate" class="on">逐字取碼</a><a href="/rules">取碼原則</a></nav>
+  <nav><a href="/">字根表</a><a href="/annotate" class="on">逐字取碼</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a></nav>
   <div class="grow"></div>
   <span class="prog" id="prog"></span>
   <span class="prog" id="libinfo"></span>
@@ -178,6 +183,7 @@
     <div class="lbl">取碼</div>
     <div class="code" id="code">—</div>
     <div class="ref" id="ref"></div>
+    <div class="clash" id="clash" style="display:none"></div>
 
     <div class="lbl">選取中的筆畫</div>
     <div class="sugg" id="sugg"></div>
@@ -370,6 +376,17 @@ function renderCode() {
   bits.push(left ? `尚有 ${left} 筆未指派`
     : '<span style="color:var(--ok)">全部筆畫已處理</span>');
   $('#ref').innerHTML = bits.join('　');
+
+  /* 重碼提醒：這個碼是不是已經被別的字用了 */
+  const clash = code ? Object.entries(codes)
+    .filter(([ch, r]) => ch !== cur && r.code === code).map(([ch]) => ch) : [];
+  const w = $('#clash');
+  if (clash.length) {
+    w.style.display = 'block';
+    w.innerHTML = `⚠ <b>重碼</b>：<code>${code}</code> 已經是 ` +
+      clash.map(ch => `<span class="ch">${ch}</span>`).join('、') +
+      ` 的碼。可以接受（打字時多選一次），或改用別的拆法／字根。`;
+  } else w.style.display = 'none';
 }
 
 /* ---------- 整字預測 ---------- */
@@ -646,7 +663,8 @@ Promise.all([
   libInfo();
   $('#status').textContent = '已載入';
   renderQueue();
-  load(pool()[0] || '的');
+  const want = new URLSearchParams(location.search).get('c');
+  load(want && order.includes(want) ? want : (pool()[0] || '的'));
 });
 </script>
 </body>

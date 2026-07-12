@@ -91,6 +91,15 @@
     outline:1px dashed var(--accent); }
   .ins { width:3px; align-self:stretch; min-height:40px; border-radius:2px;
     background:var(--accent); }
+  .grip { cursor:grab; color:var(--line); font-size:12px; line-height:1; user-select:none;
+    padding:0 1px; }
+  .grip:hover { color:var(--accent); }
+  .intent.dragging { opacity:.35; }
+  .intent.ghost-intent { position:fixed; z-index:100; pointer-events:none; opacity:.95;
+    background:var(--card); border:1px solid var(--accent); border-radius:10px;
+    transform:translate(-30px,-14px); box-shadow:0 8px 24px rgba(0,0,0,.28); }
+  .ins-intent { height:3px; border-radius:2px; background:var(--accent); margin:3px 0; }
+  .tier.drop-i { background:color-mix(in srgb, var(--accent) 7%, transparent); border-radius:8px; }
   .addbtns { display:flex; flex-direction:column; gap:3px; justify-content:center; }
   .addbtns button { padding:2px 7px; font-size:12px; }
   .tier-label { font-size:11px; color:var(--muted); letter-spacing:.08em; margin:2px 0 4px;
@@ -305,12 +314,21 @@ function render() {
 
     for (const [tier, label] of TIERS) {
       const sec = el('div', 'tier');
+      intentZone(sec, L, tier);                      /* 空的等級也能接住意圖 */
       sec.append(el('div', 'tier-label', label));
 
       intentionsOf(L, tier).forEach(it => {
         const ii = L.intentions.indexOf(it);
         const box = el('div', 'intent');
+        intentZone(box, L, tier);                    /* 意圖可以被拖到這裡的前後 */
         const ih = el('div', 'intent-head');
+        const grip = el('span', 'grip', '⠿');
+        grip.title = '拖曳可移動整個意圖（換順序、換等級、換字母）';
+        grip.onpointerdown = ev => {
+          if (ev.button !== 0) return;
+          startIntentDrag(ev, box, L, it);
+        };
+        ih.append(grip);
         ih.append(el('div', 'num', String(intentionsOf(L, tier).indexOf(it) + 1)));
         const desc = el('input', 'desc');
         desc.value = it.desc || '';
@@ -443,6 +461,87 @@ async function pushChar(arr, ch) {
 /* 放置目標：每一列 shapes 都登記自己對應的陣列 */
 const zones = new WeakMap();
 const dropZone = (row, arr) => { zones.set(row, arr); return row; };
+
+/* ---------- 拖曳整個意圖：換順序、換等級、換字母 ---------- */
+const intentZones = new WeakMap();
+const intentZone = (elm, L, tier) => { intentZones.set(elm, { L, tier }); return elm; };
+
+function startIntentDrag(ev, boxEl, fromL, it) {
+  ev.preventDefault();
+  const x0 = ev.clientX, y0 = ev.clientY;
+  let ghost = null, target = null, before = null;
+
+  const move = e => {
+    if (!ghost) {
+      if (Math.hypot(e.clientX - x0, e.clientY - y0) < 5) return;
+      ghost = boxEl.cloneNode(true);
+      ghost.classList.add('ghost-intent');
+      ghost.style.width = boxEl.offsetWidth + 'px';
+      document.body.append(ghost);
+      boxEl.classList.add('dragging');
+      document.activeElement && document.activeElement.blur();
+    }
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top = e.clientY + 'px';
+    ghost.style.display = 'none';
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    ghost.style.display = '';
+
+    const hitIntent = under && under.closest('.intent');
+    const hitTier = under && under.closest('.tier');
+    const zone = (hitIntent && intentZones.has(hitIntent)) ? hitIntent
+               : (hitTier && intentZones.has(hitTier)) ? hitTier : null;
+    document.querySelectorAll('.tier.drop-i, .intent.drop-i')
+      .forEach(x => x.classList.remove('drop-i'));
+    intentMarker.remove();
+    target = null; before = null;
+    if (!zone || zone === boxEl) return;
+
+    const info = intentZones.get(zone);
+    target = info;
+    if (zone.classList.contains('intent')) {
+      /* 落在某個意圖上：看指標在它的上半還是下半，決定插在它前面或後面 */
+      const r = zone.getBoundingClientRect();
+      before = e.clientY < r.top + r.height / 2 ? zone : zone.nextElementSibling;
+      zone.parentNode.insertBefore(intentMarker, before);
+    } else {
+      zone.classList.add('drop-i');
+      const last = [...zone.querySelectorAll(':scope > .intent')].pop();
+      zone.insertBefore(intentMarker, last ? last.nextSibling : zone.querySelector('.mini'));
+      before = null;
+    }
+  };
+
+  const up = () => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    ghost && ghost.remove();
+    intentMarker.remove();
+    boxEl.classList.remove('dragging');
+    document.querySelectorAll('.tier.drop-i, .intent.drop-i')
+      .forEach(x => x.classList.remove('drop-i'));
+    if (!ghost || !target) return;
+
+    const { L: toL, tier } = target;
+    fromL.intentions.splice(fromL.intentions.indexOf(it), 1);
+    it.tier = tier;
+    if (it.auto && toL !== fromL) delete it.auto;
+    /* 插在同等級的第幾個意圖之前（沒有就放到該等級最後） */
+    const sibs = toL.intentions.filter(x => (x.tier || 'primary') === tier);
+    let at = toL.intentions.length;
+    if (before && before.classList && before.classList.contains('intent')) {
+      const idx = [...before.parentNode.querySelectorAll(':scope > .intent')].indexOf(before);
+      const anchor = sibs[idx];
+      if (anchor) at = toL.intentions.indexOf(anchor);
+    }
+    toL.intentions.splice(at, 0, it);
+    touch(); render();
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
+const intentMarker = (() => { const m = document.createElement('div');
+  m.className = 'ins-intent'; return m; })();
 
 /* 指標落在這一列的第幾個位置（chip 是 flex-wrap，先比 y 再比 x） */
 function insertIndex(row, x, y) {

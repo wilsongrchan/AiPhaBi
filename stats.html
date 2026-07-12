@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛發筆 — 碼表分析</title>
+<style>
+  :root {
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
+    --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --bad:#c0392b;
+    --bar:#c9c2b6;                 /* 一般長條：低調的灰（單一名目類別，不做深淺漸層） */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
+            --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --bad:#e57373;
+            --bar:#4a463c; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang TC","Helvetica Neue",sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:var(--bg);
+    border-bottom:1px solid var(--line); padding:12px 20px; display:flex; gap:12px;
+    align-items:center; }
+  h1 { font-size:16px; margin:0; font-weight:650; }
+  nav { display:flex; gap:5px; }
+  nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; }
+  nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .grow { flex:1; }
+  button { font:inherit; font-size:13px; padding:5px 11px; border-radius:7px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  main { max-width:1080px; margin:0 auto; padding:20px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:16px; }
+  h2 { font-size:14px; margin:0 0 2px; font-weight:650; }
+  .sub { font-size:12px; color:var(--muted); margin-bottom:14px; }
+
+  /* KPI */
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;
+    margin-bottom:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .kpi .v { font:650 30px/1.1 ui-monospace,Menlo,monospace; }
+  .kpi .l { font-size:12px; color:var(--muted); margin-top:3px; }
+  .kpi.alert .v { color:var(--bad); }
+
+  /* 長條圖 */
+  .chart { display:grid; grid-template-columns:repeat(26,1fr); gap:6px; align-items:end;
+    height:170px; position:relative; }
+  .col { display:flex; flex-direction:column; justify-content:flex-end; align-items:center;
+    height:100%; position:relative; cursor:default; }
+  .bar { width:100%; max-width:24px; background:var(--bar);
+    border-radius:4px 4px 0 0; min-height:2px; transition:background .1s; }
+  .col.hot .bar { background:var(--accent); }
+  .col.zero .bar { background:transparent; border-top:1px dashed var(--line); min-height:0; }
+  .col:hover .bar { filter:brightness(.92); }
+  .vlab { font:600 10px ui-monospace,monospace; color:var(--ink); margin-bottom:3px; height:12px; }
+  .axis { display:grid; grid-template-columns:repeat(26,1fr); gap:6px; margin-top:5px; }
+  .axis div { text-align:center; font:600 11px ui-monospace,monospace; color:var(--muted); }
+  .axis div.hot { color:var(--accent); }
+  .meanline { position:absolute; left:0; right:0; border-top:1px solid var(--line);
+    pointer-events:none; }
+  .meanline span { position:absolute; right:0; top:-15px; font-size:10px; color:var(--muted);
+    background:var(--card); padding:0 3px; }
+  .tip { position:fixed; z-index:20; background:var(--ink); color:var(--bg); font-size:12px;
+    padding:5px 8px; border-radius:6px; pointer-events:none; display:none; white-space:nowrap; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { font-size:11px; color:var(--muted); font-weight:600; letter-spacing:.05em; }
+  td.code { font:700 14px ui-monospace,monospace; color:var(--accent); }
+  td.chars { font-size:18px; font-family:"PingFang TC",serif; letter-spacing:.15em; }
+  .pill { font-size:10px; padding:1px 6px; border-radius:20px; border:1px solid var(--line);
+    color:var(--muted); }
+  .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .empty { color:var(--muted); font-size:13px; font-style:italic; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>愛發筆</h1>
+  <nav>
+    <a href="/">字根表</a><a href="/annotate">逐字取碼</a>
+    <a href="/stats" class="on">碼表分析</a><a href="/rules">取碼原則</a>
+  </nav>
+  <div class="grow"></div>
+  <span id="meta" style="font-size:12px;color:var(--muted)"></span>
+</header>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <section>
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <div>
+        <h2>字母使用頻率</h2>
+        <div class="sub" id="freqsub">每個字母在碼表中出現的次數。橘色＝用得比平均多的字母。</div>
+      </div>
+      <div class="grow"></div>
+      <button id="tabFreq">表格</button>
+    </div>
+    <div class="chart" id="chartAll"></div>
+    <div class="axis" id="axisAll"></div>
+    <div id="tableAll" class="hide" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <div>
+        <h2>首碼分佈</h2>
+        <div class="sub">每個字母作為「第一碼」的次數 — 這決定打字時第一下按鍵的負擔是否平均。</div>
+      </div>
+      <div class="grow"></div>
+      <button id="tabFirst">表格</button>
+    </div>
+    <div class="chart" id="chartFirst"></div>
+    <div class="axis" id="axisFirst"></div>
+    <div id="tableFirst" class="hide" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>重碼</h2>
+    <div class="sub" id="dupsub"></div>
+    <div id="dups"></div>
+  </section>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const LETTERS = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+
+let codes = {}, zigen = null, rank = new Map();
+
+/* ---------- 長條圖：名目類別 → 單一顏色；用得多的用強調色 + 直接標數字 ----------
+   （不用深淺漸層：長度已經表示大小，再用顏色重複編碼只會浪費唯一的顏色通道） */
+function bars(counts, chartId, axisId, tableId) {
+  const chart = $(chartId), axis = $(axisId);
+  chart.innerHTML = ''; axis.innerHTML = '';
+  const vals = LETTERS.map(L => counts[L] || 0);
+  const total = vals.reduce((a, b) => a + b, 0);
+  const max = Math.max(1, ...vals);
+  const mean = total / 26;
+  /* 資料太少時不做「偏重」判斷：三五個字就把半數字母染成橘色，只是雜訊 */
+  const enough = total >= 40;
+  const hot = v => enough && v > mean * 1.5;
+
+  LETTERS.forEach((L, i) => {
+    const v = vals[i];
+    const col = el('div', 'col' + (hot(v) ? ' hot' : '') + (v ? '' : ' zero'));
+    /* 只標「過熱」的字母：每根都標數字反而沒人看 */
+    col.append(el('div', 'vlab', hot(v) ? String(v) : ''));
+    const bar = el('div', 'bar');
+    bar.style.height = `calc(${(v / max) * 100}% - 15px)`;
+    col.append(bar);
+    col.onmousemove = e => {
+      const t = $('#tip');
+      t.style.display = 'block';
+      t.style.left = (e.clientX + 12) + 'px';
+      t.style.top = (e.clientY - 30) + 'px';
+      const pct = total ? (v / total * 100).toFixed(1) : '0.0';
+      t.textContent = `${L}　${v} 次　佔 ${pct}%　（平均 ${mean.toFixed(1)}）`;
+    };
+    col.onmouseleave = () => $('#tip').style.display = 'none';
+    chart.append(col);
+    const a = el('div', hot(v) ? 'hot' : '', L);
+    axis.append(a);
+  });
+
+  if (total) {
+    const ml = el('div', 'meanline');
+    ml.style.bottom = `${(mean / max) * 100}%`;
+    ml.append(el('span', '', `平均 ${mean.toFixed(1)}`));
+    chart.append(ml);
+  }
+
+  /* 表格檢視（無障礙：顏色以外的第二條路） */
+  const tbl = $(tableId);
+  const rows = LETTERS.map((L, i) => `<tr><td>${L}</td><td>${vals[i]}</td>
+    <td>${total ? (vals[i] / total * 100).toFixed(1) : '0.0'}%</td>
+    <td>${zigenCount[L] || 0}</td></tr>`).join('');
+  tbl.innerHTML = `<table><thead><tr><th>字母</th><th>次數</th><th>佔比</th><th>字根數</th></tr>
+    </thead><tbody>${rows}</tbody></table>`;
+}
+
+let zigenCount = {};
+
+function render() {
+  const entries = Object.entries(codes).filter(([, r]) => r.code);
+  const all = {}, first = {}, byCode = new Map();
+  let codeLen = 0;
+  for (const [ch, r] of entries) {
+    codeLen += r.code.length;
+    for (const L of r.code) all[L] = (all[L] || 0) + 1;
+    first[r.code[0]] = (first[r.code[0]] || 0) + 1;
+    if (!byCode.has(r.code)) byCode.set(r.code, []);
+    byCode.get(r.code).push(ch);
+  }
+  zigenCount = {};
+  for (const L of zigen.letters)
+    zigenCount[L.letter] = L.intentions.reduce((n, i) => n + i.shapes.length, 0);
+
+  const dups = [...byCode.entries()].filter(([, cs]) => cs.length > 1)
+    .map(([code, cs]) => ({ code, chars: cs,
+      best: Math.min(...cs.map(c => rank.get(c) ?? 99999)) }))
+    .sort((a, b) => a.best - b.best);
+  const dupChars = dups.reduce((n, d) => n + d.chars.length, 0);
+
+  /* KPI —— 一排數字，不需要做成圖 */
+  const kpi = (v, l, alert) =>
+    `<div class="kpi${alert ? ' alert' : ''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  $('#kpis').innerHTML =
+    kpi(entries.length, '已取碼字數') +
+    kpi(entries.length ? (codeLen / entries.length).toFixed(2) : '—', '平均碼長') +
+    kpi(dups.length, '重碼組', dups.length > 0) +
+    kpi(entries.length ? (dupChars / entries.length * 100).toFixed(1) + '%' : '0%',
+        '重碼率（重碼字 ÷ 已取碼字）', dupChars > 0) +
+    kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數');
+
+  bars(all, '#chartAll', '#axisAll', '#tableAll');
+  bars(first, '#chartFirst', '#axisFirst', '#tableFirst');
+
+  const hot = codeLen >= 40
+    ? Object.entries(all).filter(([, v]) => v > (codeLen / 26) * 1.5)
+        .sort((a, b) => b[1] - a[1]).map(([L]) => L)
+    : [];
+  $('#freqsub').innerHTML = '每個字母在碼表中出現的次數。橘色＝用得比平均多 50% 以上的字母。' +
+    (codeLen < 40
+      ? `　（取碼字數還太少，先取夠 ${Math.ceil((40 - codeLen) / 2.5)} 個字左右再看分佈才有意義。）`
+      : hot.length
+        ? `　目前偏重：<b>${hot.join(' ')}</b> — 可考慮把這些字母底下的字根拆到用得少的字母。`
+        : '　目前分佈算平均。');
+
+  /* 重碼 */
+  $('#dupsub').innerHTML = entries.length
+    ? `同一組碼對應多於一個字，打字時就要再選一次。目前 <b>${dups.length}</b> 組重碼、
+       涉及 <b>${dupChars}</b> 個字。依最常用的成員排序 —— 排在前面的最值得處理。`
+    : '還沒有取碼資料。';
+  const box = $('#dups');
+  if (!dups.length) {
+    box.innerHTML = entries.length
+      ? '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有重碼。</div>'
+      : '<div class="empty">—</div>';
+    return;
+  }
+  box.innerHTML = `<table><thead><tr><th>碼</th><th>字</th><th>字數</th><th>常用度</th></tr></thead>
+    <tbody>${dups.map(d => {
+      const common = d.best < 800;
+      return `<tr>
+        <td class="code">${d.code}</td>
+        <td class="chars">${d.chars.map(c =>
+          `<a href="/annotate?c=${encodeURIComponent(c)}" style="color:inherit">${c}</a>`).join('')}</td>
+        <td>${d.chars.length}</td>
+        <td><span class="pill${common ? ' bad' : ''}">${
+          common ? `常用字（第 ${d.best + 1} 名）` : `第 ${d.best + 1} 名`}</span></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+for (const [btn, tbl, chart, axis] of [
+  ['#tabFreq', '#tableAll', '#chartAll', '#axisAll'],
+  ['#tabFirst', '#tableFirst', '#chartFirst', '#axisFirst'],
+]) {
+  $(btn).onclick = () => {
+    const on = $(tbl).classList.toggle('hide');
+    $(btn).classList.toggle('on', !on);
+    $(chart).classList.toggle('hide', !on);
+    $(axis).classList.toggle('hide', !on);
+  };
+}
+
+let stamp = null;
+const fetchStamp = () => fetch('/api/state').then(r => r.json());
+async function load() {
+  [codes, zigen] = await Promise.all([
+    fetch('/api/codes').then(r => r.json()),
+    fetch('/api/zigen').then(r => r.json()),
+  ]);
+  render();
+  $('#meta').textContent = '隨字根表／碼表自動更新';
+}
+fetch('/api/freq').then(r => r.json()).then(f => {
+  f.order.forEach((c, i) => rank.set(c, i));
+  return load();
+}).then(() => fetchStamp()).then(s => { stamp = JSON.stringify(s); });
+
+setInterval(async () => {
+  const s = JSON.stringify(await fetchStamp());
+  if (s !== stamp) { stamp = s; load(); }
+}, 3000);
+</script>
+</body>
+</html>

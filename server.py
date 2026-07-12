@@ -6,6 +6,7 @@
   /                 字根表
   /annotate         逐字取碼
   /rules            取碼原則
+  /stats            碼表分析（字母使用頻率、重碼）
 
   /api/zigen        GET/PUT  字根表
   /api/codes        GET/PUT  碼表（逐字取碼結果）
@@ -92,6 +93,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._page("annotate.html")
         if u.path == "/rules":
             return self._page("rules.html")
+        if u.path == "/stats":
+            return self._page("stats.html")
 
         if u.path.startswith("/assets/") and u.path.endswith(".js"):
             f = (ROOT / u.path.lstrip("/")).resolve()

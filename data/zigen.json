@@ -202,6 +202,28 @@
             }
           ],
           "tier": "primary"
+        },
+        {
+          "desc": "",
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "在",
+                "strokes": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "ex": "在",
+              "count": 1,
+              "seen": [
+                "在"
+              ],
+              "learned": true
+            }
+          ]
         }
       ]
     },
@@ -215,7 +237,32 @@
       "letter": "H",
       "hint": "並聯",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "要",
+                "strokes": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "ex": "要",
+              "count": 4,
+              "seen": [
+                "要"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "I",
@@ -258,9 +305,10 @@
                 ]
               },
               "ex": "這",
-              "count": 2,
+              "count": 6,
               "seen": [
-                "這"
+                "這",
+                "就"
               ],
               "learned": true
             }
@@ -275,7 +323,6 @@
       "intentions": [
         {
           "desc": "",
-          "auto": true,
           "shapes": [
             {
               "glyph": {
@@ -286,10 +333,26 @@
                 ]
               },
               "ex": "不",
-              "count": 4,
+              "count": 5,
               "seen": [
                 "不",
-                "就"
+                "就",
+                "來"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "要",
+                "strokes": [
+                  7,
+                  8
+                ]
+              },
+              "ex": "要",
+              "count": 4,
+              "seen": [
+                "要"
               ],
               "learned": true
             }
@@ -358,7 +421,7 @@
                 ]
               },
               "ex": "以",
-              "count": 3,
+              "count": 5,
               "seen": [
                 "以",
                 "就"
@@ -381,11 +444,12 @@
                 ]
               },
               "ex": "人",
-              "count": 5,
+              "count": 11,
               "seen": [
                 "人",
                 "大",
-                "我"
+                "我",
+                "要"
               ],
               "learned": true
             }
@@ -397,7 +461,49 @@
       "letter": "M",
       "hint": "巾／小",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "就",
+                "strokes": [
+                  5,
+                  6,
+                  7
+                ]
+              },
+              "ex": "就",
+              "count": 2,
+              "seen": [
+                "就"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "要",
+                "strokes": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "ex": "要",
+              "count": 2,
+              "seen": [
+                "要"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "N",
@@ -440,9 +546,10 @@
                 ]
               },
               "ex": "這",
-              "count": 1,
+              "count": 4,
               "seen": [
-                "這"
+                "這",
+                "就"
               ],
               "learned": true
             }
@@ -496,7 +603,7 @@
                 ]
               },
               "ex": "的",
-              "count": 8,
+              "count": 10,
               "seen": [
                 "的",
                 "以",
@@ -594,9 +701,10 @@
                 ]
               },
               "ex": "上",
-              "count": 1,
+              "count": 2,
               "seen": [
-                "上"
+                "上",
+                "來"
               ],
               "learned": true
             }
@@ -665,7 +773,7 @@
                 ]
               },
               "ex": "有",
-              "count": 7,
+              "count": 10,
               "seen": [
                 "有",
                 "就",
@@ -712,9 +820,10 @@
                 ]
               },
               "ex": "以",
-              "count": 1,
+              "count": 6,
               "seen": [
-                "以"
+                "以",
+                "來"
               ],
               "learned": true
             },
@@ -735,6 +844,30 @@
             }
           ],
           "tier": "primary"
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "來",
+                "strokes": [
+                  0,
+                  5,
+                  6,
+                  7
+                ]
+              },
+              "ex": "來",
+              "count": 1,
+              "seen": [
+                "來"
+              ],
+              "learned": true
+            }
+          ]
         }
       ]
     },
