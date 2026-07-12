@@ -1,0 +1,17 @@
+# 第三方字形資料 —— 各有授權，不隨本專案散布。跑 fetch_data.py 重建。
+data/graphics.txt
+data/dictionary.txt
+data/tw_strokes.json
+data/freq.json
+
+# 香港教育局筆順快取：EDB 版權內容，只作個人參考，不上傳。
+data/hk_cache.json
+
+# 自動備份與雜項
+data/backups/
+__pycache__/
+node_modules/
+.DS_Store
+
+# HEIC 原檔（已有 jpg 版本）
+*.heic

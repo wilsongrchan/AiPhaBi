@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛發筆輸入法 — 字根表編輯器</title>
+<style>
+  :root {
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568;
+    --line:#e3ded4; --accent:#b4531f; --warn:#d98324; --dupe:#c0392b; --ok:#2e7d4f;
+    --ghost:#d9d3c8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284;
+            --line:#33312a; --accent:#e0894f; --warn:#e0a95c; --dupe:#e57373; --ok:#6bbd8e;
+            --ghost:#3b3830; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,"PingFang TC","Helvetica Neue",sans-serif; }
+  header { position:sticky; top:0; z-index:10; background:var(--bg);
+    border-bottom:1px solid var(--line); padding:12px 20px;
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:17px; margin:0; font-weight:650; }
+  nav { display:flex; gap:5px; }
+  nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; }
+  nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .stats { color:var(--muted); font-size:13px; display:flex; gap:14px; flex-wrap:wrap; }
+  .stats b { color:var(--ink); font-weight:600; }
+  .grow { flex:1; }
+  input[type=search] { padding:6px 10px; border:1px solid var(--line); border-radius:7px;
+    background:var(--card); color:var(--ink); width:170px; font-size:14px; }
+  button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover { opacity:.88; color:#fff; }
+  #status { font-size:13px; min-width:76px; color:var(--muted); }
+  #status.saved { color:var(--ok); } #status.dirty { color:var(--warn); }
+
+  main { padding:18px 20px; display:grid; gap:14px;
+    grid-template-columns:repeat(auto-fill,minmax(460px,1fr)); align-items:start; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px 14px; }
+  .card.hidden { display:none; }
+  .key { font:650 26px/1 ui-monospace,Menlo,monospace; margin-bottom:2px; }
+
+  .intent { border-left:2px solid var(--line); padding:6px 0 6px 10px; margin:8px 0; }
+  .intent-head { display:flex; align-items:center; gap:6px; }
+  .num { font:600 12px ui-monospace,monospace; color:var(--accent);
+    border:1px solid var(--accent); border-radius:50%; width:19px; height:19px;
+    display:grid; place-items:center; flex:none; }
+  .desc { flex:1; border:none; background:transparent; color:var(--ink); font:inherit;
+    font-size:14px; padding:2px 4px; border-radius:5px; }
+  .desc:hover { background:var(--bg); }
+  .desc:focus { outline:1px solid var(--line); background:var(--bg); }
+  .desc:placeholder-shown { color:var(--muted); font-style:italic; }
+  .shapes { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+
+  .chip { position:relative; display:flex; flex-direction:column; align-items:center;
+    border:1px solid var(--line); border-radius:8px; background:var(--bg);
+    padding:3px 8px 2px; min-width:46px; }
+  .chip.unc { border-color:var(--warn); border-style:dashed; }
+  .chip.dupe { box-shadow:inset 0 -3px 0 var(--dupe); }
+  .chip .z { font-size:26px; line-height:1.15; font-family:"PingFang TC","Songti TC",serif;
+    min-width:20px; text-align:center; outline:none; }
+  .chip svg.gly { width:30px; height:30px; display:block; }
+  .chip svg.gly .on { fill:var(--ink); }
+  .chip svg.gly .off { fill:var(--ghost); opacity:.5; }
+  .chip .ex { font-size:11px; color:var(--muted); outline:none; min-width:16px; text-align:center; }
+  .chip .ex:empty::before { content:"（例）"; opacity:.45; }
+  .chip .tools { position:absolute; top:-7px; right:-7px; display:none; gap:2px; }
+  .chip:hover .tools { display:flex; }
+  .chip .tools span { cursor:pointer; font-size:10px; width:16px; height:16px; border-radius:50%;
+    background:var(--card); border:1px solid var(--line); display:grid; place-items:center; }
+  .chip .tools .x:hover { color:var(--dupe); border-color:var(--dupe); }
+  .chip.unc .tools .u { color:var(--warn); border-color:var(--warn); }
+  .chip .set { position:absolute; top:-6px; left:-6px; font-size:9px; padding:0 3px;
+    border-radius:4px; border:1px solid var(--line); background:var(--card); cursor:pointer;
+    color:var(--muted); }
+  .chip .cnt { position:absolute; bottom:-7px; right:-6px; font:600 9px ui-monospace,monospace;
+    padding:0 3px; border-radius:4px; border:1px solid var(--line); background:var(--card);
+    color:var(--accent); cursor:pointer; }
+  .chip .cnt:hover { border-color:var(--accent); }
+  .empty { color:var(--muted); font-size:13px; font-style:italic; padding:6px 0; }
+  .chip.dragging { opacity:.35; }
+  .chip.ghost { position:fixed; z-index:100; pointer-events:none; opacity:.9;
+    transform:translate(-50%,-50%); box-shadow:0 6px 20px rgba(0,0,0,.25); }
+  .shapes { min-height:38px; border-radius:8px; }
+  .shapes.drop { background:color-mix(in srgb, var(--accent) 12%, transparent);
+    outline:1px dashed var(--accent); }
+  .addbtns { display:flex; flex-direction:column; gap:3px; justify-content:center; }
+  .addbtns button { padding:2px 7px; font-size:12px; }
+  .tier-label { font-size:11px; color:var(--muted); letter-spacing:.06em; margin:10px 0 2px; }
+  .mini { font-size:12px; padding:3px 8px; color:var(--muted); }
+  .codes { display:flex; flex-wrap:wrap; gap:6px; }
+  .code-item { display:flex; align-items:center; gap:3px; border:1px solid var(--line);
+    border-radius:6px; padding:2px 5px; background:var(--bg); }
+  .code-item .c { font-size:18px; width:20px; text-align:center; outline:none; }
+  .code-item .cd { font:600 12px ui-monospace,Menlo,monospace; color:var(--accent);
+    text-transform:uppercase; min-width:32px; outline:none; }
+  .code-item .x { cursor:pointer; color:var(--muted); font-size:11px; }
+  .notes { width:100%; margin-top:8px; border:1px solid var(--line); border-radius:7px;
+    background:var(--bg); color:var(--ink); padding:5px 8px; font:inherit; font-size:13px;
+    resize:vertical; min-height:30px; }
+  .dupe-panel { margin:0 20px 4px; padding:9px 13px; border:1px solid var(--dupe);
+    border-radius:10px; background:var(--card); font-size:13px; }
+  .dupe-panel b { color:var(--dupe); }
+  .dupe-panel .d { display:inline-block; margin-right:11px; }
+  .dupe-panel .d i { font-size:18px; font-style:normal; }
+
+  /* ---------- modal ---------- */
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; place-items:center; z-index:50; }
+  #modal.on { display:grid; }
+  .sheet { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px; width:min(680px,95vw); }
+  .tabs { display:flex; gap:6px; margin-bottom:8px; }
+  .tabs button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:10px; }
+  .pane { display:none; } .pane.on { display:block; }
+  .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .draw-row { display:flex; gap:14px; }
+  #pad { border:1px solid var(--line); border-radius:10px; background:var(--bg);
+    touch-action:none; cursor:crosshair; flex:none; }
+  .pad-side { flex:1; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .cands { display:flex; flex-wrap:wrap; gap:5px; align-content:flex-start;
+    max-height:220px; overflow:auto; }
+  .cand { display:flex; flex-direction:column; align-items:center; border:1px solid var(--line);
+    border-radius:8px; background:var(--bg); cursor:pointer; padding:2px 6px; min-width:42px; }
+  .cand:hover { border-color:var(--accent); }
+  .cand .g { font-size:26px; font-family:"PingFang TC","Songti TC",serif; line-height:1.15; }
+  .cand .s { font-size:9px; color:var(--muted); font-family:ui-monospace,monospace; }
+  .manual { flex:1; min-width:90px; padding:5px 8px; border:1px solid var(--line);
+    border-radius:7px; background:var(--bg); color:var(--ink); font-size:20px;
+    font-family:"PingFang TC",serif; }
+
+  /* stroke picker */
+  .pick-row { display:flex; gap:16px; align-items:flex-start; }
+  #srcIn { width:70px; font-size:26px; text-align:center; padding:4px;
+    border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink);
+    font-family:"PingFang TC",serif; }
+  #strokeGrid { display:flex; flex-wrap:wrap; gap:6px; max-width:400px; }
+  .sk { width:62px; height:62px; border:1px solid var(--line); border-radius:8px;
+    background:var(--bg); cursor:pointer; position:relative; }
+  .sk.sel { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, transparent); }
+  .sk svg { width:100%; height:100%; }
+  .sk .prev { fill:var(--ghost); opacity:.45; }
+  .sk .this { fill:var(--muted); }
+  .sk.sel .this { fill:var(--accent); }
+  .sk b { position:absolute; top:1px; left:4px; font:600 9px ui-monospace,monospace;
+    color:var(--muted); }
+  #preview { width:120px; height:120px; border:1px dashed var(--line); border-radius:10px; flex:none; }
+  #preview .on { fill:var(--ink); } #preview .off { fill:var(--ghost); opacity:.35; }
+</style>
+</head>
+<body>
+<header>
+  <h1>愛發筆</h1>
+  <nav>
+    <a href="/" class="on">字根表</a>
+    <a href="/annotate">逐字取碼</a><a href="/rules">取碼原則</a>
+  </nav>
+  <div class="stats" id="stats"></div>
+  <div class="grow"></div>
+  <input type="search" id="q" placeholder="搜尋字根／例字／意圖…">
+  <label style="font-size:13px;color:var(--muted)" title="形狀距離門檻：愈大愈容易把相似筆畫視為同一字根">
+    合併門檻 <input type="range" id="thr" min="0.05" max="0.6" step="0.01" style="width:80px;vertical-align:middle">
+    <span id="thrv" style="font:600 11px ui-monospace,monospace"></span>
+  </label>
+  <span id="status">已載入</span>
+  <button id="export">匯出 .txt</button>
+  <button class="primary" id="save">儲存</button>
+</header>
+<div id="dupes"></div>
+<main id="app"></main>
+
+<div id="modal">
+  <div class="sheet">
+    <div class="tabs">
+      <button id="tabStroke" class="on">筆畫選取（無 Unicode 的字根）</button>
+      <button id="tabDraw">手寫辨認</button>
+      <div class="grow"></div>
+      <button id="closeModal">關閉</button>
+    </div>
+
+    <div class="pane on" id="paneStroke">
+      <div class="sub">輸入一個「源字」，然後點選組成該字根的筆畫。字根 = 該字的筆畫子集，
+        因此不受 Unicode 限制（如 笑 的竹頭左半、制 的首三筆）。繁簡皆可。</div>
+      <div class="pick-row">
+        <div>
+          <input id="srcIn" maxlength="2" placeholder="笑">
+          <div id="srcMsg" style="font-size:11px;color:var(--muted);margin-top:4px;width:70px"></div>
+        </div>
+        <div id="strokeGrid"></div>
+        <div>
+          <svg id="preview" viewBox="0 0 1024 1024"></svg>
+          <div class="row" style="margin-top:6px">
+            <button class="primary" id="addStroke">加入字根</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="paneDraw">
+      <div class="sub">寫出字根形狀（可不成字）。系統與字形庫比對，回傳最相似的 Unicode 字形。
+        若找不到對應字形，請改用「筆畫選取」。</div>
+      <div class="draw-row">
+        <canvas id="pad" width="240" height="240"></canvas>
+        <div class="pad-side">
+          <div class="row">
+            <button id="undo">復原一筆</button>
+            <button id="clear">清除</button>
+            <span id="recog-status" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div class="cands" id="cands"></div>
+          <div class="row" style="margin-top:auto">
+            <input class="manual" id="manual" placeholder="或直接貼上／打字…">
+            <button class="primary" id="useManual">加入</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/shape.js"></script>
+<script>
+/* ============================== state ============================== */
+let data = null, dirty = false;
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#status').className = 'dirty'; };
+
+/* A shape is EITHER  {z:"日"}  (a Unicode glyph)
+   OR                 {glyph:{src:"笑", strokes:[0,1,2]}}  (a stroke subset of a source char).
+   The second form is what lets 字根 exist that Unicode has no codepoint for. */
+const shapeKey = s => s.z || `${s.glyph.src}#${s.glyph.strokes.join(',')}`;
+const shapeLists = L => [...L.intentions.map(i => i.shapes), L.secondary, L.tertiary];
+const allShapes = () => data.letters.flatMap(L =>
+  shapeLists(L).flatMap(a => a.map(s => ({ letter: L.letter, s }))));
+
+function duplicates() {
+  const m = new Map();
+  for (const { letter, s } of allShapes()) {
+    const k = shapeKey(s);
+    if (!m.has(k)) m.set(k, { s, keys: new Set() });
+    m.get(k).keys.add(letter);
+  }
+  return [...m.values()].filter(v => v.keys.size > 1)
+    .map(v => ({ s: v.s, keys: [...v.keys].sort() }));
+}
+
+/* ---------- glyph stroke data (makemeahanzi, 9574 chars, 繁+簡) ---------- */
+const glyphCache = new Map();
+async function getGlyph(c) {
+  if (glyphCache.has(c)) return glyphCache.get(c);
+  const p = fetch('/api/glyph?c=' + encodeURIComponent(c))
+    .then(r => r.ok ? r.json() : null).then(j => j && j.strokes);   /* 只需筆畫輪廓畫圖 */
+  glyphCache.set(c, p);
+  return p;
+}
+const SVG_TF = Shape.SVG_TF;   /* makemeahanzi paths live in a y-up 1024 em box */
+function glyphSvg(strokes, sel, cls = 'gly') {
+  const on = [], off = [];
+  strokes.forEach((d, i) => (sel.includes(i) ? on : off).push(d));
+  const box = sel.length ? bboxOf(strokes, sel) : '0 0 1024 1024';
+  return `<svg class="${cls}" viewBox="${box}"><g transform="${SVG_TF}">` +
+    off.map(d => `<path class="off" d="${d}"/>`).join('') +
+    on.map(d => `<path class="on" d="${d}"/>`).join('') + '</g></svg>';
+}
+/* crop to the selected strokes so a 3-stroke 字根 isn't a speck in a full em box */
+function bboxOf(strokes, sel) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const i of sel) for (const m of strokes[i].matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)) {
+    const x = +m[1], y = 900 - +m[2];          // undo the y-flip
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < x0) return '0 0 1024 1024';
+  const pad = 60, w = x1 - x0 + pad * 2, h = y1 - y0 + pad * 2, m = Math.max(w, h);
+  return `${x0 - pad - (m - w) / 2} ${y0 - pad - (m - h) / 2} ${m} ${m}`;
+}
+
+/* ============================== render ============================== */
+function render() {
+  const app = $('#app'); app.innerHTML = '';
+  const dup = new Set(duplicates().map(d => shapeKey(d.s)));
+  const q = $('#q').value.trim();
+
+  for (const L of data.letters) {
+    const card = el('div', 'card');
+    card.append(el('div', 'key', L.letter));
+
+    L.intentions.forEach((it, ii) => {
+      const box = el('div', 'intent');
+      const ih = el('div', 'intent-head');
+      ih.append(el('div', 'num', String(ii + 1)));
+      const desc = el('input', 'desc');
+      desc.value = it.desc || '';
+      desc.placeholder = it.auto
+        ? '未分類（逐字取碼自動學來）— 寫下取形意圖即可歸類'
+        : '取形意圖，例：「人」下有一橫或有一點';
+      desc.oninput = () => { it.desc = desc.value; if (desc.value) delete it.auto; touch(); };
+      ih.append(desc);
+      const del = el('span', '', '✕');
+      del.style.cssText = 'cursor:pointer;color:var(--muted);font-size:11px;padding:0 4px';
+      del.title = '刪除此意圖';
+      del.onclick = () => { L.intentions.splice(ii, 1); touch(); render(); };
+      ih.append(del);
+      box.append(ih);
+
+      const shapes = dropZone(el('div', 'shapes'), it.shapes);
+      it.shapes.forEach((s, si) => shapes.append(chip(it.shapes, si, s, dup, L, it)));
+      shapes.append(addButtons(it.shapes));
+      box.append(shapes);
+      card.append(box);
+    });
+
+    const addI = el('button', 'mini', '＋ 新增意圖');
+    addI.onclick = () => { L.intentions.push({ desc: '', shapes: [] }); touch(); render(); };
+    card.append(addI);
+
+    for (const [k, label] of [['secondary', '次等 · 孤立字根'], ['tertiary', '三等 · 保全字根']]) {
+      card.append(el('div', 'tier-label', label));
+      const row = dropZone(el('div', 'shapes'), L[k]);
+      L[k].forEach((s, si) => row.append(chip(L[k], si, s, dup, L, null)));
+      row.append(addButtons(L[k]));
+      card.append(row);
+    }
+
+    const nt = el('textarea', 'notes');
+    nt.value = L.notes || ''; nt.placeholder = '備註…';
+    nt.oninput = () => { L.notes = nt.value; touch(); };
+    card.append(nt);
+
+    const hay = JSON.stringify(L);
+    if (q && !hay.includes(q) && L.letter !== q.toUpperCase()) card.classList.add('hidden');
+    app.append(card);
+  }
+  renderStats();
+}
+
+const SETS = { both: '繁簡', trad: '繁', simp: '簡' };
+function chip(arr, i, s, dup, L, it) {
+  const c = el('div', 'chip' + (s.uncertain ? ' unc' : '') + (dup.has(shapeKey(s)) ? ' dupe' : ''));
+  if (dup.has(shapeKey(s))) c.title = '此字根同時屬於其他字母 — 取碼會有歧義';
+
+  /* 拖放：把字根拖到別的意圖、別的等級、甚至別的字母。
+     用 pointer 事件而非原生 HTML5 drag —— chip 內有 contenteditable 欄位，
+     原生拖放會被它吃掉，根本起不了拖。移動超過 5px 才算拖，否則仍是點擊編輯。 */
+  c.onpointerdown = ev => {
+    if (ev.button !== 0) return;
+    if (ev.target.closest('.tools, .set, .cnt')) return;
+    startDrag(ev, c, arr, i, s);
+  };
+
+  if (s.glyph) {                                   /* stroke-subset 字根 */
+    const holder = el('div');
+    holder.innerHTML = '<svg class="gly" viewBox="0 0 1024 1024"></svg>';
+    getGlyph(s.glyph.src).then(st => {
+      if (st) holder.innerHTML = glyphSvg(st, s.glyph.strokes);
+    });
+    holder.title = `${s.glyph.src} 第 ${s.glyph.strokes.map(n => n + 1).join(',')} 筆`;
+    holder.style.cursor = 'pointer';
+    holder.onclick = () => openPicker(arr, s);      /* click to re-pick strokes */
+    c.append(holder);
+  } else {
+    c.append(editable('z', s.z, v => {
+      if (!v) { arr.splice(i, 1); touch(); render(); return; }
+      s.z = v; touch(); render();
+    }));
+  }
+
+  c.append(editable('ex', s.ex || '', v => { s.ex = v; touch(); }));
+
+  /* 學來的字根：出現次數 + 出現過的字；點次數可把它移到別的意圖 */
+  if (s.count) {
+    const n = el('span', 'cnt', `×${s.count}`);
+    n.title = `出現於：${(s.seen || []).join(' ')}\n點擊可移到其他意圖`;
+    n.onclick = () => moveShape(arr, i, s, L, it);
+    c.append(n);
+  }
+
+  const set = el('span', 'set', SETS[s.set || 'both']);
+  set.title = '適用字集（繁簡／繁／簡）';
+  set.onclick = () => {
+    const order = ['both', 'trad', 'simp'];
+    s.set = order[(order.indexOf(s.set || 'both') + 1) % 3];
+    if (s.set === 'both') delete s.set;
+    touch(); render();
+  };
+  c.append(set);
+
+  const tools = el('div', 'tools');
+  const u = el('span', 'u', '⚠'); u.title = '待核對';
+  u.onclick = () => { s.uncertain = !s.uncertain; if (!s.uncertain) delete s.uncertain; touch(); render(); };
+  const x = el('span', 'x', '✕');
+  x.onclick = () => { arr.splice(i, 1); touch(); render(); };
+  tools.append(u, x);
+  c.append(tools);
+  return c;
+}
+
+/* 把一個字根移到同一字母下的另一個意圖（學來的字根預設落在「未分類」） */
+function moveShape(arr, i, s, L, from) {
+  const opts = L.intentions.map((it, n) =>
+    `${n + 1}. ${it.desc || (it.auto ? '未分類' : '（未命名）')}`).join('\n');
+  const ans = prompt(`把這個字根移到 ${L.letter} 的哪個意圖？\n\n${opts}\n\n輸入編號（或 0 = 新增一個意圖）：`);
+  if (ans === null) return;
+  const n = parseInt(ans, 10);
+  let target;
+  if (n === 0) { target = { desc: '', shapes: [] }; L.intentions.push(target); }
+  else target = L.intentions[n - 1];
+  if (!target || target === from) return;
+  arr.splice(i, 1);
+  target.shapes.push(s);
+  touch(); render();
+}
+
+/* 手打／手寫加入的字根，若該字有筆畫資料就存成筆畫式（src + 全部筆畫），
+   否則只能存 Unicode 字形 —— 那樣不會參與比對與預測。 */
+async function pushChar(arr, ch) {
+  const st = await getGlyph(ch);
+  arr.push(st ? { glyph: { src: ch, strokes: st.map((_, i) => i) }, ex: ch }
+              : { z: ch, ex: '', nomatch: true });
+}
+
+/* 放置目標：每一列 shapes 都登記自己對應的陣列 */
+const zones = new WeakMap();
+const dropZone = (row, arr) => { zones.set(row, arr); return row; };
+
+function startDrag(ev, chipEl, arr, i, s) {
+  const x0 = ev.clientX, y0 = ev.clientY;
+  let ghost = null, zone = null;
+
+  const move = e => {
+    if (!ghost) {
+      if (Math.hypot(e.clientX - x0, e.clientY - y0) < 5) return;   /* 還算點擊 */
+      ghost = chipEl.cloneNode(true);
+      ghost.classList.add('ghost');
+      document.body.append(ghost);
+      chipEl.classList.add('dragging');
+      document.activeElement && document.activeElement.blur();
+    }
+    e.preventDefault();
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top = e.clientY + 'px';
+    ghost.style.display = 'none';
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    ghost.style.display = '';
+    const row = under && under.closest('.shapes');
+    if (row !== zone) {
+      zone && zone.classList.remove('drop');
+      zone = row && zones.has(row) && zones.get(row) !== arr ? row : null;
+      zone && zone.classList.add('drop');
+    }
+  };
+  const up = () => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    ghost && ghost.remove();
+    chipEl.classList.remove('dragging');
+    zone && zone.classList.remove('drop');
+    if (ghost && zone) {
+      arr.splice(i, 1);
+      zones.get(zone).push(s);
+      touch(); render();
+    }
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
+
+function addButtons(arr) {
+  const box = el('div', 'addbtns');
+  const type = el('input');
+  type.placeholder = '＋'; type.title = '打字／貼上 Unicode 字形';
+  type.style.cssText = 'width:46px;border:1px dashed var(--line);border-radius:7px;' +
+    'background:transparent;color:var(--muted);text-align:center;font-size:16px;padding:3px 0';
+  type.onkeydown = async e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    for (const ch of [...type.value.trim()]) await pushChar(arr, ch);
+    touch(); render();
+  };
+  const b1 = el('button', '', '筆'); b1.title = '筆畫選取（無 Unicode 的字根）';
+  b1.onclick = () => openPicker(arr, null);
+  const b2 = el('button', '', '✍︎'); b2.title = '手寫辨認';
+  b2.onclick = () => openDraw(arr);
+  box.append(type, b1, b2);
+  return box;
+}
+
+function editable(cls, val, onchange) {
+  const s = el('span', cls, val);
+  s.contentEditable = 'true'; s.spellcheck = false;
+  s.onblur = () => onchange(s.textContent.trim());
+  s.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); s.blur(); } };
+  return s;
+}
+
+function renderStats() {
+  const sh = allShapes();
+  const dup = duplicates();
+  const uses = sh.reduce((n, x) => n + (x.s.count || 0), 0);
+  $('#stats').innerHTML =
+    `字根 <b>${sh.length}</b>　` +
+    `累計指派 <b>${uses}</b>　` +
+    `意圖 <b>${data.letters.reduce((n, L) => n + L.intentions.filter(i => !i.auto).length, 0)}</b>　` +
+    `重複 <b style="color:var(--dupe)">${dup.length}</b>`;
+  const p = $('#dupes'); p.innerHTML = '';
+  if (dup.length) {
+    const d = el('div', 'dupe-panel');
+    d.innerHTML = '<b>字根重複（同形對應多個字母，取碼會有歧義）：</b><br>' +
+      dup.map(x => `<span class="d"><i>${x.s.z || x.s.glyph.src + '⁻'}</i> → ${x.keys.join('/')}</span>`).join('');
+    p.append(d);
+  }
+}
+
+/* ====================== modal: stroke picker ====================== */
+let targetArr = null, editing = null, srcStrokes = null, sel = [];
+
+function showPane(which) {
+  $('#paneStroke').classList.toggle('on', which === 'stroke');
+  $('#paneDraw').classList.toggle('on', which === 'draw');
+  $('#tabStroke').classList.toggle('on', which === 'stroke');
+  $('#tabDraw').classList.toggle('on', which === 'draw');
+}
+$('#tabStroke').onclick = () => showPane('stroke');
+$('#tabDraw').onclick = () => showPane('draw');
+
+async function openPicker(arr, shape) {
+  targetArr = arr; editing = shape;
+  $('#modal').classList.add('on'); showPane('stroke');
+  const src = shape && shape.glyph ? shape.glyph.src : '';
+  $('#srcIn').value = src;
+  sel = shape && shape.glyph ? [...shape.glyph.strokes] : [];
+  await loadSrc(src);
+  $('#addStroke').textContent = editing ? '更新字根' : '加入字根';
+  if (!src) $('#srcIn').focus();
+}
+
+async function loadSrc(c) {
+  const grid = $('#strokeGrid'); grid.innerHTML = ''; srcStrokes = null;
+  $('#preview').innerHTML = '';
+  if (!c) { $('#srcMsg').textContent = ''; return; }
+  const st = await getGlyph(c);
+  if (!st) { $('#srcMsg').textContent = '沒有筆畫資料'; return; }
+  srcStrokes = st;
+  $('#srcMsg').textContent = `${st.length} 筆`;
+  st.forEach((d, i) => {
+    const b = el('div', 'sk' + (sel.includes(i) ? ' sel' : ''));
+    b.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${SVG_TF}">` +
+      st.slice(0, i).map(p => `<path class="prev" d="${p}"/>`).join('') +
+      `<path class="this" d="${d}"/></g></svg><b>${i + 1}</b>`;
+    b.onclick = () => {
+      const k = sel.indexOf(i);
+      k < 0 ? sel.push(i) : sel.splice(k, 1);
+      sel.sort((a, b) => a - b);
+      loadSrc(c);
+    };
+    grid.append(b);
+  });
+  $('#preview').outerHTML = glyphSvg(st, sel, '').replace('<svg', '<svg id="preview"');
+}
+$('#srcIn').oninput = e => {
+  const c = [...e.target.value.trim()][0] || '';
+  if (c) { sel = []; loadSrc(c); }
+};
+$('#addStroke').onclick = () => {
+  const c = [...$('#srcIn').value.trim()][0];
+  if (!c || !srcStrokes || !sel.length) return;
+  const shape = { glyph: { src: c, strokes: [...sel] }, ex: (editing && editing.ex) || c };
+  if (editing) { delete editing.z; delete editing.glyph; delete editing.uncertain;
+                 Object.assign(editing, shape); }
+  else targetArr.push(shape);
+  touch(); $('#modal').classList.remove('on'); render();
+};
+
+/* ====================== modal: handwriting ====================== */
+let inventory = null, strokes = [], cur = null;
+const RANGES = [[0x31C0, 0x31E3], [0x2E80, 0x2EF3], [0x2F00, 0x2FD5], [0x3105, 0x312F]];
+const EXTRA =
+  'マミムメモユヨワフノヘレ' +
+  '一丨丿丶乙乚亅二三十丁厂匚卜厶又口囗土士夂夕大女子宀寸小尢尸屮山川工己巾干幺广廴廾弋弓彐彡彳' +
+  '心忄戈戶手扌支攴文斗斤方无日曰月木欠止歹殳毋比毛氏气水氵火灬爪父爻爿片牙牛犬犭玄玉王瓜瓦甘生用田' +
+  '疋疒癶白皮皿目矛矢石示礻禸禾穴立竹米糸糹缶网罒羊羽老而耒耳聿肉臣自至臼舌舛舟艮色艸艹虍虫血行衣衤' +
+  '襾見角言谷豆豕豸貝赤走足身車辛辰辵邑酉釆里金長門阜隶隹雨青非面革韋韭音頁風飛食首香馬骨高髟鬥鬯鬲' +
+  '鬼魚鳥鹵鹿麥麻黃黍黑黹黽鼎鼓鼠鼻齊齒龍龜龠' +
+  /* 簡體字根：偏旁與簡化部件 */
+  '讠饣纟钅门贝见车页风马鸟鱼龙齿齐长东两卡义为学兴𰃦㣺灬钅铁银' +
+  '亼亽𠆢𠂉冂冖凵刀刂力勹匕卩叀彑巛幵廿卅丬凸凹丩乇丰亍亠丆';
+
+function buildInventory(status) {
+  const set = new Set();
+  for (const [a, b] of RANGES) for (let c = a; c <= b; c++) set.add(String.fromCodePoint(c));
+  for (const ch of EXTRA) set.add(ch);
+  for (const { s } of allShapes()) if (s.z) for (const ch of [...s.z]) set.add(ch);
+  const ctx = Shape.scratch(), tofu = Shape.tofuVec(ctx), inv = [];
+  for (const ch of set) {
+    const v = Shape.fromChar(ch, ctx);
+    if (!v) continue;                                   /* 字型沒有此字 */
+    if (tofu && Shape.dist(v, tofu) < 0.06) continue;   /* 畫成豆腐框 */
+    inv.push({ ch, vec: v });
+  }
+  if (status) status.textContent = `字形庫 ${inv.length} 個`;
+  return inv;
+}
+
+const pad = $('#pad'), pctx = pad.getContext('2d', { willReadFrequently: true });
+function drawPad() {
+  const cs = getComputedStyle(document.body);
+  pctx.clearRect(0, 0, 240, 240);
+  pctx.strokeStyle = cs.getPropertyValue('--line'); pctx.lineWidth = 1; pctx.setLineDash([4, 4]);
+  pctx.beginPath(); pctx.moveTo(120, 0); pctx.lineTo(120, 240);
+  pctx.moveTo(0, 120); pctx.lineTo(240, 120); pctx.stroke(); pctx.setLineDash([]);
+  pctx.strokeStyle = pctx.fillStyle = cs.getPropertyValue('--ink');
+  pctx.lineWidth = 9; pctx.lineCap = pctx.lineJoin = 'round';
+  for (const st of strokes) {
+    if (st.length < 2) { pctx.beginPath(); pctx.arc(st[0].x, st[0].y, 4.5, 0, 7); pctx.fill(); continue; }
+    pctx.beginPath(); pctx.moveTo(st[0].x, st[0].y);
+    for (const p of st.slice(1)) pctx.lineTo(p.x, p.y);
+    pctx.stroke();
+  }
+}
+const posOf = e => { const r = pad.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); cur = [posOf(e)]; strokes.push(cur); drawPad(); });
+pad.addEventListener('pointermove', e => { if (cur) { cur.push(posOf(e)); drawPad(); } });
+pad.addEventListener('pointerup', () => { cur = null; recognize(); });
+
+function padFeature() {
+  if (!strokes.length) return null;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 240;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  c.strokeStyle = c.fillStyle = '#000'; c.lineWidth = 9; c.lineCap = c.lineJoin = 'round';
+  for (const st of strokes) {
+    if (st.length < 2) { c.beginPath(); c.arc(st[0].x, st[0].y, 4.5, 0, 7); c.fill(); continue; }
+    c.beginPath(); c.moveTo(st[0].x, st[0].y);
+    for (const p of st.slice(1)) c.lineTo(p.x, p.y);
+    c.stroke();
+  }
+  return Shape.featurize(c.getImageData(0, 0, 240, 240));
+}
+function recognize() {
+  const box = $('#cands'); box.innerHTML = '';
+  const v = padFeature();
+  if (!v || !inventory) return;
+  for (const t of Shape.topMatches(v, inventory, 18)) {
+    const b = el('div', 'cand');
+    b.append(el('div', 'g', t.ch));
+    b.append(el('div', 's', 'U+' + t.ch.codePointAt(0).toString(16).toUpperCase()));
+    b.onclick = () => pick(t.ch);
+    box.append(b);
+  }
+}
+function openDraw(arr) {
+  targetArr = arr; editing = null; strokes = []; cur = null;
+  $('#cands').innerHTML = ''; $('#manual').value = '';
+  $('#modal').classList.add('on'); showPane('draw'); drawPad();
+  if (!inventory) {
+    $('#recog-status').textContent = '建立字形庫…';
+    setTimeout(() => { inventory = buildInventory($('#recog-status')); }, 30);
+  } else $('#recog-status').textContent = `字形庫 ${inventory.length} 個`;
+}
+async function pick(ch) {
+  if (!targetArr) return;
+  for (const c of [...ch]) await pushChar(targetArr, c);
+  touch(); $('#modal').classList.remove('on'); render();
+}
+$('#undo').onclick = () => { strokes.pop(); drawPad(); recognize(); };
+$('#clear').onclick = () => { strokes = []; drawPad(); $('#cands').innerHTML = ''; };
+$('#closeModal').onclick = () => $('#modal').classList.remove('on');
+$('#useManual').onclick = () => { const v = $('#manual').value.trim(); if (v) pick(v); };
+$('#modal').onclick = e => { if (e.target.id === 'modal') $('#modal').classList.remove('on'); };
+
+/* ============================== io ============================== */
+async function save() {
+  $('#status').textContent = '儲存中…';
+  const r = await fetch('/api/zigen', { method: 'PUT',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) });
+  if (r.ok) { dirty = false; $('#status').textContent = '已儲存 ✓'; $('#status').className = 'saved'; }
+  else { $('#status').textContent = '儲存失敗'; $('#status').className = 'dirty'; }
+}
+function exportTxt() {
+  const out = [`# ${data.meta.name} 字根表 v${data.meta.version}`, ''];
+  const show = s => (s.z || `${s.glyph.src}[${s.glyph.strokes.map(n => n + 1).join('')}]`) +
+    (s.ex ? `(${s.ex})` : '');
+  for (const L of data.letters) {
+    out.push(L.letter);
+    L.intentions.forEach((it, i) => {
+      out.push(`  ${i + 1}. ${it.desc}`);
+      out.push('     ' + it.shapes.map(show).join('  '));
+    });
+    if (L.secondary.length) out.push('  [次等] ' + L.secondary.map(show).join(' '));
+    if (L.tertiary.length) out.push('  [三等] ' + L.tertiary.map(show).join(' '));
+    out.push('');
+  }
+  const a = el('a');
+  a.href = URL.createObjectURL(new Blob([out.join('\n')], { type: 'text/plain' }));
+  a.download = 'zigen.txt'; a.click();
+}
+$('#save').onclick = save;
+$('#export').onclick = exportTxt;
+$('#q').oninput = render;
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+  if (e.key === 'Escape') $('#modal').classList.remove('on');
+});
+/* 合併門檻：決定「逐字取碼」把多相似的筆畫組合視為同一字根 */
+const thr = $('#thr'), thrv = $('#thrv');
+thr.oninput = () => {
+  data.meta.merge_threshold = +thr.value;
+  thrv.textContent = (+thr.value).toFixed(3);
+  touch();
+};
+
+/* 與「逐字取碼」頁互通：對方學到新字根時自動重載 */
+let stamp = null;
+const fetchStamp = () => fetch('/api/state').then(r => r.json()).then(s => s.zigen);
+setInterval(async () => {
+  if (dirty) return;
+  const s = await fetchStamp();
+  if (s === stamp) return;
+  stamp = s;
+  data = await fetch('/api/zigen').then(r => r.json());
+  render();
+  $('#status').textContent = '已同步 ↻'; $('#status').className = 'saved';
+}, 3000);
+
+setInterval(() => { if (dirty) save(); }, 15000);
+window.onbeforeunload = e => { if (dirty) return e.returnValue = '有未儲存的修改'; };
+Promise.all([fetch('/api/zigen').then(r => r.json()), fetchStamp()]).then(([d, s]) => {
+  data = d; stamp = s;
+  thr.value = data.meta.merge_threshold || 0.25;
+  thrv.textContent = (+thr.value).toFixed(3);
+  render();
+});
+</script>
+</body>
+</html>

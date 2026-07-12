@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "note": "取碼原則。kind=enforced 的規則會實際影響「逐字取碼」的預測；kind=manual 只是文字記錄，靠你在取碼時自己遵守（將來可再實作）。"
+  },
+  "rules": [
+    {
+      "id": "stroke_order",
+      "name": "筆順原則",
+      "desc": "取碼以筆順先後為準。",
+      "kind": "enforced",
+      "enabled": true,
+      "note": "字根依「首筆最早」排序後串成碼。"
+    },
+    {
+      "id": "merge_over_split",
+      "name": "能合不分原則",
+      "desc": "可以一碼取盡的字型，不分兩碼。",
+      "kind": "enforced",
+      "enabled": true,
+      "params": {
+        "seg_penalty": 0.05
+      },
+      "note": "預測時每多一個字根就加一點成本，因此傾向用較少、較大的字根。數值越大越傾向合併。"
+    },
+    {
+      "id": "skip_isolated_hv",
+      "name": "孤筆略過原則",
+      "desc": "若有一橫或一豎無法與其他筆畫組成字根，則略過不取碼。",
+      "kind": "enforced",
+      "enabled": true,
+      "params": {
+        "penalty": 0.3,
+        "allow": [
+          "橫",
+          "豎"
+        ]
+      },
+      "note": "預測時允許把落單的橫／豎留空不取；取碼時也可手動按 X 把選取的筆畫標為略過。"
+    },
+    {
+      "id": "max_code_length",
+      "name": "碼長上限",
+      "desc": "一個字最多取 4 碼。",
+      "kind": "enforced",
+      "enabled": true,
+      "params": {
+        "max": 4
+      },
+      "note": "超過會標示警告（目前不自動截斷）。"
+    },
+    {
+      "id": "tier_priority",
+      "name": "優次等原則",
+      "desc": "可以取優等碼，不取次等碼；可以取次等碼，不取三等碼。",
+      "kind": "manual",
+      "enabled": true,
+      "note": "字根表分優／次／三等；預測時尚未按等級加權（將來可加）。"
+    },
+    {
+      "id": "enclosure",
+      "name": "包圍原則（凌駕筆順）",
+      "desc": "先取「囗」及「匚」，再按筆順取內部字型。內部必須整個被包圍。",
+      "kind": "manual",
+      "enabled": true,
+      "note": "預測器已容許「一段筆畫 + 後補一筆」的字根（如囗＝首二筆＋末筆），但取碼次序仍照筆順排列。"
+    },
+    {
+      "id": "long_stroke",
+      "name": "長「木」「大」原則（凌駕筆順）",
+      "desc": "先取「木」「大」，再按筆順取左至右／中間字型。",
+      "kind": "manual",
+      "enabled": true
+    },
+    {
+      "id": "convention",
+      "name": "約定原則（凌駕筆順、能合不分）",
+      "desc": "特定字型以約定俗成的方式取碼（如「馬」「鳥」）。",
+      "kind": "manual",
+      "enabled": true,
+      "note": "個別字的例外，直接在該字的備註寫明即可。"
+    }
+  ]
+}

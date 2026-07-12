@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛發筆 — 逐字取碼</title>
+<style>
+  :root {
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
+    --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --ghost:#cfc8bb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
+            --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --ghost:#4a463c; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); height:100vh; display:flex;
+    flex-direction:column; font:15px/1.5 -apple-system,"PingFang TC","Helvetica Neue",sans-serif; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 18px;
+    border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  h1 { font-size:16px; margin:0; font-weight:650; }
+  nav { display:flex; gap:5px; }
+  nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; }
+  nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .grow { flex:1; }
+  button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover { color:#fff; opacity:.9; }
+  button:disabled { opacity:.4; cursor:default; }
+  #status { font-size:13px; color:var(--muted); min-width:64px; }
+  #status.saved { color:var(--ok); } #status.dirty { color:var(--warn); }
+  .prog { font-size:12px; color:var(--muted); }
+  .prog b { color:var(--ink); }
+
+  .cols { flex:1; display:grid; grid-template-columns:225px 1fr 330px; min-height:0; }
+  .pane { padding:12px 14px; overflow:auto; }
+  .pane + .pane { border-left:1px solid var(--line); }
+
+  #search { width:100%; padding:6px 9px; border:1px solid var(--line); border-radius:7px;
+    background:var(--card); color:var(--ink); font-size:14px; margin-bottom:8px; }
+  .filters { display:flex; gap:4px; margin-bottom:8px; }
+  .filters button { flex:1; padding:4px; font-size:12px; }
+  .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .qlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(50px,1fr)); gap:5px; }
+  .qi { border:1px solid var(--line); border-radius:8px; background:var(--card); cursor:pointer;
+    text-align:center; padding:3px 1px 2px; }
+  .qi:hover { border-color:var(--accent); }
+  .qi.on { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
+  .qi .c { font-size:22px; font-family:"PingFang TC","Songti TC",serif; line-height:1.1; }
+  .qi .cd { font:600 10px ui-monospace,monospace; color:var(--accent); min-height:13px; }
+  .qi.todo .cd { color:var(--ghost); }
+
+  .stage { display:flex; flex-direction:column; align-items:center; gap:9px; }
+  #glyph { width:min(400px,46vh); height:min(400px,46vh); border:1px solid var(--line);
+    border-radius:14px; background:var(--card); }
+  /* 透明粗描邊把命中區域加寬，細筆畫才好點 */
+  #glyph path { cursor:pointer; transition:fill .08s; stroke:transparent; stroke-width:26; }
+  #glyph path.un { fill:var(--ghost); }
+  #glyph path.un:hover { fill:var(--muted); }
+  #glyph path.sel { fill:var(--accent); }
+  #glyph path.skip { fill:var(--ghost); opacity:.45; }
+  .so-row { margin-bottom:8px; }
+  .so-t { font-size:11px; color:var(--muted); display:flex; gap:6px; align-items:baseline; }
+  .so-t b { color:var(--ink); font-weight:600; }
+  .so-g { display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; }
+  .so-s { width:34px; height:34px; border:1px solid var(--line); border-radius:5px;
+    background:var(--card); position:relative; }
+  .so-s svg { width:100%; height:100%; }
+  .so-s .p { fill:var(--ghost); opacity:.5; }
+  .so-s .c { fill:var(--accent); }
+  .so-s i { position:absolute; top:0; left:2px; font:600 8px ui-monospace,monospace;
+    color:var(--muted); font-style:normal; }
+  .so-miss { font-size:11px; color:var(--muted); }
+  .so-miss a { color:var(--accent); }
+  #glyph .grid { stroke:var(--line); stroke-dasharray:8 8; stroke-width:2; fill:none; }
+  #glyph text { font:600 34px ui-monospace,monospace; fill:var(--muted); pointer-events:none; opacity:.5; }
+  .cur { font-size:15px; color:var(--muted); display:flex; gap:10px; align-items:baseline; }
+  .cur b { font-size:22px; color:var(--ink); font-family:"PingFang TC",serif; }
+  .hintbar { font-size:12px; color:var(--muted); text-align:center; max-width:520px; }
+  kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px;
+    font:600 11px ui-monospace,monospace; }
+
+  /* 預測 */
+  .pred { width:100%; max-width:520px; border:1px solid var(--line); border-radius:10px;
+    background:var(--card); padding:8px 11px; }
+  .pred .t { font-size:11px; color:var(--muted); letter-spacing:.06em; display:flex; gap:8px;
+    align-items:center; }
+  .pred .opts { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .po { display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:8px;
+    padding:4px 9px; background:var(--bg); cursor:pointer; }
+  .po:hover { border-color:var(--accent); }
+  .po .c { font:700 17px ui-monospace,monospace; color:var(--accent); letter-spacing:.08em; }
+  .po .m { font-size:10px; color:var(--muted); }
+
+  .sugg { display:flex; gap:5px; flex-wrap:wrap; margin:6px 0 2px; min-height:26px; }
+  .sg { display:flex; align-items:center; gap:5px; border:1px solid var(--line); border-radius:8px;
+    padding:3px 8px; background:var(--card); cursor:pointer; }
+  .sg:hover { border-color:var(--accent); }
+  .sg .L { font:700 16px ui-monospace,monospace; color:var(--accent); }
+  .sg .m { font-size:10px; color:var(--muted); }
+  .newz { font-size:12px; color:var(--muted); }
+  .newz b { color:var(--warn); }
+
+  .code { font:700 30px/1.2 ui-monospace,Menlo,monospace; letter-spacing:.1em; color:var(--accent);
+    min-height:38px; word-break:break-all; }
+  .seg { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
+    border-radius:9px; padding:5px 8px; background:var(--card); margin-bottom:5px; }
+  .seg svg { width:34px; height:34px; flex:none; }
+  .seg svg .on { fill:var(--ink); } .seg svg .off { fill:var(--ghost); opacity:.3; }
+  .seg input { width:34px; text-align:center; font:700 17px ui-monospace,monospace;
+    text-transform:uppercase; border:1px solid var(--line); border-radius:6px; padding:2px;
+    background:var(--bg); color:var(--accent); }
+  .seg .n { font-size:11px; color:var(--muted); flex:1; }
+  .seg .mv { cursor:pointer; color:var(--muted); font-size:12px; }
+  .seg .mv:hover { color:var(--accent); }
+  .lbl { font-size:11px; color:var(--muted); letter-spacing:.06em; margin:12px 0 4px; }
+  .ref { font-size:12px; color:var(--muted); }
+  .ref b { color:var(--warn); font-family:ui-monospace,monospace; }
+  .ref .good { color:var(--ok); } .ref .bad { color:var(--dupe,#c0392b); }
+  textarea { width:100%; border:1px solid var(--line); border-radius:7px; background:var(--card);
+    color:var(--ink); padding:5px 8px; font:inherit; font-size:13px; min-height:40px; resize:vertical; }
+</style>
+</head>
+<body>
+<header>
+  <h1>愛發筆</h1>
+  <nav><a href="/">字根表</a><a href="/annotate" class="on">逐字取碼</a><a href="/rules">取碼原則</a></nav>
+  <div class="grow"></div>
+  <span class="prog" id="prog"></span>
+  <span class="prog" id="libinfo"></span>
+  <span id="status">載入中…</span>
+  <button id="export">匯出碼表</button>
+</header>
+
+<div class="cols">
+  <div class="pane">
+    <input id="search" placeholder="搜尋／跳到某字">
+    <div class="filters">
+      <button data-f="todo" class="on">未取碼</button>
+      <button data-f="done">已取碼</button>
+      <button data-f="all">全部</button>
+    </div>
+    <div class="qlist" id="qlist"></div>
+    <div style="text-align:center;margin-top:8px"><button id="more">載入更多</button></div>
+  </div>
+
+  <div class="pane stage">
+    <div class="cur" id="cur"></div>
+    <svg id="glyph" viewBox="0 0 1024 1024"></svg>
+
+    <div class="pred">
+      <div class="t">
+        <span>預測拆解（依你已建立的字根）</span>
+        <span class="grow"></span>
+        <button id="repredict" style="padding:2px 8px;font-size:11px">重新預測</button>
+      </div>
+      <div class="opts" id="predopts"><span class="newz">字根表還是空的 — 先手動取幾個字，我就能開始預測。</span></div>
+    </div>
+
+    <div class="hintbar">
+      點筆畫 → 按 <kbd>A</kbd>–<kbd>Z</kbd> 指派字母，即成一個字根（並自動寫入字根表）。
+      <kbd>X</kbd> 略過選取的筆畫（孤筆略過原則）　<kbd>space</kbd> 筆順　
+      <kbd>⌫</kbd> 刪最後字根　<kbd>enter</kbd> 儲存並下一字
+    </div>
+    <div style="display:flex;gap:6px">
+      <button id="clearSel">清除選取</button>
+      <button id="undoSeg">刪最後字根</button>
+      <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
+    </div>
+  </div>
+
+  <div class="pane">
+    <div class="lbl">取碼</div>
+    <div class="code" id="code">—</div>
+    <div class="ref" id="ref"></div>
+
+    <div class="lbl">選取中的筆畫</div>
+    <div class="sugg" id="sugg"></div>
+    <div class="newz" id="newz"></div>
+
+    <div class="lbl">已取字根（按筆順）</div>
+    <div id="segs"></div>
+
+    <div class="lbl">備註</div>
+    <textarea id="note" placeholder="例外／約定原則…"></textarea>
+
+    <div class="lbl">官方筆順參考</div>
+    <div id="so"></div>
+  </div>
+</div>
+
+<script src="/assets/shape.js"></script>
+<script src="/assets/zigen.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+
+let order = [], codes = {}, zigen = null, lib = [], rules = null;
+let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
+let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
+
+const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#status').className = 'dirty'; };
+
+/* 取碼原則（/rules 頁可改）— 只有 kind=enforced 且啟用的才會影響預測 */
+const rule = id => {
+  const r = rules && rules.rules.find(x => x.id === id);
+  return r && r.enabled && r.kind === 'enforced' ? r : null;
+};
+const maxLen = () => (rule('max_code_length')?.params?.max) || zigen.meta.max_code_length || 4;
+
+/* ---------- 畫字 ---------- */
+function drawGlyph() {
+  const g = $('#glyph');
+  g.innerHTML = '<rect class="grid" x="2" y="2" width="1020" height="1020" rx="20"/>' +
+    '<line class="grid" x1="512" y1="2" x2="512" y2="1022"/>' +
+    '<line class="grid" x1="2" y1="512" x2="1022" y2="512"/>';
+  const gg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  gg.setAttribute('transform', Shape.SVG_TF);
+  const segOf = i => segs.findIndex(s => s.strokes.includes(i));
+  strokes.forEach((d, i) => {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', d);
+    const si = segOf(i);
+    if (si >= 0) { p.setAttribute('fill', hue(si)); p.setAttribute('class', 'asg'); }
+    else if (skipped.includes(i)) p.setAttribute('class', 'skip');
+    else p.setAttribute('class', sel.includes(i) ? 'sel' : 'un');
+    gg.append(p);
+  });
+  g.append(gg);
+  /* 命中判定用「離哪一筆的中線最近」，不靠 SVG 疊放次序：
+     十 的橫與豎交叉，靠圖形疊放會永遠點到後畫的那一筆。 */
+  g.onclick = ev => {
+    const i = nearestStroke(ev);
+    if (i < 0 || segOf(i) >= 0) return;
+    const sk = skipped.indexOf(i);
+    if (sk >= 0) { skipped.splice(sk, 1); touch(); drawGlyph(); renderCode(); return; }
+    const k = sel.indexOf(i);
+    k < 0 ? sel.push(i) : sel.splice(k, 1);
+    sel.sort((a, b) => a - b);
+    drawGlyph(); suggest();
+  };
+  if (showNums) strokes.forEach((d, i) => {
+    const c = pathCenter(d);
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', c.x); t.setAttribute('y', 900 - c.y + 12);
+    t.setAttribute('text-anchor', 'middle'); t.textContent = i + 1;
+    g.append(t);
+  });
+}
+/* 把點擊位置換算到筆畫座標系，回傳中線最近的那一筆 */
+function nearestStroke(ev) {
+  const g = $('#glyph'), grp = g.querySelector('g');
+  if (!grp || !medians.length) return -1;
+  const pt = g.createSVGPoint();
+  pt.x = ev.clientX; pt.y = ev.clientY;
+  const q = pt.matrixTransform(grp.getScreenCTM().inverse());
+  let best = -1, bd = Infinity;
+  medians.forEach((m, i) => {
+    for (let k = 0; k < m.length; k++) {
+      const d = k === 0 ? Math.hypot(m[0][0] - q.x, m[0][1] - q.y)
+                        : segDist(q, m[k - 1], m[k]);
+      if (d < bd) { bd = d; best = i; }
+    }
+  });
+  return bd < 90 ? best : -1;          /* 離所有筆畫都太遠 → 當作沒點到 */
+}
+function segDist(p, a, b) {
+  const vx = b[0] - a[0], vy = b[1] - a[1];
+  const L = vx * vx + vy * vy;
+  const t = L ? Math.max(0, Math.min(1, ((p.x - a[0]) * vx + (p.y - a[1]) * vy) / L)) : 0;
+  return Math.hypot(p.x - (a[0] + t * vx), p.y - (a[1] + t * vy));
+}
+
+const HUES = [18, 200, 140, 280, 45, 330, 95, 250];
+const hue = i => `hsl(${HUES[i % HUES.length]} 62% 45%)`;
+function pathCenter(d) {
+  let n = 0, sx = 0, sy = 0;
+  for (const m of d.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)) { sx += +m[1]; sy += +m[2]; n++; }
+  return n ? { x: sx / n, y: sy / n } : { x: 512, y: 450 };
+}
+function subSvg(list) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const i of list) for (const m of strokes[i].matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)) {
+    const x = +m[1], y = 900 - +m[2];
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  const p = 70, w = x1 - x0 + p * 2, h = y1 - y0 + p * 2, m = Math.max(w, h);
+  const box = x1 < x0 ? '0 0 1024 1024'
+    : `${x0 - p - (m - w) / 2} ${y0 - p - (m - h) / 2} ${m} ${m}`;
+  return `<svg viewBox="${box}"><g transform="${Shape.SVG_TF}">` +
+    strokes.map((d, i) => `<path class="${list.includes(i) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+    '</g></svg>';
+}
+
+/* ---------- 選取中的筆畫：既有字根建議 ---------- */
+function suggest() {
+  const box = $('#sugg'), nz = $('#newz');
+  box.innerHTML = ''; nz.textContent = '';
+  if (!sel.length) { box.innerHTML = '<span class="newz">先點選筆畫…</span>'; return; }
+  const vec = Shape.strokeVec(sel.map(i => medians[i]));
+  if (!vec) return;
+  const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const same = lib.filter(e => e.n === sel.length)
+    .map(e => ({ e, d: Shape.dist(vec, e.vec) }))
+    .sort((a, b) => a.d - b.d);
+  const best = new Map();
+  for (const m of same) if (!best.has(m.e.letter)) best.set(m.e.letter, m);
+  const top = [...best.values()].slice(0, 5);
+  for (const m of top) {
+    const b = el('div', 'sg');
+    b.append(el('span', 'L', m.e.letter));
+    b.append(el('span', 'm', `${m.e.label}${m.d < thr ? ' ·同形' : ''}`));
+    b.onclick = () => commit(m.e.letter);
+    box.append(b);
+  }
+  if (!top.length || top[0].d >= thr)
+    nz.innerHTML = '<b>新字根</b> — 按任一字母鍵，這個形狀就會加入該字母的字根表。';
+  else nz.textContent = `與 ${top[0].e.letter} 的既有字根同形（距離 ${top[0].d.toFixed(3)}）。`;
+}
+
+/* ---------- 指派 ---------- */
+function commit(letter) {
+  if (!sel.length) return;
+  segs.push({ strokes: [...sel], letter: letter.toUpperCase() });
+  sel = [];
+  touch(); drawGlyph(); renderSegs(); suggest();
+}
+/* 孤筆略過原則：選取的筆畫不取碼（例：無法與人成根的一橫一豎） */
+function skipSelected() {
+  if (!sel.length) return;
+  skipped = [...new Set([...skipped, ...sel])].sort((a, b) => a - b);
+  sel = [];
+  touch(); drawGlyph(); renderSegs(); suggest();
+}
+function renderSegs() {
+  const box = $('#segs'); box.innerHTML = '';
+  segs.forEach((s, i) => {
+    const d = el('div', 'seg');
+    const sv = el('div'); sv.innerHTML = subSvg(s.strokes);
+    sv.querySelector('svg').style.borderLeft = `3px solid ${hue(i)}`;
+    d.append(sv);
+    const inp = el('input'); inp.value = s.letter; inp.maxLength = 1;
+    inp.oninput = () => { s.letter = inp.value.toUpperCase(); touch(); renderCode(); };
+    d.append(inp);
+    d.append(el('span', 'n', `第 ${s.strokes.map(n => n + 1).join(',')} 筆`));
+    const up = el('span', 'mv', '↑');
+    up.onclick = () => { if (i > 0) { [segs[i - 1], segs[i]] = [segs[i], segs[i - 1]]; touch(); drawGlyph(); renderSegs(); } };
+    const x = el('span', 'mv', '✕');
+    x.onclick = () => { segs.splice(i, 1); touch(); drawGlyph(); renderSegs(); };
+    d.append(up, x);
+    box.append(d);
+  });
+  renderCode();
+}
+function renderCode() {
+  const code = segs.map(s => s.letter).join('');
+  $('#code').textContent = code || '—';
+  const max = maxLen();
+  $('#code').style.color = code.length > max ? 'var(--warn)' : 'var(--accent)';
+  const left = strokes.length - segs.reduce((n, s) => n + s.strokes.length, 0) - skipped.length;
+  const bits = [];
+  if (code.length > max) bits.push(`<span style="color:var(--warn)">超過 ${max} 碼</span>`);
+  if (skipped.length) bits.push(`略過 ${skipped.length} 筆`);
+  bits.push(left ? `尚有 ${left} 筆未指派`
+    : '<span style="color:var(--ok)">全部筆畫已處理</span>');
+  $('#ref').innerHTML = bits.join('　');
+}
+
+/* ---------- 整字預測 ---------- */
+let predBusy = false;
+async function predict() {
+  const box = $('#predopts');
+  if (!lib.length) {
+    box.innerHTML = '<span class="newz">字根表還是空的 — 先手動取幾個字，我就能開始預測。</span>';
+    return;
+  }
+  if (!medians.length || predBusy) return;
+  predBusy = true;
+  box.innerHTML = '<span class="newz">計算中…</span>';
+  await new Promise(r => setTimeout(r, 10));       /* 讓瀏覽器先畫出「計算中」 */
+  const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const merge = rule('merge_over_split'), sk = rule('skip_isolated_hv');
+  const out = Zigen.predict(medians, lib, {
+    thr,
+    segPenalty: merge ? merge.params.seg_penalty : 0.05,
+    skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow } : null,
+  });
+  predBusy = false;
+  box.innerHTML = '';
+  if (!out.length) {
+    box.innerHTML = '<span class="newz">用現有字根還拆不出這個字（有筆畫無法對應任何字根）。</span>';
+    return;
+  }
+  out.forEach((p, i) => {
+    const full = p.covered === p.total;
+    const b = el('div', 'po');
+    b.append(el('span', 'c', p.segments.map(s => s.letter).join('')));
+    b.append(el('span', 'm', (full ? p.segments.map(s => s.label).join(' + ')
+      : `部分拆解 ${p.covered}/${p.total} 筆　其餘待你指派`) +
+      (p.skipped && p.skipped.length ? `　（略過 ${p.skipped.length} 筆）` : '')));
+    b.title = '套用此拆解';
+    b.onclick = () => {
+      segs = p.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+      skipped = [...(p.skipped || [])];
+      sel = []; touch(); drawGlyph(); renderSegs(); suggest();
+    };
+    box.append(b);
+    if (i === 0 && full) b.style.borderColor = 'var(--accent)';
+    if (!full) b.style.borderStyle = 'dashed';
+  });
+}
+$('#repredict').onclick = predict;
+
+/* ---------- 載入一個字 ---------- */
+async function load(c) {
+  cur = c; sel = []; segs = []; skipped = [];
+  const g = await Zigen.getGlyph(c);
+  if (!g) { $('#cur').textContent = `${c}：沒有筆畫資料`; strokes = []; medians = []; drawGlyph(); return; }
+  strokes = g.strokes; medians = g.medians;
+  const rec = codes[c];
+  if (rec && rec.segments) segs = rec.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+  if (rec && rec.skipped) skipped = [...rec.skipped];
+  $('#cur').innerHTML = `<b>${c}</b><span>${strokes.length} 筆</span>`;
+  $('#note').value = (rec && rec.note) || '';
+  drawGlyph(); renderSegs(); suggest(); renderQueue(); strokeOrder(c);
+  if (!segs.length) predict(); else $('#predopts').innerHTML =
+    '<span class="newz">此字已有取碼。按「重新預測」可看模型的拆法。</span>';
+}
+
+/* ---------- 官方筆順參考 ----------
+   大陸：makemeahanzi（PRC 筆順）。台灣：教育部《國字標準字體筆順學習網》資料（g0v/zh-stroke-data）。
+   香港教育局的筆順沒有公開資料集，只能給查詢連結。 */
+async function strokeOrder(c) {
+  const box = $('#so'); box.innerHTML = '';
+  const seq = (paths, viewBox) => {
+    const g = el('div', 'so-g');
+    paths.forEach((d, i) => {
+      const s = el('div', 'so-s');
+      s.innerHTML = `<svg viewBox="${viewBox}">` +
+        paths.slice(0, i).map(p => `<path class="p" d="${p}"/>`).join('') +
+        `<path class="c" d="${d}"/></svg><i>${i + 1}</i>`;
+      g.append(s);
+    });
+    return g;
+  };
+  /* 大陸筆順：就是取碼用的這份資料 */
+  const prc = el('div', 'so-row');
+  const t1 = el('div', 'so-t');
+  t1.innerHTML = `<b>大陸</b><span>PRC · ${strokes.length} 筆（本頁取碼所依據）</span>`;
+  prc.append(t1);
+  prc.append(seq(strokes.map(d => d), '0 0 1024 1024'));
+  prc.querySelectorAll('svg').forEach(sv => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', Shape.SVG_TF);
+    while (sv.firstChild) g.append(sv.firstChild);
+    sv.append(g);
+  });
+  box.append(prc);
+
+  /* 台灣教育部筆順 */
+  const tw = await fetch('/api/tw?c=' + encodeURIComponent(c)).then(r => r.ok ? r.json() : null);
+  const twRow = el('div', 'so-row');
+  const t2 = el('div', 'so-t');
+  if (tw) {
+    const diff = tw.strokes.length !== strokes.length;
+    t2.innerHTML = `<b>台灣</b><span>教育部標準 · ${tw.strokes.length} 筆` +
+      (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
+    twRow.append(t2);
+    twRow.append(seq(tw.strokes, '0 0 2048 2048'));
+  } else {
+    t2.innerHTML = '<b>台灣</b>';
+    twRow.append(t2);
+    twRow.append(el('div', 'so-miss', '教育部資料只涵蓋 4,847 個常用字，此字不在其中。'));
+  }
+  box.append(twRow);
+
+  /* 香港教育局：從《香港小學學習字詞表》的筆順示範解碼而來（隨用隨抓） */
+  const hkRow = el('div', 'so-row');
+  hkRow.innerHTML = '<div class="so-t"><b>香港</b><span>教育局 · 讀取中…</span></div>';
+  box.append(hkRow);
+  const hk = await fetch('/api/hk?c=' + encodeURIComponent(c))
+    .then(r => (r.ok ? r.json() : null)).catch(() => null);
+  if (c !== cur) return;                       /* 已經換字了，別把舊結果貼上去 */
+  hkRow.innerHTML = '';
+  const t3 = el('div', 'so-t');
+  if (hk) {
+    const diff = hk.strokes.length !== strokes.length;
+    t3.innerHTML = `<b>香港</b><span>教育局 · ${hk.strokes.length} 筆` +
+      (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
+    hkRow.append(t3);
+    const g = el('div', 'so-g');
+    hk.strokes.forEach((s, i) => {
+      const cell = el('div', 'so-s');
+      cell.innerHTML = `<svg viewBox="${hk.viewBox}">` +
+        hk.strokes.slice(0, i).map(q =>
+          `<g transform="translate(${q.tx},${q.ty})"><path class="p" d="${q.d}"/></g>`).join('') +
+        `<g transform="translate(${s.tx},${s.ty})"><path class="c" d="${s.d}"/></g></svg><i>${i + 1}</i>`;
+      g.append(cell);
+    });
+    hkRow.append(g);
+  } else {
+    t3.innerHTML = '<b>香港</b>';
+    hkRow.append(t3);
+    hkRow.append(el('div', 'so-miss', '《香港小學學習字詞表》沒有收錄此字。'));
+  }
+}
+
+/* ---------- queue ---------- */
+const isDone = c => !!(codes[c] && codes[c].segments && codes[c].segments.length);
+function pool() {
+  const q = $('#search').value.trim();
+  if (q) return [...q].filter(c => order.includes(c));
+  return order.filter(c => filter === 'all' ? true : filter === 'done' ? isDone(c) : !isDone(c));
+}
+function renderQueue() {
+  const box = $('#qlist'); box.innerHTML = '';
+  for (const c of pool().slice(0, shown)) {
+    const d = el('div', 'qi' + (c === cur ? ' on' : '') + (isDone(c) ? '' : ' todo'));
+    d.append(el('div', 'c', c));
+    d.append(el('div', 'cd', isDone(c) ? codes[c].segments.map(s => s.letter).join('') : '·'));
+    d.onclick = () => load(c);
+    box.append(d);
+  }
+  $('#prog').innerHTML = `已取碼 <b>${order.filter(isDone).length}</b> / ${order.length}`;
+}
+const libInfo = () => {
+  const n = lib.length;
+  const letters = new Set(lib.map(e => e.letter)).size;
+  $('#libinfo').innerHTML = `字根 <b>${n}</b>（${letters} 個字母）`;
+};
+
+/* ---------- 儲存：碼表 + 學回字根表 ---------- */
+async function save() {
+  if (cur && segs.length) {
+    /* 每個確認的字根都併入字根表（同形合併計次，新形新增） */
+    for (const s of segs) {
+      const vec = Shape.strokeVec(s.strokes.map(i => medians[i]));
+      if (!vec) continue;
+      const r = Zigen.merge(zigen, lib, { letter: s.letter, char: cur, strokeIdx: s.strokes, vec });
+      if (!r.merged) zigenDirty = true;
+      else zigenDirty = true;                       /* count/seen 也要存 */
+    }
+    codes[cur] = { ...(codes[cur] || {}), segments: segs.map(s => ({ ...s })),
+                   code: segs.map(s => s.letter).join(''),
+                   skipped: skipped.length ? [...skipped] : undefined,
+                   note: $('#note').value || undefined };
+  } else if (cur && codes[cur]) {
+    delete codes[cur].segments; delete codes[cur].code;
+  }
+  $('#status').textContent = '儲存中…';
+  const puts = [fetch('/api/codes', { method: 'PUT',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes) })];
+  if (zigenDirty) puts.push(fetch('/api/zigen', { method: 'PUT',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(zigen) }));
+  const rs = await Promise.all(puts);
+  if (rs.every(r => r.ok)) {
+    dirty = false; zigenDirty = false;
+    $('#status').textContent = '已儲存 ✓'; $('#status').className = 'saved';
+    stamp = await fetchStamp();
+  } else $('#status').textContent = '儲存失敗';
+  libInfo(); renderQueue();
+}
+async function saveNext() {
+  await save();
+  const p = pool();
+  const next = filter === 'todo' ? p.find(c => !isDone(c)) : p[(p.indexOf(cur) + 1) % p.length];
+  if (next) load(next);
+}
+
+/* ---------- 與字根表頁互通：偵測對方改動並重載 ---------- */
+const fetchStamp = () => fetch('/api/state').then(r => r.json()).then(s => s.zigen);
+async function pollZigen() {
+  if (dirty || zigenDirty) return;
+  const s = await fetchStamp();
+  if (s === stamp) return;
+  stamp = s;
+  zigen = await fetch('/api/zigen').then(r => r.json());
+  rules = await fetch('/api/rules').then(r => r.json());
+  lib = await Zigen.buildLibrary(zigen);
+  libInfo(); suggest();
+  if (!segs.length) predict();
+  $('#status').textContent = '字根表已更新';
+}
+
+$('#saveNext').onclick = saveNext;
+$('#clearSel').onclick = () => { sel = []; drawGlyph(); suggest(); };
+$('#undoSeg').onclick = () => { segs.pop(); touch(); drawGlyph(); renderSegs(); };
+$('#note').oninput = touch;
+$('#search').oninput = () => { shown = 120; renderQueue(); };
+$('#more').onclick = () => { shown += 120; renderQueue(); };
+for (const b of document.querySelectorAll('.filters button'))
+  b.onclick = () => {
+    filter = b.dataset.f; shown = 120;
+    document.querySelectorAll('.filters button').forEach(x => x.classList.toggle('on', x === b));
+    renderQueue();
+  };
+$('#export').onclick = () => {
+  const lines = ['# 愛發筆碼表\t字\t碼\t筆畫分組'];
+  for (const [c, r] of Object.entries(codes)) if (r.segments)
+    lines.push(`${c}\t${r.segments.map(s => s.letter).join('')}\t` +
+      r.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+'));
+  const a = el('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
+  a.download = 'aiphabi.dict.txt'; a.click();
+};
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === ' ') { e.preventDefault(); showNums = !showNums; drawGlyph(); }
+  else if (e.key === 'Enter') { e.preventDefault(); saveNext(); }
+  else if (e.key === 'Backspace') { e.preventDefault(); segs.pop(); touch(); drawGlyph(); renderSegs(); }
+  else if (e.key === 'Escape') { sel = []; drawGlyph(); suggest(); }
+  else if (e.key === 'x' || e.key === 'X') { e.preventDefault(); skipSelected(); }
+  else if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); commit(e.key); }
+  else if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+});
+setInterval(() => { if (dirty || zigenDirty) save(); }, 20000);
+setInterval(pollZigen, 3000);
+window.onbeforeunload = e => { if (dirty || zigenDirty) return e.returnValue = '有未儲存的修改'; };
+
+Promise.all([
+  fetch('/api/freq').then(r => r.json()),
+  fetch('/api/codes').then(r => r.json()),
+  fetch('/api/zigen').then(r => r.json()),
+  fetch('/api/rules').then(r => r.json()),
+  fetchStamp(),
+]).then(async ([f, c, z, rl, s]) => {
+  order = f.order; codes = c; zigen = z; rules = rl; stamp = s;
+  lib = await Zigen.buildLibrary(zigen);
+  libInfo();
+  $('#status').textContent = '已載入';
+  renderQueue();
+  load(pool()[0] || '的');
+});
+</script>
+</body>
+</html>

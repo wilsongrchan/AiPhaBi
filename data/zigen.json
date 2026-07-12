@@ -1,0 +1,635 @@
+{
+  "meta": {
+    "name": "愛發筆輸入法",
+    "name_en": "AiPhaBi Input Method",
+    "version": "2",
+    "source": "手稿 2026-07-12（二版）",
+    "max_code_length": 4,
+    "wildcard_key": "Z",
+    "note": "字根表由「逐字取碼」頁學習而成：每確認一個筆畫組合→字母的指派，該字根就會併入本表（相同形狀自動合併並計次）。也可在此手動新增／刪除／改分意圖。",
+    "merge_threshold": 0.25
+  },
+  "letters": [
+    {
+      "letter": "A",
+      "hint": "人下有一横或一点、直框中有一横或一点。",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "B",
+      "hint": "",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "“日”字形",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "的",
+                "strokes": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "ex": "的",
+              "count": 6,
+              "seen": [
+                "的",
+                "是"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "C",
+      "hint": "左右框",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "整行手稿較淡，需核對。",
+      "intentions": []
+    },
+    {
+      "letter": "D",
+      "hint": "月",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "“月”字形",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "有",
+                "strokes": [
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "ex": "有",
+              "count": 2,
+              "seen": [
+                "有"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "E",
+      "hint": "上下穿",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "E=上下穿，與 F=穿橫 的分別需明文寫成規則。",
+      "intentions": []
+    },
+    {
+      "letter": "F",
+      "hint": "穿橫",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "此行字根最多，辨認信心最低。",
+      "intentions": [
+        {
+          "desc": "“下”字形",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "是",
+                "strokes": [
+                  4,
+                  5,
+                  6
+                ]
+              },
+              "ex": "是",
+              "count": 8,
+              "seen": [
+                "是",
+                "就",
+                "下"
+              ],
+              "learned": true
+            }
+          ]
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "我",
+                "strokes": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "ex": "我",
+              "count": 1,
+              "seen": [
+                "我"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "G",
+      "hint": "",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "H",
+      "hint": "並聯",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "I",
+      "hint": "橫",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "一",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "一",
+              "count": 2,
+              "seen": [
+                "一"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "J",
+      "hint": "撇",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "的",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "的",
+              "count": 6,
+              "seen": [
+                "的",
+                "人",
+                "就",
+                "我"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "不",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "不",
+              "count": 4,
+              "seen": [
+                "不",
+                "就"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "我",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "我",
+              "count": 1,
+              "seen": [
+                "我"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "K",
+      "hint": "竹／水",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "L",
+      "hint": "乙／豎彎",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "以",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "以",
+              "count": 3,
+              "seen": [
+                "以",
+                "就"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "人",
+                "strokes": [
+                  1
+                ]
+              },
+              "ex": "人",
+              "count": 5,
+              "seen": [
+                "人",
+                "大",
+                "我"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "M",
+      "hint": "巾／小",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "N",
+      "hint": "几／豎",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "O",
+      "hint": "包（全包）",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "個",
+                "strokes": [
+                  2,
+                  3,
+                  9
+                ]
+              },
+              "ex": "個",
+              "count": 3,
+              "seen": [
+                "個"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "P",
+      "hint": "",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "Q",
+      "hint": "點／貫",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "點劃",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "的",
+                "strokes": [
+                  7
+                ]
+              },
+              "ex": "的",
+              "count": 8,
+              "seen": [
+                "的",
+                "以",
+                "就",
+                "我"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "不",
+                "strokes": [
+                  2,
+                  3
+                ]
+              },
+              "ex": "不",
+              "count": 3,
+              "seen": [
+                "不"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "R",
+      "hint": "斜包",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "S",
+      "hint": "紐",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "的",
+                "strokes": [
+                  5,
+                  6
+                ]
+              },
+              "ex": "的",
+              "count": 2,
+              "seen": [
+                "的"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "T",
+      "hint": "十／木",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "個",
+                "strokes": [
+                  4,
+                  5
+                ]
+              },
+              "ex": "個",
+              "count": 1,
+              "seen": [
+                "個"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "U",
+      "hint": "半包／艇",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "V",
+      "hint": "",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "W",
+      "hint": "山／心",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": []
+    },
+    {
+      "letter": "X",
+      "hint": "乂／又",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "shapes": [
+            {
+              "glyph": {
+                "src": "有",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "有",
+              "count": 6,
+              "seen": [
+                "有",
+                "就",
+                "大",
+                "我"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "Y",
+      "hint": "人／大",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "",
+      "intentions": [
+        {
+          "desc": "“人”字形（但不含“人”字）",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "是",
+                "strokes": [
+                  7,
+                  8
+                ]
+              },
+              "ex": "是",
+              "count": 3,
+              "seen": [
+                "是"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "以",
+                "strokes": [
+                  2,
+                  3
+                ]
+              },
+              "ex": "以",
+              "count": 1,
+              "seen": [
+                "以"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "個",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "個",
+              "count": 2,
+              "seen": [
+                "個"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "letter": "Z",
+      "hint": "萬用鍵（wildcard）",
+      "secondary": [],
+      "tertiary": [],
+      "examples": [],
+      "notes": "萬用鍵：匹配任何一碼。",
+      "intentions": []
+    }
+  ]
+}
