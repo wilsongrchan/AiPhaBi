@@ -604,7 +604,10 @@
       }
     ],
     "code": "FXXFUPI",
-    "final": "FXXI"
+    "final": "FXXI",
+    "overrides": [
+      "tier:6"
+    ]
   },
   "會": {
     "segments": [
@@ -666,5 +669,80 @@
     ],
     "code": "UT",
     "final": "UT"
+  },
+  "時": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          9
+        ],
+        "letter": "Q"
+      }
+    ],
+    "code": "BFTQ",
+    "final": "BFTQ",
+    "overrides": [
+      "merge:2"
+    ]
+  },
+  "下": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "F",
+    "final": "F"
+  },
+  "多": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "A"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "A"
+      }
+    ],
+    "code": "AA",
+    "final": "AA"
   }
 }

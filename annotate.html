@@ -71,6 +71,7 @@
   #glyph path.un:hover { fill:var(--muted); }
   #glyph path.sel { fill:var(--accent); }
   #glyph path.skip { fill:var(--prev); opacity:1; }   /* 略過：灰色實心，一眼看得出 */
+  #glyph path.hl { stroke:var(--accent); stroke-width:34; stroke-opacity:.35; }
   .so-row { margin-bottom:8px; }
   .so-t { font-size:11px; color:var(--muted); display:flex; gap:6px; align-items:baseline; }
   .so-t b { color:var(--ink); font-weight:600; }
@@ -121,7 +122,10 @@
   .code .short { color:var(--accent); }
   .seg { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
     border-radius:9px; padding:5px 8px; background:var(--card); margin-bottom:5px; }
+  .seg .no { flex:none; width:18px; height:18px; border-radius:50%; color:#fff;
+    font:700 10px/18px ui-monospace,monospace; text-align:center; }
   .seg svg { width:34px; height:34px; flex:none; }
+  .seg.hl { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 8%,transparent); }
   .seg svg .on { fill:var(--ink); } .seg svg .off { fill:var(--ghost); opacity:.3; }
   .seg input { width:34px; text-align:center; font:700 17px ui-monospace,monospace;
     text-transform:uppercase; border:1px solid var(--line); border-radius:6px; padding:2px;
@@ -379,8 +383,11 @@ function renderSegs() {
   const box = $('#segs'); box.innerHTML = '';
   segs.forEach((s, i) => {
     const d = el('div', 'seg');
+    d.dataset.i = i;
+    const no = el('div', 'no', String(i + 1));       /* 序號＝警告訊息裡的「第 N 個字根」 */
+    no.style.background = hue(i);
+    d.append(no);
     const sv = el('div'); sv.innerHTML = subSvg(s.strokes);
-    sv.querySelector('svg').style.borderLeft = `3px solid ${hue(i)}`;
     d.append(sv);
     const inp = el('input'); inp.value = s.letter; inp.maxLength = 1;
     inp.oninput = () => { s.letter = inp.value.toUpperCase(); touch(); renderCode(); };
@@ -473,13 +480,13 @@ function checks(ctx) {
 
     /* 2. 這組筆畫跟你選的字母的既有字根對不上，但很像別的字母的字根 */
     if (any && any.d < thr && (!mine || mine.d >= thr) && any.e.letter !== sg.letter) {
-      out.push({ key: `letter:${i}`, lvl: 'warn', rule: '字根比對',
+      out.push({ key: `letter:${i}`, lvl: 'warn', rule: '字根比對', refs: [i],
         msg: `第 ${i + 1} 個字根指派給 <b>${sg.letter}</b>，但它的形狀跟 ` +
              `<b>${any.e.letter}</b> 的既有字根 ${any.e.label} 幾乎一樣（距離 ${any.d.toFixed(3)}）。` });
     }
     /* 3. 全新的形狀：不是錯，只是提醒會新增一條字根 */
     else if (!mine || mine.d >= thr) {
-      out.push({ key: `new:${i}`, lvl: 'info', rule: '新字根',
+      out.push({ key: `new:${i}`, lvl: 'info', rule: '新字根', refs: [i],
         msg: `第 ${i + 1} 個字根（${sg.letter}）是新形狀，儲存後會在 ${sg.letter} 底下新增一條字根。` });
     }
 
@@ -488,20 +495,24 @@ function checks(ctx) {
       const better = lib.filter(e => e.n === sg.strokes.length && e.tier === 'primary')
         .map(e => ({ e, d: Shape.dist(Shape.strokeVec(sg.strokes.map(k => medians[k])), e.vec) }))
         .filter(x => x.d < thr).sort((a, b) => a.d - b.d)[0];
-      if (better) out.push({ key: `tier:${i}`, lvl: 'warn', rule: '優次等原則',
+      if (better) out.push({ key: `tier:${i}`, lvl: 'warn', rule: '優次等原則', refs: [i],
         msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}（${sg.letter}），` +
              `但同一組筆畫也配得上<b>優等</b>字根 ${better.e.label}（<b>${better.e.letter}</b>）。` });
     }
   });
 
-  /* 5. 能合不分：相鄰兩個字根若能併成一個既有字根，就不該分兩碼 */
+  /* 5. 能合不分：相鄰兩個字根若能併成一個既有字根，就不該分兩碼。
+        編號用 segs 陣列裡的實際位置 —— 畫面上的序號是那個，不是筆順排序後的位置。 */
   if (on('merge_over_split')) {
-    const order = [...segs].sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
-    for (let i = 0; i + 1 < order.length; i++) {
-      const union = [...order[i].strokes, ...order[i + 1].strokes].sort((a, b) => a - b);
+    const order = segs.map((s, i) => ({ s, i }))
+      .sort((a, b) => Math.min(...a.s.strokes) - Math.min(...b.s.strokes));
+    for (let k = 0; k + 1 < order.length; k++) {
+      const a = order[k], b = order[k + 1];
+      const union = [...a.s.strokes, ...b.s.strokes].sort((x, y) => x - y);
       const m = bestMatch2(union);
-      if (m && m.d < thr) out.push({ key: `merge:${i}`, lvl: 'warn', rule: '能合不分原則',
-        msg: `第 ${i + 1}、${i + 2} 個字根合起來剛好是既有字根 ${m.e.label}` +
+      if (m && m.d < thr) out.push({ key: `merge:${a.i}-${b.i}`, lvl: 'warn',
+        rule: '能合不分原則', refs: [a.i, b.i],
+        msg: `第 ${a.i + 1}、${b.i + 1} 個字根合起來剛好是既有字根 ${m.e.label}` +
              `（<b>${m.e.letter}</b>）—— 可以一碼取盡，不必分兩碼。` });
     }
   }
@@ -511,10 +522,10 @@ function checks(ctx) {
   if (sk) for (const i of skipped) {
     const kind = Zigen.strokeKind(medians[i]);
     if (!sk.params.allow.includes(kind)) {
-      out.push({ key: `skip:${i}`, lvl: 'warn', rule: '孤筆略過原則',
+      out.push({ key: `skip:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
         msg: `第 ${i + 1} 筆是「${kind}」，不在可略過的筆畫（${sk.params.allow.join('、')}）之內。` });
     } else if (kind === '橫' && i === nStrokes - 1 && sk.params.last_stroke_letter) {
-      out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則',
+      out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
         msg: `末筆是孤立的橫，依原則應取 <b>${sk.params.last_stroke_letter}</b>，不是略過。` });
     }
   }
@@ -535,6 +546,7 @@ function renderChecks() {
   }
   for (const c of active) {
     const d = el('div', 'chk ' + c.lvl);
+    highlightOn(d, c);
     d.append(el('span', 'ic', c.lvl === 'warn' ? '⚠' : 'ℹ'));
     const body = el('div', 'body');
     body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}</span>`;
@@ -572,6 +584,22 @@ function renderChecks() {
     act.append(un); d.append(act);
     box.append(d);
   }
+}
+
+/* 滑過某條警告時，把它講的那幾個字根／筆畫在畫面上點亮 */
+function highlightOn(elm, c) {
+  const segRefs = c.refs || [];
+  const stRefs = c.strokeRefs || segRefs.flatMap(i => segs[i] ? segs[i].strokes : []);
+  elm.onmouseenter = () => {
+    for (const i of segRefs)
+      document.querySelector(`.seg[data-i="${i}"]`)?.classList.add('hl');
+    const paths = document.querySelectorAll('#glyph g path');
+    for (const i of stRefs) paths[i]?.classList.add('hl');
+  };
+  elm.onmouseleave = () => {
+    document.querySelectorAll('.seg.hl').forEach(x => x.classList.remove('hl'));
+    document.querySelectorAll('#glyph path.hl').forEach(x => x.classList.remove('hl'));
+  };
 }
 
 /* ---------- 整字預測 ---------- */

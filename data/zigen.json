@@ -21,8 +21,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "",
-          "auto": true,
+          "desc": "“人”下有一橫或一點",
           "tier": "primary",
           "shapes": [
             {
@@ -38,6 +37,61 @@
               "count": 3,
               "seen": [
                 "會"
+              ],
+              "learned": true
+            },
+            {
+              "ex": "今",
+              "glyph": {
+                "src": "今",
+                "strokes": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "ex": "笑",
+              "glyph": {
+                "src": "笑",
+                "strokes": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "ex": "制",
+              "glyph": {
+                "src": "制",
+                "strokes": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "desc": "豎框中有一橫或一點，或類似字形",
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "多",
+                "strokes": [
+                  0,
+                  1,
+                  2
+                ]
+              },
+              "ex": "多",
+              "count": 2,
+              "seen": [
+                "多"
               ],
               "learned": true
             }
@@ -63,7 +117,11 @@
                   3
                 ]
               },
-              "ex": "日"
+              "ex": "日",
+              "count": 5,
+              "seen": [
+                "時"
+              ]
             },
             {
               "glyph": {
@@ -176,7 +234,11 @@
                   2
                 ]
               },
-              "ex": "下"
+              "ex": "下",
+              "count": 2,
+              "seen": [
+                "下"
+              ]
             },
             {
               "glyph": {
@@ -223,9 +285,10 @@
                 ]
               },
               "ex": "我",
-              "count": 5,
+              "count": 6,
               "seen": [
-                "我"
+                "我",
+                "時"
               ],
               "learned": true
             }
@@ -246,10 +309,11 @@
                 ]
               },
               "ex": "在",
-              "count": 4,
+              "count": 8,
               "seen": [
                 "在",
-                "到"
+                "到",
+                "時"
               ],
               "learned": true
             }
@@ -688,8 +752,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "",
-          "auto": true,
+          "desc": "兩豎並列",
           "tier": "primary",
           "shapes": [
             {
@@ -806,12 +869,13 @@
                 ]
               },
               "ex": "的",
-              "count": 12,
+              "count": 14,
               "seen": [
                 "的",
                 "以",
                 "就",
-                "我"
+                "我",
+                "時"
               ],
               "learned": true
             }
@@ -919,11 +983,12 @@
                 ]
               },
               "ex": "個",
-              "count": 4,
+              "count": 6,
               "seen": [
                 "個",
                 "在",
-                "中"
+                "中",
+                "時"
               ],
               "learned": true
             },
