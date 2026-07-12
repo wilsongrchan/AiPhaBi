@@ -82,6 +82,9 @@
     padding:0 3px; border-radius:4px; border:1px solid var(--line); background:var(--card);
     color:var(--accent); cursor:pointer; }
   .chip .cnt:hover { border-color:var(--accent); }
+  .chip .alt { position:absolute; bottom:-7px; left:-6px; font:600 9px ui-monospace,monospace;
+    padding:0 3px; border-radius:4px; border:1px solid var(--ok); background:var(--card);
+    color:var(--ok); cursor:pointer; }
   .empty { color:var(--muted); font-size:13px; font-style:italic; padding:6px 0; }
   .chip.dragging { opacity:.35; }
   .chip.ghost { position:fixed; z-index:100; pointer-events:none; opacity:.9;
@@ -91,6 +94,30 @@
     outline:1px dashed var(--accent); }
   .ins { width:3px; align-self:stretch; min-height:40px; border-radius:2px;
     background:var(--accent); }
+
+  /* 精簡檢視：一行一個字母，只看形狀與數量 */
+  main.compact { display:block; padding:14px 20px; }
+  .row { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:10px;
+    border:1px solid var(--line); background:var(--card); margin-bottom:6px; }
+  .row .key { font:650 20px/1 ui-monospace,Menlo,monospace; width:26px; margin:0; flex:none; }
+  .row .n { font:600 11px ui-monospace,monospace; color:var(--muted); width:28px; flex:none; }
+  .row .shapes { flex:1; min-height:0; margin:0; gap:5px; }
+  .row .chip { min-width:auto; padding:2px 5px 1px; }
+  .row .chip .ex, .row .chip .set, .row .chip .cnt { display:none; }
+  .row .tsep { width:1px; align-self:stretch; background:var(--line); margin:0 3px; }
+  .row .tsep-l { font-size:9px; color:var(--muted); align-self:center; }
+  .row.empty-row { opacity:.45; }
+
+  /* 選取 → 合併 */
+  .chip.picked { outline:2px solid var(--accent); outline-offset:1px; }
+  #mergebar { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:60;
+    display:none; gap:10px; align-items:center; background:var(--card); color:var(--ink);
+    border:1px solid var(--accent); border-radius:12px; padding:9px 14px;
+    box-shadow:0 8px 26px rgba(0,0,0,.22); font-size:13px; }
+  #mergebar.on { display:flex; }
+  #mergebar .prev { display:flex; gap:4px; }
+  #mergebar .prev svg { width:26px; height:26px; }
+  #mergebar .prev svg .on { fill:var(--ink); } #mergebar .prev svg .off { fill:var(--ghost); opacity:.35; }
   .grip { cursor:grab; color:var(--line); font-size:12px; line-height:1; user-select:none;
     padding:0 1px; }
   .grip:hover { color:var(--accent); }
@@ -175,6 +202,7 @@
   </nav>
   <div class="stats" id="stats"></div>
   <div class="grow"></div>
+  <button id="compact">精簡檢視</button>
   <input type="search" id="q" placeholder="搜尋字根／例字／意圖…">
   <label style="font-size:13px;color:var(--muted)" title="形狀距離門檻：愈大愈容易把相似筆畫視為同一字根">
     合併門檻 <input type="range" id="thr" min="0.05" max="0.6" step="0.01" style="width:80px;vertical-align:middle">
@@ -186,6 +214,12 @@
 </header>
 <div id="dupes"></div>
 <main id="app"></main>
+<div id="mergebar">
+  <span id="mergetext"></span>
+  <span class="prev" id="mergeprev"></span>
+  <button class="primary" id="domerge">合併成一個字根</button>
+  <button id="cancelmerge">取消</button>
+</div>
 
 <div id="modal">
   <div class="sheet">
@@ -302,8 +336,14 @@ function bboxOf(strokes, sel) {
 }
 
 /* ============================== render ============================== */
+let compact = false;
+
 function render() {
   const app = $('#app'); app.innerHTML = '';
+  app.classList.toggle('compact', compact);
+  renderMergeBar();
+  if (compact) return renderCompact();
+
   const dup = new Set(duplicates().map(d => shapeKey(d.s)));
   const q = $('#q').value.trim();
 
@@ -374,6 +414,43 @@ function render() {
   renderStats();
 }
 
+/* 精簡檢視：一行一個字母，只列形狀（等級之間用直線隔開，意圖不再分隔），
+   一眼看出每個字母有幾個字根。 */
+function renderCompact() {
+  const app = $('#app');
+  const dup = new Set(duplicates().map(d => shapeKey(d.s)));
+  const q = $('#q').value.trim();
+
+  for (const L of data.letters) {
+    const n = L.intentions.reduce((k, it) => k + it.shapes.length, 0);
+    const row = el('div', 'row' + (n ? '' : ' empty-row'));
+    row.append(el('div', 'key', L.letter));
+    row.append(el('div', 'n', n ? `×${n}` : '—'));
+
+    const box = el('div', 'shapes');
+    let first = true;
+    for (const [tier, label] of TIERS) {
+      const shapes = L.intentions.filter(it => tierOf(it) === tier)
+        .flatMap(it => it.shapes.map(s => ({ s, arr: it.shapes })));
+      if (!shapes.length) continue;
+      if (!first) {
+        box.append(el('div', 'tsep'));
+        box.append(el('div', 'tsep-l', tier === 'secondary' ? '次' : '三'));
+      }
+      first = false;
+      for (const { s, arr } of shapes)
+        box.append(chip(arr, arr.indexOf(s), s, dup, L, null));
+    }
+    if (!n) box.append(el('span', 'empty', '（還沒有字根）'));
+    row.append(box);
+
+    if (q && !JSON.stringify(L).includes(q) && L.letter !== q.toUpperCase())
+      row.classList.add('hidden');
+    app.append(row);
+  }
+  renderStats();
+}
+
 const SETS = { both: '繁簡', trad: '繁', simp: '簡' };
 function chip(arr, i, s, dup, L, it) {
   const c = el('div', 'chip' + (s.uncertain ? ' unc' : '') + (dup.has(shapeKey(s)) ? ' dupe' : ''));
@@ -385,8 +462,15 @@ function chip(arr, i, s, dup, L, it) {
   c.onpointerdown = ev => {
     if (ev.button !== 0) return;
     if (ev.target.closest('.tools, .set, .cnt')) return;
+    /* ⌘／Ctrl／Shift + 點＝選取，用來把「其實是同一個」的字根合併 */
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey) {
+      ev.preventDefault();
+      togglePick(L.letter, s);
+      return;
+    }
     startDrag(ev, c, arr, i, s);
   };
+  if (picked.has(s)) c.classList.add('picked');
 
   if (s.glyph) {                                   /* stroke-subset 字根 */
     const holder = el('div');
@@ -406,6 +490,20 @@ function chip(arr, i, s, dup, L, it) {
   }
 
   c.append(editable('ex', s.ex || '', v => { s.ex = v; touch(); }));
+
+  if (s.alts && s.alts.length) {
+    const v = el('span', 'alt', `+${s.alts.length}`);
+    v.title = `已合併 ${s.alts.length} 個同形變體 —— 比對時都算這個字根\n點擊可拆開`;
+    v.onclick = () => {
+      if (!confirm(`把 ${s.alts.length} 個變體拆回獨立的字根？`)) return;
+      const L2 = data.letters.find(x => x.intentions.some(it => it.shapes.includes(s)));
+      const it = L2.intentions.find(it => it.shapes.includes(s));
+      for (const a of s.alts) it.shapes.push({ glyph: a, ex: a.src, count: 1, seen: [a.src] });
+      delete s.alts;
+      touch(); render();
+    };
+    c.append(v);
+  }
 
   /* 學來的字根：出現次數 + 出現過的字；點次數可把它移到別的意圖 */
   if (s.count) {
@@ -460,6 +558,64 @@ async function pushChar(arr, ch) {
 /* 放置目標：每一列 shapes 都登記自己對應的陣列 */
 const zones = new WeakMap();
 const dropZone = (row, arr) => { zones.set(row, arr); return row; };
+
+/* ---------- 合併字根：你認為是同一個形狀的，就併成一條 ----------
+   併起來之後，被併掉的形狀變成該字根的「變體」(alts)，比對時一樣算數 —— 
+   所以合併不是丟掉資料，而是告訴系統「這幾個形狀是同一個字根」。 */
+const picked = new Set();
+let pickLetter = null;
+
+function togglePick(letter, s) {
+  if (pickLetter && letter !== pickLetter) { picked.clear(); }   /* 只能合併同一字母底下的 */
+  pickLetter = letter;
+  picked.has(s) ? picked.delete(s) : picked.add(s);
+  if (!picked.size) pickLetter = null;
+  render();
+}
+
+function renderMergeBar() {
+  const bar = $('#mergebar');
+  bar.classList.toggle('on', picked.size > 0);
+  if (!picked.size) return;
+  $('#mergetext').innerHTML = `已選 <b>${picked.size}</b> 個字根（${pickLetter}）`;
+  const prev = $('#mergeprev'); prev.innerHTML = '';
+  for (const s of picked) {
+    const holder = el('span');
+    holder.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
+    if (s.glyph) getGlyph(s.glyph.src).then(st => {
+      if (st) holder.innerHTML = glyphSvg(st, s.glyph.strokes);
+    });
+    prev.append(holder);
+  }
+  $('#domerge').disabled = picked.size < 2;
+}
+
+function mergePicked() {
+  if (picked.size < 2) return;
+  const list = [...picked];
+  /* 代表：出現次數最多的那個（最有代表性）；其餘變成它的變體 */
+  list.sort((a, b) => (b.count || 0) - (a.count || 0));
+  const keep = list[0], rest = list.slice(1);
+
+  const L = data.letters.find(x => x.letter === pickLetter);
+  const nStrokes = s => s.glyph ? s.glyph.strokes.length : 0;
+  if (rest.some(s => nStrokes(s) !== nStrokes(keep)) &&
+      !confirm('這幾個字根的筆畫數不一樣，確定要當成同一個字根合併？')) return;
+
+  keep.alts = keep.alts || [];
+  for (const s of rest) {
+    if (s.glyph) keep.alts.push(s.glyph);
+    for (const a of s.alts || []) keep.alts.push(a);
+    keep.count = (keep.count || 1) + (s.count || 1);
+    keep.seen = [...new Set([...(keep.seen || []), ...(s.seen || [])])].slice(0, 24);
+    for (const it of L.intentions) {
+      const k = it.shapes.indexOf(s);
+      if (k >= 0) it.shapes.splice(k, 1);
+    }
+  }
+  picked.clear(); pickLetter = null;
+  touch(); render();
+}
 
 /* ---------- 拖曳整個意圖：換順序、換等級、換字母 ---------- */
 const intentZones = new WeakMap();
@@ -841,6 +997,13 @@ function exportTxt() {
 }
 $('#save').onclick = save;
 $('#export').onclick = exportTxt;
+$('#compact').onclick = () => {
+  compact = !compact;
+  $('#compact').classList.toggle('primary', compact);
+  render();
+};
+$('#domerge').onclick = mergePicked;
+$('#cancelmerge').onclick = () => { picked.clear(); pickLetter = null; render(); };
 $('#q').oninput = render;
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }

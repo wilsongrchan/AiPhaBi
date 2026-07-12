@@ -30,7 +30,10 @@
         "letter": "Q"
       }
     ],
-    "code": "JBSQ"
+    "code": "JBSQ",
+    "overrides": [
+      "merge:2-3"
+    ]
   },
   "是": {
     "segments": [
@@ -165,7 +168,8 @@
     "code": "JL",
     "overrides": [
       "merge:0",
-      "tier:1"
+      "tier:1",
+      "merge:0-1"
     ],
     "final": "JL",
     "note": "“人”作為字根時取”Y“，作為獨立漢字時分拆兩碼”JL“。"
@@ -237,14 +241,15 @@
           8,
           9
         ],
-        "letter": "U"
+        "letter": "Z"
       }
     ],
-    "code": "IOU",
+    "code": "IOZ",
     "skipped": [
       2,
       3
-    ]
+    ],
+    "final": "IOZ"
   },
   "上": {
     "segments": [
@@ -262,7 +267,10 @@
         "letter": "I"
       }
     ],
-    "code": "TI"
+    "code": "TI",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "在": {
     "segments": [
@@ -706,7 +714,8 @@
     "code": "BFTQ",
     "final": "BFTQ",
     "overrides": [
-      "merge:2"
+      "merge:2",
+      "merge:2-3"
     ]
   },
   "下": {
@@ -744,5 +753,450 @@
     ],
     "code": "AA",
     "final": "AA"
+  },
+  "出": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "W"
+      }
+    ],
+    "code": "UW",
+    "final": "UW",
+    "overrides": [
+      "letter:1"
+    ]
+  },
+  "好": {
+    "overrides": [
+      "tier:3"
+    ],
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          1,
+          2
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          3,
+          4
+        ],
+        "letter": "P"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "LJPI",
+    "final": "LJPI"
+  },
+  "說": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          12
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          13
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "IOVOJL",
+    "final": "IOVL",
+    "skipped": [
+      2,
+      3
+    ],
+    "overrides": [
+      "merge:4-5"
+    ]
+  },
+  "也": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "CL",
+    "final": "CL",
+    "skipped": [
+      1
+    ]
+  },
+  "國": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          10
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          9
+        ],
+        "letter": "Q"
+      }
+    ],
+    "code": "OOXQ",
+    "final": "OOXQ",
+    "skipped": [
+      2,
+      6
+    ],
+    "overrides": [
+      "skip:6"
+    ]
+  },
+  "子": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "P"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "PI",
+    "final": "PI",
+    "overrides": [
+      "tier:1"
+    ]
+  },
+  "後": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          1,
+          2
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "G"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "X"
+      }
+    ],
+    "code": "JYGX",
+    "final": "JYGX"
+  },
+  "生": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "YF",
+    "final": "YF"
+  },
+  "用": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "UF",
+    "final": "UF"
+  },
+  "過": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          4,
+          5
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "Z"
+      }
+    ],
+    "code": "OUOZ",
+    "final": "OUOZ"
+  },
+  "麼": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          11,
+          12,
+          13
+        ],
+        "letter": "G"
+      }
+    ],
+    "code": "RTTG",
+    "final": "RTTG"
+  },
+  "自": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "JDI",
+    "final": "JDI"
+  },
+  "他": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "YCL",
+    "final": "YCL",
+    "skipped": [
+      3
+    ]
+  },
+  "都": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          3
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "P"
+      }
+    ],
+    "code": "FJBP",
+    "final": "FJBP"
   }
 }

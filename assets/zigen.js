@@ -32,18 +32,21 @@
   async function buildLibrary(z) {
     const lib = [];
     const srcs = [...new Set(allShapes(z).filter(x => x.shape.glyph)
-      .map(x => x.shape.glyph.src))];
+      .flatMap(x => [x.shape.glyph.src, ...(x.shape.alts || []).map(a => a.src)]))];
     await Promise.all(srcs.map(getGlyph));      /* 一次併發抓完，別逐個 await */
     for (const { letter, shape, tier } of allShapes(z)) {
       if (!shape.glyph) continue;
-      const g = await getGlyph(shape.glyph.src);
-      if (!g) continue;
-      const med = shape.glyph.strokes.map(i => g.medians[i]);
-      if (med.some(m => !m)) continue;
-      const vec = Shape.strokeVec(med);
-      if (!vec) continue;
-      lib.push({ letter, shape, vec, tier, n: med.length,
-                 label: `${shape.glyph.src}[${shape.glyph.strokes.map(i => i + 1).join('')}]` });
+      /* 合併過的字根有多個變體（alts）：每個變體都要能比對得上 */
+      for (const form of [shape.glyph, ...(shape.alts || [])]) {
+        const g = await getGlyph(form.src);
+        if (!g) continue;
+        const med = form.strokes.map(i => g.medians[i]);
+        if (med.some(m => !m)) continue;
+        const vec = Shape.strokeVec(med);
+        if (!vec) continue;
+        lib.push({ letter, shape, vec, tier, n: med.length,
+                   label: `${form.src}[${form.strokes.map(i => i + 1).join('')}]` });
+      }
     }
     return lib;
   }

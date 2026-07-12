@@ -76,9 +76,20 @@
           ]
         },
         {
-          "desc": "豎框中有一橫或一點，或類似字形",
+          "desc": "“夕”字及類似字形",
           "tier": "primary",
           "shapes": [
+            {
+              "glyph": {
+                "src": "夕",
+                "strokes": [
+                  0,
+                  1,
+                  2
+                ]
+              },
+              "ex": "夕"
+            },
             {
               "glyph": {
                 "src": "多",
@@ -94,6 +105,17 @@
                 "多"
               ],
               "learned": true
+            },
+            {
+              "ex": "丽",
+              "glyph": {
+                "src": "丽",
+                "strokes": [
+                  1,
+                  2,
+                  3
+                ]
+              }
             }
           ]
         }
@@ -118,9 +140,10 @@
                 ]
               },
               "ex": "日",
-              "count": 5,
+              "count": 7,
               "seen": [
-                "時"
+                "時",
+                "都"
               ]
             },
             {
@@ -167,7 +190,30 @@
       "letter": "C",
       "hint": "左右框",
       "notes": "整行手稿較淡，需核對。",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "也",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "也",
+              "count": 2,
+              "seen": [
+                "也",
+                "他"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "D",
@@ -200,9 +246,10 @@
                 ]
               },
               "ex": "有",
-              "count": 2,
+              "count": 3,
               "seen": [
-                "有"
+                "有",
+                "自"
               ],
               "learned": true
             }
@@ -262,6 +309,32 @@
           "tier": "primary"
         },
         {
+          "desc": "類似“土”的字形，但不含“土”字本身",
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "在",
+                "strokes": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "ex": "在",
+              "count": 12,
+              "seen": [
+                "在",
+                "到",
+                "時",
+                "生",
+                "都"
+              ],
+              "learned": true
+            }
+          ]
+        },
+        {
           "desc": "“扌”及類似字形",
           "shapes": [
             {
@@ -294,30 +367,6 @@
             }
           ],
           "tier": "primary"
-        },
-        {
-          "desc": "",
-          "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "在",
-                "strokes": [
-                  3,
-                  4,
-                  5
-                ]
-              },
-              "ex": "在",
-              "count": 8,
-              "seen": [
-                "在",
-                "到",
-                "時"
-              ],
-              "learned": true
-            }
-          ]
         },
         {
           "desc": "",
@@ -371,6 +420,22 @@
                 "學"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "用",
+                "strokes": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "ex": "用",
+              "count": 1,
+              "seen": [
+                "用"
+              ],
+              "learned": true
             }
           ]
         }
@@ -413,6 +478,30 @@
               "ex": "蟲"
             }
           ]
+        },
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "後",
+                "strokes": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "ex": "後",
+              "count": 4,
+              "seen": [
+                "後",
+                "麼"
+              ],
+              "learned": true
+            }
+          ]
         }
       ]
     },
@@ -453,7 +542,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "“一”字",
+          "desc": "“一”字本身，而非一橫",
           "shapes": [
             {
               "glyph": {
@@ -476,8 +565,7 @@
           "tier": "primary"
         },
         {
-          "desc": "",
-          "auto": true,
+          "desc": "一點下有一橫，有時點劃寫作短橫",
           "tier": "primary",
           "shapes": [
             {
@@ -489,10 +577,11 @@
                 ]
               },
               "ex": "這",
-              "count": 8,
+              "count": 14,
               "seen": [
                 "這",
-                "就"
+                "就",
+                "說"
               ],
               "learned": true
             }
@@ -509,7 +598,13 @@
                 "strokes": [
                   2
                 ]
-              }
+              },
+              "count": 5,
+              "seen": [
+                "好",
+                "子",
+                "自"
+              ]
             }
           ]
         }
@@ -521,7 +616,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "橫和撇組合，撇不穿頭",
+          "desc": "一橫和一撇組合，撇不穿頭",
           "shapes": [
             {
               "glyph": {
@@ -570,12 +665,15 @@
                 ]
               },
               "ex": "的",
-              "count": 9,
+              "count": 18,
               "seen": [
                 "的",
                 "人",
                 "就",
-                "我"
+                "我",
+                "說",
+                "後",
+                "自"
               ],
               "learned": true
             },
@@ -587,9 +685,10 @@
                 ]
               },
               "ex": "我",
-              "count": 5,
+              "count": 6,
               "seen": [
-                "我"
+                "我",
+                "都"
               ],
               "learned": true
             }
@@ -599,7 +698,23 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": []
+          "shapes": [
+            {
+              "glyph": {
+                "src": "好",
+                "strokes": [
+                  1,
+                  2
+                ]
+              },
+              "ex": "好",
+              "count": 2,
+              "seen": [
+                "好"
+              ],
+              "learned": true
+            }
+          ]
         },
         {
           "desc": "豎鉤",
@@ -646,10 +761,27 @@
                 ]
               },
               "ex": "以",
-              "count": 6,
+              "count": 10,
               "seen": [
                 "以",
-                "就"
+                "就",
+                "說",
+                "也",
+                "他"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "好",
+                "strokes": [
+                  0
+                ]
+              },
+              "ex": "好",
+              "count": 2,
+              "seen": [
+                "好"
               ],
               "learned": true
             }
@@ -668,7 +800,7 @@
                 ]
               },
               "ex": "人",
-              "count": 15,
+              "count": 16,
               "seen": [
                 "人",
                 "大",
@@ -793,9 +925,10 @@
                 ]
               },
               "ex": "個",
-              "count": 4,
+              "count": 6,
               "seen": [
-                "個"
+                "個",
+                "國"
               ],
               "learned": true
             },
@@ -809,12 +942,32 @@
                 ]
               },
               "ex": "這",
-              "count": 8,
+              "count": 22,
               "seen": [
                 "這",
                 "就",
                 "個",
-                "可"
+                "可",
+                "說",
+                "國",
+                "過"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "過",
+                "strokes": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "ex": "過",
+              "count": 3,
+              "seen": [
+                "過"
               ],
               "learned": true
             }
@@ -842,10 +995,27 @@
                 ]
               },
               "ex": "了",
-              "count": 3,
+              "count": 6,
               "seen": [
                 "了",
-                "學"
+                "學",
+                "好",
+                "子"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "都",
+                "strokes": [
+                  8,
+                  9
+                ]
+              },
+              "ex": "都",
+              "count": 1,
+              "seen": [
+                "都"
               ],
               "learned": true
             }
@@ -869,13 +1039,14 @@
                 ]
               },
               "ex": "的",
-              "count": 14,
+              "count": 16,
               "seen": [
                 "的",
                 "以",
                 "就",
                 "我",
-                "時"
+                "時",
+                "國"
               ],
               "learned": true
             }
@@ -919,7 +1090,31 @@
       "letter": "R",
       "hint": "斜包",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "麼",
+                "strokes": [
+                  0,
+                  1,
+                  2
+                ]
+              },
+              "ex": "麼",
+              "count": 2,
+              "seen": [
+                "麼"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "S",
@@ -983,7 +1178,7 @@
                 ]
               },
               "ex": "個",
-              "count": 6,
+              "count": 7,
               "seen": [
                 "個",
                 "在",
@@ -1007,6 +1202,23 @@
                 "來"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "麼",
+                "strokes": [
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              },
+              "ex": "麼",
+              "count": 3,
+              "seen": [
+                "麼"
+              ],
+              "learned": true
             }
           ],
           "tier": "primary"
@@ -1025,22 +1237,6 @@
           "shapes": [
             {
               "glyph": {
-                "src": "這",
-                "strokes": [
-                  7,
-                  8,
-                  9
-                ]
-              },
-              "ex": "這",
-              "count": 2,
-              "seen": [
-                "這"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
                 "src": "學",
                 "strokes": [
                   11,
@@ -1052,6 +1248,37 @@
               "seen": [
                 "學",
                 "中"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "出",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "出",
+              "count": 3,
+              "seen": [
+                "出"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "用",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "用",
+              "count": 5,
+              "seen": [
+                "用",
+                "過"
               ],
               "learned": true
             }
@@ -1078,9 +1305,10 @@
                 ]
               },
               "ex": "會",
-              "count": 1,
+              "count": 5,
               "seen": [
-                "會"
+                "會",
+                "說"
               ],
               "learned": true
             }
@@ -1092,7 +1320,31 @@
       "letter": "W",
       "hint": "山／心",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "出",
+                "strokes": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "ex": "出",
+              "count": 2,
+              "seen": [
+                "出"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "X",
@@ -1131,9 +1383,10 @@
                 ]
               },
               "ex": "我",
-              "count": 1,
+              "count": 3,
               "seen": [
-                "我"
+                "我",
+                "國"
               ],
               "learned": true
             },
@@ -1149,6 +1402,22 @@
               "count": 6,
               "seen": [
                 "學"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "後",
+                "strokes": [
+                  6,
+                  7,
+                  8
+                ]
+              },
+              "ex": "後",
+              "count": 2,
+              "seen": [
+                "後"
               ],
               "learned": true
             }
@@ -1174,9 +1443,10 @@
                 ]
               },
               "ex": "是",
-              "count": 3,
+              "count": 5,
               "seen": [
-                "是"
+                "是",
+                "說"
               ],
               "learned": true
             },
@@ -1205,10 +1475,12 @@
                 ]
               },
               "ex": "個",
-              "count": 5,
+              "count": 11,
               "seen": [
                 "個",
-                "你"
+                "你",
+                "後",
+                "他"
               ],
               "learned": true
             }
@@ -1236,6 +1508,21 @@
                 "來"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "生",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "生",
+              "count": 2,
+              "seen": [
+                "生"
+              ],
+              "learned": true
             }
           ]
         }
@@ -1245,7 +1532,32 @@
       "letter": "Z",
       "hint": "萬用鍵（wildcard）",
       "notes": "萬用鍵：匹配任何一碼。",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "這",
+                "strokes": [
+                  7,
+                  8,
+                  9
+                ]
+              },
+              "ex": "這",
+              "count": 5,
+              "seen": [
+                "這",
+                "過"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     }
   ]
 }
