@@ -89,6 +89,8 @@
   .shapes { min-height:38px; border-radius:8px; }
   .shapes.drop { background:color-mix(in srgb, var(--accent) 12%, transparent);
     outline:1px dashed var(--accent); }
+  .ins { width:3px; align-self:stretch; min-height:40px; border-radius:2px;
+    background:var(--accent); }
   .addbtns { display:flex; flex-direction:column; gap:3px; justify-content:center; }
   .addbtns button { padding:2px 7px; font-size:12px; }
   .tier-label { font-size:11px; color:var(--muted); letter-spacing:.08em; margin:2px 0 4px;
@@ -442,9 +444,29 @@ async function pushChar(arr, ch) {
 const zones = new WeakMap();
 const dropZone = (row, arr) => { zones.set(row, arr); return row; };
 
+/* 指標落在這一列的第幾個位置（chip 是 flex-wrap，先比 y 再比 x） */
+function insertIndex(row, x, y) {
+  const chips = [...row.querySelectorAll('.chip')].filter(c => !c.classList.contains('dragging'));
+  for (let k = 0; k < chips.length; k++) {
+    const r = chips[k].getBoundingClientRect();
+    if (y < r.bottom && x < r.left + r.width / 2) return k;
+  }
+  return chips.length;
+}
+
+/* 插入位置的指示線 */
+let marker = null;
+function showMarker(row, at) {
+  if (!marker) { marker = el('div', 'ins'); }
+  if (!row || at < 0) { marker.remove(); return; }
+  const chips = [...row.querySelectorAll('.chip')].filter(c => !c.classList.contains('dragging'));
+  if (at >= chips.length) row.insertBefore(marker, row.querySelector('.addbtns'));
+  else row.insertBefore(marker, chips[at]);
+}
+
 function startDrag(ev, chipEl, arr, i, s) {
   const x0 = ev.clientX, y0 = ev.clientY;
-  let ghost = null, zone = null;
+  let ghost = null, zone = null, at = -1;
 
   const move = e => {
     if (!ghost) {
@@ -464,19 +486,25 @@ function startDrag(ev, chipEl, arr, i, s) {
     const row = under && under.closest('.shapes');
     if (row !== zone) {
       zone && zone.classList.remove('drop');
-      zone = row && zones.has(row) && zones.get(row) !== arr ? row : null;
+      zone = row && zones.has(row) ? row : null;      /* 同一列也可以，用來重新排序 */
       zone && zone.classList.add('drop');
     }
+    at = zone ? insertIndex(zone, e.clientX, e.clientY) : -1;
+    showMarker(zone, at);
   };
   const up = () => {
     document.removeEventListener('pointermove', move);
     document.removeEventListener('pointerup', up);
     ghost && ghost.remove();
+    showMarker(null, -1);
     chipEl.classList.remove('dragging');
     zone && zone.classList.remove('drop');
-    if (ghost && zone) {
+    if (ghost && zone && at >= 0) {
+      const dest = zones.get(zone);
+      /* 先移除再插入；同一列時，移除會讓後面的位置往前挪一格 */
       arr.splice(i, 1);
-      zones.get(zone).push(s);
+      const k = dest === arr && at > i ? at - 1 : at;
+      dest.splice(Math.min(k, dest.length), 0, s);
       touch(); render();
     }
   };

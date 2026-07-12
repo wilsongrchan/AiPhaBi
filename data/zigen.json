@@ -27,7 +27,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "“日”字形",
+          "desc": "“日”字及類似字形",
           "shapes": [
             {
               "glyph": {
@@ -46,6 +46,18 @@
                 "是"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "日",
+                "strokes": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "ex": "日"
             }
           ],
           "tier": "primary"
@@ -64,7 +76,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "“月”字形",
+          "desc": "“月”字及類似字形",
           "shapes": [
             {
               "glyph": {
@@ -166,8 +178,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "",
-          "auto": true,
+          "desc": "“一”字",
           "shapes": [
             {
               "glyph": {
@@ -360,7 +371,30 @@
       "letter": "P",
       "hint": "",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "了",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "了",
+              "count": 1,
+              "seen": [
+                "了"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "Q",
