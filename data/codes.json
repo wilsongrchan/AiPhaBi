@@ -162,7 +162,13 @@
         "letter": "L"
       }
     ],
-    "code": "JL"
+    "code": "JL",
+    "overrides": [
+      "merge:0",
+      "tier:1"
+    ],
+    "final": "JL",
+    "note": "“人”作為字根時取”Y“，作為獨立漢字時分拆兩碼”JL“。"
   },
   "我": {
     "segments": [
@@ -294,7 +300,11 @@
         "letter": "L"
       }
     ],
-    "code": "XL"
+    "code": "XL",
+    "overrides": [
+      "tier:1"
+    ],
+    "final": "XL"
   },
   "來": {
     "segments": [
@@ -605,9 +615,56 @@
           2
         ],
         "letter": "A"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "M"
+      },
+      {
+        "strokes": [
+          6,
+          7
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "letter": "B"
       }
     ],
-    "code": "A",
-    "final": "A"
+    "code": "AMVB",
+    "final": "AMVB",
+    "skipped": [
+      8
+    ]
+  },
+  "中": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "UT",
+    "final": "UT"
   }
 }

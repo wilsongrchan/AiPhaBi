@@ -35,7 +35,7 @@
                 ]
               },
               "ex": "會",
-              "count": 1,
+              "count": 3,
               "seen": [
                 "會"
               ],
@@ -75,7 +75,11 @@
                   3
                 ]
               },
-              "ex": "曰"
+              "ex": "曰",
+              "count": 2,
+              "seen": [
+                "會"
+              ]
             },
             {
               "glyph": {
@@ -429,6 +433,21 @@
               "learned": true
             }
           ]
+        },
+        {
+          "desc": "橫劃",
+          "tier": "secondary",
+          "shapes": [
+            {
+              "ex": "子",
+              "glyph": {
+                "src": "子",
+                "strokes": [
+                  2
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -487,7 +506,7 @@
                 ]
               },
               "ex": "的",
-              "count": 6,
+              "count": 9,
               "seen": [
                 "的",
                 "人",
@@ -574,8 +593,7 @@
           "tier": "primary"
         },
         {
-          "desc": "",
-          "auto": true,
+          "desc": "捺劃，有些時候可以寫成一點",
           "tier": "secondary",
           "shapes": [
             {
@@ -586,7 +604,7 @@
                 ]
               },
               "ex": "人",
-              "count": 11,
+              "count": 15,
               "seen": [
                 "人",
                 "大",
@@ -641,6 +659,22 @@
               "count": 2,
               "seen": [
                 "要"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "會",
+                "strokes": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "ex": "會",
+              "count": 2,
+              "seen": [
+                "會"
               ],
               "learned": true
             }
@@ -762,7 +796,7 @@
       "notes": "",
       "intentions": [
         {
-          "desc": "點劃",
+          "desc": "不能寫作撇的點劃",
           "shapes": [
             {
               "glyph": {
@@ -780,6 +814,23 @@
                 "我"
               ],
               "learned": true
+            }
+          ],
+          "tier": "primary"
+        },
+        {
+          "desc": "“卜”字及類似字形",
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "卜",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "卜"
             },
             {
               "glyph": {
@@ -796,8 +847,7 @@
               ],
               "learned": true
             }
-          ],
-          "tier": "primary"
+          ]
         }
       ]
     },
@@ -869,10 +919,11 @@
                 ]
               },
               "ex": "個",
-              "count": 3,
+              "count": 4,
               "seen": [
                 "個",
-                "在"
+                "在",
+                "中"
               ],
               "learned": true
             },
@@ -932,9 +983,10 @@
                 ]
               },
               "ex": "學",
-              "count": 2,
+              "count": 3,
               "seen": [
-                "學"
+                "學",
+                "中"
               ],
               "learned": true
             }
@@ -946,7 +998,30 @@
       "letter": "V",
       "hint": "",
       "notes": "",
-      "intentions": []
+      "intentions": [
+        {
+          "desc": "",
+          "auto": true,
+          "tier": "primary",
+          "shapes": [
+            {
+              "glyph": {
+                "src": "會",
+                "strokes": [
+                  6,
+                  7
+                ]
+              },
+              "ex": "會",
+              "count": 1,
+              "seen": [
+                "會"
+              ],
+              "learned": true
+            }
+          ]
+        }
+      ]
     },
     {
       "letter": "W",
@@ -972,7 +1047,7 @@
                 ]
               },
               "ex": "有",
-              "count": 12,
+              "count": 13,
               "seen": [
                 "有",
                 "就",
