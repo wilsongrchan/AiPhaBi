@@ -985,13 +985,13 @@
     "segments": [
       {
         "strokes": [
-          0,
-          1
+          0
         ],
-        "letter": "Y"
+        "letter": "J"
       },
       {
         "strokes": [
+          1,
           2,
           3,
           4
@@ -999,8 +999,11 @@
         "letter": "F"
       }
     ],
-    "code": "YF",
-    "final": "YF"
+    "code": "JF",
+    "final": "JF",
+    "overrides": [
+      "merge:1-2"
+    ]
   },
   "用": {
     "segments": [
@@ -1308,7 +1311,8 @@
     "code": "ENX",
     "final": "ENX",
     "overrides": [
-      "letter:1"
+      "letter:1",
+      "merge:1-2"
     ]
   },
   "看": {
@@ -3635,9 +3639,370 @@
           3
         ],
         "letter": "T"
+      },
+      {
+        "strokes": [
+          4,
+          5
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          11,
+          12,
+          13,
+          14
+        ],
+        "letter": "K"
       }
     ],
-    "code": "T",
-    "final": "T"
+    "code": "TVEQK",
+    "final": "TVEK"
+  },
+  "果": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "BT",
+    "final": "BT"
+  },
+  "進": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "Z"
+      }
+    ],
+    "code": "YIFZ",
+    "final": "YIFZ"
+  },
+  "水": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "K",
+    "final": "K"
+  },
+  "裏": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          9
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          10,
+          11,
+          12
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "IBFJK",
+    "final": "IBFK",
+    "overrides": [
+      "merge:2-3"
+    ]
+  },
+  "區": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          10
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          3
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "COOO",
+    "final": "COOO"
+  },
+  "只": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          3,
+          4
+        ],
+        "letter": "V"
+      }
+    ],
+    "code": "OV",
+    "final": "OV"
+  },
+  "什": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "YT",
+    "final": "YT"
+  },
+  "知": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YXIO",
+    "final": "YXIO"
+  },
+  "三": {
+    "overrides": [
+      "tier:1",
+      "tier:2",
+      "merge:1-2",
+      "lone:0",
+      "lone:1"
+    ],
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "III",
+    "final": "III",
+    "note": "約定原則。"
+  },
+  "日": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "B"
+      }
+    ],
+    "code": "B",
+    "final": "B"
+  },
+  "但": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          6
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "YBI",
+    "final": "YBI"
+  },
+  "化": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "YF",
+    "final": "YF"
   }
 }

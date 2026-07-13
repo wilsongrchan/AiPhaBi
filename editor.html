@@ -94,6 +94,13 @@
     outline:1px dashed var(--accent); }
   .ins { width:3px; align-self:stretch; min-height:40px; border-radius:2px;
     background:var(--accent); }
+  .sugbox { margin-top:5px; }
+  .sug { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--muted);
+    padding:3px 6px; border:1px dashed var(--line); border-radius:8px; margin-top:4px; }
+  .sug .sgly svg { width:26px; height:26px; display:block; }
+  .sug .sgly svg .on { fill:var(--ink); } .sug .sgly svg .off { fill:var(--ghost); opacity:.4; }
+  .sug .stext { flex:1; } .sug b { color:var(--ink); }
+  .sug i { color:var(--warn); font-style:normal; }
 
   /* 精簡檢視：一行一個字母，只看形狀與數量 */
   main.compact { display:block; padding:14px 20px; }
@@ -391,6 +398,13 @@ function render() {
         it.shapes.forEach((s, si) => shapes.append(chip(it.shapes, si, s, dup, L, it)));
         shapes.append(addButtons(it.shapes));
         box.append(shapes);
+
+        /* 未分類的字根：照你已分好的意圖，建議它該歸哪一個 */
+        if (it.auto && it.shapes.length) {
+          const sbox = el('div', 'sugbox');
+          box.append(sbox);
+          renderSuggestions(sbox, L, it);
+        }
         sec.append(box);
       });
 
@@ -540,6 +554,35 @@ function chip(arr, i, s, dup, L, it) {
   return c;
 }
 
+async function renderSuggestions(box, L, auto) {
+  box.innerHTML = '';
+  for (const sh of [...auto.shapes]) {
+    const sug = await suggestIntention(L, sh);
+    if (!sug || sug.d > 0.4) continue;             /* 差太遠就別亂建議 */
+    const row = el('div', 'sug');
+    const holder = el('span', 'sgly');
+    holder.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
+    getGlyph(sh.glyph.src).then(st => {
+      if (st) holder.innerHTML = glyphSvg(st, sh.glyph.strokes);
+    });
+    row.append(holder);
+    const txt = el('span', 'stext');
+    const conf = sug.d < 0.2 ? '很像' : sug.d < 0.3 ? '像' : '有點像';
+    txt.innerHTML = `建議歸入 <b>「${sug.it.desc}」</b> — ${conf} ${sug.like}` +
+      `（距離 ${sug.d.toFixed(2)}）`;
+    row.append(txt);
+    const yes = el('button', 'mini', '歸入');
+    yes.onclick = () => {
+      const k = auto.shapes.indexOf(sh);
+      if (k >= 0) auto.shapes.splice(k, 1);
+      sug.it.shapes.push(sh);
+      touch(); render();
+    };
+    row.append(yes);
+    box.append(row);
+  }
+}
+
 /* 把一個字根移到同一字母下的另一個意圖（學來的字根預設落在「未分類」） */
 function moveShape(arr, i, s, L, from) {
   const label = t => TIERS.find(x => x[0] === t)[1];
@@ -575,6 +618,51 @@ function zoneArray(row) {
   let bucket = L.intentions.find(i => i.auto && tierOf(i) === tier);
   if (!bucket) { bucket = { desc: '', auto: true, tier, shapes: [] }; L.intentions.push(bucket); }
   return bucket.shapes;
+}
+
+/* ---------- 建議：這個新字根該歸到哪個意圖？ ----------
+   不是猜語意，而是照你已經分好的來學：拿它跟同一字母下、已命名意圖裡的字根
+   逐一比形狀，最像的那個意圖就是建議。像到什麼程度也一併寫出來，你自己判斷。 */
+let sugLib = null;
+
+async function buildSugLib() {
+  const out = [];
+  for (const L of data.letters)
+    for (const it of L.intentions) {
+      if (!it.desc) continue;                     /* 只跟「你命名過的」意圖比 */
+      for (const sh of it.shapes) {
+        if (!sh.glyph) continue;
+        for (const form of [sh.glyph, ...(sh.alts || [])]) {
+          const g = await Zigen.getGlyph(form.src);
+          if (!g) continue;
+          const med = form.strokes.map(i => g.medians[i]);
+          if (med.some(m => !m)) continue;
+          const v = Shape.strokeVec(med);
+          if (v) out.push({ letter: L.letter, it, vec: v, n: med.length,
+                            label: `${form.src}[${form.strokes.map(i => i + 1).join('')}]` });
+        }
+      }
+    }
+  sugLib = out;
+}
+
+async function suggestIntention(L, shape) {
+  if (!sugLib) await buildSugLib();
+  if (!shape.glyph) return null;
+  const g = await Zigen.getGlyph(shape.glyph.src);
+  if (!g) return null;
+  const med = shape.glyph.strokes.map(i => g.medians[i]);
+  if (med.some(m => !m)) return null;
+  const v = Shape.strokeVec(med);
+  if (!v) return null;
+
+  /* 只跟「同一個字母」底下、你已經命名過的意圖比 —— 
+     字根屬於哪個字母是你定的，把它建議到別的字母的意圖只會添亂。 */
+  const pool = sugLib.filter(e => e.letter === L.letter);
+  if (!pool.length) return null;
+  const best = pool.map(e => ({ e, d: Shape.dist(v, e.vec) }))
+    .sort((a, b) => a.d - b.d)[0];
+  return { it: best.e.it, d: best.d, like: best.e.label };
 }
 
 /* ---------- 換了字母 → 已取碼的字要不要一起改？ ----------
@@ -1113,6 +1201,7 @@ $('#modal').onclick = e => { if (e.target.id === 'modal') $('#modal').classList.
 /* ============================== io ============================== */
 async function save() {
   codesCache = null;
+  sugLib = null;
   $('#status').textContent = '儲存中…';
   const r = await fetch('/api/zigen', { method: 'PUT',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) });
@@ -1168,6 +1257,7 @@ setInterval(async () => {
   if (s === stamp) return;
   stamp = s;
   data = await fetch('/api/zigen').then(r => r.json());
+  sugLib = null;
   render();
   $('#status').textContent = '已同步 ↻'; $('#status').className = 'saved';
 }, 3000);

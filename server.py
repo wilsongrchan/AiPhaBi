@@ -16,6 +16,7 @@
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
   /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
+  /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
   /api/state        GET      各檔 mtime，兩頁靠它互通
 """
 import json
@@ -120,6 +121,20 @@ class Handler(BaseHTTPRequestHandler):
             stamp = lambda f: f.stat().st_mtime_ns if f.exists() else 0
             return self._send(200, json.dumps(
                 {"zigen": stamp(DATA), "codes": stamp(CODES), "rules": stamp(RULES)}))
+
+        if u.path == "/api/cjimg":
+            c = (q.get("c") or [""])[0]
+            try:
+                c = c.encode("latin-1").decode("utf-8")
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
+            try:
+                raw = cangjie_map.diagram_bytes(c)
+            except Exception:
+                raw = None
+            if not raw:
+                return self._send(404, json.dumps({"error": "no image"}))
+            return self._send(200, raw, "image/png", cache=True)
 
         if u.path == "/api/cjmap":
             c = (q.get("c") or [""])[0]

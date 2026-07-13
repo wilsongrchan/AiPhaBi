@@ -94,8 +94,9 @@
   .cj .code { font:700 13px ui-monospace,monospace; color:var(--muted); margin-left:4px; }
   .cj .none { font-size:11px; color:var(--muted); }
   .cjmap { margin-top:6px; }
-  .cjmap svg { width:104px; height:104px; border:1px solid var(--line); border-radius:9px;
-    background:var(--card); }
+  .cjimg { width:150px; height:150px; border:1px solid var(--line); border-radius:9px;
+    background:#000; display:block; }
+  .cjtoggle { padding:2px 7px; font-size:11px; color:var(--muted); }
   .cjnote { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.45; }
   .cjnote b { color:var(--ink); }
   #glyph .grid { stroke:var(--line); stroke-dasharray:8 8; stroke-width:2; fill:none; }
@@ -170,6 +171,25 @@
   .chk .act button { padding:1px 6px; font-size:11px; }
   .chk.muted { opacity:.5; }
   .clash .ch { font-size:17px; font-family:"PingFang TC",serif; }
+  /* 新字根 → 其他字要不要跟著改 */
+  #propagate { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+    place-items:center; z-index:80; }
+  #propagate.on { display:grid; }
+  .psheet { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; width:min(620px,94vw); max-height:82vh; display:flex; flex-direction:column; }
+  .psheet h3 { margin:0 0 3px; font-size:15px; }
+  .psub { font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.5; }
+  .plist { overflow:auto; flex:1; }
+  .pitem { display:flex; align-items:center; gap:9px; padding:6px 4px;
+    border-bottom:1px solid var(--line); }
+  .pitem .c { font-size:22px; font-family:"PingFang TC",serif; width:26px; text-align:center; }
+  .pitem svg { width:34px; height:34px; }
+  .pitem svg .on { fill:var(--accent); } .pitem svg .off { fill:var(--ghost); opacity:.35; }
+  .pitem .cd { font:700 13px ui-monospace,monospace; color:var(--muted); }
+  .pitem .cd b { color:var(--accent); }
+  .pitem .arrow { color:var(--muted); font-size:12px; }
+  .prow { display:flex; gap:6px; align-items:center; margin-top:10px; }
+
   textarea { width:100%; border:1px solid var(--line); border-radius:7px; background:var(--card);
     color:var(--ink); padding:5px 8px; font:inherit; font-size:13px; min-height:40px; resize:vertical; }
 </style>
@@ -184,6 +204,21 @@
   <span id="status">載入中…</span>
   <button id="export">匯出碼表</button>
 </header>
+
+<div id="propagate">
+  <div class="psheet">
+    <h3 id="ptitle"></h3>
+    <div class="psub" id="psub"></div>
+    <div class="plist" id="plist"></div>
+    <div class="prow">
+      <button id="pall">全選</button>
+      <button id="pnone">全不選</button>
+      <div class="grow"></div>
+      <button id="pskip">維持原樣</button>
+      <button class="primary" id="papply">套用勾選的</button>
+    </div>
+  </div>
+</div>
 
 <div class="cols">
   <div class="pane">
@@ -742,12 +777,10 @@ const CJ_RADICAL = {
 };
 let cangjie = null;
 
-/* 倉頡的碼表只說「取哪些字根」，沒說「取哪幾筆」。這裡的對應是從
-   《五色倉頡字典》的拆碼圖推出來的（見 cangjie_map.py）：沿著筆畫中線取色、
-   同色歸為一組、再依先後對到碼上。所以連「國」的囗＝第 1、2、11 筆、
-   「學」中間十筆倉頡根本不取，都是真的資料，不是猜的。 */
-const CJ_HUES = [200, 18, 140, 280, 45, 330, 95, 250];
-const cjHue = i => `hsl(${CJ_HUES[i % CJ_HUES.length]} 60% 46%)`;
+/* 倉頡對照：預設收起，點開才載入拆碼圖。
+   圖用倉頡字典的原圖，不自己重畫 —— 倉頡常常把「一筆切成兩半」分屬不同碼
+   （例：囗的收口筆），我們的筆畫資料根本表達不了，重畫必然是錯的。 */
+let cjOpen = false;
 
 async function renderCangjie(c) {
   const box = $('#cj');
@@ -760,51 +793,36 @@ async function renderCangjie(c) {
   }
 
   const row = el('div', 'cj');
-  [...code].forEach((L, i) => {
+  const toggle = el('button', 'cjtoggle', cjOpen ? '▾ 拆碼圖' : '▸ 拆碼圖');
+  toggle.onclick = () => { cjOpen = !cjOpen; renderCangjie(c); };
+  for (const L of code) {
     const k = el('div', 'k');
-    k.dataset.i = i;
     k.append(el('div', 'r', CJ_RADICAL[L] || '?'));
     k.append(el('div', 'l', L));
-    k.style.borderColor = cjHue(i);
     row.append(k);
-  });
+  }
   row.append(el('span', 'code', code));
+  row.append(toggle);
   box.append(row);
 
+  if (!cjOpen) return;
+
   const holder = el('div', 'cjmap');
-  holder.innerHTML = '<span class="cjnote">取碼對應讀取中…</span>';
+  holder.innerHTML = '<span class="cjnote">拆碼圖載入中…</span>';
   box.append(holder);
 
-  const map = await fetch('/api/cjmap?c=' + encodeURIComponent(c))
-    .then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const url = '/api/cjimg?c=' + encodeURIComponent(c);
+  const ok = await fetch(url, { method: 'GET' }).then(r => r.ok).catch(() => false);
   if (c !== cur) return;
-
-  if (!map || !map.groups) {
-    holder.innerHTML = '<span class="cjnote">拆碼圖解取不到，只能顯示碼。</span>';
+  if (!ok) {
+    holder.innerHTML = '<span class="cjnote">這個字沒有拆碼圖。</span>';
     return;
   }
-  const groupOf = i => map.groups.findIndex(g => g.includes(i));
-  holder.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
-    strokes.map((d, i) => {
-      const g = groupOf(i);
-      return g < 0 ? `<path d="${d}" fill="var(--ghost)" opacity="0.5"/>`
-                   : `<path d="${d}" fill="${cjHue(g)}"/>`;
-    }).join('') + '</g></svg>';
-
-  const note = el('div', 'cjnote');
-  note.innerHTML = map.untaken && map.untaken.length
-    ? `灰色的 <b>${map.untaken.length}</b> 筆倉頡沒有取（倉頡最多五碼，取不完整個字）。`
-    : '每一筆都對應到一個倉頡碼。';
-  box.append(note);
-
-  /* 滑過某個倉頡碼 → 它取的那幾筆亮起來 */
-  for (const k of row.querySelectorAll('.k')) {
-    const g = map.groups[+k.dataset.i] || [];
-    k.onmouseenter = () => holder.querySelectorAll('path').forEach((pth, i) =>
-      pth.setAttribute('opacity', g.includes(i) ? '1' : '0.12'));
-    k.onmouseleave = () => holder.querySelectorAll('path').forEach((pth, i) =>
-      pth.setAttribute('opacity', groupOf(i) < 0 ? '0.5' : '1'));
-  }
+  holder.innerHTML =
+    `<img src="${url}" alt="${c} 倉頡拆碼圖" class="cjimg">` +
+    '<div class="cjnote">拆碼圖來自 <a href="https://倉頡字典.com" target="_blank" ' +
+    'rel="noopener">倉頡字典.com</a>。倉頡會把一筆切開分屬不同碼，' +
+    '所以直接看原圖，不用我們的筆畫重畫。</div>';
 }
 
 /* ---------- 官方筆順參考 ----------
@@ -946,16 +964,157 @@ const libInfo = () => {
   $('#libinfo').innerHTML = `字根 <b>${n}</b>（${letters} 個字母）`;
 };
 
+/* ---------- 新字根 → 其他字要不要跟著改？ ----------
+   例：本來 的＝JBSQ（勺被拆成 S+Q），你改成 JBA（勺整個取 A）。
+   那麼別的含「勺」的字（豹、約…）若還是拆成 S+Q，就是舊拆法留下來的。
+   這裡把它們找出來，讓你逐一決定改不改。 */
+function shapeFormsOf(shape) {
+  return [shape.glyph, ...(shape.alts || [])].filter(Boolean);
+}
+
+async function vecOfForm(form) {
+  const g = await Zigen.getGlyph(form.src);
+  if (!g) return null;
+  const med = form.strokes.map(i => g.medians[i]);
+  if (med.some(m => !m)) return null;
+  const st = [...form.strokes].sort((a, b) => a - b);
+  let head = 1;
+  while (head < st.length && st[head] === st[head - 1] + 1) head++;
+  return { vec: Shape.strokeVec(med), n: med.length,
+           gapped: head < st.length, head, tail: st.length - head };
+}
+
+/* 在某個字裡找出跟這個字根同形的筆畫組（依它自己的頭尾結構） */
+function findShape(med, f, thr) {
+  const n = med.length, hits = [];
+  const test = idx => {
+    const v = Shape.strokeVec(idx.map(i => med[i]));
+    if (!v) return;
+    const d = Shape.dist(v, f.vec);
+    if (d < thr) hits.push({ idx, d });
+  };
+  if (!f.gapped) {
+    for (let i = 0; i + f.n <= n; i++) test([...Array(f.n)].map((_, j) => i + j));
+  } else {
+    for (let i = 0; i + f.head <= n; i++) {
+      const run = [...Array(f.head)].map((_, j) => i + j);
+      for (let j = i + f.head; j + f.tail <= n; j++)
+        test([...run, ...[...Array(f.tail)].map((_, k) => j + k)]);
+    }
+  }
+  return hits.sort((a, b) => a.d - b.d);
+}
+
+async function propagate(newShapes) {
+  const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const proposals = [];
+
+  for (const { letter, shape } of newShapes) {
+    const forms = [];
+    for (const f of shapeFormsOf(shape)) {
+      const v = await vecOfForm(f);
+      if (v) forms.push(v);
+    }
+    if (!forms.length) continue;
+
+    for (const [ch, rec] of Object.entries(codes)) {
+      if (ch === cur || !rec.segments || !rec.segments.length) continue;
+      const g = await Zigen.getGlyph(ch);
+      if (!g) continue;
+
+      for (const f of forms) {
+        for (const hit of findShape(g.medians, f, thr)) {
+          const set = new Set(hit.idx);
+          /* 哪些字根覆蓋到這組筆畫 */
+          const covering = rec.segments.filter(sg => sg.strokes.some(i => set.has(i)));
+          if (!covering.length) continue;
+          /* 這些字根剛好只覆蓋這組筆畫（沒有跨出去）才好整併 */
+          const union = new Set(covering.flatMap(sg => sg.strokes));
+          if (union.size !== set.size || [...union].some(i => !set.has(i))) continue;
+          /* 已經是一個字根、而且字母也對 → 沒事 */
+          if (covering.length === 1 && covering[0].letter === letter) continue;
+
+          const segs = rec.segments
+            .filter(sg => !covering.includes(sg))
+            .concat([{ strokes: [...hit.idx].sort((a, b) => a - b), letter }])
+            .sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+          proposals.push({ ch, rec, segs, strokes: hit.idx, letter,
+                           before: rec.segments.map(s => s.letter).join(''),
+                           after: segs.map(s => s.letter).join('') });
+          break;
+        }
+      }
+    }
+  }
+  if (proposals.length) await reviewProposals(proposals, newShapes);
+}
+
+function reviewProposals(list, newShapes) {
+  return new Promise(async resolve => {
+    const box = $('#plist'); box.innerHTML = '';
+    const picked = new Set(list.map((_, i) => i));
+    $('#ptitle').textContent = '其他字要不要跟著改？';
+    const names = newShapes.map(x => x.letter).join('、');
+    $('#psub').innerHTML =
+      `你剛把一組筆畫取成 <b>${names}</b>。下面這些已取碼的字，含有同樣的形狀，` +
+      '但還是用舊的拆法。勾起來的會一起改；不想動的就取消勾選。';
+
+    for (const [i, p] of list.entries()) {
+      const g = await Zigen.getGlyph(p.ch);
+      const it = el('div', 'pitem');
+      const cb = el('input'); cb.type = 'checkbox'; cb.checked = true;
+      cb.onchange = () => cb.checked ? picked.add(i) : picked.delete(i);
+      it.append(cb);
+      it.append(el('span', 'c', p.ch));
+      const sv = el('span');
+      sv.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+        g.strokes.map((d, k) =>
+          `<path class="${p.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+        '</g></svg>';
+      it.append(sv);
+      const cd = el('span', 'cd');
+      cd.innerHTML = `${p.before} <span class="arrow">→</span> <b>${p.after}</b>`;
+      it.append(cd);
+      box.append(it);
+    }
+
+    const done = async apply => {
+      $('#propagate').classList.remove('on');
+      if (apply && picked.size) {
+        for (const i of picked) {
+          const p = list[i];
+          p.rec.segments = p.segs;
+          p.rec.code = p.segs.map(s => s.letter).join('');
+          delete p.rec.final;
+        }
+        await fetch('/api/codes', { method: 'PUT',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes) });
+        $('#status').textContent = `已更新 ${picked.size} 個字`;
+        renderQueue(); auditAll();
+      }
+      resolve();
+    };
+    $('#papply').onclick = () => done(true);
+    $('#pskip').onclick = () => done(false);
+    $('#pall').onclick = () => { box.querySelectorAll('input').forEach((c, i) => {
+      c.checked = true; picked.add(i); }); };
+    $('#pnone').onclick = () => { box.querySelectorAll('input').forEach(c => c.checked = false);
+      picked.clear(); };
+    $('#propagate').classList.add('on');
+  });
+}
+
 /* ---------- 儲存：碼表 + 學回字根表 ---------- */
 async function save() {
+  const newborn = [];                 /* 這次存檔新生的字根 */
   if (cur && segs.length) {
     /* 每個確認的字根都併入字根表（同形合併計次，新形新增） */
     for (const s of segs) {
       const vec = Shape.strokeVec(s.strokes.map(i => medians[i]));
       if (!vec) continue;
       const r = Zigen.merge(zigen, lib, { letter: s.letter, char: cur, strokeIdx: s.strokes, vec });
-      if (!r.merged) zigenDirty = true;
-      else zigenDirty = true;                       /* count/seen 也要存 */
+      zigenDirty = true;                            /* 新字根、或計次都要存 */
+      if (!r.merged) newborn.push({ letter: s.letter, shape: r.shape });
     }
     const full = segs.map(s => s.letter).join('');
     codes[cur] = { ...(codes[cur] || {}), segments: segs.map(s => ({ ...s })),
@@ -980,6 +1139,7 @@ async function save() {
   libInfo(); renderQueue();
   if (cur) { audit.set(cur, await auditChar(cur)); markQueue(cur); }
   auditAll();                      /* 新字根可能讓別的字產生／解除警告 */
+  if (newborn.length) await propagate(newborn);
 }
 async function saveNext() {
   await save();

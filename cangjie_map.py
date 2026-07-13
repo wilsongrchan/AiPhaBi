@@ -71,15 +71,36 @@ def _get(url):
         return r.read()
 
 
-def diagram(ch):
-    """回傳拆碼圖（PIL Image），沒有就 None。"""
+IMGDIR = ROOT / "data" / "cj_img"
+
+
+def diagram_bytes(ch):
+    """拆碼圖的原始 PNG（快取在 data/cj_img/）。
+
+    倉頡會把一筆切成兩半分屬不同碼（例：田字框的收口筆），
+    我們的筆畫資料表達不了這件事 —— 所以直接看人家的圖最誠實。
+    """
+    IMGDIR.mkdir(parents=True, exist_ok=True)
+    f = IMGDIR / f"{ord(ch):x}.png"
+    if f.exists():
+        return f.read_bytes()
     html = _get(f"{BASE}/char/search?q={urllib.parse.quote(ch)}").decode("utf-8", "replace")
     m = re.search(r"/char2/(\d+)\.png", html)
     if not m:
         return None
     time.sleep(DELAY)
+    raw = _get(f"{BASE}/char2/{m.group(1)}.png")
+    f.write_bytes(raw)
+    return raw
+
+
+def diagram(ch):
+    """回傳拆碼圖（PIL Image），沒有就 None。"""
+    raw = diagram_bytes(ch)
+    if not raw:
+        return None
     from PIL import Image
-    return Image.open(io.BytesIO(_get(f"{BASE}/char2/{m.group(1)}.png"))).convert("RGB")
+    return Image.open(io.BytesIO(raw)).convert("RGB")
 
 
 def derive(ch):
