@@ -51,8 +51,10 @@
   .filters { display:flex; gap:4px; margin-bottom:8px; }
   .filters button { flex:1; padding:4px; font-size:12px; }
   .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  /* 字圖底下那排：縮到剛好一行 —— 換行的話按鈕就跑出那個圓角框外面了 */
-  .actbar { display:flex; gap:5px; flex-wrap:nowrap; max-width:100%; }
+  /* 字圖底下那排：字級縮小，寬度夠時剛好一行。
+     但一定要能換行 —— 不換行的話，右欄一拉寬，中間欄變窄，這排按鈕就整條
+     溢出去、鑽到右欄底下，點都點不到。寧可換行，也不能不見。 */
+  .actbar { display:flex; gap:5px; flex-wrap:wrap; justify-content:center; max-width:100%; }
   .actbar button { font-size:12px; padding:5px 8px; white-space:nowrap; }
 
   /* 搜尋／篩選／字級／跳轉：釘在左欄頂端，捲名單的時候不會跟著跑掉。
@@ -265,6 +267,10 @@
   .mutedzone:not(:empty) { margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); }
   .mutedhd { font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:.04em; }
   .clash .ch { font-size:17px; font-family:"PingFang TC",serif; }
+  .clash .ch.go { cursor:pointer; border-bottom:1px dashed currentColor; }
+  .clash .ch.go:hover { color:var(--accent); }
+  #back { font-size:11px; padding:2px 7px; border-radius:7px; }
+  #back.hide { display:none; }
   /* 新字根 → 其他字要不要跟著改 */
   #propagate { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
     place-items:center; z-index:80; }
@@ -345,6 +351,7 @@
     <div class="related" id="related"></div>
     <div class="stagemain">
     <div class="curline">
+      <button id="back" class="hide" title="回到上一個看的字">← 返回</button>
       <div class="cur" id="cur"></div>
       <div class="code" id="code">—</div>
     </div>
@@ -692,10 +699,35 @@ function renderCode() {
   if (clash.length) {
     w.style.display = 'block';
     w.innerHTML = `⚠ <b>重碼</b>：<code>${fin}</code> 已經是 ` +
-      clash.map(ch => `<span class="ch">${ch}</span>`).join('、') +
+      clash.map(ch => `<span class="ch go" data-c="${ch}" title="去看「${ch}」怎麼拆">${ch}</span>`).join('、') +
       ` 的碼。可以接受（打字時多選一次），或改用別的拆法／字根。`;
+    /* 撞到誰，就要能點進去看它 —— 而且回得來（← 返回） */
+    for (const s of w.querySelectorAll('.ch.go')) s.onclick = () => goTo(s.dataset.c);
   } else w.style.display = 'none';
 }
+
+/* ---------- 字與字之間的來回 ----------
+   從「天」點進撞碼的「夫」，看完要回得了「天」。載入的路徑很多（佇列、相關字、
+   重碼、預測…），所以不在 load() 裡記，而是「明確跳轉」時才推入堆疊。 */
+let backStack = [];
+async function goTo(c) {
+  if (!c || c === cur) return;
+  if (dirty || zigenDirty) await save();
+  if (cur) backStack.push(cur);
+  await load(c);
+}
+function renderBack() {
+  const b = $('#back');
+  const prev = backStack[backStack.length - 1];
+  b.classList.toggle('hide', !prev);
+  if (prev) b.textContent = `← 返回 ${prev}`;
+}
+$('#back').onclick = async () => {
+  const prev = backStack.pop();
+  if (!prev) return;
+  if (dirty || zigenDirty) await save();
+  await load(prev);            /* 返回不再推堆疊，不然兩個字之間會無限來回 */
+};
 
 /* ---------- 檢查：這個拆解有沒有違反已訂的原則 ----------
    每一條都可以「忽略」——記在該字的 overrides 裡，下次不再提醒。 */
@@ -1449,10 +1481,7 @@ async function renderRelated(ch) {
   if (!compOf) buildCompIndex();
   if (run !== relRun) return;
 
-  const go = async c => {
-    if (dirty || zigenDirty) await save();
-    load(c);
-  };
+  const go = c => goTo(c);        /* 相關字也走同一條路，這樣一樣回得來 */
   const chip = (c, cls = '') => {
     const rec = codes[c] || {};
     const a = el('a', cls + (rec.code ? '' : ' todo'));
@@ -1628,7 +1657,7 @@ async function load(c) {
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
   drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
-  renderRelated(c);
+  renderRelated(c); renderBack();
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
 }
 
