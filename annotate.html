@@ -93,6 +93,11 @@
   .cj .k .l { font:700 10px ui-monospace,monospace; color:var(--accent); }
   .cj .code { font:700 13px ui-monospace,monospace; color:var(--muted); margin-left:4px; }
   .cj .none { font-size:11px; color:var(--muted); }
+  .cjmap { margin-top:6px; }
+  .cjmap svg { width:104px; height:104px; border:1px solid var(--line); border-radius:9px;
+    background:var(--card); }
+  .cjnote { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.45; }
+  .cjnote b { color:var(--ink); }
   #glyph .grid { stroke:var(--line); stroke-dasharray:8 8; stroke-width:2; fill:none; }
   #glyph text { font:600 34px ui-monospace,monospace; fill:var(--muted); pointer-events:none; opacity:.5; }
   .cur { font-size:15px; color:var(--muted); display:flex; gap:10px; align-items:baseline; }
@@ -531,6 +536,19 @@ function checks(ctx) {
     }
   }
 
+  /* 6b. 孤筆略過原則：中途落單的橫／豎不該自己取一碼，應該略過 */
+  const sk0 = on('skip_isolated_hv');
+  if (sk0) segs.forEach((sg, i) => {
+    if (sg.strokes.length !== 1) return;
+    const st = sg.strokes[0];
+    const kind = Zigen.strokeKind(medians[st]);
+    if (!sk0.params.allow.includes(kind)) return;
+    if (st === nStrokes - 1) return;                 /* 末筆有例外，另一條檢查管 */
+    out.push({ key: `lone:${i}`, lvl: 'warn', rule: '孤筆略過原則', refs: [i],
+      msg: `第 ${i + 1} 個字根只有一筆（${kind}），而且不是末筆。` +
+           `依原則，無法與其他筆畫組成字根的孤立${kind}應該<b>略過</b>，不取碼。` });
+  });
+
   /* 6. 孤筆略過原則：只有指定的筆畫可以略過；末筆孤立的橫應取指定字母 */
   const sk = on('skip_isolated_hv');
   if (sk) for (const i of skipped) {
@@ -723,7 +741,49 @@ const CJ_RADICAL = {
   Y: '卜', Z: '重',
 };
 let cangjie = null;
-function renderCangjie(c) {
+
+/* 倉頡只給「哪些字根」，沒給「哪幾筆」。所以用同一套形狀比對，
+   替每個倉頡字根在這個字裡找出最像的一組筆畫，再上色。
+   找不到的就老實說找不到 —— 倉頡有些碼並不是字面上的筆畫（例：國的「田」）。 */
+async function cangjieStrokes(c, code) {
+  const used = new Set();
+  const out = [];
+  for (const L of code) {
+    const radical = CJ_RADICAL[L];
+    const rg = radical && await Zigen.getGlyph(radical);
+    if (!rg) { out.push({ L, radical, strokes: null }); continue; }
+    const rvec = Shape.strokeVec(rg.medians);
+    const k = rg.medians.length;
+    const n = medians.length;
+
+    let best = null;
+    const tryIdx = idx => {
+      if (idx.some(i => used.has(i))) return;
+      const v = Shape.strokeVec(idx.map(i => medians[i]));
+      if (!v) return;
+      const d = Shape.dist(v, rvec);
+      if (!best || d < best.d) best = { d, idx };
+    };
+    for (let i = 0; i + k <= n; i++) tryIdx([...Array(k)].map((_, j) => i + j));
+    if (k >= 2) for (let i = 0; i + k - 1 <= n; i++) {       /* 包圍式：一段 + 後補一筆 */
+      const run = [...Array(k - 1)].map((_, j) => i + j);
+      for (let j = i + k - 1; j < n; j++) tryIdx([...run, j]);
+    }
+    /* 門檻放寬一點：倉頡的字根只是近似，不是精確同形 */
+    if (best && best.d < 0.6) {
+      best.idx.forEach(i => used.add(i));
+      out.push({ L, radical, strokes: best.idx, d: best.d });
+    } else {
+      out.push({ L, radical, strokes: null });
+    }
+  }
+  return out;
+}
+
+const CJ_HUES = [200, 18, 140, 280, 45, 330];
+const cjHue = i => `hsl(${CJ_HUES[i % CJ_HUES.length]} 60% 46%)`;
+
+async function renderCangjie(c) {
   const box = $('#cj');
   if (!box) return;
   box.innerHTML = '';
@@ -733,14 +793,54 @@ function renderCangjie(c) {
     return;
   }
   const row = el('div', 'cj');
-  for (const L of code) {
+  for (const [i, L] of [...code].entries()) {
     const k = el('div', 'k');
+    k.dataset.i = i;
     k.append(el('div', 'r', CJ_RADICAL[L] || '?'));
     k.append(el('div', 'l', L));
+    k.style.borderColor = cjHue(i);
     row.append(k);
   }
   row.append(el('span', 'code', code));
   box.append(row);
+
+  /* 上色的小圖：哪一筆屬於哪一個倉頡字根 */
+  const holder = el('div', 'cjmap');
+  box.append(holder);
+  const map = await cangjieStrokes(c, code);
+  if (c !== cur) return;
+  const colorOf = i => {
+    const k = map.findIndex(m => m.strokes && m.strokes.includes(i));
+    return k < 0 ? null : cjHue(k);
+  };
+  holder.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+    strokes.map((d, i) => {
+      const col = colorOf(i);
+      return `<path d="${d}" fill="${col || 'var(--ghost)'}"${col ? '' : ' opacity="0.55"'}/>`;
+    }).join('') + '</g></svg>';
+  const miss = map.filter(m => !m.strokes);
+  const note = el('div', 'cjnote');
+  note.innerHTML = miss.length
+    ? `灰色＝倉頡沒取到的筆畫。<b>${miss.map(m => m.radical).join('、')}</b> ` +
+      '在這個字裡找不到對應的筆畫（倉頡有些碼是取形、不是字面筆畫）。'
+    : '灰色＝倉頡沒取到的筆畫。';
+  box.append(note);
+
+  /* 滑過某個倉頡字根 → 那幾筆亮起來 */
+  for (const k of row.querySelectorAll('.k')) {
+    const m = map[+k.dataset.i];
+    k.onmouseenter = () => {
+      if (!m.strokes) return;
+      holder.querySelectorAll('path').forEach((pth, i) => {
+        pth.setAttribute('opacity', m.strokes.includes(i) ? '1' : '0.15');
+      });
+    };
+    k.onmouseleave = () => {
+      holder.querySelectorAll('path').forEach((pth, i) => {
+        pth.setAttribute('opacity', colorOf(i) ? '1' : '0.55');
+      });
+    };
+  }
 }
 
 /* ---------- 官方筆順參考 ----------

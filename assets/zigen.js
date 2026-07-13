@@ -172,11 +172,17 @@
     const byLowest = Array.from({ length: n }, () => []);
     for (const c of cand) byLowest[c.idx[0]].push(c);
 
-    /* 孤筆略過原則：讓落單的橫／豎可以不被任何字根覆蓋，代價是一點成本。
-       例外：孤立的末筆若在 lastLetters 對照表裡（橫→I、豎→J），就不略過，改取該字母。 */
+    /* 孤筆略過原則。原則說的是：一橫或一豎「無法與其他筆畫組成字根」時就略過，
+       末筆例外（橫→I、豎→J）。所以落單的橫／豎不可以自己去配一個單筆字根
+       —— 否則字根表裡只要有「一」＝I，中途的每一個孤立橫都會取成 I，永遠不會略過。
+       多筆的字根仍然可以包含這一筆（那就是「能與其他筆畫組成字根」，不算孤筆）。 */
     if (skip) medians.forEach((m, i) => {
       const kind = strokeKind(m);
       if (!skip.allow.includes(kind)) return;
+
+      /* 拿掉「這一筆自己單獨成為一個字根」的候選 */
+      byLowest[i] = byLowest[i].filter(c => c.idx.length > 1);
+
       const L = skip.lastLetters && skip.lastLetters[kind];
       if (L && i === n - 1) {
         byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty,
