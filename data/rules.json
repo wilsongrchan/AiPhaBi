@@ -34,9 +34,12 @@
           "橫",
           "豎"
         ],
-        "last_stroke_letter": "I"
+        "last_stroke_letters": {
+          "橫": "I",
+          "豎": "J"
+        }
       },
-      "note": "程式讀得懂的部分：penalty＝略過一筆的成本；allow＝哪些筆畫可以略過；last_stroke_letter＝孤立的『末筆橫』不略過，改取這個字母（留空則照樣略過）。取碼時也可手動選取筆畫後按 space 標為略過。"
+      "note": "程式讀得懂的部分：penalty＝略過一筆的成本；allow＝哪些筆型可以略過；last_stroke_letters＝孤立的末筆若是這些筆型，就不略過，改取對應的字母（留空＝照樣略過）。取碼時也可手動選取筆畫後按 space 標為略過。"
     },
     {
       "id": "max_code_length",

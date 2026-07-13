@@ -14,6 +14,7 @@
   /api/glyph?c=字   GET      筆畫輪廓 + 中線（makemeahanzi，大陸筆順）
   /api/tw?c=字      GET      台灣教育部標準筆順（g0v/zh-stroke-data）
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
+  /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
   /api/state        GET      各檔 mtime，兩頁靠它互通
 """
 import json
@@ -39,6 +40,7 @@ BACKUPS = DATA_DIR / "backups"
 FREQ = SHARED / "freq.json"
 GRAPHICS = SHARED / "graphics.txt"
 TW = SHARED / "tw_strokes.json"
+CANGJIE = SHARED / "cangjie.json"
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -110,6 +112,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, RULES.read_text("utf-8") if RULES.exists() else "{}")
         if u.path == "/api/freq":
             return self._send(200, FREQ.read_text("utf-8"), cache=True)
+        if u.path == "/api/cangjie":
+            return self._send(200, CANGJIE.read_text("utf-8"), cache=True)
         if u.path == "/api/state":
             stamp = lambda f: f.stat().st_mtime_ns if f.exists() else 0
             return self._send(200, json.dumps(

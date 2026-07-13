@@ -85,6 +85,14 @@
     color:var(--muted); font-style:normal; }
   .so-miss { font-size:11px; color:var(--muted); }
   .so-miss a { color:var(--accent); }
+  /* 官方倉頡對照 */
+  .cj { display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+  .cj .k { display:flex; flex-direction:column; align-items:center; gap:1px;
+    border:1px solid var(--line); border-radius:7px; padding:2px 7px 1px; background:var(--card); }
+  .cj .k .r { font-size:21px; line-height:1.1; font-family:"PingFang TC","Songti TC",serif; }
+  .cj .k .l { font:700 10px ui-monospace,monospace; color:var(--accent); }
+  .cj .code { font:700 13px ui-monospace,monospace; color:var(--muted); margin-left:4px; }
+  .cj .none { font-size:11px; color:var(--muted); }
   #glyph .grid { stroke:var(--line); stroke-dasharray:8 8; stroke-width:2; fill:none; }
   #glyph text { font:600 34px ui-monospace,monospace; fill:var(--muted); pointer-events:none; opacity:.5; }
   .cur { font-size:15px; color:var(--muted); display:flex; gap:10px; align-items:baseline; }
@@ -230,6 +238,9 @@
 
     <div class="lbl">備註</div>
     <textarea id="note" placeholder="例外／約定原則…"></textarea>
+
+    <div class="lbl">官方倉頡（對照）</div>
+    <div id="cj"></div>
 
     <div class="lbl">官方筆順參考</div>
     <div id="so"></div>
@@ -527,9 +538,13 @@ function checks(ctx) {
     if (!sk.params.allow.includes(kind)) {
       out.push({ key: `skip:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
         msg: `第 ${i + 1} 筆是「${kind}」，不在可略過的筆畫（${sk.params.allow.join('、')}）之內。` });
-    } else if (kind === '橫' && i === nStrokes - 1 && sk.params.last_stroke_letter) {
-      out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
-        msg: `末筆是孤立的橫，依原則應取 <b>${sk.params.last_stroke_letter}</b>，不是略過。` });
+    } else {
+      const map = sk.params.last_stroke_letters ||
+        (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {});
+      const L = map[kind];
+      if (L && i === nStrokes - 1)
+        out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
+          msg: `末筆是孤立的${kind}，依原則應取 <b>${L}</b>，不是略過。` });
     }
   }
   return out;
@@ -643,7 +658,8 @@ async function predict() {
     thr,
     segPenalty: merge ? merge.params.seg_penalty : 0.05,
     skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
-                 lastLetter: sk.params.last_stroke_letter || '' } : null,
+                 lastLetters: sk.params.last_stroke_letters ||
+                   (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {}) } : null,
     tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
   });
   const out = raw.map(r => ({
@@ -692,9 +708,39 @@ async function load(c) {
   if (rec && rec.skipped) skipped = [...rec.skipped];
   $('#cur').innerHTML = `<b>${c}</b><span>${strokes.length} 筆</span>`;
   $('#note').value = (rec && rec.note) || '';
-  drawGlyph(); renderSegs(); suggest(); renderQueue(); strokeOrder(c);
+  drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
   if (!segs.length) predict(); else $('#predopts').innerHTML =
     '<span class="newz">此字已有取碼。按「重新預測」可看模型的拆法。</span>';
+}
+
+/* ---------- 官方倉頡對照 ----------
+   只是拿來比較「別人怎麼拆」，不影響你的取碼。倉頡 24 個字母各對應一個字根，
+   所以可以把碼還原成字根（明＝ab＝日月）。 */
+const CJ_RADICAL = {
+  A: '日', B: '月', C: '金', D: '木', E: '水', F: '火', G: '土', H: '竹',
+  I: '戈', J: '十', K: '大', L: '中', M: '一', N: '弓', O: '人', P: '心',
+  Q: '手', R: '口', S: '尸', T: '廿', U: '山', V: '女', W: '田', X: '難',
+  Y: '卜', Z: '重',
+};
+let cangjie = null;
+function renderCangjie(c) {
+  const box = $('#cj');
+  if (!box) return;
+  box.innerHTML = '';
+  const code = cangjie && cangjie[c];
+  if (!code) {
+    box.innerHTML = '<span class="none">倉頡碼表沒有這個字。</span>';
+    return;
+  }
+  const row = el('div', 'cj');
+  for (const L of code) {
+    const k = el('div', 'k');
+    k.append(el('div', 'r', CJ_RADICAL[L] || '?'));
+    k.append(el('div', 'l', L));
+    row.append(k);
+  }
+  row.append(el('span', 'code', code));
+  box.append(row);
 }
 
 /* ---------- 官方筆順參考 ----------
@@ -958,9 +1004,10 @@ Promise.all([
   fetch('/api/codes').then(r => r.json()),
   fetch('/api/zigen').then(r => r.json()),
   fetch('/api/rules').then(r => r.json()),
+  fetch('/api/cangjie').then(r => r.json()).catch(() => ({})),
   fetchStamp(),
-]).then(async ([f, c, z, rl, s]) => {
-  order = f.order; codes = c; zigen = z; rules = rl; stamp = s;
+]).then(async ([f, c, z, rl, cj, s]) => {
+  order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj; stamp = s;
   lib = await Zigen.buildLibrary(zigen);
   libInfo();
   $('#status').textContent = '已載入';

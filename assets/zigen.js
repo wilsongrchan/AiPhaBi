@@ -173,14 +173,15 @@
     for (const c of cand) byLowest[c.idx[0]].push(c);
 
     /* 孤筆略過原則：讓落單的橫／豎可以不被任何字根覆蓋，代價是一點成本。
-       例外：最後一筆若是孤立的橫，不略過，取指定的字母（lastLetter，預設「I」）。 */
+       例外：孤立的末筆若在 lastLetters 對照表裡（橫→I、豎→J），就不略過，改取該字母。 */
     if (skip) medians.forEach((m, i) => {
       const kind = strokeKind(m);
       if (!skip.allow.includes(kind)) return;
-      if (kind === '橫' && i === n - 1 && skip.lastLetter) {
+      const L = skip.lastLetters && skip.lastLetters[kind];
+      if (L && i === n - 1) {
         byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty,
-                           letter: skip.lastLetter.toUpperCase(),
-                           label: `末筆橫 → ${skip.lastLetter.toUpperCase()}` });
+                           letter: L.toUpperCase(),
+                           label: `末筆${kind} → ${L.toUpperCase()}` });
         return;
       }
       byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty, skip: true,

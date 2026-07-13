@@ -23,6 +23,8 @@ DATA = ROOT / "data"
 MMH = "https://raw.githubusercontent.com/skishore/makemeahanzi/master/graphics.txt"
 G0V = "https://github.com/g0v/zh-stroke-data/archive/refs/heads/master.zip"
 ESSAY = "https://raw.githubusercontent.com/rime/rime-essay/master/essay.txt"
+CJ = ["https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.base.dict.yaml",
+      "https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.extended.dict.yaml"]
 
 
 def fetch(url):
@@ -99,6 +101,24 @@ def main():
         freq.write_text(json.dumps({"order": ranked + rest, "with_freq": len(ranked)},
                                    ensure_ascii=False), "utf-8")
         print(f"  {len(ranked) + len(rest)} 字排序完成")
+
+    cj = DATA / "cangjie.json"
+    if not cj.exists():
+        print("官方倉頡碼表（rime-cangjie，僅作對照）")
+        table = {}
+        for url in reversed(CJ):                 # base 後蓋 extended，常用字優先
+            body = False
+            for line in fetch(url).decode("utf-8", "replace").splitlines():
+                if line.strip() == "...":
+                    body = True
+                    continue
+                if not body:
+                    continue
+                parts = line.split("\t")
+                if len(parts) >= 2 and len(parts[0]) == 1 and parts[0] in chars:
+                    table[parts[0]] = parts[1].upper()
+        cj.write_text(json.dumps(table, ensure_ascii=False, separators=(",", ":")), "utf-8")
+        print(f"  {len(table)} 字")
 
     print("\n完成。啟動： python3 server.py  →  http://localhost:8777")
 

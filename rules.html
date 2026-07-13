@@ -94,7 +94,8 @@ const PARAMS = {
   merge_over_split: [['seg_penalty', '每多一個字根的成本（越大越傾向合併）', 0.01, 0, 1]],
   skip_isolated_hv: [
     ['penalty', '略過一筆的成本（越小越容易略過）', 0.05, 0, 2],
-    ['last_stroke_letter', '孤立的末筆橫改取哪個字母（留空＝照樣略過）', 'text'],
+    ['last_stroke_letters.橫', '孤立的末筆「橫」改取', 'text'],
+    ['last_stroke_letters.豎', '孤立的末筆「豎」改取', 'text'],
   ],
   max_code_length: [
     ['max', '最終碼長上限', 1, 1, 8],
@@ -139,6 +140,13 @@ function render() {
     const ps = PARAMS[r.id];
     if (ps && r.params) {
       const box = el('div', 'params');
+      const getP = (o, k) => k.split('.').reduce((x, p) => (x || {})[p], o);
+      const setP = (o, k, v) => {
+        const ps2 = k.split('.');
+        let x = o;
+        for (const p of ps2.slice(0, -1)) x = (x[p] ||= {});
+        x[ps2[ps2.length - 1]] = v;
+      };
       for (const [key, label, step, min, max] of ps) {
         const l = el('label');
         l.append(el('span', '', label));
@@ -146,8 +154,8 @@ function render() {
         if (step === 'text') {
           inp.type = 'text'; inp.maxLength = 1; inp.style.width = '40px';
           inp.style.textTransform = 'uppercase';
-          inp.value = r.params[key] ?? '';
-          inp.oninput = () => { r.params[key] = inp.value.toUpperCase(); touch(); };
+          inp.value = getP(r.params, key) ?? '';
+          inp.oninput = () => { setP(r.params, key, inp.value.toUpperCase()); touch(); };
         } else {
           inp.type = 'number';
           inp.value = r.params[key]; inp.step = step; inp.min = min; inp.max = max;

@@ -15,3 +15,6 @@ node_modules/
 
 # HEIC 原檔（已有 jpg 版本）
 *.heic
+
+# 官方倉頡碼表（rime-cangjie，GPL）：由 fetch_data.py 下載
+data/cangjie.json
