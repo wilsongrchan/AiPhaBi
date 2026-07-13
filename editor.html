@@ -271,6 +271,7 @@
 </div>
 
 <script src="/assets/shape.js"></script>
+<script src="/assets/zigen.js"></script>
 <script>
 /* ============================== state ============================== */
 let data = null, dirty = false;
@@ -392,6 +393,12 @@ function render() {
         box.append(shapes);
         sec.append(box);
       });
+
+      if (!intentionsOf(L, tier).length) {
+        const row = lazyZone(el('div', 'shapes'), L, tier);
+        row.append(addButtons2(L, tier));
+        sec.append(row);
+      }
 
       const addI = el('button', 'mini', '＋ 新增意圖');
       addI.onclick = () => {
@@ -555,9 +562,97 @@ async function pushChar(arr, ch) {
               : { z: ch, ex: '', nomatch: true });
 }
 
-/* 放置目標：每一列 shapes 都登記自己對應的陣列 */
+/* 放置目標：每一列 shapes 登記自己對應的陣列；
+   空的等級也給一個放置區（{lazy} —— 真的放東西進來時才建立意圖，免得留下空意圖） */
 const zones = new WeakMap();
-const dropZone = (row, arr) => { zones.set(row, arr); return row; };
+const dropZone = (row, arr) => { zones.set(row, { arr }); return row; };
+const lazyZone = (row, L, tier) => { zones.set(row, { lazy: { L, tier } }); return row; };
+function zoneArray(row) {
+  const z = zones.get(row);
+  if (!z) return null;
+  if (z.arr) return z.arr;
+  const { L, tier } = z.lazy;
+  let bucket = L.intentions.find(i => i.auto && tierOf(i) === tier);
+  if (!bucket) { bucket = { desc: '', auto: true, tier, shapes: [] }; L.intentions.push(bucket); }
+  return bucket.shapes;
+}
+
+/* ---------- 換了字母 → 已取碼的字要不要一起改？ ----------
+   字根從 Y 移到 T，只改字根表是不夠的：那些用了這個字根取碼的字，碼裡還是 Y。
+   所以移動後把碼表掃一遍，找出真的用到這個形狀的字，問你要不要一併改。 */
+let codesCache = null;
+const loadCodes = async () => (codesCache ||= await fetch('/api/codes').then(r => r.json()));
+
+function letterOfArray(arr) {
+  for (const L of data.letters)
+    for (const it of L.intentions) if (it.shapes === arr) return L.letter;
+  return null;
+}
+function letterOfZone(zone) {
+  const z = zones.get(zone);
+  return z && z.lazy ? z.lazy.L.letter : null;
+}
+
+/* 這些形狀（含變體）的向量 */
+async function vecsOf(shapes) {
+  const out = [];
+  for (const s of shapes) {
+    if (!s.glyph) continue;
+    for (const form of [s.glyph, ...(s.alts || [])]) {
+      const g = await Zigen.getGlyph(form.src);
+      if (!g) continue;
+      const med = form.strokes.map(i => g.medians[i]);
+      if (med.some(m => !m)) continue;
+      const v = Shape.strokeVec(med);
+      if (v) out.push({ v, n: med.length });
+    }
+  }
+  return out;
+}
+
+async function reletter(shapes, from, to) {
+  const vecs = await vecsOf(shapes);
+  if (!vecs.length) return;
+  const codes = await loadCodes();
+  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
+
+  const hits = [];
+  for (const [ch, rec] of Object.entries(codes)) {
+    if (!rec.segments) continue;
+    const g = await Zigen.getGlyph(ch);
+    if (!g) continue;
+    let changed = false;
+    const segs = rec.segments.map(sg => {
+      if (sg.letter !== from) return sg;
+      const v = Shape.strokeVec(sg.strokes.map(i => g.medians[i]));
+      if (!v) return sg;
+      const ok = vecs.some(x => x.n === sg.strokes.length && Shape.dist(v, x.v) < thr);
+      if (!ok) return sg;
+      changed = true;
+      return { ...sg, letter: to };
+    });
+    if (changed) hits.push({ ch, rec, segs });
+  }
+  if (!hits.length) return;
+
+  const sample = hits.slice(0, 12).map(h => h.ch).join('');
+  const more = hits.length > 12 ? ` 等 ${hits.length} 個字` : '';
+  if (!confirm(
+      `這個字根從 ${from} 改成 ${to}。\n\n` +
+      `有 ${hits.length} 個已取碼的字用到它（${sample}${more}），` +
+      `它們的碼裡還是 ${from}。\n\n要一併把這些字的碼改成 ${to} 嗎？\n\n` +
+      `（選「取消」的話碼表不動，但那些字會在逐字取碼頁顯示「字根比對」警告。）`)) return;
+
+  for (const h of hits) {
+    h.rec.segments = h.segs;
+    h.rec.code = h.segs.map(s => s.letter).join('');
+    delete h.rec.final;                       /* 由完整碼現算，不留舊值 */
+  }
+  const r = await fetch('/api/codes', { method: 'PUT',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes, null, 2) });
+  $('#status').textContent = r.ok ? `已更新 ${hits.length} 個字的碼` : '碼表更新失敗';
+  $('#status').className = r.ok ? 'saved' : 'dirty';
+}
 
 /* ---------- 合併字根：你認為是同一個形狀的，就併成一條 ----------
    併起來之後，被併掉的形狀變成該字根的「變體」(alts)，比對時一樣算數 —— 
@@ -624,7 +719,7 @@ const intentZone = (elm, L, tier) => { intentZones.set(elm, { L, tier }); return
 function startIntentDrag(ev, boxEl, fromL, it) {
   ev.preventDefault();
   const x0 = ev.clientX, y0 = ev.clientY;
-  let ghost = null, target = null, before = null;
+  let ghost = null, target = null, before = null, scroller = null;
 
   const move = e => {
     if (!ghost) {
@@ -638,6 +733,8 @@ function startIntentDrag(ev, boxEl, fromL, it) {
     }
     ghost.style.left = e.clientX + 'px';
     ghost.style.top = e.clientY + 'px';
+    clearInterval(scroller);
+    scroller = setInterval(() => edgeScroll(e.clientY), 30);
     ghost.style.display = 'none';
     const under = document.elementFromPoint(e.clientX, e.clientY);
     ghost.style.display = '';
@@ -670,6 +767,7 @@ function startIntentDrag(ev, boxEl, fromL, it) {
   const up = () => {
     document.removeEventListener('pointermove', move);
     document.removeEventListener('pointerup', up);
+    clearInterval(scroller);
     ghost && ghost.remove();
     intentMarker.remove();
     boxEl.classList.remove('dragging');
@@ -678,6 +776,8 @@ function startIntentDrag(ev, boxEl, fromL, it) {
     if (!ghost || !target) return;
 
     const { L: toL, tier } = target;
+    const fromLetter = fromL.letter, toLetter = toL.letter;
+    const moved = [...it.shapes];
     fromL.intentions.splice(fromL.intentions.indexOf(it), 1);
     it.tier = tier;
     if (it.auto && toL !== fromL) delete it.auto;
@@ -691,6 +791,7 @@ function startIntentDrag(ev, boxEl, fromL, it) {
     }
     toL.intentions.splice(at, 0, it);
     touch(); render();
+    if (fromLetter !== toLetter) reletter(moved, fromLetter, toLetter);
   };
   document.addEventListener('pointermove', move);
   document.addEventListener('pointerup', up);
@@ -718,9 +819,16 @@ function showMarker(row, at) {
   else row.insertBefore(marker, chips[at]);
 }
 
+/* 拖曳時靠近視窗上下緣就自動捲動（字母卡片很長，不然拖不過去） */
+function edgeScroll(y) {
+  const M = 90, step = 18;
+  if (y < M) window.scrollBy(0, -step);
+  else if (y > window.innerHeight - M) window.scrollBy(0, step);
+}
+
 function startDrag(ev, chipEl, arr, i, s) {
   const x0 = ev.clientX, y0 = ev.clientY;
-  let ghost = null, zone = null, at = -1;
+  let ghost = null, zone = null, at = -1, scroller = null;
 
   const move = e => {
     if (!ghost) {
@@ -734,6 +842,8 @@ function startDrag(ev, chipEl, arr, i, s) {
     e.preventDefault();
     ghost.style.left = e.clientX + 'px';
     ghost.style.top = e.clientY + 'px';
+    clearInterval(scroller);
+    scroller = setInterval(() => edgeScroll(e.clientY), 30);
     ghost.style.display = 'none';
     const under = document.elementFromPoint(e.clientX, e.clientY);
     ghost.style.display = '';
@@ -749,21 +859,52 @@ function startDrag(ev, chipEl, arr, i, s) {
   const up = () => {
     document.removeEventListener('pointermove', move);
     document.removeEventListener('pointerup', up);
+    clearInterval(scroller);
     ghost && ghost.remove();
     showMarker(null, -1);
     chipEl.classList.remove('dragging');
     zone && zone.classList.remove('drop');
     if (ghost && zone && at >= 0) {
-      const dest = zones.get(zone);
+      const dest = zoneArray(zone);
+      if (!dest) return;
+      const from = letterOfArray(arr), to = letterOfArray(dest) || letterOfZone(zone);
       /* 先移除再插入；同一列時，移除會讓後面的位置往前挪一格 */
       arr.splice(i, 1);
       const k = dest === arr && at > i ? at - 1 : at;
       dest.splice(Math.min(k, dest.length), 0, s);
-      touch(); render();
+      touch();
+      render();
+      if (from && to && from !== to) reletter([s], from, to);   /* 換了字母 → 問要不要一併改碼表 */
     }
   };
   document.addEventListener('pointermove', move);
   document.addEventListener('pointerup', up);
+}
+
+/* 空等級用的按鈕：真的加東西時才建立意圖 */
+function addButtons2(L, tier) {
+  const mk = () => {
+    let bucket = L.intentions.find(i => i.auto && tierOf(i) === tier);
+    if (!bucket) { bucket = { desc: '', auto: true, tier, shapes: [] }; L.intentions.push(bucket); }
+    return bucket.shapes;
+  };
+  const box = el('div', 'addbtns');
+  const type = el('input');
+  type.placeholder = '＋';
+  type.style.cssText = 'width:46px;border:1px dashed var(--line);border-radius:7px;' +
+    'background:transparent;color:var(--muted);text-align:center;font-size:16px;padding:3px 0';
+  type.onkeydown = async e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    const arr = mk();
+    for (const ch of [...type.value.trim()]) await pushChar(arr, ch);
+    touch(); render();
+  };
+  const b1 = el('button', '', '筆'); b1.title = '筆畫選取';
+  b1.onclick = () => openPicker(mk(), null);
+  const b2 = el('button', '', '✍︎'); b2.title = '手寫辨認';
+  b2.onclick = () => openDraw(mk());
+  box.append(type, b1, b2);
+  return box;
 }
 
 function addButtons(arr) {
@@ -971,6 +1112,7 @@ $('#modal').onclick = e => { if (e.target.id === 'modal') $('#modal').classList.
 
 /* ============================== io ============================== */
 async function save() {
+  codesCache = null;
   $('#status').textContent = '儲存中…';
   const r = await fetch('/api/zigen', { method: 'PUT',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) });
