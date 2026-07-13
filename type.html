@@ -80,6 +80,7 @@
     真的用愛發筆打字看看。點下面的紙面，直接按 <kbd>A</kbd>–<kbd>Z</kbd> 打碼；
     <kbd>space</kbd> 上第一個字、<kbd>1</kbd>–<kbd>9</kbd> 選字、
     <kbd>⌫</kbd> 刪碼、<kbd>esc</kbd> 清掉這一串碼。
+    標點直接按（<kbd>,</kbd>→，　<kbd>.</kbd>→。　<kbd>?</kbd>→？　<kbd>[</kbd><kbd>]</kbd>→「」　<kbd>"</kbd>→「」輪流）。
     打不出來的字表示還沒取碼。
   </div>
 
@@ -200,9 +201,32 @@ function commit(i) {
   render();
 }
 
+/* 正體中文全形標點。字母鍵全都給字根用了，標點就落在原本的標點鍵上。
+   成對的（引號）輪流出左右，跟真的輸入法一樣。 */
+const PUNCT = {
+  ',': '，', '.': '。', '?': '？', '!': '！', ';': '；', ':': '：',
+  '\\': '、', '/': '、', '(': '（', ')': '）', '[': '「', ']': '」',
+  '{': '『', '}': '』', '<': '《', '>': '》', '~': '～', '^': '……',
+  '_': '——', '-': '－', '@': '＠', '#': '＃', '%': '％', '&': '＆',
+  '*': '＊', '+': '＋', '=': '＝', '|': '｜', '$': '＄',
+};
+const PAIRS = { '"': ['「', '」'], "'": ['『', '』'] };
+const pairOpen = {};          /* 這個引號現在該出左邊還是右邊 */
+
 $('#paper').onkeydown = e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
+  if (PUNCT[k] || PAIRS[k]) {
+    e.preventDefault();
+    /* 打標點時如果還有沒上屏的碼，先把候選上屏 —— 真的輸入法都是這樣 */
+    if (code) { const c = candidates()[pick]; if (c) { text += c.ch; } code = ''; pick = 0; }
+    if (PAIRS[k]) {
+      pairOpen[k] = !pairOpen[k];
+      text += PAIRS[k][pairOpen[k] ? 0 : 1];
+    } else text += PUNCT[k];
+    render();
+    return;
+  }
   if (/^[a-zA-Z]$/.test(k)) {
     e.preventDefault();
     code += k.toUpperCase(); pick = 0; render();
