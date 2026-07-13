@@ -669,44 +669,61 @@ function checks(ctx) {
    這不是把警告關掉而已：以後任何字裡，離它這麼遠的形狀都不會再被當成它。
    （字根的專屬門檻，不動全域，也不影響別的字根。） */
 async function rejectMatch(r) {
-  const e = lib.find(x => x.letter === r.letter && x.label === r.zlabel);
-  if (!e) return;
   const vec = Shape.strokeVec(r.strokes.map(i => medians[i]));
   if (!vec) return;
-  const d = Shape.dist(vec, e.vec);
-  const tight = Math.max(0.005, +(d * 0.9).toFixed(4));
-  const cur = e.shape.thr ?? (zigen.meta.merge_threshold || Zigen.SAME_SHAPE);
-  if (tight >= cur) {
-    alert(`這組筆畫與 ${r.zlabel} 的距離是 ${d.toFixed(3)}，` +
-          `已經超出它現在的門檻 ${cur} —— 不需要再收緊。`);
+  const globalThr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const thrOf = e => (e.shape.thr != null) ? e.shape.thr : globalThr;
+
+  /* 「這不是 X」＝ 這個字母底下，任何一個字根都不該配上這組筆畫。
+     只收緊剛好被點名的那一個是不夠的：同一個字母常常有好幾個同筆數的字根
+     （X 的 後[789] 與 戰[131415] 都是三筆），收緊一個，另一個馬上頂上來，
+     警告看起來就「按了也不會消失」。所以要把「現在配得上的」全部收緊。 */
+  const hits = lib
+    .filter(e => e.letter === r.letter && e.n === r.strokes.length)
+    .map(e => ({ e, d: Shape.dist(vec, e.vec) }))
+    .filter(x => x.d < thrOf(x.e));
+  if (!hits.length) {
+    alert(`${r.letter} 底下已經沒有字根配得上這組筆畫了。`);
     return;
   }
 
-  /* 收緊之後，本來用這個字根取碼的字會不會有人配不上了？先算給你看 */
-  const casualties = [];
-  for (const [ch, rec] of Object.entries(codes)) {
-    if (!rec.segments) continue;
-    const g = await Zigen.getGlyph(ch);
-    if (!g) continue;
-    for (const sg of rec.segments) {
-      if (sg.letter !== r.letter || sg.strokes.length !== e.n) continue;
-      const v = Shape.strokeVec(sg.strokes.map(i => g.medians[i]));
-      if (!v) continue;
-      const dd = Shape.dist(v, e.vec);
-      if (dd < cur && dd >= tight) { casualties.push(ch); break; }
+  /* 收緊之後，本來靠這些字根取碼的字會不會配不上？先算給你看 */
+  const casualties = new Set();
+  const plans = [];
+  for (const { e, d } of hits) {
+    const cur = thrOf(e);
+    const tight = Math.max(0.005, +(d * 0.9).toFixed(4));
+    if (tight >= cur) continue;
+    plans.push({ e, tight, cur, d });
+    for (const [ch, rec] of Object.entries(codes)) {
+      if (!rec.segments) continue;
+      const g = await Zigen.getGlyph(ch);
+      if (!g) continue;
+      for (const sg of rec.segments) {
+        if (sg.letter !== r.letter || sg.strokes.length !== e.n) continue;
+        const v = Shape.strokeVec(sg.strokes.map(i => g.medians[i]));
+        if (!v) continue;
+        const dd = Shape.dist(v, e.vec);
+        if (dd < cur && dd >= tight) { casualties.add(ch); break; }
+      }
     }
   }
+  if (!plans.length) { alert('不需要再收緊。'); return; }
 
-  const msg = `把「${r.zlabel}」（${r.letter}）的專屬門檻從 ${cur} 收到 ${tight}，` +
-    `這組筆畫（距離 ${d.toFixed(3)}）以後就不會再被當成它。\n\n` +
-    (casualties.length
-      ? `注意：有 ${casualties.length} 個已取碼的字（${casualties.slice(0, 10).join('')}${
-          casualties.length > 10 ? '…' : ''}）本來就是靠這個字根配上的，` +
-        '收緊之後它們會配不上，會在佇列裡顯示警告。\n\n要繼續嗎？'
+  const cas = [...casualties];
+  const msg =
+    `把 ${r.letter} 底下這 ${plans.length} 個字根的門檻收緊，` +
+    '以後都不會再把這組筆畫當成它們：\n\n' +
+    plans.map(p => `　${p.e.label}：${p.cur} → ${p.tight}（這組筆畫距離 ${p.d.toFixed(3)}）`).join('\n') +
+    '\n\n' +
+    (cas.length
+      ? `注意：有 ${cas.length} 個已取碼的字（${cas.slice(0, 10).join('')}${
+          cas.length > 10 ? '…' : ''}）本來就是靠這些字根配上的，收緊之後會配不上，` +
+        '會在佇列裡顯示警告。\n\n要繼續嗎？'
       : '沒有已取碼的字會受影響。');
   if (!confirm(msg)) return;
 
-  e.shape.thr = tight;
+  for (const p of plans) p.e.shape.thr = p.tight;
   zigenDirty = true;
   await save();
   lib = await Zigen.buildLibrary(zigen);
