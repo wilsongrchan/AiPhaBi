@@ -169,6 +169,8 @@
   .chk .rule { color:var(--muted); font-size:11px; }
   .chk .act { flex:none; display:flex; gap:4px; }
   .chk .act button { padding:1px 6px; font-size:11px; }
+  .chk .act button.apply { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .chk .act button.apply:hover { background:var(--accent); color:#fff; }
   .chk.muted { opacity:.5; }
   .clash .ch { font-size:17px; font-family:"PingFang TC",serif; }
   /* 新字根 → 其他字要不要跟著改 */
@@ -573,6 +575,8 @@ function checks(ctx) {
     /* 2. 這組筆畫跟你選的字母的既有字根對不上，但很像別的字母的字根 */
     if (any && any.d < thr && (!mine || mine.d >= thr) && any.e.letter !== sg.letter) {
       out.push({ key: `letter:${i}`, lvl: 'warn', rule: '字根比對', refs: [i],
+        fix: { type: 'letter', i, to: any.e.letter,
+               label: `改成 ${any.e.letter}` },
         msg: `第 ${i + 1} 個字根指派給 <b>${sg.letter}</b>，但它的形狀跟 ` +
              `<b>${any.e.letter}</b> 的既有字根 ${any.e.label} 幾乎一樣（距離 ${any.d.toFixed(3)}）。` });
     }
@@ -591,6 +595,8 @@ function checks(ctx) {
         .map(e => ({ e, d: Shape.dist(Shape.strokeVec(sg.strokes.map(k => medians[k])), e.vec) }))
         .filter(x => x.d < thr).sort((a, b) => a.d - b.d)[0];
       if (better) out.push({ key: `tier:${i}`, lvl: 'warn', rule: '優次等原則', refs: [i],
+        fix: { type: 'letter', i, to: better.e.letter,
+               label: `改成 ${better.e.letter}` },
         msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}` +
              `（取 <b>${sg.letter}</b>），但同一組筆畫也配得上<b>優等</b>字根 ` +
              `${better.e.label}（取 <b>${better.e.letter}</b>）—— 碼會不一樣。` });
@@ -608,6 +614,8 @@ function checks(ctx) {
       const m = bestMatch2(union);
       if (m && m.d < thr) out.push({ key: `merge:${a.i}-${b.i}`, lvl: 'warn',
         rule: '能合不分原則', refs: [a.i, b.i],
+        fix: { type: 'merge', a: a.i, b: b.i, to: m.e.letter,
+               label: `合併成一個 ${m.e.letter}` },
         msg: `第 ${a.i + 1}、${b.i + 1} 個字根合起來剛好是既有字根 ${m.e.label}` +
              `（<b>${m.e.letter}</b>）—— 可以一碼取盡，不必分兩碼。` });
     }
@@ -623,6 +631,7 @@ function checks(ctx) {
     if (st === nStrokes - 1) return;                 /* 末筆有例外，另一條檢查管 */
     out.push({ key: `lone:${i}`, lvl: 'warn', rule: '孤筆略過原則', refs: [i],
       teach: { stroke: st, kind },
+      fix: { type: 'skip', i, stroke: st, label: '略過這一筆' },
       msg: `第 ${i + 1} 個字根只有一筆（${kind}），而且不是末筆。` +
            `依原則，無法與其他筆畫組成字根的孤立${kind}應該<b>略過</b>，不取碼。` });
   });
@@ -640,10 +649,34 @@ function checks(ctx) {
       const L = map[kind];
       if (L && i === nStrokes - 1)
         out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
+          fix: { type: 'unskip', stroke: i, to: L, label: `改取 ${L}` },
           msg: `末筆是孤立的${kind}，依原則應取 <b>${L}</b>，不是略過。` });
     }
   }
   return out;
+}
+
+/* 把某一條檢查建議的改法直接套上去 */
+function applyFix(f) {
+  if (f.type === 'letter') {
+    segs[f.i].letter = f.to;
+  } else if (f.type === 'merge') {
+    const a = segs[f.a], b = segs[f.b];
+    const strokes = [...new Set([...a.strokes, ...b.strokes])].sort((x, y) => x - y);
+    const keep = Math.min(f.a, f.b), drop = Math.max(f.a, f.b);
+    segs[keep] = { strokes, letter: f.to };
+    segs.splice(drop, 1);
+  } else if (f.type === 'skip') {
+    segs.splice(f.i, 1);
+    skipped = [...new Set([...skipped, f.stroke])].sort((x, y) => x - y);
+  } else if (f.type === 'unskip') {
+    skipped = skipped.filter(i => i !== f.stroke);
+    segs.push({ strokes: [f.stroke], letter: f.to });
+    segs.sort((x, y) => Math.min(...x.strokes) - Math.min(...y.strokes));
+  }
+  sel = [];
+  touch();
+  drawGlyph(); renderSegs(); suggest(); predict();
 }
 
 function renderChecks() {
@@ -667,6 +700,12 @@ function renderChecks() {
     d.append(body);
     if (c.lvl === 'warn') {
       const act = el('div', 'act');
+      if (c.fix) {
+        const ap = el('button', 'apply', c.fix.label);
+        ap.title = '照建議改，碼會跟著更新';
+        ap.onclick = () => applyFix(c.fix);
+        act.append(ap);
+      }
       /* 筆型判錯了？教它一次，以後所有字都受用 —— 不必每個字忽略一遍 */
       if (c.teach) {
         const fix = el('button', '', `這不是${c.teach.kind}`);

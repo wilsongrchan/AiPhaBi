@@ -220,6 +220,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -235,12 +242,7 @@
         "letter": "Z"
       }
     ],
-    "code": "IOZ",
-    "skipped": [
-      2,
-      3
-    ],
-    "final": "IOZ"
+    "code": "IIOZ"
   },
   "上": {
     "segments": [
@@ -829,6 +831,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -863,15 +872,12 @@
         "letter": "L"
       }
     ],
-    "code": "IOVOJL",
-    "final": "IOVL",
-    "skipped": [
-      2,
-      3
-    ],
+    "code": "IIOVOJL",
     "overrides": [
-      "merge:4-5"
-    ]
+      "merge:4-5",
+      "merge:5-6"
+    ],
+    "final": "IIOL"
   },
   "也": {
     "segments": [
@@ -1259,6 +1265,13 @@
       },
       {
         "strokes": [
+          4,
+          5
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           6,
           7,
           8
@@ -1288,12 +1301,7 @@
         "letter": "Z"
       }
     ],
-    "code": "MOJKZ",
-    "final": "MOJZ",
-    "skipped": [
-      4,
-      5
-    ]
+    "code": "MIOJKZ"
   },
   "沒": {
     "segments": [
@@ -1826,20 +1834,20 @@
       {
         "strokes": [
           0,
-          1,
-          2
+          1
         ],
-        "letter": "F"
+        "letter": "I"
       },
       {
         "strokes": [
+          2,
           3
         ],
-        "letter": "L"
+        "letter": "Y"
       }
     ],
-    "code": "FL",
-    "final": "FL",
+    "code": "IY",
+    "final": "IY",
     "overrides": [
       "tier:1",
       "merge:0-1"
@@ -2788,6 +2796,13 @@
       },
       {
         "strokes": [
+          15,
+          16
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           17,
           18,
           19
@@ -2803,12 +2818,7 @@
         "letter": "V"
       }
     ],
-    "code": "OUDUHOV",
-    "final": "OUDV",
-    "skipped": [
-      15,
-      16
-    ]
+    "code": "OUDUHIOV"
   },
   "無": {
     "segments": [
@@ -3925,7 +3935,29 @@
       "lone:1",
       "merge:0-1"
     ],
-    "note": "約定原則。"
+    "note": "約定原則。",
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "III",
+    "final": "III"
   },
   "日": {
     "segments": [
@@ -5047,6 +5079,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -5075,12 +5114,7 @@
         "letter": "O"
       }
     ],
-    "code": "IOJTO",
-    "final": "IOJO",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOJTO"
   },
   "己": {
     "segments": [
@@ -5252,7 +5286,10 @@
       }
     ],
     "code": "RYYIFW",
-    "final": "RYYW"
+    "final": "RYYW",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "兩": {
     "segments": [
@@ -5395,6 +5432,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -5409,12 +5453,7 @@
         "letter": "T"
       }
     ],
-    "code": "IOT",
-    "final": "IOT",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOT"
   },
   "美": {
     "segments": [
@@ -5865,6 +5904,13 @@
       },
       {
         "strokes": [
+          4,
+          5
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           6,
           7,
           8
@@ -5872,12 +5918,7 @@
         "letter": "O"
       }
     ],
-    "code": "YIO",
-    "final": "YIO",
-    "skipped": [
-      4,
-      5
-    ]
+    "code": "YIIO"
   },
   "代": {
     "segments": [
@@ -7323,6 +7364,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -7344,12 +7392,7 @@
         "letter": "X"
       }
     ],
-    "code": "IONX",
-    "final": "IONX",
-    "skipped": [
-      2,
-      3
-    ],
+    "code": "IIONX",
     "overrides": [
       "merge:2-3"
     ]
@@ -7432,6 +7475,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -7462,12 +7512,7 @@
         "letter": "H"
       }
     ],
-    "code": "IOAUH",
-    "final": "IOAH",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOAUH"
   },
   "非": {
     "skipped": [
@@ -7603,6 +7648,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -7651,12 +7703,7 @@
         "letter": "X"
       }
     ],
-    "code": "IOGMGMX",
-    "final": "IOGX",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOGMGMX"
   },
   "被": {
     "segments": [
@@ -7934,6 +7981,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -7957,11 +8011,8 @@
         "letter": "O"
       }
     ],
-    "code": "IODO",
-    "final": "IODO",
+    "code": "IIODO",
     "skipped": [
-      2,
-      3,
       7
     ]
   },
@@ -8057,6 +8108,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -8111,12 +8169,7 @@
         "letter": "K"
       }
     ],
-    "code": "IOIOOHJK",
-    "final": "IOIK",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOIOOHJK"
   },
   "司": {
     "segments": [
@@ -9205,7 +9258,10 @@
       }
     ],
     "code": "HOFQYIF",
-    "final": "HOFF"
+    "final": "HOFF",
+    "overrides": [
+      "merge:3-4"
+    ]
   },
   "據": {
     "segments": [
@@ -9443,6 +9499,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -9458,12 +9521,7 @@
         "letter": "Z"
       }
     ],
-    "code": "IOZ",
-    "final": "IOZ",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOZ"
   },
   "每": {
     "segments": [
@@ -9739,6 +9797,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -9766,11 +9831,8 @@
         "letter": "Q"
       }
     ],
-    "code": "IOHLQ",
-    "final": "IOHQ",
+    "code": "IIOHLQ",
     "skipped": [
-      2,
-      3,
       7
     ]
   },
@@ -9947,7 +10009,10 @@
       }
     ],
     "code": "FXXFUDJL",
-    "final": "FXXL"
+    "final": "FXXL",
+    "overrides": [
+      "merge:1-2"
+    ]
   },
   "器": {
     "segments": [
@@ -10518,6 +10583,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -10547,12 +10619,7 @@
         "letter": "W"
       }
     ],
-    "code": "IOPQW",
-    "final": "IOPW",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOPQW"
   },
   "呵": {
     "segments": [
@@ -10596,6 +10663,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -10603,12 +10677,7 @@
         "letter": "O"
       }
     ],
-    "code": "IO",
-    "final": "IO",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIO"
   },
   "愛": {
     "segments": [
@@ -11655,7 +11724,10 @@
       }
     ],
     "code": "ID",
-    "final": "ID"
+    "final": "ID",
+    "overrides": [
+      "lone:0"
+    ]
   },
   "及": {
     "segments": [
@@ -11674,7 +11746,10 @@
       }
     ],
     "code": "JX",
-    "final": "JX"
+    "final": "JX",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "眼": {
     "segments": [
@@ -11756,6 +11831,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -11771,15 +11853,10 @@
       },
       {
         "strokes": [
-          9
-        ],
-        "letter": "L"
-      },
-      {
-        "strokes": [
+          9,
           10
         ],
-        "letter": "J"
+        "letter": "G"
       },
       {
         "strokes": [
@@ -11789,12 +11866,11 @@
         "letter": "Y"
       }
     ],
-    "code": "IOILJY",
-    "final": "IOIY",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOIGY",
+    "overrides": [
+      "merge:3-4"
+    ],
+    "final": "IIOY"
   },
   "哪": {
     "segments": [
@@ -12313,6 +12389,13 @@
       },
       {
         "strokes": [
+          9,
+          10
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           11,
           12,
           13,
@@ -12321,12 +12404,7 @@
         "letter": "W"
       }
     ],
-    "code": "JYTMW",
-    "final": "JYTW",
-    "skipped": [
-      9,
-      10
-    ]
+    "code": "JYTMIW"
   },
   "聯": {
     "segments": [
@@ -12863,6 +12941,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -12901,11 +12986,8 @@
         "letter": "V"
       }
     ],
-    "code": "IOAFOV",
-    "final": "IOAV",
+    "code": "IIOAFOV",
     "skipped": [
-      2,
-      3,
       12
     ]
   },
@@ -12980,6 +13062,13 @@
       },
       {
         "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           4,
           5,
           6
@@ -13010,12 +13099,7 @@
         "letter": "O"
       }
     ],
-    "code": "IOUFO",
-    "final": "IOUO",
-    "skipped": [
-      2,
-      3
-    ]
+    "code": "IIOUFO"
   },
   "投": {
     "segments": [
