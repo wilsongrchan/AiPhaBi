@@ -944,6 +944,15 @@ function renderCheckRow(c, rec) {
       };
       act.append(fx);
     }
+    /* 它根本認錯了部件：形狀像不代表就是它（碼 的前兩筆像「厂」，其實是「石」的頭）。
+       這不是破例，是誤判 —— 說一聲，這個字以後就不再拿那個部件來比。 */
+    if (c.notComp) {
+      const nb = el('button', '', `這不是「${c.notComp}」`);
+      nb.title = `這幾筆只是長得像「${c.notComp}」，並不是它；` +
+                 `以後在「${cur}」裡不要再拿「${c.notComp}」來比對（不算破例）`;
+      nb.onclick = () => excludeComponent(rec, c.notComp);
+      act.append(nb);
+    }
     /* 那個「範本字」本身才是特例（例：二 單獨成字取 II，但作為部件只算一個 I）*/
     if (c.except) {
       const ex = el('button', '', `「${c.except}」是特例`);
@@ -1005,6 +1014,19 @@ async function setDisposition(rec, c, field) {
 const RULE_OF = { order: '筆順原則', letter: '字根比對', new: '新字根', absorb: '併入既有字根',
   tier: '優次等原則', merge: '能合不分原則', lone: '孤筆略過原則', skip: '孤筆略過原則',
   skiplast: '孤筆略過原則', comp: '偏旁一致性' };
+
+/* 「這幾筆不是『厂』」—— 認錯部件，不是破例。記在這個字上，以後不再拿它比對。 */
+async function excludeComponent(rec, ch) {
+  rec.excludeComp = [...new Set([...(rec.excludeComp || []), ch])];
+  compIndex = null;
+  await muteCheck(rec);
+}
+async function unexcludeComponent(rec, ch) {
+  rec.excludeComp = (rec.excludeComp || []).filter(x => x !== ch);
+  if (!rec.excludeComp.length) delete rec.excludeComp;
+  compIndex = null;
+  await muteCheck(rec);
+}
 
 async function unmute(rec, key) {
   for (const f of FIELDS) {
@@ -1128,6 +1150,21 @@ function renderChecks() {
   const zone = el('div', 'mutedzone');
   box.append(zone);
   for (const c of list) if (off.has(c.key)) zone.append(renderMutedRow(c, rec));
+  /* 被你排除掉的部件也要看得見，不然它是一條看不到的隱形規則 */
+  for (const ch of rec.excludeComp || []) {
+    const d = el('div', 'chk muted');
+    d.append(el('span', 'ic', '✓'));
+    const body = el('div', 'body');
+    body.innerHTML = `這個字裡沒有「<b>${ch}</b>」—— 你說過那幾筆只是長得像它。` +
+      '<span class="rule">— 偏旁一致性（不再拿這個部件比對；不算破例）</span>';
+    d.append(body);
+    const act = el('div', 'act');
+    const un = el('button', '', '還原');
+    un.title = `以後又拿「${ch}」來比對這個字`;
+    un.onclick = () => unexcludeComponent(rec, ch);
+    act.append(un); d.append(act);
+    zone.append(d);
+  }
   renderChecksAsync(list);            /* 偏旁一致性要查別的字，慢，所以非同步補上 */
 }
 
@@ -1189,6 +1226,9 @@ async function componentWarnings() {
   const n = medians.length;
   const out = [];
   const usedRanges = [];
+  /* 你說過「這幾筆不是那個部件」的，就別再拿它來比 ——
+     形狀像不等於就是它：碼 的前兩筆長得像「厂」，但那是「石」的頭。 */
+  const excluded = new Set((codes[cur] && codes[cur].excludeComp) || []);
 
   /* 由大到小找：住 的第 3-7 筆同時「像三」也「像主」，該報的是主（比較大的那個部件），
      不然會一直被更小的部件搶走。 */
@@ -1204,7 +1244,7 @@ async function componentWarnings() {
       /* 這一段筆畫「長得像」哪些已取碼的字？門檻收緊一點 ——
          整字比對用全域門檻太鬆，主 與 立 都會互相配上。 */
       const cands = list
-        .filter(c => c.ch !== cur)
+        .filter(c => c.ch !== cur && !excluded.has(c.ch))
         .map(c => ({ c, d: Shape.dist(v, c.vec) }))
         .filter(x => x.d < 0.15)
         .sort((a, b) => a.d - b.d);
@@ -1239,6 +1279,7 @@ async function componentWarnings() {
           label: `照「${best.ch}」的拆法（${best.code}）`,
         },
         except: best.ch,
+        notComp: best.ch,        /* 也可能是「這幾筆根本不是那個部件」—— 見 excludeComp */
         msg: `第 ${idx.map(x => x + 1).join('、')} 筆就是「<b>${best.ch}</b>」，` +
              `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`,
       });

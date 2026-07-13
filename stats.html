@@ -379,9 +379,12 @@ function renderExceptions(entries) {
   const ignored = groupByRule(entries, 'overrides');   /* 這個字真的破例 */
   const disputed = groupByRule(entries, 'compliant');  /* 其實沒破例，是檢查看錯了 */
 
+  const noComp = entries.filter(([, r]) => has(r, 'excludeComp'));   /* 認錯部件 */
+
   const exChars = new Set([...conv,
     ...entries.filter(([, r]) => has(r, 'overrides') || has(r, 'conventional')).map(([ch]) => ch)]);
-  const dpChars = new Set(entries.filter(([, r]) => has(r, 'compliant')).map(([ch]) => ch));
+  const dpChars = new Set(entries.filter(([, r]) => has(r, 'compliant') || has(r, 'excludeComp'))
+    .map(([ch]) => ch));
   const pct = n => entries.length ? (n / entries.length * 100).toFixed(1) : '0.0';
 
   const grp = (title, hint, chars, cls = '') => chars.length ? `<div class="exgrp${cls}">
@@ -403,9 +406,19 @@ function renderExceptions(entries) {
        <b>${exChars.size}</b> 字是特例（${pct(exChars.size)}%）；
        另有 <b>${dpChars.size}</b> 字你已<b>確認遵守原則</b>（${pct(dpChars.size)}%）—— 那是系統誤判，不算特例。</div>` +
 
-    (disputed.length ? `<div class="exhead bad">系統誤判 —— 你確認過這些字其實遵守原則，該修的是檢查邏輯</div>` +
-      disputed.map(([rule, chars]) => grp(`「${rule}」誤判`,
-        `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`, chars, ' bad')).join('') : '') +
+    (disputed.length || noComp.length
+      ? `<div class="exhead bad">系統誤判 —— 這些字其實沒破例，是檢查看錯了；該修的是我們的邏輯</div>` +
+        disputed.map(([rule, chars]) => grp(`「${rule}」誤判`,
+          `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`, chars, ' bad')).join('') +
+        (noComp.length ? `<div class="exgrp bad">
+            <div class="hd"><b>認錯部件　${noComp.length} 字</b>
+              檢查把某幾筆當成某個部件，其實只是形狀像（例：「碼」的前兩筆像「厂」，那其實是「石」的頭）。</div>
+            ${noComp.map(([ch, r]) =>
+              `<div class="exchars" style="display:flex;align-items:center;gap:4px;margin-top:2px">
+                 ${link(ch)}<span style="font-size:12px;color:var(--muted)">裡沒有 ${r.excludeComp.join('、')}</span>
+               </div>`).join('')}
+          </div>` : '')
+      : '') +
 
     `<div class="exhead">真正的特例 —— 這些字確實不照原則走</div>` +
     grp('約定特例', '整個字的拆法是約定的（多半是簡單的獨體字），其他字不會拿它當偏旁的範本。', conv) +
