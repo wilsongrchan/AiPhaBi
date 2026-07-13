@@ -518,8 +518,16 @@ function renderCode() {
 
   const left = strokes.length - segs.reduce((n, s) => n + s.strokes.length, 0) - skipped.length;
   const bits = [];
-  if (cut) bits.push(`<span style="color:var(--warn)">${code.length} 碼超過上限 ${max}</span>` +
-    `　取前 ${max - 1} 碼加末碼 → <b style="color:var(--accent)">${fin}</b>`);
+  if (cut) {
+    /* 講出「實際的」縮碼規則，不要自己猜 head/tail —— 你在取碼原則頁改成
+       「前 3 碼 + 末 2 碼」，這裡就該這樣說。 */
+    const r = rule('max_code_length');
+    const head = r?.params?.head ?? Math.max(1, max - 1);
+    const tail = r?.params?.tail ?? 1;
+    bits.push(`<span style="color:var(--warn)">${code.length} 碼超過上限 ${max}</span>` +
+      `　取前 ${head} 碼` + (tail ? `加末 ${tail} 碼` : '') +
+      ` → <b style="color:var(--accent)">${fin}</b>`);
+  }
   if (skipped.length) bits.push(`略過 ${skipped.length} 筆`);
   bits.push(left ? `尚有 ${left} 筆未指派`
     : '<span style="color:var(--ok)">全部筆畫已處理</span>');

@@ -4356,7 +4356,7 @@
           0,
           1
         ],
-        "letter": "Y"
+        "letter": "A"
       },
       {
         "strokes": [
@@ -4368,8 +4368,7 @@
         "letter": "E"
       }
     ],
-    "code": "YE",
-    "final": "YE"
+    "code": "AE"
   },
   "金": {
     "segments": [
@@ -4378,7 +4377,7 @@
           0,
           1
         ],
-        "letter": "Y"
+        "letter": "A"
       },
       {
         "strokes": [
@@ -4397,8 +4396,7 @@
         "letter": "V"
       }
     ],
-    "code": "YFV",
-    "final": "YFV"
+    "code": "AFV"
   },
   "內": {
     "segments": [
@@ -7920,10 +7918,15 @@
       {
         "strokes": [
           0,
-          1,
+          1
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
           2
         ],
-        "letter": "R"
+        "letter": "L"
       },
       {
         "strokes": [
@@ -7933,8 +7936,8 @@
         "letter": "X"
       }
     ],
-    "code": "RX",
-    "final": "RX"
+    "code": "CLX",
+    "final": "CLX"
   },
   "語": {
     "segments": [
@@ -9421,7 +9424,7 @@
           5,
           6
         ],
-        "letter": "Y"
+        "letter": "A"
       },
       {
         "strokes": [
@@ -9432,8 +9435,7 @@
         "letter": "O"
       }
     ],
-    "code": "QUVYO",
-    "final": "QUVO"
+    "code": "QUVAO"
   },
   "或": {
     "segments": [
@@ -14831,5 +14833,156 @@
     ],
     "code": "EYIFT",
     "final": "EYIT"
+  },
+  "住": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "YIF",
+    "final": "YIF"
+  },
+  "望": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "letter": "E"
+      }
+    ],
+    "code": "ILDE",
+    "final": "ILDE"
+  },
+  "息": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "letter": "W"
+      }
+    ],
+    "code": "JDW",
+    "final": "JDW",
+    "skipped": [
+      5
+    ]
+  },
+  "集": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "YIFT",
+    "final": "YIFT"
+  },
+  "校": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "T",
+    "final": "T"
   }
 }
