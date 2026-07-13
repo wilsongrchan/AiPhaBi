@@ -9,11 +9,15 @@
     --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
     --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --bad:#c0392b;
     --bar:#c9c2b6;                 /* 一般長條：低調的灰（單一名目類別，不做深淺漸層） */
+    /* 兩個系列（愛發筆 vs 倉頡）才需要第二個顏色。這一組通過了色盲分離檢查
+       （最差 ΔE 74.7 protan）、亮度帶與對比檢查 —— 別隨手換色。 */
+    --s1:#b4531f; --s2:#3a6ea5;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
             --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --bad:#e57373;
-            --bar:#4a463c; }
+            --bar:#4a463c;
+            --s1:#cf7a45; --s2:#4f8ccc; }   /* 深色模式另外選過，不是把亮色反過來 */
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
@@ -114,6 +118,17 @@
   .revstrip span.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
   .revstrip span.done { color:var(--ok); }        /* 這個字的那條警告已經處理掉了 */
   .revwrap iframe { flex:1; width:100%; border:0; background:var(--bg); }
+
+  /* 對照倉頡：同一個字母兩根細棒並排（不是疊在一起，疊了就看不出誰是誰） */
+  .col .pair { display:flex; gap:2px; width:100%; max-width:26px; align-items:flex-end;
+    height:100%; justify-content:center; }
+  .col .pair .bar { max-width:11px; }
+  .col .bar.s1 { background:var(--s1); }
+  .col .bar.s2 { background:var(--s2); }
+  .legend { display:flex; gap:14px; align-items:center; font-size:12px; color:var(--muted);
+    margin:2px 0 8px; }
+  .legend i { display:inline-block; width:11px; height:11px; border-radius:3px;
+    margin-right:5px; vertical-align:-1px; }
 </style>
 </head>
 <body>
@@ -136,8 +151,10 @@
         <div class="sub" id="freqsub">每個字母在碼表中出現的次數。橘色＝用得比平均多的字母。</div>
       </div>
       <div class="grow"></div>
+      <button id="cjFreq">對照倉頡</button>
       <button id="tabFreq">表格</button>
     </div>
+    <div class="legend hide" id="legAll"></div>
     <div class="chart" id="chartAll"></div>
     <div class="axis" id="axisAll"></div>
     <div id="tableAll" class="hide" style="margin-top:12px"></div>
@@ -150,8 +167,10 @@
         <div class="sub">每個字母作為「第一碼」的次數 — 這決定打字時第一下按鍵的負擔是否平均。</div>
       </div>
       <div class="grow"></div>
+      <button id="cjFirst">對照倉頡</button>
       <button id="tabFirst">表格</button>
     </div>
+    <div class="legend hide" id="legFirst"></div>
     <div class="chart" id="chartFirst"></div>
     <div class="axis" id="axisFirst"></div>
     <div id="tableFirst" class="hide" style="margin-top:12px"></div>
@@ -206,58 +225,101 @@ const maxRule = () => rules && rules.rules.find(r =>
   r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
 const finalOf = r => Zigen.shorten(r.code, maxRule());   /* 永遠現算，免得規則改了還用舊值 */
 
-/* ---------- 長條圖：名目類別 → 單一顏色；用得多的用強調色 + 直接標數字 ----------
-   （不用深淺漸層：長度已經表示大小，再用顏色重複編碼只會浪費唯一的顏色通道） */
-function bars(counts, chartId, axisId, tableId) {
+/* ---------- 長條圖 ----------
+   一個系列時：名目類別 → 單一顏色，用得多的才染強調色 + 直接標數字。
+   對照倉頡時：兩根細棒並排（不疊）。兩邊的字數不一樣多，所以一律以「佔比」比高低，
+   不能比次數 —— 次數只有在同一個系列裡才有意義。 */
+function bars(counts, chartId, axisId, tableId, cjCounts) {
   const chart = $(chartId), axis = $(axisId);
   chart.innerHTML = ''; axis.innerHTML = '';
+  const cmp = !!cjCounts;
   const vals = LETTERS.map(L => counts[L] || 0);
   const total = vals.reduce((a, b) => a + b, 0);
-  const max = Math.max(1, ...vals);
-  const mean = total / 26;
+  const cvals = cmp ? LETTERS.map(L => cjCounts[L] || 0) : [];
+  const ctotal = cmp ? cvals.reduce((a, b) => a + b, 0) : 0;
+  const pctOf = (v, t) => t ? v / t * 100 : 0;
+  /* 比高低的量：單一系列看次數，對照時看佔比 */
+  const my = vals.map(v => cmp ? pctOf(v, total) : v);
+  const cj = cvals.map(v => pctOf(v, ctotal));
+  const max = Math.max(1, ...my, ...cj);
+  const mean = cmp ? 100 / 26 : total / 26;
   /* 資料太少時不做「偏重」判斷：三五個字就把半數字母染成橘色，只是雜訊 */
   const enough = total >= 40;
-  const hot = v => enough && v > mean * 1.5;
+  const hot = i => !cmp && enough && vals[i] > mean * 1.5;
 
   LETTERS.forEach((L, i) => {
-    const v = vals[i];
-    const col = el('div', 'col' + (hot(v) ? ' hot' : '') + (v ? '' : ' zero'));
-    /* 只標「過熱」的字母：每根都標數字反而沒人看 */
-    col.append(el('div', 'vlab', hot(v) ? String(v) : ''));
-    const bar = el('div', 'bar');
-    bar.style.height = `calc(${(v / max) * 100}% - 15px)`;
-    col.append(bar);
+    const col = el('div', 'col' + (hot(i) ? ' hot' : '') + (!cmp && !vals[i] ? ' zero' : ''));
+    /* 只標「過熱」的字母：每根都標數字反而沒人看。對照模式不標，兩排數字會打架 */
+    col.append(el('div', 'vlab', hot(i) ? String(vals[i]) : ''));
+    if (cmp) {
+      const pair = el('div', 'pair');
+      for (const [v, cls] of [[my[i], 's1'], [cj[i], 's2']]) {
+        const b = el('div', 'bar ' + cls);
+        b.style.height = `calc(${(v / max) * 100}% - 15px)`;
+        pair.append(b);
+      }
+      col.append(pair);
+    } else {
+      const bar = el('div', 'bar');
+      bar.style.height = `calc(${(my[i] / max) * 100}% - 15px)`;
+      col.append(bar);
+    }
     col.onmousemove = e => {
       const t = $('#tip');
       t.style.display = 'block';
       t.style.left = (e.clientX + 12) + 'px';
       t.style.top = (e.clientY - 30) + 'px';
-      const pct = total ? (v / total * 100).toFixed(1) : '0.0';
-      t.textContent = `${L}　${v} 次　佔 ${pct}%　（平均 ${mean.toFixed(1)}）`;
+      t.textContent = cmp
+        ? `${L}　愛發筆 ${my[i].toFixed(1)}%（${vals[i]} 次）　倉頡 ${cj[i].toFixed(1)}%（${cvals[i]} 次）`
+        : `${L}　${vals[i]} 次　佔 ${pctOf(vals[i], total).toFixed(1)}%　（平均 ${mean.toFixed(1)}）`;
     };
     col.onmouseleave = () => $('#tip').style.display = 'none';
     chart.append(col);
-    const a = el('div', hot(v) ? 'hot' : '', L);
-    axis.append(a);
+    axis.append(el('div', hot(i) ? 'hot' : '', L));
   });
 
   if (total) {
     const ml = el('div', 'meanline');
     ml.style.bottom = `${(mean / max) * 100}%`;
-    ml.append(el('span', '', `平均 ${mean.toFixed(1)}`));
+    ml.append(el('span', '', cmp ? '平均 3.8%' : `平均 ${mean.toFixed(1)}`));
     chart.append(ml);
   }
 
-  /* 表格檢視（無障礙：顏色以外的第二條路） */
+  /* 表格檢視（無障礙：顏色以外的第二條路；對照時也把倉頡那一欄一起給） */
   const tbl = $(tableId);
-  const rows = LETTERS.map((L, i) => `<tr><td>${L}</td><td>${vals[i]}</td>
-    <td>${total ? (vals[i] / total * 100).toFixed(1) : '0.0'}%</td>
-    <td>${zigenCount[L] || 0}</td></tr>`).join('');
-  tbl.innerHTML = `<table><thead><tr><th>字母</th><th>次數</th><th>佔比</th><th>字根數</th></tr>
-    </thead><tbody>${rows}</tbody></table>`;
+  const head = cmp
+    ? '<tr><th>字母</th><th>愛發筆 次數</th><th>愛發筆 佔比</th><th>倉頡 佔比</th><th>差</th></tr>'
+    : '<tr><th>字母</th><th>次數</th><th>佔比</th><th>字根數</th></tr>';
+  const rows = LETTERS.map((L, i) => cmp
+    ? `<tr><td>${L}</td><td>${vals[i]}</td><td>${my[i].toFixed(1)}%</td>
+         <td>${cj[i].toFixed(1)}%</td>
+         <td style="color:var(--muted)">${(my[i] - cj[i] >= 0 ? '+' : '') + (my[i] - cj[i]).toFixed(1)}</td></tr>`
+    : `<tr><td>${L}</td><td>${vals[i]}</td>
+         <td>${pctOf(vals[i], total).toFixed(1)}%</td><td>${zigenCount[L] || 0}</td></tr>`).join('');
+  tbl.innerHTML = `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
 }
 
 let zigenCount = {};
+let myAll = {}, myFirst = {}, cjAll = {}, cjFirst = {}, cjN = 0;
+/* 兩張圖各自可以開關「對照倉頡」—— 疊在同一張圖上反而看不出誰是誰，
+   所以是並排的兩根細棒，而且比的是佔比（兩邊的碼數不一樣多）。 */
+const cmpOn = { all: false, first: false };
+
+function drawCharts() {
+  const shots = [
+    ['all', myAll, cjAll, '#chartAll', '#axisAll', '#tableAll', '#legAll'],
+    ['first', myFirst, cjFirst, '#chartFirst', '#axisFirst', '#tableFirst', '#legFirst'],
+  ];
+  for (const [k, mine, cj, c, a, t, lg] of shots) {
+    const on = cmpOn[k] && cjN > 0;
+    bars(mine, c, a, t, on ? cj : null);
+    $(lg).classList.toggle('hide', !on);
+    if (on) $(lg).innerHTML =
+      `<span><i style="background:var(--s1)"></i>愛發筆</span>` +
+      `<span><i style="background:var(--s2)"></i>官方倉頡</span>` +
+      `<span>—— 同一批 ${cjN} 個字，比的是<b>佔比</b>（兩邊碼數不同，比次數沒意義）</span>`;
+  }
+}
 
 function render() {
   const entries = Object.entries(codes).filter(([, r]) => r.code);
@@ -271,6 +333,16 @@ function render() {
     first[code[0]] = (first[code[0]] || 0) + 1;
     if (!byCode.has(code)) byCode.set(code, []);
     byCode.get(code).push(ch);
+  }
+
+  /* 倉頡的字母分佈 —— 只數「我也取過碼」的那些字，不然是拿兩批不同的字在比 */
+  cjAll = {}; cjFirst = {}; cjN = 0;
+  if (cangjie) for (const [ch] of entries) {
+    const code = (cangjie[ch] || '').toUpperCase();
+    if (!code) continue;
+    cjN++;
+    for (const L of code) cjAll[L] = (cjAll[L] || 0) + 1;
+    cjFirst[code[0]] = (cjFirst[code[0]] || 0) + 1;
   }
   zigenCount = {};
   for (const L of zigen.letters)
@@ -298,8 +370,8 @@ function render() {
     kpi(entries.length ? (exN / entries.length * 100).toFixed(1) + '%' : '0%',
         `特例率（${exN} 字沒照原則走）`, entries.length > 0 && exN / entries.length > 0.2);
 
-  bars(all, '#chartAll', '#axisAll', '#tableAll');
-  bars(first, '#chartFirst', '#axisFirst', '#tableFirst');
+  myAll = all; myFirst = first;
+  drawCharts();
 
   const hot = codeLen >= 40
     ? Object.entries(all).filter(([, v]) => v > (codeLen / 26) * 1.5)
@@ -576,6 +648,14 @@ $('#exceptions').addEventListener('click', e => {
   const a = e.target.closest('a[data-q]');
   if (a) { e.preventDefault(); openReview(+a.dataset.q, +a.dataset.i); }
 });
+
+for (const [btn, key] of [['#cjFreq', 'all'], ['#cjFirst', 'first']]) {
+  $(btn).onclick = () => {
+    cmpOn[key] = !cmpOn[key];
+    $(btn).classList.toggle('on', cmpOn[key]);
+    drawCharts();
+  };
+}
 
 for (const [btn, tbl, chart, axis] of [
   ['#tabFreq', '#tableAll', '#chartAll', '#axisAll'],
