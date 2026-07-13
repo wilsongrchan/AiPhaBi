@@ -260,8 +260,13 @@
   .chk b { color:var(--ink); }
   .chk .rule { color:var(--muted); font-size:11px; }
   .chk .body { flex:1 1 auto; min-width:0; }
-  .chk .act { flex:1 0 100%; display:flex; gap:5px; flex-wrap:wrap; margin-left:21px; }
-  .chk .act button { padding:2px 8px; font-size:11px; white-space:nowrap; }
+  /* 對齊圖示用 padding，不能用 margin-left：flex-basis 是 100%，再加 21px 外距，
+     整條就比框寬 21px —— 最右邊那顆按鈕就掉到框外面去了。 */
+  .chk .act { flex:1 0 100%; display:flex; gap:5px; flex-wrap:wrap;
+    padding-left:21px; min-width:0; }
+  /* 面板可以被拖窄，長標籤（照「王」的拆法（E））要能自己折行，不能硬撐出框 */
+  .chk .act button { padding:2px 8px; font-size:11px; white-space:normal;
+    text-align:left; max-width:100%; }
   .chk .act button.apply { border-color:var(--accent); color:var(--accent); font-weight:600; }
   .chk .act button.apply:hover { background:var(--accent); color:#fff; }
   /* 嵌在分析頁的複審面板裡時：不要頁首、不要字表，也不要「儲存並下一字」——
