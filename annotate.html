@@ -294,11 +294,25 @@ const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
-let order = [], codes = {}, zigen = null, lib = [], rules = null;
+let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
 let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
 let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
 
 const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#status').className = 'dirty'; };
+
+/* 筆型：先看你糾正過的（learned），再看幾何 */
+const kindOf = m => Zigen.strokeKind(m, learned.stroke_kinds);
+
+async function teachKind(strokeIdx, kind) {
+  const v = Shape.strokeVec([medians[strokeIdx]]);
+  if (!v) return;
+  learned.stroke_kinds.push({ vec: [...v], kind, from: cur, stroke: strokeIdx + 1 });
+  await fetch('/api/learned', { method: 'PUT',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(learned, null, 2) });
+  $('#status').textContent = `已學會：這種筆是「${kind}」`;
+  $('#status').className = 'saved';
+  renderSegs(); predict(); auditAll();
+}
 
 /* 取碼原則（/rules 頁可改）— 只有 kind=enforced 且啟用的才會影響預測 */
 const rule = id => {
@@ -392,6 +406,9 @@ function subSvg(list) {
 }
 
 /* ---------- 選取中的筆畫：既有字根建議 ---------- */
+/* 建議字母：不是只看「最像的那一個字根」，而是拿你過去所有的指派來投票。
+   每個字根按「有多像」和「你用過幾次」加權 —— 你把小點一直指派給 Q、
+   把捺一直指派給 L，票就會越來越倒向你自己的習慣。 */
 function suggest() {
   const box = $('#sugg'), nz = $('#newz');
   box.innerHTML = ''; nz.textContent = '';
@@ -399,22 +416,43 @@ function suggest() {
   const vec = Shape.strokeVec(sel.map(i => medians[i]));
   if (!vec) return;
   const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
-  const same = lib.filter(e => e.n === sel.length)
+
+  const near = lib.filter(e => e.n === sel.length)
     .map(e => ({ e, d: Shape.dist(vec, e.vec) }))
-    .sort((a, b) => a.d - b.d);
-  const best = new Map();
-  for (const m of same) if (!best.has(m.e.letter)) best.set(m.e.letter, m);
-  const top = [...best.values()].slice(0, 5);
-  for (const m of top) {
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 8);                                   /* 最像的幾個，一起投票 */
+
+  const votes = new Map();
+  for (const m of near) {
+    const w = (1 / (m.d + 0.03)) * Math.sqrt(m.e.shape.count || 1);
+    const v = votes.get(m.e.letter) || { letter: m.e.letter, w: 0, best: m };
+    v.w += w;
+    if (m.d < v.best.d) v.best = m;
+    votes.set(m.e.letter, v);
+  }
+  const ranked = [...votes.values()].sort((a, b) => b.w - a.w).slice(0, 5);
+  const total = ranked.reduce((n, v) => n + v.w, 0) || 1;
+
+  for (const v of ranked) {
     const b = el('div', 'sg');
-    b.append(el('span', 'L', m.e.letter));
-    b.append(el('span', 'm', `${m.e.label}${m.d < thr ? ' ·同形' : ''}`));
-    b.onclick = () => commit(m.e.letter);
+    b.append(el('span', 'L', v.letter));
+    const pct = Math.round(v.w / total * 100);
+    b.append(el('span', 'm', `${v.best.e.label}　${pct}%`));
+    b.title = `最近的距離 ${v.best.d.toFixed(3)}　（依你過去的指派加權）`;
+    b.onclick = () => commit(v.letter);
     box.append(b);
   }
-  if (!top.length || top[0].d >= thr)
+
+  const top = ranked[0];
+  if (!top || top.best.d >= thr) {
     nz.innerHTML = '<b>新字根</b> — 按任一字母鍵，這個形狀就會加入該字母的字根表。';
-  else nz.textContent = `與 ${top[0].e.letter} 的既有字根同形（距離 ${top[0].d.toFixed(3)}）。`;
+  } else if (ranked.length > 1 && ranked[1].w / total > 0.3) {
+    /* 兩個字母都很有話講 → 這正是 L 還是 Q 那種需要你裁決的情況 */
+    nz.innerHTML = `<b>拿不定</b>：<b>${ranked[0].letter}</b> 與 <b>${ranked[1].letter}</b> ` +
+      `都很像（${ranked[0].best.d.toFixed(3)} / ${ranked[1].best.d.toFixed(3)}）。你選哪個，我就往哪邊學。`;
+  } else {
+    nz.textContent = `與 ${top.letter} 的既有字根同形（距離 ${top.best.d.toFixed(3)}）。`;
+  }
 }
 
 /* ---------- 指派 ---------- */
@@ -576,10 +614,11 @@ function checks(ctx) {
   if (sk0) segs.forEach((sg, i) => {
     if (sg.strokes.length !== 1) return;
     const st = sg.strokes[0];
-    const kind = Zigen.strokeKind(medians[st]);
+    const kind = kindOf(medians[st]);
     if (!sk0.params.allow.includes(kind)) return;
     if (st === nStrokes - 1) return;                 /* 末筆有例外，另一條檢查管 */
     out.push({ key: `lone:${i}`, lvl: 'warn', rule: '孤筆略過原則', refs: [i],
+      teach: { stroke: st, kind },
       msg: `第 ${i + 1} 個字根只有一筆（${kind}），而且不是末筆。` +
            `依原則，無法與其他筆畫組成字根的孤立${kind}應該<b>略過</b>，不取碼。` });
   });
@@ -587,7 +626,7 @@ function checks(ctx) {
   /* 6. 孤筆略過原則：只有指定的筆畫可以略過；末筆孤立的橫應取指定字母 */
   const sk = on('skip_isolated_hv');
   if (sk) for (const i of skipped) {
-    const kind = Zigen.strokeKind(medians[i]);
+    const kind = kindOf(medians[i]);
     if (!sk.params.allow.includes(kind)) {
       out.push({ key: `skip:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
         msg: `第 ${i + 1} 筆是「${kind}」，不在可略過的筆畫（${sk.params.allow.join('、')}）之內。` });
@@ -624,6 +663,18 @@ function renderChecks() {
     d.append(body);
     if (c.lvl === 'warn') {
       const act = el('div', 'act');
+      /* 筆型判錯了？教它一次，以後所有字都受用 —— 不必每個字忽略一遍 */
+      if (c.teach) {
+        const fix = el('button', '', `這不是${c.teach.kind}`);
+        fix.title = '糾正筆型，系統會記住這種形狀';
+        fix.onclick = async () => {
+          const k = prompt(
+            `第 ${c.teach.stroke + 1} 筆，系統判成「${c.teach.kind}」。正確是？\n` +
+            '（橫／豎／撇／捺／點／折／斜）', '撇');
+          if (k && '橫豎撇捺點折斜'.includes(k)) await teachKind(c.teach.stroke, k);
+        };
+        act.append(fix);
+      }
       const ig = el('button', '', '忽略');
       ig.title = '這個字是例外，不用再提醒';
       ig.onclick = async () => {
@@ -711,6 +762,7 @@ async function predict() {
     thr,
     segPenalty: merge ? merge.params.seg_penalty : 0.05,
     skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
+                 learned: learned.stroke_kinds,
                  lastLetters: sk.params.last_stroke_letters ||
                    (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {}) } : null,
     tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
@@ -1157,6 +1209,8 @@ async function pollZigen() {
   stamp = s;
   zigen = await fetch('/api/zigen').then(r => r.json());
   rules = await fetch('/api/rules').then(r => r.json());
+  learned = await fetch('/api/learned').then(r => r.json())
+    .catch(() => learned) || learned;
   lib = await Zigen.buildLibrary(zigen);
   libInfo(); suggest();
   if (!segs.length) predict();
@@ -1229,9 +1283,12 @@ Promise.all([
   fetch('/api/zigen').then(r => r.json()),
   fetch('/api/rules').then(r => r.json()),
   fetch('/api/cangjie').then(r => r.json()).catch(() => ({})),
+  fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
   fetchStamp(),
-]).then(async ([f, c, z, rl, cj, s]) => {
-  order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj; stamp = s;
+]).then(async ([f, c, z, rl, cj, ln, s]) => {
+  order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
+  learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
+  stamp = s;
   lib = await Zigen.buildLibrary(zigen);
   libInfo();
   $('#status').textContent = '已載入';

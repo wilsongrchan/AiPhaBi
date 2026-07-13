@@ -142,18 +142,44 @@
     return out.sort((a, b) => (a.cost ?? a.d) - (b.cost ?? b.d));
   }
 
-  /* 一筆的走向：橫、豎，或其他（撇、捺、折…）。孤筆略過原則只放行橫與豎。 */
-  function strokeKind(m) {
+  /* 一筆的走向。方向是關鍵，不能只看「橫向比縱向長」：
+     「橫」由左往右（dx > 0）；「撇」由右上往左下（dx < 0、往下）。
+     一撇再怎麼平，也不是橫 —— 之前就是漏了方向，把千的撇judged成橫。
+     座標是 y 向上，所以「往下」＝ dy < 0。
+
+     learned：使用者可以糾正個別筆型（見 data/learned.json），
+     糾正過的形狀優先採用他說的答案。 */
+  function strokeKind(m, learned) {
     if (!m || m.length < 2) return '點';
+
+    if (learned && learned.length) {
+      const v = Shape.strokeVec([m]);
+      if (v) {
+        let best = null;
+        for (const e of learned) {
+          const d = Shape.dist(v, Float32Array.from(e.vec));
+          if (!best || d < best.d) best = { d, kind: e.kind };
+        }
+        if (best && best.d < 0.12) return best.kind;      /* 你教過的，聽你的 */
+      }
+    }
+
     const [x0, y0] = m[0], [x1, y1] = m[m.length - 1];
-    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
-    /* 折筆（如「𠃍」）起訖點會像橫，用折線總長與直線距離的比值排除 */
+    const dx = x1 - x0, dy = y1 - y0;                     /* dy < 0 ＝ 往下 */
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+
+    /* 折筆（如「𠃍」）起訖點看起來像橫，用折線總長與直線距離的比值排除 */
     let path = 0;
     for (let i = 1; i < m.length; i++) path += Math.hypot(m[i][0] - m[i-1][0], m[i][1] - m[i-1][1]);
-    const straight = Math.hypot(x1 - x0, y1 - y0);
-    if (straight < 1 || path / straight > 1.35) return '折';
-    if (dx > dy * 3) return '橫';
-    if (dy > dx * 3) return '豎';
+    const straight = Math.hypot(dx, dy);
+    if (straight < 1) return '點';
+    if (path / straight > 1.35) return '折';
+    if (straight < 90) return '點';                       /* 很短的一筆 */
+
+    if (dx > 0 && ay <= ax * 0.35) return '橫';           /* 由左往右、平 */
+    if (dy < 0 && ax <= ay * 0.18) return '豎';           /* 幾乎垂直往下 */
+    if (dx < 0 && dy < 0) return '撇';                    /* 往左下 */
+    if (dx > 0 && dy < 0) return '捺';                    /* 往右下 */
     return '斜';
   }
 
@@ -177,7 +203,7 @@
        —— 否則字根表裡只要有「一」＝I，中途的每一個孤立橫都會取成 I，永遠不會略過。
        多筆的字根仍然可以包含這一筆（那就是「能與其他筆畫組成字根」，不算孤筆）。 */
     if (skip) medians.forEach((m, i) => {
-      const kind = strokeKind(m);
+      const kind = strokeKind(m, skip.learned);
       if (!skip.allow.includes(kind)) return;
 
       /* 拿掉「這一筆自己單獨成為一個字根」的候選 */

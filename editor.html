@@ -200,6 +200,8 @@
     line-height:1.35; }
   .dupe-row .dchars a:hover { border-color:var(--accent); color:var(--accent); }
   .dupe-row .dnone { font-size:11px; color:var(--muted); }
+  .dupe-row .dacts { margin-left:auto; display:flex; gap:4px; flex:none; }
+  .dupe-row .dacts button { font-size:11px; padding:2px 7px; }
 
   /* ---------- modal ---------- */
   #modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; place-items:center; z-index:50; }
@@ -364,6 +366,9 @@ const allShapes = () => data.letters.flatMap(L =>
 /* 重複＝「同一個形狀掛在不同字母下」。
    注意不能比定義（明[1234] 與 早[1234] 都是「日」，定義卻不同），要比形狀。 */
 let dupCache = [];
+/* 一個字根在「不是同一個」清單裡的識別：字母 + 形狀定義 */
+const pairKey = x => `${x.letter}:${shapeKey(x.s)}`;
+
 async function computeDuplicates() {
   const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
   const items = [];
@@ -376,16 +381,23 @@ async function computeDuplicates() {
     const v = Shape.strokeVec(med);
     if (v) items.push({ letter, s, v, n: med.length });
   }
-  /* 同筆數 + 形狀夠近 → 同一群 */
+  /* 你說過「不是同一個」的配對，就別再當成重複 */
+  const distinct = new Set((data.meta.distinct || []).map(p => p.join('|')));
+  const isDistinct = (a, b) =>
+    distinct.has([a, b].sort().join('|'));
+
   const groups = [];
   for (const it of items) {
-    const g = groups.find(g => g.n === it.n && Shape.dist(g.items[0].v, it.v) < thr);
+    const g = groups.find(g => g.n === it.n &&
+      Shape.dist(g.items[0].v, it.v) < thr &&
+      !g.items.some(x => isDistinct(pairKey(x), pairKey(it))));
     if (g) g.items.push(it);
     else groups.push({ n: it.n, items: [it] });
   }
   dupCache = groups
     .map(g => ({ s: g.items[0].s, keys: [...new Set(g.items.map(x => x.letter))].sort(),
-                 shapes: g.items }))
+                 shapes: g.items, d: g.items.length > 1
+                   ? Shape.dist(g.items[0].v, g.items[1].v) : 0 }))
     .filter(g => g.keys.length > 1);
   return dupCache;
 }
@@ -780,6 +792,61 @@ function zoneArray(row) {
   let bucket = L.intentions.find(i => i.auto && tierOf(i) === tier);
   if (!bucket) { bucket = { desc: '', auto: true, tier, shapes: [] }; L.intentions.push(bucket); }
   return bucket.shapes;
+}
+
+/* 「這兩個其實是同一個」→ 挑一個字母，把另一邊的字根與已取碼的字都併過去 */
+async function resolveSame(group) {
+  const letters = group.keys;
+  const to = (prompt(
+    `這個形狀同時掛在 ${letters.join(' 和 ')} 底下。要統一成哪個字母？`,
+    letters[0]) || '').trim().toUpperCase();
+  if (!letters.includes(to)) return;
+
+  for (const item of group.shapes) {
+    if (item.letter === to) continue;
+    const from = item.letter;
+    const L = data.letters.find(x => x.letter === from);
+    for (const it of L.intentions) {
+      const k = it.shapes.indexOf(item.s);
+      if (k < 0) continue;
+      it.shapes.splice(k, 1);
+      const dest = data.letters.find(x => x.letter === to);
+      let bucket = dest.intentions.find(i => i.auto && tierOf(i) === 'primary');
+      if (!bucket) { bucket = { desc: '', auto: true, tier: 'primary', shapes: [] };
+                     dest.intentions.push(bucket); }
+      bucket.shapes.push(item.s);
+      break;
+    }
+    await reletter([item.s], from, to);        /* 已取碼的字也一起改 */
+  }
+  touch(); render();
+}
+
+/* 「不是同一個」→ 記住，並在門檻太鬆時提議調緊（這就是它學到的東西） */
+async function resolveDistinct(group) {
+  data.meta.distinct = data.meta.distinct || [];
+  const keys = group.shapes.map(pairKey);
+  for (let i = 0; i < keys.length; i++)
+    for (let j = i + 1; j < keys.length; j++) {
+      const pair = [keys[i], keys[j]].sort();
+      if (!data.meta.distinct.some(p => p[0] === pair[0] && p[1] === pair[1]))
+        data.meta.distinct.push(pair);
+    }
+
+  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
+  if (group.d && group.d < thr) {
+    const suggest = Math.max(0.02, +(group.d * 0.9).toFixed(3));
+    if (confirm(
+        `記住了：這兩個不是同一個字根（形狀距離 ${group.d.toFixed(3)}）。\n\n` +
+        `但目前的合併門檻是 ${thr} —— 比它們的距離還大，` +
+        `所以「逐字取碼」以後還是會把這種形狀自動併在一起。\n\n` +
+        `要把門檻調到 ${suggest} 嗎？（這樣像這樣的細微差別就分得開）`)) {
+      data.meta.merge_threshold = suggest;
+      $('#thr').value = suggest;
+      $('#thrv').textContent = suggest.toFixed(3);
+    }
+  }
+  touch(); render();
 }
 
 /* ---------- 哪些已取碼的字用到這個字根？ ---------- */
@@ -1294,6 +1361,16 @@ async function renderDupes(dup) {
     }
     if (users.length > 30) cs.append(el('span', 'dnone', `…共 ${users.length} 字`));
     r.append(cs);
+
+    const acts = el('span', 'dacts');
+    const same = el('button', 'mini', '同一個 → 合併');
+    same.title = '兩邊其實是同一個字根：合併到你選的字母';
+    same.onclick = () => resolveSame(x);
+    const diff = el('button', 'mini', '不是同一個');
+    diff.title = '記住它們不同，以後不再當成重複';
+    diff.onclick = () => resolveDistinct(x);
+    acts.append(same, diff);
+    r.append(acts);
     panel.append(r);
   }
 }
