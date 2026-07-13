@@ -228,6 +228,8 @@
   .alt { display:flex; align-items:center; gap:6px; flex-wrap:wrap;
     border:1px dashed var(--line); border-radius:8px; padding:3px 7px; margin-bottom:4px; }
   .alt.main { border-style:solid; border-color:var(--accent); }   /* 主碼：實線，一眼分得開 */
+  .alt.edit { cursor:pointer; }
+  .alt.edit:hover { border-color:var(--warn); background:color-mix(in srgb,var(--warn) 6%,transparent); }
   .alt b { font:700 14px ui-monospace,monospace; color:var(--accent); letter-spacing:.06em; }
   .alt i { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal; }
   .alt span { font-size:10px; color:var(--muted); }
@@ -794,16 +796,28 @@ const altsOf = ch => (codes[ch] && codes[ch].alts) || [];
 /* 編兼容碼是一個「模式」：進去之後畫的東西不會動到主碼，出來時明確地收下或丟掉。
    （本來是「你先把主碼改掉，再按收下」—— 看起來就像在刪主碼，誰敢按。） */
 let altMode = false;
+let altEditing = null;        /* 正在改的那條兼容碼；null＝正在新增 */
 
-function enterAltMode() {
+/* alt = 要修改的既有兼容碼；不給就是新增一條 */
+function enterAltMode(alt) {
   const rec = codes[cur] || {};
   if (!rec.code) { $('#status').textContent = '先存一個主碼，才能再收兼容碼'; return; }
   altMode = true;
+  altEditing = alt || null;
   document.body.classList.add('altmode');
   $('#altbar').classList.remove('hide');
-  $('#altbarmsg').innerHTML =
-    `正在畫<b>另一種拆法</b>　主碼 <code>${finalOf(rec.code)}</code> 不會被動到 ——` +
-    '　改字根、清掉重畫都可以，畫完按「收為兼容碼」。';
+  $('#altbarmsg').innerHTML = (alt
+    ? `正在改兼容碼 <code>${finalOf(alt.code)}</code>`
+    : '正在畫<b>另一種拆法</b>') +
+    `　主碼 <code>${finalOf(rec.code)}</code> 不會被動到 ——` +
+    `　改字根、清掉重畫都可以，畫完按「${alt ? '存回這條兼容碼' : '收為兼容碼'}」。`;
+  if (alt) {                  /* 把那條兼容碼的拆法載進編輯區 */
+    segs = alt.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+    skipped = [...(alt.skipped || [])];
+    sel = [];
+    drawGlyph(); suggest(); predict();
+  }
+  $('#altDone').textContent = alt ? '✓ 存回這條兼容碼' : '✓ 收為兼容碼';
   renderSegs();
 }
 function exitAltMode(keep) {
@@ -813,17 +827,22 @@ function exitAltMode(keep) {
     const left = strokes.length - (segs.flatMap(s => s.strokes).length + skipped.length);
     if (!segs.length || left > 0) { $('#status').textContent = '還沒拆完，收不了'; return; }
     if (code === rec.code) { $('#status').textContent = '這跟主碼一樣，不必收'; return; }
-    if ((rec.alts || []).some(a => a.code === code)) {
+    /* 撞到「別條」兼容碼才算重複 —— 正在改的這條當然跟自己一樣 */
+    if ((rec.alts || []).some(a => a !== altEditing && a.code === code)) {
       $('#status').textContent = '這個兼容碼已經有了'; return;
     }
-    rec.alts = [...(rec.alts || []), { code,
+    const body = { code,
       segments: segs.map(s => ({ strokes: [...s.strokes], letter: s.letter })),
-      skipped: skipped.length ? [...skipped] : undefined }];
+      skipped: skipped.length ? [...skipped] : undefined };
+    if (altEditing) Object.assign(altEditing, body);        /* 改回原來那一條 */
+    else rec.alts = [...(rec.alts || []), body];
     codes[cur] = rec;
     touch();
-    $('#status').textContent = `已收兼容碼 ${finalOf(code)}（主碼 ${finalOf(rec.code)} 不變）`;
+    $('#status').textContent = (altEditing ? '已更新兼容碼 ' : '已收兼容碼 ') +
+      `${finalOf(code)}（主碼 ${finalOf(rec.code)} 不變）`;
   }
   altMode = false;
+  altEditing = null;
   document.body.classList.remove('altmode');
   $('#altbar').classList.add('hide');
   /* 一律把畫面還原成主碼 —— 編兼容碼從頭到尾都不該動到它 */
@@ -832,7 +851,7 @@ function exitAltMode(keep) {
   sel = [];
   drawGlyph(); renderSegs(); suggest(); predict();
 }
-$('#newAlt').onclick = enterAltMode;
+$('#newAlt').onclick = () => enterAltMode();
 $('#altDone').onclick = () => exitAltMode(true);
 $('#altCancel').onclick = () => exitAltMode(false);
 
@@ -855,11 +874,18 @@ function renderAlts() {
     box.append(m);
   }
   for (const a of alts) {
-    const d = el('div', 'alt');
+    const d = el('div', 'alt edit');
     const fin = finalOf(a.code);
     d.innerHTML = `<b>${fin}</b>` + (fin !== a.code ? `<i>完整 ${a.code}</i>` : '') +
       `<span>${a.segments.map(s => s.strokes.map(k => k + 1).join(',')).join(' / ')}</span>`;
+    d.title = '點一下改這個兼容碼';
+    /* 點整列＝進編輯模式改它（按鈕自己有 stopPropagation，不會誤觸） */
+    d.onclick = () => enterAltMode(a);
     const act = el('div', 'aact');
+    act.onclick = e => e.stopPropagation();
+    const ed = el('button', '', '改');
+    ed.title = '改這個兼容碼的拆法';
+    ed.onclick = () => enterAltMode(a);
     const up = el('button', '', '設為主碼');
     up.title = '跟主碼對調：這個變成主碼，原本的主碼變成兼容碼';
     up.onclick = () => {
@@ -879,7 +905,7 @@ function renderAlts() {
       if (!rec.alts.length) delete rec.alts;
       codes[cur] = rec; touch(); renderAlts();
     };
-    act.append(up, rm);
+    act.append(ed, up, rm);
     d.append(act);
     box.append(d);
   }
