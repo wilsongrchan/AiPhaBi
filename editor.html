@@ -242,6 +242,17 @@
   .rvacts { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; align-items:center; }
   .rvhint { font-size:11px; color:var(--muted); flex-basis:100%; }
   .rvpick { margin-right:2px; }
+
+  /* 點字根 → 用到它的字 */
+  #usage { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; place-items:center;
+    z-index:96; }
+  #usage.on { display:grid; }
+  .ugsheet { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; width:min(420px,94vw); max-height:88vh; overflow:auto; }
+  #ugtitle { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .ugL { font:700 22px ui-monospace,monospace; color:var(--accent); }
+  .ugdesc { font-size:13px; color:var(--ink); flex:1; }
+  .ugn { font-size:11px; color:var(--muted); }
   .rvcard.picked { border-color:var(--accent);
     background:color-mix(in srgb, var(--accent) 7%, transparent); }
   .dnone { font-size:11px; color:var(--muted); }
@@ -314,6 +325,24 @@
 <div id="dupes"></div>
 <nav id="jump"></nav>
 <main id="app"></main>
+<div id="usage">
+  <div class="ugsheet">
+    <div id="ugtitle"></div>
+    <div class="rvstage">
+      <button class="rvarrow" id="ugprev">‹</button>
+      <div class="rvglyph" id="uglyph"></div>
+      <button class="rvarrow" id="ugnext">›</button>
+    </div>
+    <div class="rvsrc" id="ugcap"></div>
+    <div class="rvchars" id="ugchars"></div>
+    <div class="rvacts">
+      <button id="ugedit">重新選筆畫</button>
+      <div class="grow"></div>
+      <button id="ugclose">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div id="review">
   <div class="rvsheet">
     <h3 id="rvtitle"></h3>
@@ -666,9 +695,10 @@ function chip(arr, i, s, dup, L, it) {
     getGlyph(s.glyph.src).then(st => {
       if (st) holder.innerHTML = glyphSvg(st, s.glyph.strokes);
     });
-    holder.title = `${s.glyph.src} 第 ${s.glyph.strokes.map(n => n + 1).join(',')} 筆`;
+    holder.title = `${s.glyph.src} 第 ${s.glyph.strokes.map(n => n + 1).join(',')} 筆\n` +
+      '點一下：看有哪些字用到它';
     holder.style.cursor = 'pointer';
-    holder.onclick = () => openPicker(arr, s);      /* click to re-pick strokes */
+    holder.onclick = () => openUsage(arr, s, L);
     c.append(holder);
   } else {
     c.append(editable('z', s.z, v => {
@@ -1080,6 +1110,61 @@ async function afterResolve() {
   }
 }
 
+
+/* ---------- 點字根 → 看有哪些字用到它，一個一個翻 ---------- */
+async function openUsage(arr, shape, L) {
+  const letter = L ? L.letter : null;
+  const sheet = $('#usage');
+  $('#uglyph').innerHTML = '';
+  $('#ugchars').innerHTML = '<span class="dnone">讀取中…</span>';
+  $('#ugcap').textContent = '';
+  sheet.classList.add('on');
+
+  const users = letter ? await charsUsing(shape, letter) : [];
+  const views = [
+    { ch: shape.glyph.src, strokes: shape.glyph.strokes, tag: '定義來源' },
+    ...users.filter(u => u.ch !== shape.glyph.src)
+      .map(u => ({ ch: u.ch, strokes: u.seg.strokes, tag: u.code || '' })),
+  ];
+  let at = 0;
+
+  const it = L && L.intentions.find(i => i.shapes.includes(shape));
+  $('#ugtitle').innerHTML =
+    `<span class="ugL">${letter || '?'}</span>` +
+    `<span class="ugdesc">${it ? (it.desc || '未分類') : ''}</span>` +
+    `<span class="ugn">用到它的字：${users.length}</span>`;
+
+  const draw = async () => {
+    const v = views[at];
+    const g = await Zigen.getGlyph(v.ch);
+    $('#uglyph').innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+      g.strokes.map((d, k) =>
+        `<path class="${v.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+      '</g></svg>';
+    $('#ugcap').innerHTML =
+      `<b>${v.ch}</b> 第 ${v.strokes.map(k => k + 1).join('、')} 筆` +
+      (v.tag ? `　<span class="rvtag">${v.tag}</span>` : '') +
+      `　<a href="/annotate?c=${encodeURIComponent(v.ch)}" target="_blank" ` +
+      'title="在逐字取碼頁打開">↗</a>' +
+      `<span class="rvpos">${at + 1} / ${views.length}</span>`;
+    [...$('#ugchars').children].forEach((a, k) => a.classList.toggle('on', k === at));
+  };
+
+  const chars = $('#ugchars'); chars.innerHTML = '';
+  views.forEach((v, k) => {
+    const a = el('button', '', v.ch);
+    a.title = v.tag ? `${v.ch}　${v.tag}` : v.ch;
+    a.onclick = () => { at = k; draw(); };
+    chars.append(a);
+  });
+  if (!users.length) chars.append(el('span', 'dnone', '　（還沒有已取碼的字用到它）'));
+
+  $('#ugprev').onclick = () => { at = (at - 1 + views.length) % views.length; draw(); };
+  $('#ugnext').onclick = () => { at = (at + 1) % views.length; draw(); };
+  $('#ugedit').onclick = () => { sheet.classList.remove('on'); openPicker(arr, shape); };
+  $('#ugclose').onclick = () => sheet.classList.remove('on');
+  await draw();
+}
 
 /* ---------- 哪些已取碼的字用到這個字根？ ---------- */
 async function charsUsing(shape, letter) {
