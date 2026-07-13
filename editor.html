@@ -239,7 +239,11 @@
     border:1px solid var(--line); border-radius:6px; padding:1px 5px; line-height:1.3; }
   .rvchars button:hover { border-color:var(--accent); color:var(--accent); }
   .rvchars button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .rvacts { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; }
+  .rvacts { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; align-items:center; }
+  .rvhint { font-size:11px; color:var(--muted); flex-basis:100%; }
+  .rvpick { margin-right:2px; }
+  .rvcard.picked { border-color:var(--accent);
+    background:color-mix(in srgb, var(--accent) 7%, transparent); }
   .dnone { font-size:11px; color:var(--muted); }
   .dupe-row .dacts { margin-left:auto; display:flex; gap:4px; flex:none; }
   .dupe-row .dacts button { font-size:11px; padding:2px 7px; }
@@ -904,7 +908,13 @@ async function openReview(i) {
     let at = 0;
 
     const card = el('div', 'rvcard');
+    card.dataset.letter = letter;
     const head = el('div', 'rvhead');
+    const pick = el('input', 'rvpick');
+    pick.type = 'checkbox';
+    pick.title = '勾選幾個字母，就能只針對它們做決定（例：J 和 R 是同一個，但 T 不是）';
+    pick.onchange = () => { card.classList.toggle('picked', pick.checked); renderActs(g); };
+    head.append(pick);
     head.append(el('span', 'rvL', letter));
     const L = data.letters.find(x => x.letter === letter);
     const descs = [...new Set(items.map(item => {
@@ -957,38 +967,63 @@ async function openReview(i) {
     box.append(card);
   }
 
+  renderActs(g);
+  $('#review').classList.add('on');
+}
+
+/* 動作區：依你勾了哪幾個字母而變。
+   一組衝突可能牽涉三四個字母（例：J / R / T / X），
+   「全部合併」或「全部都不同」都太粗 —— 你要能說「J 和 R 是同一個，但 T 不是」。 */
+function renderActs(g) {
   const acts = $('#rvacts'); acts.innerHTML = '';
-  for (const k of g.keys) {
-    const b = el('button', 'primary', `都算 ${k}`);
-    b.title = `把另一邊的字根、以及已取碼的字，全部改成 ${k}`;
-    b.onclick = async () => { await mergeGroupTo(g, k); afterResolve(); };
+  const picked = [...document.querySelectorAll('.rvcard.picked')].map(c => c.dataset.letter);
+  const all = g.keys;
+  const rest = all.filter(k => !picked.includes(k));
+
+  const hint = el('span', 'rvhint');
+  acts.append(hint);
+
+  if (picked.length >= 2) {
+    /* 勾了兩個以上 → 可以把它們併成其中一個 */
+    for (const k of picked) {
+      const b = el('button', 'primary', `勾選的都算 ${k}`);
+      b.title = `把 ${picked.filter(x => x !== k).join('、')} 的字根與已取碼的字，都改成 ${k}`;
+      b.onclick = async () => { await mergeLetters(g, picked, k); afterResolve(); };
+      acts.append(b);
+    }
+  }
+  if (picked.length >= 1 && rest.length >= 1) {
+    /* 勾的那幾個，與沒勾的那幾個，是不同的東西 */
+    const b = el('button', '', `勾選的（${picked.join('')}）與其餘（${rest.join('')}）不同`);
+    b.title = '只記這兩邊之間的「不同」，不動勾選內部的關係';
+    b.onclick = async () => { await markDistinctBetween(g, picked, rest); afterResolve(); };
     acts.append(b);
   }
-  const diff = el('button', '', '確實不同，記住');
-  diff.onclick = async () => { await markDistinct(g); afterResolve(); };
+  if (!picked.length) {
+    for (const k of all) {
+      const b = el('button', 'primary', `全部都算 ${k}`);
+      b.onclick = async () => { await mergeLetters(g, all, k); afterResolve(); };
+      acts.append(b);
+    }
+    const d = el('button', '', '全部都不同，記住');
+    d.onclick = async () => { await markDistinctBetween(g, all, all); afterResolve(); };
+    acts.append(d);
+    hint.textContent = '勾選字母，就能只針對它們做決定；不勾就是對整組下結論。';
+  } else {
+    hint.textContent = `已勾選 ${picked.join('、')}`;
+  }
+
   const skip = el('button', '', '先跳過');
   skip.onclick = () => openReview(reviewIdx + 1);
   const close = el('button', '', '關閉');
   close.onclick = () => $('#review').classList.remove('on');
-  acts.append(diff, skip, close);
-
-  $('#review').classList.add('on');
+  acts.append(skip, close);
 }
 
-async function afterResolve() {
-  await computeDuplicates();
-  render();
-  if (dupCache.length) openReview(Math.min(reviewIdx, dupCache.length - 1));
-  else {
-    $('#review').classList.remove('on');
-    $('#status').textContent = '重複都處理完了 ✓';
-    $('#status').className = 'saved';
-  }
-}
-
-async function mergeGroupTo(group, to) {
-  for (const item of group.shapes) {
-    if (item.letter === to) continue;
+/* 把 letters 這幾個字母的同形字根，全部統一成 to */
+async function mergeLetters(g, letters, to) {
+  for (const item of g.shapes) {
+    if (!letters.includes(item.letter) || item.letter === to) continue;
     const from = item.letter;
     const L = data.letters.find(x => x.letter === from);
     for (const it of L.intentions) {
@@ -1002,37 +1037,49 @@ async function mergeGroupTo(group, to) {
       bucket.shapes.push(item.s);
       break;
     }
-    await reletter([item.s], from, to);        /* 已取碼的字一起改 */
+    await reletter([item.s], from, to);
   }
   touch();
 }
 
-/* 「確實不同」→ 記住配對；門檻太鬆就提議調緊（這是它從你的裁決學到的） */
-async function markDistinct(group) {
+/* 只記「A 這邊」與「B 這邊」之間的不同（同一邊內部不記，字母相同的也不記） */
+async function markDistinctBetween(g, sideA, sideB) {
   data.meta.distinct = data.meta.distinct || [];
-  /* 只記「跨字母」的配對。同一個字母底下的兩條字根，取出來的碼一模一樣 ——
-     把它們標成「不同」沒有意義，只會白白把門檻收緊、害預測認不出東西。 */
-  const items = group.shapes;
-  for (let i = 0; i < items.length; i++)
-    for (let j = i + 1; j < items.length; j++) {
-      if (items[i].letter === items[j].letter) continue;
-      const pair = [pairKey(items[i]), pairKey(items[j])].sort();
+  const items = g.shapes;
+  let tight = null;
+  for (const a of items) {
+    for (const b of items) {
+      if (!sideA.includes(a.letter) || !sideB.includes(b.letter)) continue;
+      if (a.letter === b.letter) continue;           /* 同字母：碼一樣，沒意義 */
+      const pair = [pairKey(a), pairKey(b)].sort();
       if (!data.meta.distinct.some(x => x[0] === pair[0] && x[1] === pair[1]))
         data.meta.distinct.push(pair);
+      const d = Shape.dist(a.v, b.v);
+      const t = Math.max(0.01, +(d * 0.9).toFixed(4));
+      for (const s of [a.s, b.s]) {
+        if (s.thr == null || t < s.thr) s.thr = t;
+      }
+      tight = tight == null ? t : Math.min(tight, t);
     }
-  /* 只收緊「跨字母」衝突涉及的字根，而且不動全域門檻 */
-  const letters = new Set(group.shapes.map(x => x.letter));
-  if (group.d && letters.size > 1) {
-    const tight = Math.max(0.01, +(group.d * 0.9).toFixed(4));
-    for (const item of group.shapes) {
-      const cur = item.s.thr;
-      if (cur == null || tight < cur) item.s.thr = tight;
-    }
-    $('#status').textContent = `已把這 ${group.shapes.length} 個字根的門檻收到 ${tight}`;
+  }
+  if (tight != null) {
+    $('#status').textContent = `記住了，相關字根的門檻收到 ${tight}`;
     $('#status').className = 'saved';
   }
   touch();
 }
+
+async function afterResolve() {
+  await computeDuplicates();
+  render();
+  if (dupCache.length) openReview(Math.min(reviewIdx, dupCache.length - 1));
+  else {
+    $('#review').classList.remove('on');
+    $('#status').textContent = '重複都處理完了 ✓';
+    $('#status').className = 'saved';
+  }
+}
+
 
 /* ---------- 哪些已取碼的字用到這個字根？ ---------- */
 async function charsUsing(shape, letter) {
@@ -1103,12 +1150,16 @@ async function suggestIntention(L, shape) {
   const v = Shape.strokeVec(med);
   if (!v) return null;
 
-  /* 只跟「同一個字母」底下、你已經命名過的意圖比 —— 
-     字根屬於哪個字母是你定的，把它建議到別的字母的意圖只會添亂。 */
-  const pool = sugLib.filter(e => e.letter === L.letter);
+  /* 只跟「同一個字母」底下、你已經命名過的意圖比 ——
+     字根屬於哪個字母是你定的，把它建議到別的字母的意圖只會添亂。
+     筆畫數也要一樣：向量長度不同的話距離算出來會是 NaN。 */
+  const n = med.length;
+  const pool = sugLib.filter(e => e.letter === L.letter && e.n === n);
   if (!pool.length) return null;
   const best = pool.map(e => ({ e, d: Shape.dist(v, e.vec) }))
+    .filter(x => isFinite(x.d))
     .sort((a, b) => a.d - b.d)[0];
+  if (!best) return null;
   return { it: best.e.it, d: best.d, like: best.e.label };
 }
 
