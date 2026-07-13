@@ -375,11 +375,11 @@ const has = (r, f) => !!(r[f] && r[f].length);
 function renderExceptions(entries) {
   const conv = entries.filter(([, r]) => r.notComponent).map(([ch]) => ch);
   const notes = entries.filter(([, r]) => r.note).map(([ch, r]) => [ch, r.note]);
-  const ignored = groupByRule(entries, 'overrides');   /* 這個字是例外 */
-  const disputed = groupByRule(entries, 'disputes');   /* 你說原則判錯了 */
+  const ignored = groupByRule(entries, 'overrides');   /* 這個字真的破例 */
+  const disputed = groupByRule(entries, 'compliant');  /* 其實沒破例，是檢查看錯了 */
 
   const exChars = new Set([...conv, ...entries.filter(([, r]) => has(r, 'overrides')).map(([ch]) => ch)]);
-  const dpChars = new Set(entries.filter(([, r]) => has(r, 'disputes')).map(([ch]) => ch));
+  const dpChars = new Set(entries.filter(([, r]) => has(r, 'compliant')).map(([ch]) => ch));
   const pct = n => entries.length ? (n / entries.length * 100).toFixed(1) : '0.0';
 
   const grp = (title, hint, chars, cls = '') => chars.length ? `<div class="exgrp${cls}">
@@ -394,18 +394,18 @@ function renderExceptions(entries) {
     return 0;
   }
 
-  /* 「原則有誤」不是特例 —— 它是規則的 bug 回報：同一條原則被很多字判錯，
-     那要改的是規則，不是那些字。所以分開列、分開算。 */
+  /* 「確認遵守原則」不是特例 —— 那是檢查誤判的紀錄：原則沒問題、拆法也沒問題，
+     是系統看錯了。同一條檢查一直誤判，該修的是檢查邏輯，不是那些字。 */
   $('#exceptions').innerHTML =
     `<div class="sub" style="margin:-4px 0 10px">
        <b>${exChars.size}</b> 字是特例（${pct(exChars.size)}%）；
-       另有 <b>${dpChars.size}</b> 字你判定<b>原則有誤</b>（${pct(dpChars.size)}%）—— 那是規則待修，不算特例。</div>` +
+       另有 <b>${dpChars.size}</b> 字你已<b>確認遵守原則</b>（${pct(dpChars.size)}%）—— 那是系統誤判，不算特例。</div>` +
 
-    (disputed.length ? `<div class="exhead bad">你判定「原則有誤」的 —— 這些是規則要修的地方</div>` +
-      disputed.map(([rule, chars]) => grp(`「${rule}」判錯了`,
-        `${chars.length} 個字說這條原則的判斷不對。數字愈大，愈該回頭改規則。`, chars, ' bad')).join('') : '') +
+    (disputed.length ? `<div class="exhead bad">系統誤判 —— 你確認過這些字其實遵守原則，該修的是檢查邏輯</div>` +
+      disputed.map(([rule, chars]) => grp(`「${rule}」誤判`,
+        `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`, chars, ' bad')).join('') : '') +
 
-    `<div class="exhead">真正的特例 —— 原則沒錯，是這些字不照它走</div>` +
+    `<div class="exhead">真正的特例 —— 這些字確實不照原則走</div>` +
     grp('約定特例', '整個字的拆法是約定的，其他字不會拿它當偏旁的範本。', conv) +
     ignored.map(([rule, chars]) => grp(`忽略「${rule}」`,
       RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '', chars)).join('') +
