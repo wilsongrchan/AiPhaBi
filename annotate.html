@@ -37,7 +37,12 @@
   .prog { font-size:12px; color:var(--muted); }
   .prog b { color:var(--ink); }
 
-  .cols { flex:1; display:grid; grid-template-columns:200px 1fr 330px; min-height:0; }
+  /* 三欄寬度可以拖 —— 中間夾兩條 6px 的把手，寬度存在 localStorage */
+  .cols { flex:1; display:grid;
+    grid-template-columns:var(--colL,200px) 6px 1fr 6px var(--colR,330px); min-height:0; }
+  .drag { cursor:col-resize; background:var(--line); opacity:.35; }
+  .drag:hover, .drag.on { opacity:1; background:var(--accent); }
+  body.dragging { cursor:col-resize; user-select:none; }
   .pane { padding:12px 14px; overflow:auto; }
   .pane + .pane { border-left:1px solid var(--line); }
 
@@ -46,7 +51,21 @@
   .filters { display:flex; gap:4px; margin-bottom:8px; }
   .filters button { flex:1; padding:4px; font-size:12px; }
   .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .qlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(38px,1fr)); gap:3px; }
+  /* 字圖底下那排：縮到剛好一行 —— 換行的話按鈕就跑出那個圓角框外面了 */
+  .actbar { display:flex; gap:5px; flex-wrap:nowrap; max-width:100%; }
+  .actbar button { font-size:12px; padding:5px 8px; white-space:nowrap; }
+
+  /* 左欄字表：字級可調（小的時候不顯示碼，一次看更多字） */
+  .qtools { display:flex; gap:3px; align-items:center; margin-bottom:6px; flex-wrap:wrap; }
+  .qtools button { font-size:11px; padding:2px 6px; border-radius:6px; }
+  .qlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(var(--qw,38px),1fr)); gap:3px; }
+  .qlist.sz-s { --qw:26px; }
+  .qlist.sz-m { --qw:38px; }
+  .qlist.sz-l { --qw:52px; }
+  .qlist.sz-s .qi .c { font-size:14px; }
+  .qlist.sz-l .qi .c { font-size:22px; }
+  .qlist.sz-s .qi .cd { display:none; }        /* 小字級不顯示碼 */
+  .qlist.sz-s .qi { padding:2px 1px; }
   .qi { border:1px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer;
     text-align:center; padding:1px 0 0; }
   .qi:hover { border-color:var(--accent); }
@@ -225,8 +244,9 @@
   .chk .act button.apply:hover { background:var(--accent); color:#fff; }
   /* 嵌在分析頁的複審面板裡時：不要頁首、不要字表，也不要「儲存並下一字」——
      那個「下一字」是這一頁自己的佇列，會把人帶離複審的那一組。 */
-  body.embed header, body.embed .cols > .pane:first-child { display:none; }
-  body.embed .cols { grid-template-columns:1fr 360px; }   /* 少了字表那一欄，格線也要跟著改 */
+  body.embed header, body.embed .cols > .pane:first-child, body.embed #dragL { display:none; }
+  /* 少了字表那一欄（和它的把手），格線也要跟著改成三軌 */
+  body.embed .cols { grid-template-columns:1fr 6px var(--colR,360px); }
 
   .chk.muted { opacity:.62; }
   .chk.muted:hover { opacity:1; }
@@ -295,9 +315,20 @@
       <button data-f="done">已取碼</button>
       <button data-f="all">全部</button>
     </div>
-    <div class="qlist" id="qlist"></div>
+    <div class="qtools">
+      <span style="font-size:10px;color:var(--muted)">字級</span>
+      <button data-sz="s">小</button>
+      <button data-sz="m" class="on">中</button>
+      <button data-sz="l">大</button>
+      <span class="grow" style="flex:1"></span>
+      <button id="nextWarn" title="跳到下一個還有未處理警告的字">下一個 ⚠</button>
+      <button id="toBottom" title="載入全部並跳到最後">到底 ↓</button>
+    </div>
+    <div class="qlist sz-m" id="qlist"></div>
     <div style="text-align:center;margin-top:8px"><button id="more">載入更多</button></div>
   </div>
+
+  <div class="drag" id="dragL"></div>
 
   <div class="pane stage">
     <!-- 相關字排在字圖左邊的空白帶，由上往下 —— 橫排會一路擠到字圖上 -->
@@ -324,7 +355,7 @@
       <kbd>space</kbd> 略過選取的筆畫（孤筆略過原則）　<kbd>/</kbd> 顯示筆順
       <kbd>⌫</kbd> 刪最後字根　<kbd>esc</kbd> 清除選取／全部清除　<kbd>enter</kbd> 儲存並下一字
     </div>
-    <div style="display:flex;gap:6px">
+    <div class="actbar">
       <button id="skipSel">略過選取 ␣</button>
       <button id="clearSel">清除選取</button>
       <button id="undoSeg">刪最後字根</button>
@@ -334,6 +365,8 @@
     </div>
     </div><!-- /.stagemain -->
   </div>
+
+  <div class="drag" id="dragR"></div>
 
   <div class="pane">
     <!-- 重碼提醒放在右欄：它一出現就把中間那一欄往下推，字圖跟著上上下下 -->
@@ -1781,6 +1814,82 @@ function renderQueue() {
   }
   $('#prog').innerHTML = `已取碼 <b>${order.filter(isDone).length}</b> / ${order.length}`;
 }
+/* ---------- 三欄可拖寬 ---------- */
+for (const [id, varName, side] of [['#dragL', '--colL', 'L'], ['#dragR', '--colR', 'R']]) {
+  const h = $(id);
+  h.onpointerdown = e => {
+    e.preventDefault();
+    h.setPointerCapture(e.pointerId);
+    h.classList.add('on');
+    document.body.classList.add('dragging');
+    const cols = $('.cols');
+    const move = ev => {
+      const r = cols.getBoundingClientRect();
+      /* 右欄要用「離右邊多遠」算，不然拖起來方向是反的 */
+      const w = side === 'L' ? ev.clientX - r.left : r.right - ev.clientX;
+      const px = Math.max(120, Math.min(620, w));
+      cols.style.setProperty(varName, px + 'px');
+      localStorage.setItem('aiphabi' + varName, px);
+    };
+    const up = () => {
+      h.classList.remove('on');
+      document.body.classList.remove('dragging');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+}
+for (const v of ['--colL', '--colR']) {
+  const saved = localStorage.getItem('aiphabi' + v);
+  if (saved) $('.cols').style.setProperty(v, saved + 'px');
+}
+
+/* ---------- 左欄字表：字級、到底、下一個有警告的字 ---------- */
+const qsz = localStorage.getItem('aiphabi-qsz') || 'm';
+$('#qlist').className = 'qlist sz-' + qsz;
+for (const b of document.querySelectorAll('.qtools button[data-sz]')) {
+  b.classList.toggle('on', b.dataset.sz === qsz);
+  b.onclick = () => {
+    $('#qlist').className = 'qlist sz-' + b.dataset.sz;
+    localStorage.setItem('aiphabi-qsz', b.dataset.sz);
+    for (const x of document.querySelectorAll('.qtools button[data-sz]'))
+      x.classList.toggle('on', x === b);
+  };
+}
+$('#toBottom').onclick = () => {
+  shown = pool().length;                    /* 先把整份名單載出來，不然「底」不是真的底 */
+  renderQueue();
+  const list = $('#qlist');
+  list.lastElementChild?.scrollIntoView({ block: 'nearest' });
+  list.parentElement.scrollTop = list.parentElement.scrollHeight;
+};
+/* 從目前這個字往後找下一個還有未處理警告的字（繞一圈回來）。
+   警告只會長在「已取碼」的字上，所以要找遍所有已取碼的字 —— 不能只找目前
+   篩選出來的那些（篩在「未取碼」時，那份名單裡一個帶警告的字都不會有）。 */
+$('#nextWarn').onclick = () => {
+  const all = order.filter(isDone);
+  const from = Math.max(0, all.indexOf(cur));
+  for (let k = 1; k <= all.length; k++) {
+    const c = all[(from + k) % all.length];
+    if ((audit.get(c) || 0) > 0) {
+      if (filter === 'todo') {          /* 切到看得到它的篩選，不然點了像沒反應 */
+        filter = 'done';
+        for (const b of document.querySelectorAll('.filters button'))
+          b.classList.toggle('on', b.dataset.f === 'done');
+      }
+      const i = pool().indexOf(c);
+      if (i >= shown) { shown = i + 60; }
+      renderQueue();
+      load(c);
+      setTimeout(() => document.querySelector('.qi.on')?.scrollIntoView({ block: 'nearest' }), 80);
+      return;
+    }
+  }
+  $('#status').textContent = '沒有還帶警告的字了';
+};
+
 const libInfo = () => {
   const n = lib.length;
   const letters = new Set(lib.map(e => e.letter)).size;
