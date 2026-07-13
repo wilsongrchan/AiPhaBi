@@ -19,21 +19,17 @@
       {
         "strokes": [
           5,
-          6
-        ],
-        "letter": "S"
-      },
-      {
-        "strokes": [
+          6,
           7
         ],
-        "letter": "Q"
+        "letter": "A"
       }
     ],
-    "code": "JBSQ",
+    "code": "JBA",
     "overrides": [
       "merge:2-3"
-    ]
+    ],
+    "final": "JBA"
   },
   "是": {
     "segments": [
@@ -2579,5 +2575,104 @@
     ],
     "code": "TGGJQXQ",
     "final": "TGGQ"
+  },
+  "力": {
+    "overrides": [
+      "merge:0-1"
+    ],
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          1
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "CJ",
+    "final": "CJ"
+  },
+  "同": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "A"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "AO",
+    "final": "AO"
+  },
+  "比": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "FF",
+    "final": "FF"
+  },
+  "工": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "H"
+      }
+    ],
+    "code": "H",
+    "final": "H"
+  },
+  "而": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "letter": "M"
+      }
+    ],
+    "code": "JM",
+    "final": "JM"
   }
 }

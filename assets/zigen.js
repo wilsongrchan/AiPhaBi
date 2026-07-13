@@ -44,7 +44,15 @@
         if (med.some(m => !m)) continue;
         const vec = Shape.strokeVec(med);
         if (!vec) continue;
-        lib.push({ letter, shape, vec, tier, n: med.length,
+        /* 這個字根自己的定義是連續筆畫，還是「跳筆」（包圍結構的收口筆，
+           例：囗＝第 1、2 筆 + 最後一筆）？只有跳筆的字根，才准許在別的字裡
+           也用跳筆的方式配對。 */
+        const st = [...form.strokes].sort((a, b) => a - b);
+        let head = 1;
+        while (head < st.length && st[head] === st[head - 1] + 1) head++;
+        const gapped = head < st.length;
+        lib.push({ letter, shape, vec, tier, n: med.length, gapped,
+                   head, tail: st.length - head,
                    label: `${form.src}[${form.strokes.map(i => i + 1).join('')}]` });
       }
     }
@@ -89,8 +97,11 @@
      例：囗 = 第 1,2 筆 + 最後一筆）。再搜出成本最低、且覆蓋全部筆畫的拆法。   */
   function candidates(medians, lib, thr, tierPenalty = 0) {
     const n = medians.length, out = [], seen = new Set();
-    const sizes = [...new Set(lib.map(e => e.n))].filter(k => k > 0 && k <= n);
-    const consider = idx => {
+
+    /* isGapped 的候選只跟 gapped 的字根比、連續的只跟連續的字根比 —— 
+       否則「第 1、2、5 筆」這種跳著取的組合，會去配一個本來筆畫相連的字根，
+       等於憑空多出一條包圍原則。 */
+    const consider = (idx, isGapped) => {
       const key = idx.join(',');
       if (seen.has(key)) return;
       seen.add(key);
@@ -98,7 +109,7 @@
       if (!vec) return;
       let best = null;
       for (const e of lib) {
-        if (e.n !== idx.length) continue;
+        if (e.n !== idx.length || !!e.gapped !== isGapped) continue;
         const d = Shape.dist(vec, e.vec);
         if (d >= thr) continue;
         /* 優次等原則：同樣配得上，優等的成本較低 */
@@ -107,13 +118,25 @@
           best = { d, cost, letter: e.letter, label: e.label, tier: e.tier || 'primary' };
       }
       if (best)
-        out.push({ idx, mask: idx.reduce((m, i) => m | (1 << i), 0), ...best });
+        out.push({ idx, mask: idx.reduce((m, i) => m | (1 << i), 0), gapped: isGapped, ...best });
     };
-    for (const k of sizes) {
-      for (let i = 0; i + k <= n; i++) consider([...Array(k)].map((_, j) => i + j));
-      if (k >= 2) for (let i = 0; i + k - 1 <= n; i++) {
-        const run = [...Array(k - 1)].map((_, j) => i + j);
-        for (let j = i + k - 1; j < n; j++) consider([...run, j]);
+
+    /* 連續的一段筆畫 */
+    const plain = [...new Set(lib.filter(e => !e.gapped).map(e => e.n))]
+      .filter(k => k > 0 && k <= n);
+    for (const k of plain)
+      for (let i = 0; i + k <= n; i++) consider([...Array(k)].map((_, j) => i + j), false);
+
+    /* 跳筆：照該字根自己的頭尾結構（前 head 筆連續，之後再補 tail 筆）*/
+    const shapes = [...new Set(lib.filter(e => e.gapped).map(e => `${e.head},${e.tail}`))];
+    for (const sig of shapes) {
+      const [head, tail] = sig.split(',').map(Number);
+      for (let i = 0; i + head <= n; i++) {
+        const run = [...Array(head)].map((_, j) => i + j);
+        for (let j = i + head; j + tail <= n; j++) {
+          const rest = [...Array(tail)].map((_, k) => j + k);
+          consider([...run, ...rest], true);
+        }
       }
     }
     return out.sort((a, b) => (a.cost ?? a.d) - (b.cost ?? b.d));

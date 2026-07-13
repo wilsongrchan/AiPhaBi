@@ -190,7 +190,7 @@
 
     <div class="pred">
       <div class="t">
-        <span>預測拆解（依你已建立的字根）</span>
+        <span id="predtitle">預測拆解（依你已建立的字根）</span>
         <span class="grow"></span>
         <button id="repredict" style="padding:2px 8px;font-size:11px">重新預測</button>
       </div>
@@ -200,12 +200,13 @@
     <div class="hintbar">
       點筆畫 → 按 <kbd>A</kbd>–<kbd>Z</kbd> 指派字母，即成一個字根（並自動寫入字根表）。
       <kbd>space</kbd> 略過選取的筆畫（孤筆略過原則）　<kbd>/</kbd> 顯示筆順
-      <kbd>⌫</kbd> 刪最後字根　<kbd>esc</kbd> 清除選取　<kbd>enter</kbd> 儲存並下一字
+      <kbd>⌫</kbd> 刪最後字根　<kbd>esc</kbd> 清除選取／全部清除　<kbd>enter</kbd> 儲存並下一字
     </div>
     <div style="display:flex;gap:6px">
       <button id="skipSel">略過選取 ␣</button>
       <button id="clearSel">清除選取</button>
       <button id="undoSeg">刪最後字根</button>
+      <button id="clearAll">全部清除</button>
       <button id="nums">顯示筆順 /</button>
       <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
     </div>
@@ -371,6 +372,7 @@ function commit(letter) {
   segs.push({ strokes: [...sel], letter: letter.toUpperCase() });
   sel = [];
   touch(); drawGlyph(); renderSegs(); suggest();
+  predict();                     /* 立刻預測剩下的筆畫 */
 }
 /* 孤筆略過原則：選取的筆畫不取碼（例：無法與人成根的一橫一豎） */
 function skipSelected() {
@@ -378,6 +380,7 @@ function skipSelected() {
   skipped = [...new Set([...skipped, ...sel])].sort((a, b) => a - b);
   sel = [];
   touch(); drawGlyph(); renderSegs(); suggest();
+  predict();
 }
 function renderSegs() {
   const box = $('#segs'); box.innerHTML = '';
@@ -604,6 +607,12 @@ function highlightOn(elm, c) {
 
 /* ---------- 整字預測 ---------- */
 let predBusy = false;
+/* 還沒被指派、也沒被略過的筆畫 */
+const restStrokes = () => strokes.map((_, i) => i)
+  .filter(i => !segs.some(s => s.strokes.includes(i)) && !skipped.includes(i));
+
+let partial = false;
+
 async function predict() {
   const box = $('#predopts');
   if (!lib.length) {
@@ -611,23 +620,43 @@ async function predict() {
     return;
   }
   if (!medians.length || predBusy) return;
+
+  const rest = restStrokes();
+  partial = rest.length < strokes.length;      /* 已取了一部分 → 預測「接下來」 */
+  $('#predtitle').textContent = partial
+    ? `預測接下來的拆解（還剩 ${rest.length} 筆）`
+    : '預測拆解（依你已建立的字根）';
+  if (!rest.length) {
+    box.innerHTML = '<span class="newz" style="color:var(--ok)">所有筆畫都處理完了。</span>';
+    return;
+  }
+
   predBusy = true;
   box.innerHTML = '<span class="newz">計算中…</span>';
   await new Promise(r => setTimeout(r, 10));       /* 讓瀏覽器先畫出「計算中」 */
+
   const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
   const merge = rule('merge_over_split'), sk = rule('skip_isolated_hv'),
         tp = rule('tier_priority');
-  const out = Zigen.predict(medians, lib, {
+  /* 只拿剩下的筆畫去預測；索引壓縮後再映射回原本的筆序 */
+  const raw = Zigen.predict(rest.map(i => medians[i]), lib, {
     thr,
     segPenalty: merge ? merge.params.seg_penalty : 0.05,
     skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
                  lastLetter: sk.params.last_stroke_letter || '' } : null,
     tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
   });
+  const out = raw.map(r => ({
+    ...r,
+    segments: r.segments.map(sg => ({ ...sg, strokes: sg.strokes.map(k => rest[k]) })),
+    skipped: (r.skipped || []).map(k => rest[k]),
+  }));
+
   predBusy = false;
   box.innerHTML = '';
   if (!out.length) {
-    box.innerHTML = '<span class="newz">用現有字根還拆不出這個字（有筆畫無法對應任何字根）。</span>';
+    box.innerHTML = `<span class="newz">${partial ? '剩下的筆畫' : '這個字'}` +
+      '用現有字根還拆不出來。</span>';
     return;
   }
   out.forEach((p, i) => {
@@ -639,9 +668,11 @@ async function predict() {
       (p.skipped && p.skipped.length ? `　（略過 ${p.skipped.length} 筆）` : '')));
     b.title = '套用此拆解';
     b.onclick = () => {
-      segs = p.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
-      skipped = [...(p.skipped || [])];
-      sel = []; touch(); drawGlyph(); renderSegs(); suggest();
+      const add = p.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+      segs = partial ? [...segs, ...add] : add;      /* 接續：接在已取的後面 */
+      skipped = [...new Set([...(partial ? skipped : []), ...(p.skipped || [])])]
+        .sort((a, b) => a - b);
+      sel = []; touch(); drawGlyph(); renderSegs(); suggest(); predict();
     };
     box.append(b);
     if (i === 0 && full) b.style.borderColor = 'var(--accent)';
@@ -865,6 +896,13 @@ async function pollZigen() {
 }
 
 $('#saveNext').onclick = saveNext;
+/* 把整個字的取碼清空（套錯預測時不必一個一個刪） */
+function clearAll() {
+  if (!segs.length && !skipped.length && !sel.length) return;
+  segs = []; skipped = []; sel = [];
+  touch(); drawGlyph(); renderSegs(); suggest(); predict();
+}
+
 function toggleNums() {
   showNums = !showNums;
   $('#nums').classList.toggle('primary', showNums);
@@ -872,8 +910,9 @@ function toggleNums() {
 }
 $('#nums').onclick = toggleNums;
 $('#skipSel').onclick = skipSelected;
+$('#clearAll').onclick = clearAll;
 $('#clearSel').onclick = () => { sel = []; drawGlyph(); suggest(); };
-$('#undoSeg').onclick = () => { segs.pop(); touch(); drawGlyph(); renderSegs(); };
+$('#undoSeg').onclick = () => { segs.pop(); touch(); drawGlyph(); renderSegs(); predict(); };
 $('#note').oninput = touch;
 $('#search').oninput = () => { shown = 120; renderQueue(); };
 $('#more').onclick = () => { shown += 120; renderQueue(); };
@@ -900,8 +939,13 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); skipSelected(); }
   else if (e.key === '/') { e.preventDefault(); toggleNums(); }
   else if (e.key === 'Enter') { e.preventDefault(); saveNext(); }
-  else if (e.key === 'Backspace') { e.preventDefault(); segs.pop(); touch(); drawGlyph(); renderSegs(); }
-  else if (e.key === 'Escape') { sel = []; drawGlyph(); suggest(); }
+  else if (e.key === 'Backspace') {
+    e.preventDefault(); segs.pop(); touch(); drawGlyph(); renderSegs(); predict();
+  }
+  else if (e.key === 'Escape') {
+    if (sel.length) { sel = []; drawGlyph(); suggest(); }   /* 先清選取 */
+    else clearAll();                                        /* 沒有選取時＝全部清除 */
+  }
   else if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); commit(e.key); }
   else if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
 });
