@@ -882,10 +882,7 @@ function renderAlts() {
     /* 點整列＝進編輯模式改它（按鈕自己有 stopPropagation，不會誤觸） */
     d.onclick = () => enterAltMode(a);
     const act = el('div', 'aact');
-    act.onclick = e => e.stopPropagation();
-    const ed = el('button', '', '改');
-    ed.title = '改這個兼容碼的拆法';
-    ed.onclick = () => enterAltMode(a);
+    act.onclick = e => e.stopPropagation();   /* 點整列＝改它，所以按鈕要擋住冒泡 */
     const up = el('button', '', '設為主碼');
     up.title = '跟主碼對調：這個變成主碼，原本的主碼變成兼容碼';
     up.onclick = () => {
@@ -905,7 +902,7 @@ function renderAlts() {
       if (!rec.alts.length) delete rec.alts;
       codes[cur] = rec; touch(); renderAlts();
     };
-    act.append(ed, up, rm);
+    act.append(up, rm);
     d.append(act);
     box.append(d);
   }
