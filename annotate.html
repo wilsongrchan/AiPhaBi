@@ -1555,21 +1555,24 @@ function buildComponentIndex() {
   compStamp = window.__baseStamp && window.__baseStamp.codes;
 }
 
-async function componentWarnings() {
-  if (!medians.length || !segs.length) return [];
+/* ctx = {ch, segs, skipped, medians}；不給就是畫面上這個字。
+   （要能替「任何一個字」算，清理失效紀錄時要把 800 個字都跑一遍。） */
+async function componentWarnings(ctx) {
+  const { ch: CH, segs: SG, skipped: SK, medians: MED } =
+    ctx || { ch: cur, segs, skipped, medians };
+  if (!MED || !MED.length || !SG.length) return [];
   /* 部件庫要用到別的字的中線 */
-  const need = Object.keys(codes).filter(ch => ch !== cur && codes[ch].segments);
+  const need = Object.keys(codes).filter(c => c !== CH && codes[c].segments);
   await primeMedians(need);
   if (!compIndex || compStamp !== (window.__baseStamp && window.__baseStamp.codes))
     buildComponentIndex();
 
-  const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
-  const n = medians.length;
+  const n = MED.length;
   const out = [];
   const usedRanges = [];
   /* 你說過「這幾筆不是那個部件」的，就別再拿它來比 ——
      形狀像不等於就是它：碼 的前兩筆長得像「厂」，但那是「石」的頭。 */
-  const excluded = new Set((codes[cur] && codes[cur].excludeComp) || []);
+  const excluded = new Set((codes[CH] && codes[CH].excludeComp) || []);
 
   /* 由大到小找：住 的第 3-7 筆同時「像三」也「像主」，該報的是主（比較大的那個部件），
      不然會一直被更小的部件搶走。 */
@@ -1579,13 +1582,13 @@ async function componentWarnings() {
     for (let i = 0; i + k <= n; i++) {
       const idx = [...Array(k)].map((_, j) => i + j);
       if (usedRanges.some(r => idx.some(x => r.includes(x)))) continue;
-      const v = Shape.strokeVec(idx.map(x => medians[x]));
+      const v = Shape.strokeVec(idx.map(x => MED[x]));
       if (!v) continue;
 
       /* 這一段筆畫「長得像」哪些已取碼的字？門檻收緊一點 ——
          整字比對用全域門檻太鬆，主 與 立 都會互相配上。 */
       const cands = list
-        .filter(c => c.ch !== cur && !excluded.has(c.ch))
+        .filter(c => c.ch !== CH && !excluded.has(c.ch))
         .map(c => ({ c, d: Shape.dist(v, c.vec) }))
         .filter(x => x.d < 0.15)
         .sort((a, b) => a.d - b.d);
@@ -1593,9 +1596,9 @@ async function componentWarnings() {
 
       /* 我這邊怎麼取這幾筆？ */
       const set = new Set(idx);
-      const mineSegs = segs.filter(sg => sg.strokes.some(x => set.has(x)));
+      const mineSegs = SG.filter(sg => sg.strokes.some(x => set.has(x)));
       const union = new Set(mineSegs.flatMap(sg => sg.strokes));
-      const mineSkip = skipped.filter(x => set.has(x));
+      const mineSkip = SK.filter(x => set.has(x));
       /* 只有「我的字根剛好蓋住這幾筆、沒有跨出去」時才好比較 */
       if (!mineSegs.length) continue;
       if ([...union].some(x => !set.has(x))) continue;
@@ -1611,7 +1614,7 @@ async function componentWarnings() {
       const best = cands[0].c;
       out.push({
         key: `comp:${best.ch}:${i}`, lvl: 'warn', rule: '偏旁一致性',
-        refs: mineSegs.map(sg => segs.indexOf(sg)),
+        refs: mineSegs.map(sg => SG.indexOf(sg)),
         strokeRefs: idx,
         fix: {
           type: 'component', strokes: idx, from: best.ch,
@@ -2066,6 +2069,62 @@ async function auditAll() {
     audit.set(ch, await auditChar(ch));
     markQueue(ch);
   }
+  if (run === auditRun) pruneStale();
+}
+
+/* ---------- 清掉失效的壓制紀錄 ----------
+   你「忽略」過的警告，後來因為改了拆法／字根／規則而不再觸發 —— 紀錄卻還躺在
+   codes.json 裡。分析頁照樣把它算成一條特例，於是列出一長串嚇人的破例，點進去
+   卻是「這條警告目前已經不會出現了」。
+
+   所以：把每個字的檢查（含偏旁一致性）重跑一遍，凡是壓制紀錄對不上任何一條
+   現存警告的，就刪掉。整份掃完只寫一次檔。 */
+let pruning = false;
+async function pruneStale() {
+  if (pruning || dirty || zigenDirty) return;
+  pruning = true;
+  try {
+    const chars = Object.keys(codes).filter(isDone);
+    let removed = 0, touched = 0;
+    for (const ch of chars) {
+      const rec = codes[ch];
+      const keys = new Set([...(rec.overrides || []), ...(rec.conventional || []),
+                            ...(rec.compliant || [])]);
+      if (!keys.size) continue;
+      const g = await Zigen.getGlyph(ch);
+      if (!g) continue;
+      const ctx = { segs: rec.segments, skipped: rec.skipped || [],
+                    medians: g.medians, nStrokes: g.strokes.length };
+      const live = new Set(checks(ctx).map(c => c.key));
+      /* 偏旁一致性是另外算的（要比對別的字），但它也會留下 comp:… 紀錄 */
+      if ([...keys].some(k => k.startsWith('comp:')))
+        for (const c of await componentWarnings({ ch, segs: rec.segments,
+              skipped: rec.skipped || [], medians: g.medians })) live.add(c.key);
+
+      let hit = false;
+      for (const f of ['overrides', 'conventional', 'compliant']) {
+        if (!rec[f]) continue;
+        const keep = rec[f].filter(k => live.has(k));
+        if (keep.length === rec[f].length) continue;
+        removed += rec[f].length - keep.length;
+        hit = true;
+        if (keep.length) rec[f] = keep; else delete rec[f];
+      }
+      if (hit) {
+        touched++;
+        if (rec.compliantWhy) {                      /* 理由也跟著走 */
+          for (const k of Object.keys(rec.compliantWhy))
+            if (!live.has(k)) delete rec.compliantWhy[k];
+          if (!Object.keys(rec.compliantWhy).length) delete rec.compliantWhy;
+        }
+      }
+    }
+    if (removed && !dirty && !zigenDirty) {
+      await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
+      $('#status').textContent = `清掉 ${removed} 條失效的紀錄（${touched} 個字）`;
+      renderQueue();
+    }
+  } finally { pruning = false; }
 }
 function markQueue(ch) {
   for (const q of document.querySelectorAll('.qi'))
