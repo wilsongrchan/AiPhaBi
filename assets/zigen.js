@@ -12,7 +12,18 @@
  *  中線比對實測同字根 0.01–0.17、不同字根 0.49 以上。
  */
 (function (global) {
-  const SAME_SHAPE = 0.25;      // 形狀距離門檻（落在上述兩群中間）
+  const SAME_SHAPE = 0.25;      // 全域形狀距離門檻（落在上述兩群中間）
+
+  /* 門檻不該只有一個。「小點」與「捺」相距 0.03，那是這兩個字根需要嚴格；
+     「日」離其他字根很遠，它大可寬鬆。把全域門檻壓到 0.03 只會讓預測什麼都認不出來。
+     所以每個字根可以有自己的 thr，字母層級也可以有；都沒有才用全域。
+       shape.thr  >  meta.letter_thresholds[字母]  >  meta.merge_threshold  >  SAME_SHAPE  */
+  function thrOf(shape, letter, meta) {
+    if (shape && shape.thr != null) return shape.thr;
+    const byLetter = meta && meta.letter_thresholds;
+    if (byLetter && byLetter[letter] != null) return byLetter[letter];
+    return (meta && meta.merge_threshold) || SAME_SHAPE;
+  }
 
   const cache = new Map();
   function getGlyph(c) {
@@ -53,15 +64,33 @@
         const gapped = head < st.length;
         lib.push({ letter, shape, vec, tier, n: med.length, gapped,
                    head, tail: st.length - head,
+                   thr: thrOf(shape, letter, z.meta),
                    label: `${form.src}[${form.strokes.map(i => i + 1).join('')}]` });
       }
+    }
+    /* 比對半徑 vs 合併半徑，是兩件事：
+         合併半徑（shape.thr）決定「這是不是同一個字根」—— 要嚴，你才分得開日與曰。
+         比對半徑決定「預測時認不認得出來」—— 只需要嚴到不會跟「別的字母」搞混。
+       日與曰都是 B，分不分得開對預測毫無影響；但卜(Q) 與 上(T) 混了就會取錯碼。
+       所以比對半徑 = 距離最近的「不同字母」字根的 0.9 倍（上限為全域門檻）——
+       該嚴的地方才嚴，其餘一律寬鬆，預測才不會什麼都認不出來。 */
+    const globalThr = (z.meta && z.meta.merge_threshold) || SAME_SHAPE;
+    for (const e of lib) {
+      let nearestOther = Infinity;
+      for (const o of lib) {
+        if (o.letter === e.letter || o.n !== e.n) continue;
+        const d = Shape.dist(e.vec, o.vec);
+        if (d < nearestOther) nearestOther = d;
+      }
+      e.matchThr = Math.min(globalThr, nearestOther * 0.9);
+      if (!isFinite(e.matchThr)) e.matchThr = globalThr;
     }
     return lib;
   }
 
   /* 學習：把一個已確認的筆畫組合併入字根表。
      同字母 + 同筆數 + 形狀夠近 → 同一字根（計次、記例字）；否則新增。 */
-  function merge(z, lib, seg, thr = z.meta.merge_threshold || SAME_SHAPE) {
+  function merge(z, lib, seg) {
     const { letter, char, strokeIdx, vec } = seg;
     const n = strokeIdx.length;
     let best = null;
@@ -70,6 +99,8 @@
       const d = Shape.dist(vec, e.vec);
       if (!best || d < best.d) best = { e, d };
     }
+    /* 用「那個字根自己的門檻」，不是全域的 */
+    const thr = best ? thrOf(best.e.shape, letter, z.meta) : (z.meta.merge_threshold || SAME_SHAPE);
     if (best && best.d < thr) {
       const s = best.e.shape;
       s.count = (s.count || 1) + 1;
@@ -96,6 +127,7 @@
      候選字根 = 筆順上連續的一段筆畫，或「一段 + 後面補一筆」（包圍結構的收口筆，
      例：囗 = 第 1,2 筆 + 最後一筆）。再搜出成本最低、且覆蓋全部筆畫的拆法。   */
   function candidates(medians, lib, thr, tierPenalty = 0) {
+    /* thr 只是後備；每個字根有自己的 e.thr */
     const n = medians.length, out = [], seen = new Set();
 
     /* isGapped 的候選只跟 gapped 的字根比、連續的只跟連續的字根比 —— 
@@ -111,7 +143,7 @@
       for (const e of lib) {
         if (e.n !== idx.length || !!e.gapped !== isGapped) continue;
         const d = Shape.dist(vec, e.vec);
-        if (d >= thr) continue;
+        if (d >= (e.matchThr ?? e.thr ?? thr)) continue;
         /* 優次等原則：同樣配得上，優等的成本較低 */
         const cost = d + tierPenalty * TIERS.indexOf(e.tier || 'primary');
         if (!best || cost < best.cost)
@@ -277,6 +309,6 @@
     return code.slice(0, head) + (tail ? code.slice(-tail) : '');
   }
 
-  global.Zigen = { SAME_SHAPE, TIERS, tierOf, getGlyph, allShapes, shapesOf, buildLibrary,
+  global.Zigen = { SAME_SHAPE, TIERS, tierOf, thrOf, getGlyph, allShapes, shapesOf, buildLibrary,
                    merge, predict, strokeKind, shorten };
 })(window);

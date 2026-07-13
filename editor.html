@@ -96,6 +96,10 @@
   .chip .alt { position:absolute; bottom:-7px; left:-6px; font:600 9px ui-monospace,monospace;
     padding:0 3px; border-radius:4px; border:1px solid var(--ok); background:var(--card);
     color:var(--ok); cursor:pointer; }
+  .chip .thr { position:absolute; top:-7px; left:50%; transform:translateX(-50%);
+    font:600 9px ui-monospace,monospace; padding:0 3px; border-radius:4px;
+    border:1px solid var(--warn); background:var(--card); color:var(--warn); cursor:pointer;
+    white-space:nowrap; }
   .empty { color:var(--muted); font-size:13px; font-style:italic; padding:6px 0; }
   .chip.dragging { opacity:.35; }
   .chip.ghost { position:fixed; z-index:100; pointer-events:none; opacity:.9;
@@ -285,8 +289,9 @@
   <div class="grow"></div>
   <button id="compact">精簡檢視</button>
   <input type="search" id="q" placeholder="搜尋字根／例字／意圖…">
-  <label style="font-size:13px;color:var(--muted)" title="形狀距離門檻：愈大愈容易把相似筆畫視為同一字根">
-    合併門檻 <input type="range" id="thr" min="0.05" max="0.6" step="0.01" style="width:80px;vertical-align:middle">
+  <label style="font-size:13px;color:var(--muted)"
+    title="全域門檻：愈大愈容易把相似筆畫視為同一字根。個別字根可以有更嚴格的專屬門檻（chip 上的橘色數字）。">
+    全域門檻 <input type="range" id="thr" min="0.05" max="0.6" step="0.01" style="width:80px;vertical-align:middle">
     <span id="thrv" style="font:600 11px ui-monospace,monospace"></span>
   </label>
   <span id="status">已載入</span>
@@ -661,6 +666,22 @@ function chip(arr, i, s, dup, L, it) {
 
   c.append(editable('ex', s.ex || '', v => { s.ex = v; touch(); }));
 
+  if (s.thr != null) {
+    const t = el('span', 'thr', s.thr.toFixed(2).replace(/^0/, ''));
+    t.title = `這個字根的專屬門檻 ${s.thr}（全域是 ${data.meta.merge_threshold || Zigen.SAME_SHAPE}）\n` +
+      '越小越嚴格 —— 只有非常像的形狀才算同一個。點擊可改，清空則回到全域。';
+    t.onclick = () => {
+      const v = prompt(
+        `這個字根的專屬門檻（全域 ${data.meta.merge_threshold || Zigen.SAME_SHAPE}）。\n` +
+        '越小越嚴格。留空＝改回用全域門檻。', String(s.thr));
+      if (v === null) return;
+      if (!v.trim()) delete s.thr;
+      else if (!isNaN(+v)) s.thr = +v;
+      touch(); render();
+    };
+    c.append(t);
+  }
+
   if (s.alts && s.alts.length) {
     const v = el('span', 'alt', `+${s.alts.length}`);
     v.title = `已合併 ${s.alts.length} 個同形變體 —— 比對時都算這個字根\n點擊可拆開`;
@@ -950,17 +971,16 @@ async function markDistinct(group) {
       if (!data.meta.distinct.some(x => x[0] === pair[0] && x[1] === pair[1]))
         data.meta.distinct.push(pair);
     }
-  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
-  if (group.d && group.d < thr) {
-    const suggest = Math.max(0.02, +(group.d * 0.9).toFixed(3));
-    if (confirm(
-        `記住了：這兩個不是同一個字根（形狀距離 ${group.d.toFixed(3)}）。\n\n` +
-        `但合併門檻是 ${thr}，比它們的距離還大 —— 「逐字取碼」以後還是會把這種形狀` +
-        `自動併在一起。\n\n要把門檻調到 ${suggest} 嗎？`)) {
-      data.meta.merge_threshold = suggest;
-      $('#thr').value = suggest;
-      $('#thrv').textContent = suggest.toFixed(3);
+  /* 只收緊「這兩個字根」，不要動全域門檻 ——
+     把全域壓到 0.03 只會讓預測連「日」都認不出來。 */
+  if (group.d) {
+    const tight = Math.max(0.01, +(group.d * 0.9).toFixed(4));
+    for (const item of group.shapes) {
+      const cur = item.s.thr;
+      if (cur == null || tight < cur) item.s.thr = tight;
     }
+    $('#status').textContent = `已把這 ${group.shapes.length} 個字根的門檻收到 ${tight}`;
+    $('#status').className = 'saved';
   }
   touch();
 }
