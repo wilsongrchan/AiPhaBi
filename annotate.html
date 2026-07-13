@@ -63,9 +63,13 @@
     width:10px; height:10px; line-height:9px; }
   .qi { position:relative; }
 
-  .stage { display:flex; flex-direction:column; align-items:center; gap:9px; }
-  /* 字圖大小固定：預測一長，flex 就會把它壓扁，壓到筆畫小得點不到 —— 不准縮。 */
-  #glyph { flex:0 0 auto; width:400px; height:400px; border:1px solid var(--line);
+  /* 舞台分兩欄：左邊窄長一條放相關字（本來就是空白），右邊才是字圖與預測 */
+  .stage { display:flex; flex-direction:row; align-items:flex-start; gap:12px; }
+  .stagemain { flex:1; min-width:0; display:flex; flex-direction:column;
+    align-items:center; gap:8px; }
+  /* 字圖大小固定：預測一長，flex 就會把它壓扁，壓到筆畫小得點不到 —— 不准縮。
+     邊長 310 ≈ 400 的 60% 面積（√0.6 ≈ 0.775），預測就不必再捲下去看。 */
+  #glyph { flex:0 0 auto; width:310px; height:310px; border:1px solid var(--line);
     border-radius:14px; background:var(--card); }
   /* 透明粗描邊把命中區域加寬，細筆畫才好點 */
   #glyph path { cursor:pointer; transition:fill .08s; stroke:transparent; stroke-width:26; }
@@ -111,30 +115,28 @@
     letter-spacing:.08em; min-height:0; }
   .stage .ref, .stage .clash { max-width:520px; text-align:center; }
   /* 相關字：這個字由哪些部件組成（結構拆分），以及同偏旁的一整組。
-     靠左上角，不置中 —— 置中的話字一多就把整個版面推歪。 */
-  .related { align-self:flex-start; width:100%; max-width:520px;
-    display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-start; align-items:center;
-    min-height:22px; }
-  .related .lab { font-size:10px; color:var(--muted); }
-  .related a { display:flex; align-items:center; gap:4px; border:1px solid var(--line);
-    border-radius:7px; padding:1px 6px; text-decoration:none; background:var(--card);
-    cursor:pointer; }
+     排成左邊窄長的一欄、由上往下 —— 橫排一定會擠到中間的字圖上。 */
+  .related { flex:0 0 118px; width:118px; align-self:stretch;
+    display:flex; flex-direction:column; gap:4px; align-items:stretch;
+    max-height:calc(100vh - 130px); overflow-y:auto; padding-right:2px; }
+  .related .lab { font-size:10px; color:var(--muted); margin-top:4px; }
+  .related .lab:first-child { margin-top:0; }
+  .related a { display:flex; align-items:center; justify-content:space-between; gap:4px;
+    border:1px solid var(--line); border-radius:7px; padding:2px 6px;
+    text-decoration:none; background:var(--card); cursor:pointer; }
   .related a:hover { border-color:var(--accent); }
   .related a .rc { font-size:17px; font-family:"PingFang TC",serif; color:var(--ink); }
   .related a .rk { font:600 10px ui-monospace,monospace; color:var(--accent); }
   .related a.up .rc { color:var(--muted); font-size:15px; }
   .related a.todo .rk { color:var(--muted); font-weight:400; }   /* 這個部件還沒取碼 */
-  .related .fam { position:relative; display:inline-flex; align-items:center; }
-  .related .fam > button { font-size:11px; padding:2px 7px; border-radius:7px; }
-  /* 同偏旁的字往下展開成一欄浮層 —— 橫著排會一路擠到中間的字圖上去。
-     浮層（absolute）不佔版面，所以展不展開都不會把別的東西推走。 */
-  .related .famlist { position:absolute; top:calc(100% + 4px); left:0; z-index:20;
-    display:flex; flex-direction:column; gap:3px; padding:6px;
-    max-height:min(560px, 70vh); overflow-y:auto;
-    background:var(--card); border:1px solid var(--line); border-radius:9px;
-    box-shadow:0 6px 20px rgba(0,0,0,.14); }
+  /* 同偏旁的字：就在這一欄裡往下展開（整欄自己會捲），不做浮層 ——
+     浮層會被這一欄的 overflow 裁掉。 */
+  .related .fam { display:flex; flex-direction:column; gap:3px; }
+  .related .fam > button { font-size:11px; padding:3px 6px; border-radius:7px;
+    text-align:left; }
+  .related .famlist { display:flex; flex-direction:column; gap:3px;
+    border-left:2px solid var(--line); padding-left:5px; margin-bottom:2px; }
   .related .famlist.hide { display:none; }
-  .related .famlist a { justify-content:space-between; }
 
   .hintbar { font-size:12px; color:var(--muted); text-align:center; max-width:520px; }
   kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px;
@@ -296,7 +298,9 @@
   </div>
 
   <div class="pane stage">
+    <!-- 相關字排在字圖左邊的空白帶，由上往下 —— 橫排會一路擠到字圖上 -->
     <div class="related" id="related"></div>
+    <div class="stagemain">
     <div class="curline">
       <div class="cur" id="cur"></div>
       <div class="code" id="code">—</div>
@@ -327,6 +331,7 @@
       <button id="nums">顯示筆順 /</button>
       <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
     </div>
+    </div><!-- /.stagemain -->
   </div>
 
   <div class="pane">
