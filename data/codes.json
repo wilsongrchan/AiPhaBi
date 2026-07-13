@@ -2875,11 +2875,11 @@
           2,
           3
         ],
-        "letter": "Y"
+        "letter": "X"
       }
     ],
-    "code": "IY",
-    "final": "IY"
+    "code": "IX",
+    "final": "IX"
   },
   "主": {
     "segments": [
@@ -6827,19 +6827,13 @@
       },
       {
         "strokes": [
-          4
-        ],
-        "letter": "L"
-      },
-      {
-        "strokes": [
+          4,
           5
         ],
         "letter": "Q"
       }
     ],
-    "code": "HLQ",
-    "final": "HLQ",
+    "code": "HQ",
     "skipped": [
       0
     ],
@@ -7056,27 +7050,17 @@
       },
       {
         "strokes": [
-          4
-        ],
-        "letter": "Q"
-      },
-      {
-        "strokes": [
+          4,
           5
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
-          6
-        ],
-        "letter": "Q"
-      },
-      {
-        "strokes": [
+          6,
           7
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
@@ -7095,11 +7079,8 @@
         "letter": "M"
       }
     ],
-    "code": "MQQQQJM",
-    "final": "MQQM",
-    "overrides": [
-      "merge:1-2"
-    ]
+    "code": "MIIJM",
+    "final": "MIIM"
   },
   "保": {
     "segments": [
@@ -7394,7 +7375,8 @@
     ],
     "code": "IIONX",
     "overrides": [
-      "merge:2-3"
+      "merge:2-3",
+      "merge:3-4"
     ]
   },
   "選": {
@@ -8422,7 +8404,8 @@
   },
   "從": {
     "overrides": [
-      "merge:4-5"
+      "merge:4-5",
+      "merge:2-3"
     ],
     "segments": [
       {
@@ -9179,9 +9162,20 @@
       },
       {
         "strokes": [
-          5,
+          4,
+          5
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
           6,
-          7,
+          7
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           8,
           9
         ],
@@ -9194,11 +9188,8 @@
         "letter": "Q"
       }
     ],
-    "code": "EKQ",
-    "final": "EKQ",
-    "skipped": [
-      4
-    ]
+    "code": "ETIKQ",
+    "final": "ETIQ"
   },
   "難": {
     "segments": [
@@ -9414,7 +9405,10 @@
       }
     ],
     "code": "IVUVO",
-    "final": "IVUO"
+    "final": "IVUO",
+    "overrides": [
+      "merge:2-3"
+    ]
   },
   "容": {
     "segments": [
@@ -9610,7 +9604,10 @@
       }
     ],
     "code": "TOJL",
-    "final": "TOJL"
+    "final": "TOJL",
+    "overrides": [
+      "merge:2-3"
+    ]
   },
   "戰": {
     "segments": [
@@ -9820,21 +9817,17 @@
       },
       {
         "strokes": [
-          11
-        ],
-        "letter": "L"
-      },
-      {
-        "strokes": [
+          11,
           12
         ],
         "letter": "Q"
       }
     ],
-    "code": "IIOHLQ",
+    "code": "IIOHQ",
     "skipped": [
       7
-    ]
+    ],
+    "final": "IIOQ"
   },
   "四": {
     "segments": [
@@ -9890,7 +9883,10 @@
       }
     ],
     "code": "TUVF",
-    "final": "TUVF"
+    "final": "TUVF",
+    "overrides": [
+      "merge:1-2"
+    ]
   },
   "總": {
     "segments": [
@@ -10166,7 +10162,10 @@
       }
     ],
     "code": "JUO",
-    "final": "JUO"
+    "final": "JUO",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "質": {
     "segments": [
@@ -12283,21 +12282,16 @@
       },
       {
         "strokes": [
-          2
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          2,
           3,
           4,
           5
         ],
-        "letter": "F"
+        "letter": "E"
       }
     ],
-    "code": "YJF",
-    "final": "YJF"
+    "code": "YE",
+    "final": "YE"
   },
   "錢": {
     "segments": [
@@ -13538,5 +13532,100 @@
     ],
     "code": "IIOIVBXQ",
     "final": "IIOQ"
+  },
+  "具": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "V"
+      }
+    ],
+    "code": "UEV",
+    "final": "UEV"
+  },
+  "畫": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          10
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          11
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "EFOTI",
+    "final": "EFOI"
+  },
+  "改": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "Z"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "letter": "X"
+      }
+    ],
+    "code": "ZX",
+    "final": "ZX"
   }
 }

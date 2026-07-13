@@ -446,7 +446,9 @@ function suggest() {
   }
 
   const top = ranked[0];
-  if (!top || top.best.d >= thr) {
+  const topThr = top && top.best.e.shape && top.best.e.shape.thr != null
+    ? top.best.e.shape.thr : thr;
+  if (!top || top.best.d >= topThr) {
     nz.innerHTML = '<b>新字根</b> — 按任一字母鍵，這個形狀就會加入該字母的字根表。';
   } else if (ranked.length > 1 && ranked[1].w / total > 0.3) {
     /* 兩個字母都很有話講 → 這正是 L 還是 Q 那種需要你裁決的情況 */
@@ -556,6 +558,9 @@ function checks(ctx) {
   const bestMatch2 = (idx, letter) => bestMatch(idx, letter, medians);
   const out = [];
   const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  /* 每個字根有自己的門檻（你說過「這不是 X」就會收緊）—— 檢查必須照它的，
+     不然收緊了警告還在，等於沒學到。 */
+  const thrOf = e => (e && e.shape && e.shape.thr != null) ? e.shape.thr : thr;
   const on = id => rules && rules.rules.find(r =>
     r.id === id && r.enabled && r.kind === 'enforced');
   const TIER_NAME = { primary: '優等', secondary: '次等', tertiary: '三等' };
@@ -573,15 +578,17 @@ function checks(ctx) {
     const any = bestMatch2(sg.strokes);
 
     /* 2. 這組筆畫跟你選的字母的既有字根對不上，但很像別的字母的字根 */
-    if (any && any.d < thr && (!mine || mine.d >= thr) && any.e.letter !== sg.letter) {
+    if (any && any.d < thrOf(any.e) && (!mine || mine.d >= thrOf(mine.e)) &&
+        any.e.letter !== sg.letter) {
       out.push({ key: `letter:${i}`, lvl: 'warn', rule: '字根比對', refs: [i],
         fix: { type: 'letter', i, to: any.e.letter,
                label: `改成 ${any.e.letter}` },
+        reject: { letter: any.e.letter, zlabel: any.e.label, strokes: sg.strokes },
         msg: `第 ${i + 1} 個字根指派給 <b>${sg.letter}</b>，但它的形狀跟 ` +
              `<b>${any.e.letter}</b> 的既有字根 ${any.e.label} 幾乎一樣（距離 ${any.d.toFixed(3)}）。` });
     }
     /* 3. 全新的形狀：不是錯，只是提醒會新增一條字根 */
-    else if (!mine || mine.d >= thr) {
+    else if (!mine || mine.d >= thrOf(mine.e)) {
       out.push({ key: `new:${i}`, lvl: 'info', rule: '新字根', refs: [i],
         msg: `第 ${i + 1} 個字根（${sg.letter}）是新形狀，儲存後會在 ${sg.letter} 底下新增一條字根。` });
     }
@@ -589,14 +596,15 @@ function checks(ctx) {
     /* 4. 優次等原則：用了次／三等，但同一組筆畫也配得上某個優等字根。
           只有在那個優等字根屬於「別的字母」時才要緊 —— 同一個字母的話，
           取到哪一條字根都是同一個碼，沒有任何影響，不該拿來煩你。 */
-    if (on('tier_priority') && mine && mine.d < thr && mine.e.tier !== 'primary') {
+    if (on('tier_priority') && mine && mine.d < thrOf(mine.e) && mine.e.tier !== 'primary') {
       const better = lib.filter(e => e.n === sg.strokes.length && e.tier === 'primary' &&
                                      e.letter !== sg.letter)
         .map(e => ({ e, d: Shape.dist(Shape.strokeVec(sg.strokes.map(k => medians[k])), e.vec) }))
-        .filter(x => x.d < thr).sort((a, b) => a.d - b.d)[0];
+        .filter(x => x.d < thrOf(x.e)).sort((a, b) => a.d - b.d)[0];
       if (better) out.push({ key: `tier:${i}`, lvl: 'warn', rule: '優次等原則', refs: [i],
         fix: { type: 'letter', i, to: better.e.letter,
                label: `改成 ${better.e.letter}` },
+        reject: { letter: better.e.letter, zlabel: better.e.label, strokes: sg.strokes },
         msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}` +
              `（取 <b>${sg.letter}</b>），但同一組筆畫也配得上<b>優等</b>字根 ` +
              `${better.e.label}（取 <b>${better.e.letter}</b>）—— 碼會不一樣。` });
@@ -612,10 +620,11 @@ function checks(ctx) {
       const a = order[k], b = order[k + 1];
       const union = [...a.s.strokes, ...b.s.strokes].sort((x, y) => x - y);
       const m = bestMatch2(union);
-      if (m && m.d < thr) out.push({ key: `merge:${a.i}-${b.i}`, lvl: 'warn',
+      if (m && m.d < thrOf(m.e)) out.push({ key: `merge:${a.i}-${b.i}`, lvl: 'warn',
         rule: '能合不分原則', refs: [a.i, b.i],
         fix: { type: 'merge', a: a.i, b: b.i, to: m.e.letter,
                label: `合併成一個 ${m.e.letter}` },
+        reject: { letter: m.e.letter, zlabel: m.e.label, strokes: union },
         msg: `第 ${a.i + 1}、${b.i + 1} 個字根合起來剛好是既有字根 ${m.e.label}` +
              `（<b>${m.e.letter}</b>）—— 可以一碼取盡，不必分兩碼。` });
     }
@@ -654,6 +663,57 @@ function checks(ctx) {
     }
   }
   return out;
+}
+
+/* 「這其實不是 X」—— 把那個字根的門檻收緊到「配不上這組筆畫」為止。
+   這不是把警告關掉而已：以後任何字裡，離它這麼遠的形狀都不會再被當成它。
+   （字根的專屬門檻，不動全域，也不影響別的字根。） */
+async function rejectMatch(r) {
+  const e = lib.find(x => x.letter === r.letter && x.label === r.zlabel);
+  if (!e) return;
+  const vec = Shape.strokeVec(r.strokes.map(i => medians[i]));
+  if (!vec) return;
+  const d = Shape.dist(vec, e.vec);
+  const tight = Math.max(0.005, +(d * 0.9).toFixed(4));
+  const cur = e.shape.thr ?? (zigen.meta.merge_threshold || Zigen.SAME_SHAPE);
+  if (tight >= cur) {
+    alert(`這組筆畫與 ${r.zlabel} 的距離是 ${d.toFixed(3)}，` +
+          `已經超出它現在的門檻 ${cur} —— 不需要再收緊。`);
+    return;
+  }
+
+  /* 收緊之後，本來用這個字根取碼的字會不會有人配不上了？先算給你看 */
+  const casualties = [];
+  for (const [ch, rec] of Object.entries(codes)) {
+    if (!rec.segments) continue;
+    const g = await Zigen.getGlyph(ch);
+    if (!g) continue;
+    for (const sg of rec.segments) {
+      if (sg.letter !== r.letter || sg.strokes.length !== e.n) continue;
+      const v = Shape.strokeVec(sg.strokes.map(i => g.medians[i]));
+      if (!v) continue;
+      const dd = Shape.dist(v, e.vec);
+      if (dd < cur && dd >= tight) { casualties.push(ch); break; }
+    }
+  }
+
+  const msg = `把「${r.zlabel}」（${r.letter}）的專屬門檻從 ${cur} 收到 ${tight}，` +
+    `這組筆畫（距離 ${d.toFixed(3)}）以後就不會再被當成它。\n\n` +
+    (casualties.length
+      ? `注意：有 ${casualties.length} 個已取碼的字（${casualties.slice(0, 10).join('')}${
+          casualties.length > 10 ? '…' : ''}）本來就是靠這個字根配上的，` +
+        '收緊之後它們會配不上，會在佇列裡顯示警告。\n\n要繼續嗎？'
+      : '沒有已取碼的字會受影響。');
+  if (!confirm(msg)) return;
+
+  e.shape.thr = tight;
+  zigenDirty = true;
+  await save();
+  lib = await Zigen.buildLibrary(zigen);
+  libInfo();
+  renderSegs(); suggest(); predict(); auditAll();
+  $('#status').textContent = `學會了：這不是 ${r.letter}`;
+  $('#status').className = 'saved';
 }
 
 /* 把某一條檢查建議的改法直接套上去 */
@@ -705,6 +765,12 @@ function renderChecks() {
         ap.title = '照建議改，碼會跟著更新';
         ap.onclick = () => applyFix(c.fix);
         act.append(ap);
+      }
+      if (c.reject) {
+        const rj = el('button', '', `這不是 ${c.reject.letter}`);
+        rj.title = '把那個字根的門檻收緊，以後不會再把這種形狀當成它';
+        rj.onclick = () => rejectMatch(c.reject);
+        act.append(rj);
       }
       /* 筆型判錯了？教它一次，以後所有字都受用 —— 不必每個字忽略一遍 */
       if (c.teach) {
