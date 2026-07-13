@@ -113,7 +113,9 @@
   .cur b { font-size:22px; color:var(--ink); font-family:"PingFang TC",serif; }
   .stage .code { font:700 26px/1.1 ui-monospace,monospace; color:var(--accent);
     letter-spacing:.08em; min-height:0; }
-  .stage .ref, .stage .clash { max-width:520px; text-align:center; }
+  /* 固定高度：這行字會在「尚有 N 筆未指派 / 全部筆畫已處理 / 超過碼長上限」之間
+     變來變去，高度一變，底下的字圖就跟著跳。 */
+  .stage .ref { max-width:520px; text-align:center; min-height:20px; }
   /* 相關字：這個字由哪些部件組成（結構拆分），以及同偏旁的一整組。
      排成左邊窄長的一欄、由上往下 —— 橫排一定會擠到中間的字圖上。 */
   .related { flex:0 0 118px; width:118px; align-self:stretch;
@@ -306,7 +308,6 @@
       <div class="code" id="code">—</div>
     </div>
     <div class="ref" id="ref"></div>
-    <div class="clash" id="clash" style="display:none"></div>
     <svg id="glyph" viewBox="0 0 1024 1024"></svg>
 
     <div class="pred">
@@ -335,6 +336,9 @@
   </div>
 
   <div class="pane">
+    <!-- 重碼提醒放在右欄：它一出現就把中間那一欄往下推，字圖跟著上上下下 -->
+    <div class="clash" id="clash" style="display:none"></div>
+
     <div class="lbl">選取中的筆畫</div>
     <div class="sugg" id="sugg"></div>
     <div class="newz" id="newz"></div>
@@ -635,8 +639,11 @@ function renderCode() {
     : '<span style="color:var(--ok)">全部筆畫已處理</span>');
   $('#ref').innerHTML = bits.join('　');
 
-  /* 重碼提醒：以「實際要按的碼」判斷，不是完整碼 */
-  const clash = fin ? Object.entries(codes)
+  /* 重碼提醒：以「實際要按的碼」判斷，不是完整碼。
+     而且要等整個字拆完才報 —— 拆到一半的碼本來就是殘碼，跟人家撞在一起
+     是必然的，這時候跳出來只是噪音。 */
+  const complete = strokes.length > 0 && left === 0;
+  const clash = (fin && complete) ? Object.entries(codes)
     .filter(([ch, r]) => ch !== cur && r.code && finalOf(r.code) === fin).map(([ch]) => ch) : [];
   const w = $('#clash');
   if (clash.length) {
