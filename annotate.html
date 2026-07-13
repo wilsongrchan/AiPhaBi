@@ -951,40 +951,63 @@ function renderCheckRow(c, rec) {
       ex.onclick = () => markNotComponent(c.except);
       act.append(ex);
     }
-    /* 「忽略」與「確認遵守原則」都會讓警告閉嘴，但意思完全相反，所以分開記：
-       忽略 → 這個字確實不照原則走，但我要它這樣（真的是特例）
-       確認遵守原則 → 這個拆法其實沒有違反原則，是系統看錯了（誤判，不是特例）
-       分析頁把兩者分開列：同一條檢查一直誤判，該修的是檢查邏輯，不是那些字。 */
-    const ig = el('button', '', '忽略');
-    ig.title = '這個字確實破例，但我要它這樣，不用再提醒';
-    ig.onclick = async () => { rec.overrides = [...(rec.overrides || []), c.key]; await muteCheck(rec); };
-    act.append(ig);
-
-    const dp = el('button', '', '確認遵守原則');
-    dp.title = '我的拆法其實沒有違反這條原則，是系統判斷錯了（會記成誤判，不算特例）';
-    dp.onclick = async () => {
-      const why = prompt(`確認這個拆法其實遵守「${c.rule}」。系統哪裡看錯了？（可留空）\n\n` +
-        `它說：${c.msg.replace(/<[^>]+>/g, '')}`, '');
-      if (why === null) return;                      /* 按取消就當沒事 */
-      rec.compliant = [...(rec.compliant || []), c.key];
-      if (why.trim()) rec.compliantWhy = { ...(rec.compliantWhy || {}), [c.key]: why.trim() };
-      await muteCheck(rec);
-    };
-    act.append(dp);
+    /* 一條警告可以有三種下場，意思完全不同，所以分開記（分析頁也分開列）：
+         約定特例  這個字（多半是簡單的獨體字，例：上、二）就是約定這樣拆，
+                   明知違反原則也照做，而且不當別的字的偏旁範本
+         忽略      這個字確實破例，理由不成體系，就是不想理
+         確認遵守  拆法其實沒違反原則，是檢查看錯了（誤判，該修的是我們的邏輯）
+       前兩者是真的特例，最後一個不是。 */
+    for (const [label, title, act_] of [
+      ['約定特例', `「${cur}」是約定這樣拆的（多半是簡單獨體字）：明知違反這條原則也照做，` +
+                   '而且不再拿它當別的字的偏旁範本', 'conventional'],
+      ['忽略', '這個字確實破例，但我要它這樣，不用再提醒', 'overrides'],
+      ['確認遵守原則', '我的拆法其實沒有違反這條原則，是系統判斷錯了（記成誤判，不算特例）', 'compliant'],
+    ]) {
+      const bt = el('button', '', label);
+      bt.title = title;
+      bt.onclick = () => setDisposition(rec, c, act_);
+      act.append(bt);
+    }
   }
   if (act.children.length) d.append(act);
   return d;
 }
 
-/* 被壓下的警告：忽略（真的是特例）＋ 確認遵守原則（系統誤判）—— 兩者都不再提醒 */
-const muted = rec => new Set([...(rec.overrides || []), ...(rec.compliant || [])]);
+/* 一條警告的三種下場（都不再提醒，但意思不同，見 renderCheckRow 的說明） */
+const DISPOS = {
+  conventional: { ic: '約', tag: '約定特例：這個字就是這樣拆，不當別人的偏旁範本' },
+  overrides:    { ic: '⊘', tag: '已忽略：這個字破例' },
+  compliant:    { ic: '✓', tag: '你已確認：其實遵守原則，是系統誤判' },
+};
+const FIELDS = Object.keys(DISPOS);
+const muted = rec => new Set(FIELDS.flatMap(f => rec[f] || []));
+const disposOf = (rec, key) => FIELDS.find(f => (rec[f] || []).includes(key));
+
+async function setDisposition(rec, c, field) {
+  let why = null;
+  if (field === 'compliant') {
+    why = prompt(`確認這個拆法其實遵守「${c.rule}」。系統哪裡看錯了？（可留空）\n\n` +
+      `它說：${c.msg.replace(/<[^>]+>/g, '')}`, '');
+    if (why === null) return;                       /* 按取消就當沒事 */
+  }
+  for (const f of FIELDS) {                         /* 三選一，先清掉舊的 */
+    if (!rec[f]) continue;
+    rec[f] = rec[f].filter(k => k !== c.key);
+    if (!rec[f].length) delete rec[f];
+  }
+  rec[field] = [...(rec[field] || []), c.key];
+  if (why && why.trim()) rec.compliantWhy = { ...(rec.compliantWhy || {}), [c.key]: why.trim() };
+  /* 約定特例＝這個字自己說了算，當然也不該再被別的字拿去當範本 */
+  if (field === 'conventional') { rec.notComponent = true; $('#notcomp').checked = true; compIndex = null; }
+  await muteCheck(rec);
+}
 /* key 前綴 → 原則名（用來描述已經不再出現的舊警告，那時拿不到 c.rule） */
 const RULE_OF = { order: '筆順原則', letter: '字根比對', new: '新字根', absorb: '併入既有字根',
   tier: '優次等原則', merge: '能合不分原則', lone: '孤筆略過原則', skip: '孤筆略過原則',
   skiplast: '孤筆略過原則', comp: '偏旁一致性' };
 
 async function unmute(rec, key) {
-  for (const f of ['overrides', 'compliant']) {
+  for (const f of FIELDS) {
     if (!rec[f]) continue;
     rec[f] = rec[f].filter(k => k !== key);
     if (!rec[f].length) delete rec[f];
@@ -1035,31 +1058,29 @@ document.addEventListener('pointerdown', e => {
 /* 已壓下的警告仍要看得見 —— 否則點進字裡只看到一片安靜，
    根本不知道自己當初到底放過了什麼。滑過去一樣會點亮它指的筆畫。 */
 function renderMutedRow(c, rec) {
-  const ok = (rec.compliant || []).includes(c.key);     /* 你確認過：其實沒違規 */
+  const field = disposOf(rec, c.key) || 'overrides';
   const d = el('div', 'chk muted');
   d.dataset.key = c.key;
   highlightOn(d, c);
-  d.append(el('span', 'ic', ok ? '✓' : '⊘'));
+  d.append(el('span', 'ic', DISPOS[field].ic));
   const body = el('div', 'body');
-  const why = ok && rec.compliantWhy && rec.compliantWhy[c.key];
-  body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}（${ok ? '你已確認：其實遵守原則，是系統誤判' : '已忽略：這個字破例'}` +
-    `${why ? '：' + why.replace(/</g, '&lt;') : ''}）</span>`;
+  const why = rec.compliantWhy && rec.compliantWhy[c.key];
+  body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}（${DISPOS[field].tag}` +
+    `${field === 'compliant' && why ? '：' + why.replace(/</g, '&lt;') : ''}）</span>`;
   d.append(body);
   const act = el('div', 'act');
   const un = el('button', '', '還原');
   un.title = '恢復提醒這條警告（會標出它指的筆畫）';
   un.onclick = () => unmute(rec, c.key);
   act.append(un);
-  /* 忽略 ↔ 確認遵守原則 可以改判 */
-  const sw = el('button', '', ok ? '改成：這個字破例' : '改成：其實遵守原則');
-  sw.onclick = async () => {
-    rec.overrides = (rec.overrides || []).filter(k => k !== c.key);
-    rec.compliant = (rec.compliant || []).filter(k => k !== c.key);
-    (ok ? rec.overrides : rec.compliant).push(c.key);
-    for (const f of ['overrides', 'compliant']) if (!rec[f].length) delete rec[f];
-    await muteCheck(rec);
-  };
-  act.append(sw);
+  /* 改判成另外兩種 */
+  const NAME = { conventional: '約定特例', overrides: '忽略', compliant: '其實遵守原則' };
+  for (const f of FIELDS) {
+    if (f === field) continue;
+    const sw = el('button', '', `改成：${NAME[f]}`);
+    sw.onclick = () => setDisposition(rec, c, f);
+    act.append(sw);
+  }
   d.append(act);
   return d;
 }

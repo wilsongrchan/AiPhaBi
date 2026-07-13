@@ -375,10 +375,12 @@ const has = (r, f) => !!(r[f] && r[f].length);
 function renderExceptions(entries) {
   const conv = entries.filter(([, r]) => r.notComponent).map(([ch]) => ch);
   const notes = entries.filter(([, r]) => r.note).map(([ch, r]) => [ch, r.note]);
+  const agreed = groupByRule(entries, 'conventional'); /* 約定這樣拆，明知破例也照做 */
   const ignored = groupByRule(entries, 'overrides');   /* 這個字真的破例 */
   const disputed = groupByRule(entries, 'compliant');  /* 其實沒破例，是檢查看錯了 */
 
-  const exChars = new Set([...conv, ...entries.filter(([, r]) => has(r, 'overrides')).map(([ch]) => ch)]);
+  const exChars = new Set([...conv,
+    ...entries.filter(([, r]) => has(r, 'overrides') || has(r, 'conventional')).map(([ch]) => ch)]);
   const dpChars = new Set(entries.filter(([, r]) => has(r, 'compliant')).map(([ch]) => ch));
   const pct = n => entries.length ? (n / entries.length * 100).toFixed(1) : '0.0';
 
@@ -406,7 +408,10 @@ function renderExceptions(entries) {
         `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`, chars, ' bad')).join('') : '') +
 
     `<div class="exhead">真正的特例 —— 這些字確實不照原則走</div>` +
-    grp('約定特例', '整個字的拆法是約定的，其他字不會拿它當偏旁的範本。', conv) +
+    grp('約定特例', '整個字的拆法是約定的（多半是簡單的獨體字），其他字不會拿它當偏旁的範本。', conv) +
+    agreed.map(([rule, chars]) => grp(`約定違反「${rule}」`,
+      `這些字明知違反這條原則，仍照約定這樣拆（例：「上」的前兩筆本該合成一個 T，但獨體字就取 J I）。`,
+      chars)).join('') +
     ignored.map(([rule, chars]) => grp(`忽略「${rule}」`,
       RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '', chars)).join('') +
 
