@@ -62,8 +62,10 @@
   .col:hover .bar { filter:brightness(.92); }
   .vlab { font:600 10px ui-monospace,monospace; color:var(--ink); margin-bottom:3px; height:12px; }
   .axis { display:grid; grid-template-columns:repeat(26,1fr); gap:6px; margin-top:5px; }
-  .axis div { text-align:center; font:600 11px ui-monospace,monospace; color:var(--muted); }
+  .axis div { text-align:center; font:600 11px ui-monospace,monospace; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; line-height:1.35; }
   .axis div.hot { color:var(--accent); }
+  .axis .cjkey { font:12px "PingFang TC",serif; color:var(--s2); }   /* 倉頡字根：跟它的長條同色 */
   .meanline { position:absolute; left:0; right:0; border-top:1px solid var(--line);
     pointer-events:none; }
   .meanline span { position:absolute; right:0; top:-15px; font-size:10px; color:var(--muted);
@@ -216,6 +218,11 @@ const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 const LETTERS = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+/* 倉頡的字母 → 字根（哲理／筆劃／人體／字形四類）。對照時標在字母底下，
+   才知道自己的 J 是在跟人家的「十」比。X＝難（特殊碼）、Z 官方沒用。 */
+const CJ_KEY = { A:'日', B:'月', C:'金', D:'木', E:'水', F:'火', G:'土', H:'竹', I:'戈',
+  J:'十', K:'大', L:'中', M:'一', N:'弓', O:'人', P:'心', Q:'手', R:'口', S:'尸',
+  T:'廿', U:'山', V:'女', W:'田', X:'難', Y:'卜', Z:'' };
 
 let codes = {}, zigen = null, rules = null, cangjie = null, rank = new Map();
 
@@ -270,28 +277,35 @@ function bars(counts, chartId, axisId, tableId, cjCounts) {
       t.style.left = (e.clientX + 12) + 'px';
       t.style.top = (e.clientY - 30) + 'px';
       t.textContent = cmp
-        ? `${L}　愛發筆 ${my[i].toFixed(1)}%（${vals[i]} 次）　倉頡 ${cj[i].toFixed(1)}%（${cvals[i]} 次）`
+        ? `${L}　愛發筆 ${my[i].toFixed(1)}%（${vals[i]} 次）　` +
+          `倉頡${CJ_KEY[L] ? `「${CJ_KEY[L]}」` : ''} ${cj[i].toFixed(1)}%（${cvals[i]} 次）`
         : `${L}　${vals[i]} 次　佔 ${pctOf(vals[i], total).toFixed(1)}%　（平均 ${mean.toFixed(1)}）`;
     };
     col.onmouseleave = () => $('#tip').style.display = 'none';
     chart.append(col);
-    axis.append(el('div', hot(i) ? 'hot' : '', L));
+    const ax = el('div', hot(i) ? 'hot' : '');
+    ax.append(el('span', '', L));
+    /* 對照時把倉頡的字根標在字母底下 —— 不然不知道自己的 J 是在跟人家的「十」比 */
+    if (cmp) ax.append(el('span', 'cjkey', CJ_KEY[L] || '·'));
+    axis.append(ax);
   });
 
   if (total) {
     const ml = el('div', 'meanline');
     ml.style.bottom = `${(mean / max) * 100}%`;
-    ml.append(el('span', '', cmp ? '平均 3.8%' : `平均 ${mean.toFixed(1)}`));
+    /* 對照模式兩邊都是佔比，平均都是 100%÷26 —— 是同一條線，畫兩條只是假精確 */
+    ml.append(el('span', '',
+      cmp ? `平均 ${mean.toFixed(1)}%（兩邊同一條：100% ÷ 26）` : `平均 ${mean.toFixed(1)}`));
     chart.append(ml);
   }
 
   /* 表格檢視（無障礙：顏色以外的第二條路；對照時也把倉頡那一欄一起給） */
   const tbl = $(tableId);
   const head = cmp
-    ? '<tr><th>字母</th><th>愛發筆 次數</th><th>愛發筆 佔比</th><th>倉頡 佔比</th><th>差</th></tr>'
+    ? '<tr><th>字母</th><th>倉頡字根</th><th>愛發筆 次數</th><th>愛發筆 佔比</th><th>倉頡 佔比</th><th>差</th></tr>'
     : '<tr><th>字母</th><th>次數</th><th>佔比</th><th>字根數</th></tr>';
   const rows = LETTERS.map((L, i) => cmp
-    ? `<tr><td>${L}</td><td>${vals[i]}</td><td>${my[i].toFixed(1)}%</td>
+    ? `<tr><td>${L}</td><td>${CJ_KEY[L] || '—'}</td><td>${vals[i]}</td><td>${my[i].toFixed(1)}%</td>
          <td>${cj[i].toFixed(1)}%</td>
          <td style="color:var(--muted)">${(my[i] - cj[i] >= 0 ? '+' : '') + (my[i] - cj[i]).toFixed(1)}</td></tr>`
     : `<tr><td>${L}</td><td>${vals[i]}</td>
