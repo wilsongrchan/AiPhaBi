@@ -37,7 +37,7 @@
   .prog { font-size:12px; color:var(--muted); }
   .prog b { color:var(--ink); }
 
-  .cols { flex:1; display:grid; grid-template-columns:225px 1fr 330px; min-height:0; }
+  .cols { flex:1; display:grid; grid-template-columns:200px 1fr 330px; min-height:0; }
   .pane { padding:12px 14px; overflow:auto; }
   .pane + .pane { border-left:1px solid var(--line); }
 
@@ -46,20 +46,21 @@
   .filters { display:flex; gap:4px; margin-bottom:8px; }
   .filters button { flex:1; padding:4px; font-size:12px; }
   .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .qlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(50px,1fr)); gap:5px; }
-  .qi { border:1px solid var(--line); border-radius:8px; background:var(--card); cursor:pointer;
-    text-align:center; padding:3px 1px 2px; }
+  .qlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(38px,1fr)); gap:3px; }
+  .qi { border:1px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer;
+    text-align:center; padding:1px 0 0; }
   .qi:hover { border-color:var(--accent); }
   .qi.on { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
-  .qi .c { font-size:22px; font-family:"PingFang TC","Songti TC",serif; line-height:1.1; }
-  .qi .cd { font:600 10px ui-monospace,monospace; color:var(--accent); min-height:13px; }
+  .qi .c { font-size:17px; font-family:"PingFang TC","Songti TC",serif; line-height:1.15; }
+  .qi .cd { font:600 8px ui-monospace,monospace; color:var(--accent); min-height:10px;
+    line-height:1.2; letter-spacing:-.02em; }
   .qi.todo .cd { color:var(--ghost); }
   .qi.warn { border-color:var(--bad);
     background:color-mix(in srgb, var(--bad) 10%, transparent); }
   .qi.warn .cd { color:var(--bad); }
-  .qi.warn::after { content:"⚠"; position:absolute; top:-5px; right:-4px; font-size:9px;
+  .qi.warn::after { content:"⚠"; position:absolute; top:-4px; right:-3px; font-size:7px;
     color:var(--bad); background:var(--card); border:1px solid var(--bad); border-radius:50%;
-    width:13px; height:13px; line-height:11px; }
+    width:10px; height:10px; line-height:9px; }
   .qi { position:relative; }
 
   .stage { display:flex; flex-direction:column; align-items:center; gap:9px; }
@@ -118,6 +119,14 @@
   .po:hover { border-color:var(--accent); }
   .po .c { font:700 17px ui-monospace,monospace; color:var(--accent); letter-spacing:.08em; }
   .po .m { font-size:10px; color:var(--muted); }
+  .prow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; }
+  .pseg { display:flex; gap:3px; flex-wrap:wrap; }
+  .pseg button { display:flex; flex-direction:column; align-items:center; gap:0;
+    padding:2px 6px; line-height:1.15; border-radius:7px; }
+  .pseg button b { font:700 13px ui-monospace,monospace; color:var(--accent); }
+  .pseg button span { font-size:9px; color:var(--muted); white-space:nowrap; }
+  .pseg button:hover { border-color:var(--accent); }
+  .pseg button.sk b { color:var(--muted); }
 
   .sugg { display:flex; gap:5px; flex-wrap:wrap; margin:6px 0 2px; min-height:26px; }
   .sg { display:flex; align-items:center; gap:5px; border:1px solid var(--line); border-radius:8px;
@@ -1004,25 +1013,61 @@ async function predict() {
   }
   out.forEach((p, i) => {
     const full = p.covered === p.total;
+    const row = el('div', 'prow');
+
+    /* 整組套用 */
     const b = el('div', 'po');
     b.append(el('span', 'c', p.segments.map(s => s.letter).join('')));
-    b.append(el('span', 'm', (full ? p.segments.map(s => s.label).join(' + ')
-      : `部分拆解 ${p.covered}/${p.total} 筆　其餘待你指派`) +
-      (p.skipped && p.skipped.length ? `　（略過 ${p.skipped.length} 筆）` : '')));
-    b.title = '套用此拆解';
+    b.append(el('span', 'm', (full ? '整組套用'
+      : `部分拆解 ${p.covered}/${p.total} 筆`) +
+      (p.skipped && p.skipped.length ? `　略過 ${p.skipped.length} 筆` : '')));
+    b.title = '套用整組拆解';
     b.onclick = () => {
       const add = p.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
-      segs = partial ? [...segs, ...add] : add;      /* 接續：接在已取的後面 */
+      segs = partial ? [...segs, ...add] : add;
       skipped = [...new Set([...(partial ? skipped : []), ...(p.skipped || [])])]
         .sort((a, b) => a - b);
       sel = []; touch(); drawGlyph(); renderSegs(); suggest(); predict();
     };
-    box.append(b);
     if (i === 0 && full) b.style.borderColor = 'var(--accent)';
     if (!full) b.style.borderStyle = 'dashed';
+    row.append(b);
+
+    /* 逐個字根：你只認同前面幾個的話，就只點那幾個 */
+    const one = el('div', 'pseg');
+    for (const sg of p.segments) {
+      const t = el('button', '');
+      t.innerHTML = `<b>${sg.letter}</b><span>第 ${sg.strokes.map(k => k + 1).join(',')} 筆</span>`;
+      t.title = `只採用這一個字根（${sg.label}）`;
+      t.onclick = () => applyOneSegment(sg);
+      one.append(t);
+    }
+    for (const st of (p.skipped || [])) {
+      const t = el('button', 'sk');
+      t.innerHTML = `<b>略</b><span>第 ${st + 1} 筆</span>`;
+      t.title = '只採用這個「略過」';
+      t.onclick = () => {
+        if (segs.some(s => s.strokes.includes(st)) || skipped.includes(st)) return;
+        skipped = [...skipped, st].sort((a, b) => a - b);
+        sel = []; touch(); drawGlyph(); renderSegs(); suggest(); predict();
+      };
+      one.append(t);
+    }
+    row.append(one);
+    box.append(row);
   });
 }
 $('#repredict').onclick = predict;
+
+/* 只採用預測裡的某一個字根（其餘照你自己的意思拆）*/
+function applyOneSegment(sg) {
+  /* 那幾筆若已經被指派或略過，就不能再取 */
+  if (sg.strokes.some(i => segs.some(s => s.strokes.includes(i)) || skipped.includes(i))) return;
+  segs.push({ strokes: [...sg.strokes], letter: sg.letter });
+  segs.sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+  sel = [];
+  touch(); drawGlyph(); renderSegs(); suggest(); predict();
+}
 
 /* ---------- 載入一個字 ---------- */
 async function load(c) {

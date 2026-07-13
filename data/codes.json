@@ -6559,10 +6559,16 @@
           6
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "I"
       }
     ],
-    "code": "TD",
-    "final": "TD",
+    "code": "TDI",
+    "final": "TDI",
     "overrides": [
       "merge:2-3"
     ]
@@ -12859,21 +12865,21 @@
       {
         "strokes": [
           0,
-          1
+          1,
+          2,
+          3
         ],
-        "letter": "U"
+        "letter": "D"
       },
       {
         "strokes": [
-          2,
-          3,
           4
         ],
-        "letter": "E"
+        "letter": "I"
       }
     ],
-    "code": "UE",
-    "final": "UE"
+    "code": "DI",
+    "final": "DI"
   },
   "軍": {
     "segments": [
@@ -14562,21 +14568,21 @@
       {
         "strokes": [
           6,
-          7
+          7,
+          8,
+          9
         ],
-        "letter": "U"
+        "letter": "D"
       },
       {
         "strokes": [
-          8,
-          9,
           10
         ],
-        "letter": "E"
+        "letter": "I"
       }
     ],
-    "code": "GMUE",
-    "final": "GMUE"
+    "code": "GMDI",
+    "final": "GMDI"
   },
   "請": {
     "segments": [
@@ -15286,5 +15292,50 @@
       }
     ],
     "code": "YTDI"
+  },
+  "詞": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "IIOCO",
+    "final": "IIOCO",
+    "skipped": [
+      8
+    ]
   }
 }
