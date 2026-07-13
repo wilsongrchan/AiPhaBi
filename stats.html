@@ -77,6 +77,15 @@
   .pill.bad { color:var(--bad); border-color:var(--bad); }
   .empty { color:var(--muted); font-size:13px; font-style:italic; }
   .hide { display:none; }
+
+  /* 特例：字要大到看得清筆畫，又要一眼數得出有幾個 */
+  .exchars a { display:inline-block; font:20px/1.4 "PingFang TC",serif; color:inherit;
+    text-decoration:none; padding:1px 4px; border-radius:6px; }
+  .exchars a:hover { background:var(--bar); }
+  .exgrp { padding:9px 0; border-bottom:1px solid var(--line); }
+  .exgrp:last-child { border-bottom:0; }
+  .exgrp .hd { font-size:12px; color:var(--muted); margin-bottom:3px; }
+  .exgrp .hd b { color:var(--ink); font-weight:600; }
 </style>
 </head>
 <body>
@@ -125,6 +134,13 @@
     <div class="sub" id="dupsub"></div>
     <div id="bylen" style="margin-bottom:14px"></div>
     <div id="dups"></div>
+  </section>
+
+  <section>
+    <h2>特例</h2>
+    <div class="sub">哪些字不照原則走。特例愈少，這套輸入法愈好教、也愈好記
+      —— 這一節就是讓你看得見它們在累積。點字可跳到該字的取碼頁。</div>
+    <div id="exceptions"></div>
   </section>
 </main>
 <div class="tip" id="tip"></div>
@@ -221,6 +237,8 @@ function render() {
     .sort((a, b) => a.best - b.best);
   const dupChars = dups.reduce((n, d) => n + d.chars.length, 0);
 
+  const exN = renderExceptions(entries);
+
   /* KPI —— 一排數字，不需要做成圖 */
   const kpi = (v, l, alert) =>
     `<div class="kpi${alert ? ' alert' : ''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
@@ -231,7 +249,9 @@ function render() {
     kpi(entries.length ? (dupChars / entries.length * 100).toFixed(1) + '%' : '0%',
         '重碼率（重碼字 ÷ 已取碼字）', dupChars > 0) +
     kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數') +
-    kpi(cut, '被縮短的字（超過碼長上限）');
+    kpi(cut, '被縮短的字（超過碼長上限）') +
+    kpi(entries.length ? (exN / entries.length * 100).toFixed(1) + '%' : '0%',
+        `特例率（${exN} 字沒照原則走）`, entries.length > 0 && exN / entries.length > 0.2);
 
   bars(all, '#chartAll', '#axisAll', '#tableAll');
   bars(first, '#chartFirst', '#axisFirst', '#tableFirst');
@@ -309,6 +329,74 @@ function render() {
           common ? `常用字（第 ${d.best + 1} 名）` : `第 ${d.best + 1} 名`}</span></td>
       </tr>`;
     }).join('')}</tbody></table>`;
+}
+
+/* ---------- 特例 ----------
+   「特例」＝這個字沒有照原則走，而你明確說了「就這樣」。分兩種：
+     1. 約定特例（notComponent）—— 整個字的拆法是約定的，別的字不要跟它學
+        （例：「二」單獨成字是 I I，但當偏旁時兩橫只取一個 I）
+     2. 忽略的警告（overrides）—— 某條原則在這個字身上被你按掉了
+   兩者都會讓「這套規則能不能自動推出全部的碼」打折，所以要看得見它們在長。 */
+const RULE_NAME = {                         /* overrides 的 key 前綴 → 原則 */
+  order: '筆順原則', letter: '字根比對', tier: '優次等原則',
+  merge: '能合不分原則', lone: '孤筆略過原則', skip: '孤筆略過原則',
+  skiplast: '孤筆略過原則', comp: '偏旁一致性', new: '新字根', absorb: '併入既有字根',
+};
+const RULE_WHY = {
+  '筆順原則': '取碼順序沒照筆順',
+  '字根比對': '這一碼配不上字根表裡的字根',
+  '優次等原則': '有更「優等」的字根可用卻沒用',
+  '能合不分原則': '兩碼合起來剛好是一個既有字根，卻分開取了',
+  '孤筆略過原則': '孤立的一橫／一豎照理要略過（或最後一筆該取）',
+  '偏旁一致性': '同偏旁的字，拆法跟這個字不一致',
+  '新字根': '這一碼是字根表裡沒有的新形',
+  '併入既有字根': '這一碼被併進了既有字根',
+};
+const link = ch => `<a href="/annotate?c=${encodeURIComponent(ch)}">${ch}</a>`;
+
+function renderExceptions(entries) {
+  const conv = entries.filter(([, r]) => r.notComponent).map(([ch]) => ch);
+  const notes = entries.filter(([, r]) => r.note).map(([ch, r]) => [ch, r.note]);
+
+  /* 忽略的警告：依「原則」歸類，同一個字在同一條原則下只算一次 */
+  const byRule = new Map();
+  let ovChars = 0;
+  for (const [ch, r] of entries) {
+    if (!r.overrides || !r.overrides.length) continue;
+    ovChars++;
+    for (const rule of new Set(r.overrides.map(k => RULE_NAME[k.split(':')[0]] || k.split(':')[0]))) {
+      if (!byRule.has(rule)) byRule.set(rule, []);
+      byRule.get(rule).push(ch);
+    }
+  }
+  const ruled = [...byRule.entries()].sort((a, b) => b[1].length - a[1].length);
+
+  const total = new Set([...conv, ...entries.filter(([, r]) => r.overrides?.length).map(([ch]) => ch)]).size;
+  const pct = entries.length ? (total / entries.length * 100).toFixed(1) : '0.0';
+
+  const grp = (title, hint, chars) => chars.length ? `<div class="exgrp">
+      <div class="hd"><b>${title}　${chars.length} 字</b>　${hint}</div>
+      <div class="exchars">${chars.map(link).join('')}</div>
+    </div>` : '';
+
+  $('#exceptions').innerHTML = !entries.length
+    ? '<div class="empty">還沒有取碼資料。</div>'
+    : (!total
+        ? '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有任何特例，全部的字都照原則走。</div>'
+        : `<div class="sub" style="margin:-4px 0 8px">
+             共 <b>${total}</b> 個字有特例，佔已取碼字的 <b>${pct}%</b>。</div>`) +
+      grp('約定特例', '整個字的拆法是約定的，其他字不會拿它當偏旁的範本。', conv) +
+      ruled.map(([rule, chars]) =>
+        grp(`忽略「${rule}」`, RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '', chars)
+      ).join('') +
+      (notes.length ? `<div class="exgrp">
+          <div class="hd"><b>有備註　${notes.length} 字</b>　你自己寫下的說明。</div>
+          ${notes.map(([ch, n]) =>
+            `<div class="exchars" style="display:flex;align-items:center;gap:4px;margin-top:2px">
+               ${link(ch)}
+               <span style="font-size:12px;color:var(--muted)">${n.replace(/</g, '&lt;')}</span></div>`).join('')}
+        </div>` : '');
+  return total;
 }
 
 for (const [btn, tbl, chart, axis] of [

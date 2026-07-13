@@ -49,8 +49,8 @@
       "enabled": true,
       "params": {
         "max": 5,
-        "head": 3,
-        "tail": 2
+        "head": 4,
+        "tail": 1
       },
       "note": "max＝最終碼長上限；head＝保留前幾碼；tail＝保留最後幾碼。完整碼仍會存起來（可回頭檢視拆解），但打字用的、統計用的、算重碼用的都是縮短後的碼。"
     },
@@ -69,7 +69,7 @@
       "id": "enclosure",
       "name": "包圍原則（凌駕筆順）",
       "desc": "先取「囗」及「匚」，再按筆順取內部字型。內部必須整個被包圍。",
-      "kind": "manual",
+      "kind": "enforced",
       "enabled": true,
       "note": "預測器已容許「一段筆畫 + 後補一筆」的字根（如囗＝首二筆＋末筆），但取碼次序仍照筆順排列。"
     },
@@ -77,7 +77,7 @@
       "id": "long_stroke",
       "name": "長「木」「大」原則（凌駕筆順）",
       "desc": "先取「木」「大」，再按筆順取左至右／中間字型。",
-      "kind": "manual",
+      "kind": "enforced",
       "enabled": true
     },
     {
