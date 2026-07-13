@@ -489,6 +489,10 @@
       [
         "V:期#6,7",
         "Y:錢#0,1"
+      ],
+      [
+        "C:越#7,8",
+        "R:成#0,1"
       ]
     ],
     "note_thresholds": "merge_threshold 是全域門檻；個別字根可用 thr 收緊（由「確實不同」的裁決自動設定）。"
@@ -998,7 +1002,8 @@
               "seen": [
                 "越"
               ],
-              "learned": true
+              "learned": true,
+              "thr": 0.2
             }
           ]
         },
@@ -4354,7 +4359,8 @@
                 "成",
                 "感"
               ],
-              "learned": true
+              "learned": true,
+              "thr": 0.2
             },
             {
               "glyph": {
@@ -4373,6 +4379,24 @@
                 "應",
                 "展",
                 "戶"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "病",
+                "strokes": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "ex": "病",
+              "count": 2,
+              "seen": [
+                "病"
               ],
               "learned": true
             },
@@ -4536,26 +4560,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "病",
-                "strokes": [
-                  0,
-                  1,
-                  2,
-                  3,
-                  4
-                ]
-              },
-              "ex": "病",
-              "count": 2,
-              "seen": [
-                "病"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
