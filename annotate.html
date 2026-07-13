@@ -199,6 +199,11 @@
   .chk .act button { padding:2px 8px; font-size:11px; white-space:nowrap; }
   .chk .act button.apply { border-color:var(--accent); color:var(--accent); font-weight:600; }
   .chk .act button.apply:hover { background:var(--accent); color:#fff; }
+  /* 嵌在分析頁的複審面板裡時：不要頁首、不要字表，也不要「儲存並下一字」——
+     那個「下一字」是這一頁自己的佇列，會把人帶離複審的那一組。 */
+  body.embed header, body.embed .cols > .pane:first-child { display:none; }
+  body.embed .cols { grid-template-columns:1fr 360px; }   /* 少了字表那一欄，格線也要跟著改 */
+
   .chk.muted { opacity:.62; }
   .chk.muted:hover { opacity:1; }
   /* 還原之後把那一列釘住：框起來、標成未處理，圖上的亮點也留著 */
@@ -2116,8 +2121,19 @@ Promise.all([
   libInfo();
   $('#status').textContent = '已載入';
   renderQueue();
-  const want = new URLSearchParams(location.search).get('c');
+  const q = new URLSearchParams(location.search);
+  const want = q.get('c');
+  /* 嵌在分析頁的複審面板裡：收起頁首與字表，「儲存並下一字」只儲存 —— 那個
+     「下一字」跳的是這一頁的佇列，會把人帶離正在複審的那一組。 */
+  if (q.get('embed')) {
+    document.body.classList.add('embed');
+    $('#saveNext').textContent = '儲存 ⏎';
+    $('#saveNext').onclick = save;
+  }
   await load(want && order.includes(want) ? want : (pool()[0] || '的'));
+  /* 從複審面板連過來時，直接把那一條警告標出來（它可能還是「已處理」狀態） */
+  const focus = q.get('focus');
+  if (focus) flashCheck(focus);
   auditAll();
 });
 </script>

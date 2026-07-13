@@ -91,6 +91,29 @@
     margin:14px 0 0; padding-top:10px; border-top:1px solid var(--line); }
   .exhead:first-child { margin-top:0; padding-top:0; border-top:0; }
   .exhead.bad { color:var(--bad); }
+  .revbtn { margin-left:8px; font-size:11px; padding:2px 8px; border-radius:20px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  .revbtn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* 逐字複審：整個取碼頁嵌進來 —— 與其在這裡重寫一遍檢查邏輯，不如直接用那一頁 */
+  .revwrap { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center; }
+  .revwrap.hide { display:none; }        /* 不然 .revwrap 的 flex 會蓋掉 .hide */
+  .revbox { width:96vw; height:94vh; display:flex; flex-direction:column;
+    background:var(--bg); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .revhd { display:flex; align-items:center; gap:10px; padding:10px 14px;
+    border-bottom:1px solid var(--line); background:var(--card); }
+  .revhd button { font-size:12px; padding:4px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer; }
+  .revhd button:hover { border-color:var(--accent); }
+  .revstrip { display:flex; gap:4px; flex-wrap:wrap; padding:7px 14px;
+    border-bottom:1px solid var(--line); background:var(--card); max-height:78px; overflow-y:auto; }
+  .revstrip span { font:16px/1.2 "PingFang TC",serif; padding:2px 6px; border-radius:6px;
+    cursor:pointer; border:1px solid transparent; }
+  .revstrip span:hover { background:var(--bar); }
+  .revstrip span.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .revstrip span.done { color:var(--ok); }        /* 這個字的那條警告已經處理掉了 */
+  .revwrap iframe { flex:1; width:100%; border:0; background:var(--bg); }
 </style>
 </head>
 <body>
@@ -144,10 +167,27 @@
   <section>
     <h2>特例</h2>
     <div class="sub">哪些字不照原則走。特例愈少，這套輸入法愈好教、也愈好記
-      —— 這一節就是讓你看得見它們在累積。點字可跳到該字的取碼頁。</div>
+      —— 這一節就是讓你看得見它們在累積。
+      點「逐字複審」可以在這一頁裡把整組翻完，不必來回跳頁。</div>
     <div id="exceptions"></div>
   </section>
 </main>
+
+<!-- 逐字複審：把取碼頁整個嵌進來，翻頁不必離開分析頁 -->
+<div id="rev" class="revwrap hide">
+  <div class="revbox">
+    <div class="revhd">
+      <b id="revTitle"></b>
+      <span id="revCount" class="sub" style="margin:0"></span>
+      <span style="flex:1"></span>
+      <button id="revPrev">← 上一個</button>
+      <button id="revNext">下一個 →</button>
+      <button id="revClose">關閉 (Esc)</button>
+    </div>
+    <div id="revStrip" class="revstrip"></div>
+    <iframe id="revFrame"></iframe>
+  </div>
+</div>
 <div class="tip" id="tip"></div>
 
 <script src="/assets/shape.js"></script>
@@ -359,20 +399,30 @@ const RULE_WHY = {
 };
 const link = ch => `<a href="/annotate?c=${encodeURIComponent(ch)}">${ch}</a>`;
 
-/* 依原則歸類（同一個字在同一條原則下只算一次） */
+/* 依原則歸類（同一個字在同一條原則下只算一次）。
+   每個字順便記下它在這條原則底下的 key，複審面板要靠它直接跳到那條警告。 */
 function groupByRule(entries, field) {
   const m = new Map();
   for (const [ch, r] of entries) {
-    for (const rule of new Set((r[field] || []).map(k => RULE_NAME[k.split(':')[0]] || k.split(':')[0]))) {
+    const byRule = new Map();
+    for (const k of r[field] || []) {
+      const rule = RULE_NAME[k.split(':')[0]] || k.split(':')[0];
+      if (!byRule.has(rule)) byRule.set(rule, []);
+      byRule.get(rule).push(k);
+    }
+    for (const [rule, keys] of byRule) {
       if (!m.has(rule)) m.set(rule, []);
-      m.get(rule).push(ch);
+      m.get(rule).push({ ch, keys });
     }
   }
   return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
 }
 const has = (r, f) => !!(r[f] && r[f].length);
 
+let QUEUES = [];                    /* 每次重畫都重建：複審面板要拿的字＋警告 key */
+
 function renderExceptions(entries) {
+  QUEUES = [];
   const conv = entries.filter(([, r]) => r.notComponent).map(([ch]) => ch);
   const notes = entries.filter(([, r]) => r.note).map(([ch, r]) => [ch, r.note]);
   const agreed = groupByRule(entries, 'conventional'); /* 約定這樣拆，明知破例也照做 */
@@ -387,10 +437,20 @@ function renderExceptions(entries) {
     .map(([ch]) => ch));
   const pct = n => entries.length ? (n / entries.length * 100).toFixed(1) : '0.0';
 
-  const grp = (title, hint, chars, cls = '') => chars.length ? `<div class="exgrp${cls}">
-      <div class="hd"><b>${title}　${chars.length} 字</b>　${hint}</div>
-      <div class="exchars">${chars.map(link).join('')}</div>
-    </div>` : '';
+  /* items = [{ch, keys}]（可複審）或 ['字',…]（純列表，例如約定特例整字）。
+     可複審的群組給一個「逐字複審」按鈕：在這裡直接翻，不必來回跳頁。 */
+  const grp = (title, hint, items, cls = '', field = null) => {
+    if (!items.length) return '';
+    const revable = typeof items[0] === 'object';
+    const chars = revable ? items.map(x => x.ch) : items;
+    const id = revable ? QUEUES.push({ title, items, field }) - 1 : -1;
+    return `<div class="exgrp${cls}">
+      <div class="hd"><b>${title}　${chars.length} 字</b>　${hint}
+        ${revable ? `<button class="revbtn" data-q="${id}">逐字複審 →</button>` : ''}</div>
+      <div class="exchars">${chars.map((c, i) =>
+        revable ? `<a href="#" data-q="${id}" data-i="${i}">${c}</a>` : link(c)).join('')}</div>
+    </div>`;
+  };
 
   if (!entries.length) { $('#exceptions').innerHTML = '<div class="empty">還沒有取碼資料。</div>'; return 0; }
   if (!exChars.size && !dpChars.size) {
@@ -409,7 +469,8 @@ function renderExceptions(entries) {
     (disputed.length || noComp.length
       ? `<div class="exhead bad">系統誤判 —— 這些字其實沒破例，是檢查看錯了；該修的是我們的邏輯</div>` +
         disputed.map(([rule, chars]) => grp(`「${rule}」誤判`,
-          `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`, chars, ' bad')).join('') +
+          `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`,
+          chars, ' bad', 'compliant')).join('') +
         (noComp.length ? `<div class="exgrp bad">
             <div class="hd"><b>認錯部件　${noComp.length} 字</b>
               檢查把某幾筆當成某個部件，其實只是形狀像（例：「碼」的前兩筆像「厂」，那其實是「石」的頭）。</div>
@@ -424,9 +485,10 @@ function renderExceptions(entries) {
     grp('約定特例', '整個字的拆法是約定的（多半是簡單的獨體字），其他字不會拿它當偏旁的範本。', conv) +
     agreed.map(([rule, chars]) => grp(`約定違反「${rule}」`,
       `這些字明知違反這條原則，仍照約定這樣拆（例：「上」的前兩筆本該合成一個 T，但獨體字就取 J I）。`,
-      chars)).join('') +
+      chars, '', 'conventional')).join('') +
     ignored.map(([rule, chars]) => grp(`忽略「${rule}」`,
-      RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '', chars)).join('') +
+      RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '',
+      chars, '', 'overrides')).join('') +
 
     (notes.length ? `<div class="exgrp">
         <div class="hd"><b>有備註　${notes.length} 字</b>　你自己寫下的說明。</div>
@@ -437,6 +499,83 @@ function renderExceptions(entries) {
       </div>` : '');
   return exChars.size;
 }
+
+/* ---------- 逐字複審 ----------
+   本來要複審一組（例：84 個「忽略能合不分」）得一個一個點進取碼頁、再退回來、
+   再捲到原位找下一個。現在把取碼頁嵌成 iframe，在這裡直接翻：
+   ←／→ 換字，字串上還會標出哪些已經處理掉了。
+   （不在這頁重寫檢查邏輯 —— 那一定會跟取碼頁走鐘。） */
+let rev = null;      /* {title, items:[{ch,keys}], i} */
+
+function openReview(qi, i = 0) {
+  const q = QUEUES[qi];
+  if (!q) return;
+  rev = { ...q, i };
+  $('#rev').classList.remove('hide');
+  renderReview();
+}
+function closeReview() {
+  rev = null;
+  $('#rev').classList.add('hide');
+  $('#revFrame').src = 'about:blank';
+  load();                       /* 面板裡改過的東西，回來要看得到 */
+}
+function moveReview(d) {
+  if (!rev) return;
+  rev.i = (rev.i + d + rev.items.length) % rev.items.length;
+  renderReview();
+}
+/* 這個字還留在這一組裡嗎？只看它原本那一格：改判成別的下場（忽略→約定特例）、
+   或改了拆法讓警告消失，對這一組來說都算處理完了。 */
+const stillOpen = it => {
+  const arr = new Set(((codes[it.ch] || {})[rev.field] || []));
+  return it.keys.some(k => arr.has(k));
+};
+
+/* 字串（strip）要能單獨重畫：面板裡存檔之後只更新「已處理」的標記，
+   絕不能順手重設 iframe 的網址 —— 那會把使用者正在改的東西沖掉。 */
+function renderStrip() {
+  if (!rev) return;
+  const left = rev.items.filter(stillOpen).length;
+  $('#revTitle').textContent = rev.title;
+  $('#revCount').textContent =
+    `第 ${rev.i + 1} / ${rev.items.length} 個　（還有 ${left} 個沒處理）`;
+  const strip = $('#revStrip');
+  strip.innerHTML = '';
+  rev.items.forEach((x, i) => {
+    const open = stillOpen(x);
+    const s = el('span', (i === rev.i ? 'on ' : '') + (open ? '' : 'done'), x.ch);
+    s.title = open ? '' : '已處理';
+    s.onclick = () => { rev.i = i; renderReview(); };
+    strip.append(s);
+  });
+  strip.querySelector('.on')?.scrollIntoView({ block: 'nearest' });
+}
+function renderReview() {
+  if (!rev) return;
+  renderStrip();
+  const it = rev.items[rev.i];
+  $('#revFrame').src = `/annotate?embed=1&c=${encodeURIComponent(it.ch)}` +
+    `&focus=${encodeURIComponent(it.keys[0])}`;
+}
+
+$('#revPrev').onclick = () => moveReview(-1);
+$('#revNext').onclick = () => moveReview(1);
+$('#revClose').onclick = closeReview;
+$('#rev').onclick = e => { if (e.target.id === 'rev') closeReview(); };
+document.addEventListener('keydown', e => {
+  if (!rev) return;
+  if (e.key === 'Escape') closeReview();
+  /* iframe 有焦點時鍵盤事件不會傳到這裡，所以還是留著上一個／下一個按鈕 */
+  else if (e.key === 'ArrowLeft') moveReview(-1);
+  else if (e.key === 'ArrowRight') moveReview(1);
+});
+$('#exceptions').addEventListener('click', e => {
+  const b = e.target.closest('.revbtn');
+  if (b) return openReview(+b.dataset.q, 0);
+  const a = e.target.closest('a[data-q]');
+  if (a) { e.preventDefault(); openReview(+a.dataset.q, +a.dataset.i); }
+});
 
 for (const [btn, tbl, chart, axis] of [
   ['#tabFreq', '#tableAll', '#chartAll', '#axisAll'],
@@ -460,6 +599,7 @@ async function load() {
     fetch('/api/cangjie').then(r => r.json()).catch(() => null),
   ]);
   render();
+  renderStrip();      /* 複審面板開著的話：更新「已處理」標記，但不動 iframe */
   $('#meta').textContent = '隨字根表／碼表自動更新';
 }
 fetch('/api/freq').then(r => r.json()).then(f => {
