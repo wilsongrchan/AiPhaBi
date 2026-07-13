@@ -221,15 +221,24 @@
   .rvL { font:700 22px ui-monospace,monospace; color:var(--accent); }
   .rvdesc { font-size:12px; color:var(--ink); flex:1; }
   .rvn { font:600 11px ui-monospace,monospace; color:var(--muted); }
-  .rvglyph svg { width:150px; height:150px; display:block; margin:0 auto;
+  .rvstage { display:flex; align-items:center; gap:4px; justify-content:center; }
+  .rvarrow { padding:2px 8px; font-size:15px; line-height:1; color:var(--muted); }
+  .rvarrow:disabled { opacity:.25; }
+  .rvglyph svg { width:150px; height:150px; display:block;
     border:1px solid var(--line); border-radius:10px; background:var(--card); }
   .rvglyph svg .on { fill:var(--accent); }
   .rvglyph svg .off { fill:var(--ghost); opacity:.45; }
-  .rvsrc { font-size:11px; color:var(--muted); text-align:center; margin-top:5px; }
-  .rvchars { display:flex; flex-wrap:wrap; gap:3px; margin-top:7px; }
-  .rvchars a { font-size:18px; font-family:"PingFang TC",serif; color:var(--ink);
-    text-decoration:none; border:1px solid var(--line); border-radius:6px; padding:0 4px; }
-  .rvchars a:hover { border-color:var(--accent); color:var(--accent); }
+  .rvsrc { font-size:11px; color:var(--muted); text-align:center; margin-top:6px; }
+  .rvsrc b { font-size:15px; color:var(--ink); font-family:"PingFang TC",serif; }
+  .rvsrc a { color:var(--accent); text-decoration:none; margin-left:2px; }
+  .rvtag { font:600 10px ui-monospace,monospace; color:var(--muted);
+    border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+  .rvpos { display:block; font:600 10px ui-monospace,monospace; color:var(--muted); margin-top:2px; }
+  .rvchars { display:flex; flex-wrap:wrap; gap:3px; margin-top:8px; justify-content:center; }
+  .rvchars button { font-size:17px; font-family:"PingFang TC",serif; color:var(--ink);
+    border:1px solid var(--line); border-radius:6px; padding:1px 5px; line-height:1.3; }
+  .rvchars button:hover { border-color:var(--accent); color:var(--accent); }
+  .rvchars button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
   .rvacts { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; }
   .dnone { font-size:11px; color:var(--muted); }
   .dupe-row .dacts { margin-left:auto; display:flex; gap:4px; flex:none; }
@@ -874,6 +883,17 @@ async function openReview(i) {
 
   const box = $('#rvcards'); box.innerHTML = '';
   for (const item of g.shapes) {
+    /* 這個字根可以在哪些字裡看到：定義它的那個字 + 所有用到它的字。
+       點小字＝大圖換成那個字，並把該字根的筆畫塗橘 —— 看得到它在真實的字裡長怎樣。 */
+    const users = await charsUsing(item.s, item.letter);
+    const views = [
+      { ch: item.s.glyph.src, strokes: item.s.glyph.strokes, tag: '定義來源' },
+      ...users
+        .filter(u => u.ch !== item.s.glyph.src)
+        .map(u => ({ ch: u.ch, strokes: u.seg.strokes, tag: u.code || '' })),
+    ];
+    let at = 0;
+
     const card = el('div', 'rvcard');
     const head = el('div', 'rvhead');
     head.append(el('span', 'rvL', item.letter));
@@ -883,31 +903,47 @@ async function openReview(i) {
     head.append(el('span', 'rvn', `×${item.s.count || 1}`));
     card.append(head);
 
-    const src2 = item.s.glyph.src;
-    const gl = await Zigen.getGlyph(src2);
-    const sv = el('div', 'rvglyph');
-    sv.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
-      gl.strokes.map((d, k) =>
-        `<path class="${item.s.glyph.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
-      '</g></svg>';
-    card.append(sv);
-    card.append(el('div', 'rvsrc',
-      `取自「${src2}」第 ${item.s.glyph.strokes.map(k => k + 1).join('、')} 筆`));
+    const stage = el('div', 'rvstage');
+    const prev = el('button', 'rvarrow', '‹');
+    const glyph = el('div', 'rvglyph');
+    const next = el('button', 'rvarrow', '›');
+    stage.append(prev, glyph, next);
+    card.append(stage);
 
-    const users = await charsUsing(item.s, item.letter);
-    const cs = el('div', 'rvchars');
-    if (!users.length) cs.innerHTML = '<span class="dnone">還沒有字用到它</span>';
-    else {
-      for (const u of users.slice(0, 12)) {
-        const a = el('a', '', u.ch);
-        a.href = '/annotate?c=' + encodeURIComponent(u.ch);
-        a.target = '_blank';
-        a.title = `${u.ch} = ${u.code}`;
-        cs.append(a);
-      }
-      if (users.length > 12) cs.append(el('span', 'dnone', `…共 ${users.length} 字`));
-    }
-    card.append(cs);
+    const cap = el('div', 'rvsrc');
+    card.append(cap);
+
+    const chars = el('div', 'rvchars');
+    card.append(chars);
+
+    const draw = async () => {
+      const v = views[at];
+      const gl = await Zigen.getGlyph(v.ch);
+      glyph.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+        gl.strokes.map((d, k) =>
+          `<path class="${v.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+        '</g></svg>';
+      cap.innerHTML =
+        `<b>${v.ch}</b> 第 ${v.strokes.map(k => k + 1).join('、')} 筆` +
+        (v.tag ? `　<span class="rvtag">${v.tag}</span>` : '') +
+        `　<a href="/annotate?c=${encodeURIComponent(v.ch)}" target="_blank" ` +
+        'title="在逐字取碼頁打開">↗</a>' +
+        `<span class="rvpos">${at + 1} / ${views.length}</span>`;
+      for (const [k, a] of [...chars.children].entries())
+        a.classList.toggle('on', k === at);
+      prev.disabled = next.disabled = views.length < 2;
+    };
+
+    views.forEach((v, k) => {
+      const a = el('button', '', v.ch);
+      a.title = v.tag ? `${v.ch}　${v.tag}` : v.ch;
+      a.onclick = () => { at = k; draw(); };
+      chars.append(a);
+    });
+    prev.onclick = () => { at = (at - 1 + views.length) % views.length; draw(); };
+    next.onclick = () => { at = (at + 1) % views.length; draw(); };
+    await draw();
+
     box.append(card);
   }
 

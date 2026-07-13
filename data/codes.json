@@ -288,16 +288,22 @@
       {
         "strokes": [
           0,
-          1,
+          1
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
           2
         ],
-        "letter": "K"
+        "letter": "L"
       }
     ],
-    "code": "K",
+    "code": "XL",
     "overrides": [
       "tier:1"
-    ]
+    ],
+    "final": "XL"
   },
   "來": {
     "segments": [
@@ -6135,5 +6141,83 @@
     ],
     "code": "AAFTQ",
     "final": "AAFQ"
+  },
+  "風": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "N"
+      },
+      {
+        "strokes": [
+          2
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "G"
+      }
+    ],
+    "code": "NJOG",
+    "final": "NJOG"
+  },
+  "二": {
+    "overrides": [
+      "merge:0-1",
+      "lone:0"
+    ],
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          1
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "II",
+    "final": "II",
+    "note": "約定原則。"
+  },
+  "氣": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "A"
+      },
+      {
+        "strokes": [
+          3
+        ],
+        "letter": "Z"
+      }
+    ],
+    "code": "AZ",
+    "final": "AZ"
   }
 }
