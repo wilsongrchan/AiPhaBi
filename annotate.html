@@ -290,6 +290,30 @@
 </div>
 
 <script src="/assets/shape.js"></script>
+<script>
+/* 存檔前先問伺服器：我讀到的版本還是最新的嗎？不是的話就別蓋掉別人的改動。 */
+async function putGuarded(url, body, key) {
+  const st = await fetch('/api/state').then(r => r.json());
+  const base = window.__baseStamp && window.__baseStamp[key];
+  const r = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json',
+               ...(base ? { 'X-Base-Stamp': String(base) } : {}) },
+    body,
+  });
+  if (r.status === 409) {
+    const ok = confirm(
+      '這份資料已經被「別的分頁或程式」改過了。\n\n' +
+      '按「確定」＝用你這邊的版本覆蓋掉對方的改動。\n' +
+      '按「取消」＝丟掉你這邊未儲存的改動，重新載入最新的資料。');
+    if (!ok) { location.reload(); return { ok: false, reloaded: true }; }
+    return fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+  }
+  const after = await fetch('/api/state').then(r => r.json());
+  window.__baseStamp = { ...(window.__baseStamp || {}), ...after };
+  return r;
+}
+</script>
 <script src="/assets/zigen.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -309,8 +333,7 @@ async function teachKind(strokeIdx, kind) {
   const v = Shape.strokeVec([medians[strokeIdx]]);
   if (!v) return;
   learned.stroke_kinds.push({ vec: [...v], kind, from: cur, stroke: strokeIdx + 1 });
-  await fetch('/api/learned', { method: 'PUT',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(learned, null, 2) });
+  await putGuarded('/api/learned', JSON.stringify(learned, null, 2), 'learned');
   $('#status').textContent = `已學會：這種筆是「${kind}」`;
   $('#status').className = 'saved';
   renderSegs(); predict(); auditAll();
@@ -753,6 +776,7 @@ async function rejectMatch(r) {
 async function resyncZigen() {
   zigen = await fetch('/api/zigen').then(r => r.json());
   stamp = await fetchStamp();
+  window.__baseStamp = await fetch('/api/state').then(r => r.json());
   lib = await Zigen.buildLibrary(zigen);
   libInfo();
   renderSegs(); suggest(); predict(); auditAll();
@@ -1354,10 +1378,99 @@ function reviewProposals(list, newShapes) {
   });
 }
 
+/* ---------- 改了拆法之後，把字根表裡「這個字的舊帳」清掉 ----------
+   字根表與碼表是兩份資料：把 天 從 FL 改成 IY，F 底下那條「天[1,2,3]」不會自己消失，
+   它的例字裡還留著「天」，定義來源也還是「天」—— 字根表上就會看到天的前三筆被當成 F。
+   所以每次存檔都要對帳：這個字現在還用不用那條字根？
+     不用了 → 從例字／計次裡拿掉；
+     而且那條字根還是用「這個字」定義的 → 改用另一個仍在用它的字來定義（重新錨定）；
+     連一個字都不用它了 → 問你要不要刪掉。 */
+async function reconcileZigen(ch) {
+  const globalThr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const thrOf = sh => (sh.thr != null) ? sh.thr : globalThr;
+
+  /* 這個字現在用的形狀 */
+  const mine = segs.map(sg => ({
+    letter: sg.letter, strokes: sg.strokes,
+    vec: Shape.strokeVec(sg.strokes.map(i => medians[i])), n: sg.strokes.length,
+  })).filter(x => x.vec);
+
+  const orphans = [];
+  for (const L of zigen.letters) {
+    for (const it of L.intentions) {
+      for (const sh of [...it.shapes]) {
+        if (!sh.glyph || !(sh.seen || []).includes(ch)) continue;
+        const stillUsed = mine.some(m =>
+          m.letter === L.letter && m.n === sh.glyph.strokes.length &&
+          Shape.dist(m.vec, Shape.strokeVec(
+            sh.glyph.strokes.map(i => glyphCacheMedians(sh.glyph.src, i)))) < thrOf(sh));
+        if (stillUsed) continue;
+
+        sh.seen = sh.seen.filter(c => c !== ch);
+        sh.count = Math.max(0, (sh.count || 1) - 1);
+        zigenDirty = true;
+
+        /* 定義來源就是這個字 → 換一個仍在用它的字來定義 */
+        if (sh.glyph.src === ch) {
+          const anchor = await reanchor(sh, L.letter);
+          if (!anchor) orphans.push({ L, it, sh });
+        }
+      }
+    }
+  }
+
+  for (const o of orphans) {
+    const label = `${o.sh.glyph.src}[${o.sh.glyph.strokes.map(i => i + 1).join('')}]`;
+    if (confirm(`${o.L.letter} 底下的字根 ${label} 現在沒有任何已取碼的字在用了` +
+                '（它本來是用這個字定義的）。要把它從字根表刪掉嗎？')) {
+      const k = o.it.shapes.indexOf(o.sh);
+      if (k >= 0) o.it.shapes.splice(k, 1);
+      zigenDirty = true;
+    }
+  }
+}
+
+/* 快取用：某個字某一筆的中線 */
+const _medCache = new Map();
+function glyphCacheMedians(src, i) {
+  const g = _medCache.get(src);
+  return g ? g[i] : null;
+}
+async function primeMedians(srcs) {
+  for (const s of srcs) {
+    if (_medCache.has(s)) continue;
+    const g = await Zigen.getGlyph(s);
+    if (g) _medCache.set(s, g.medians);
+  }
+}
+
+/* 換一個仍在用這條字根的字來當定義來源 */
+async function reanchor(sh, letter) {
+  for (const ch of sh.seen || []) {
+    const rec = codes[ch];
+    if (!rec || !rec.segments) continue;
+    const g = await Zigen.getGlyph(ch);
+    if (!g) continue;
+    const sg = rec.segments.find(x => x.letter === letter &&
+      x.strokes.length === sh.glyph.strokes.length);
+    if (!sg) continue;
+    sh.glyph = { src: ch, strokes: [...sg.strokes] };
+    if (sh.ex === undefined || sh.ex === '') sh.ex = ch;
+    zigenDirty = true;
+    return true;
+  }
+  return false;
+}
+
 /* ---------- 儲存：碼表 + 學回字根表 ---------- */
 async function save() {
   const newborn = [];                 /* 這次存檔新生的字根 */
   if (cur && segs.length) {
+    /* 先對帳：把這個字不再使用的舊字根從例字／計次裡拿掉 */
+    await primeMedians(zigen.letters.flatMap(L => L.intentions.flatMap(it =>
+      it.shapes.filter(sh => sh.glyph && (sh.seen || []).includes(cur))
+        .map(sh => sh.glyph.src))));
+    await reconcileZigen(cur);
     /* 每個確認的字根都併入字根表（同形合併計次，新形新增） */
     for (const s of segs) {
       const vec = Shape.strokeVec(s.strokes.map(i => medians[i]));
@@ -1376,11 +1489,10 @@ async function save() {
     delete codes[cur].segments; delete codes[cur].code; delete codes[cur].final;
   }
   $('#status').textContent = '儲存中…';
-  const puts = [fetch('/api/codes', { method: 'PUT',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes) })];
-  if (zigenDirty) puts.push(fetch('/api/zigen', { method: 'PUT',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(zigen) }));
+  const puts = [putGuarded('/api/codes', JSON.stringify(codes), 'codes')];
+  if (zigenDirty) puts.push(putGuarded('/api/zigen', JSON.stringify(zigen), 'zigen'));
   const rs = await Promise.all(puts);
+  if (rs.some(r => r && r.reloaded)) return;
   if (rs.every(r => r.ok)) {
     dirty = false; zigenDirty = false;
     $('#status').textContent = '已儲存 ✓'; $('#status').className = 'saved';
@@ -1409,6 +1521,7 @@ async function pollZigen() {
   rules = await fetch('/api/rules').then(r => r.json());
   learned = await fetch('/api/learned').then(r => r.json())
     .catch(() => learned) || learned;
+  window.__baseStamp = await fetch('/api/state').then(r => r.json());
   lib = await Zigen.buildLibrary(zigen);
   libInfo(); suggest();
   if (!segs.length) predict();
@@ -1487,6 +1600,7 @@ Promise.all([
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
+  window.__baseStamp = await fetch('/api/state').then(r => r.json());
   lib = await Zigen.buildLibrary(zigen);
   libInfo();
   $('#status').textContent = '已載入';

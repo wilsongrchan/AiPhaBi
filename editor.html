@@ -473,6 +473,30 @@
 </div>
 
 <script src="/assets/shape.js"></script>
+<script>
+/* 存檔前先問伺服器：我讀到的版本還是最新的嗎？不是的話就別蓋掉別人的改動。 */
+async function putGuarded(url, body, key) {
+  const st = await fetch('/api/state').then(r => r.json());
+  const base = window.__baseStamp && window.__baseStamp[key];
+  const r = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json',
+               ...(base ? { 'X-Base-Stamp': String(base) } : {}) },
+    body,
+  });
+  if (r.status === 409) {
+    const ok = confirm(
+      '這份資料已經被「別的分頁或程式」改過了。\n\n' +
+      '按「確定」＝用你這邊的版本覆蓋掉對方的改動。\n' +
+      '按「取消」＝丟掉你這邊未儲存的改動，重新載入最新的資料。');
+    if (!ok) { location.reload(); return { ok: false, reloaded: true }; }
+    return fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+  }
+  const after = await fetch('/api/state').then(r => r.json());
+  window.__baseStamp = { ...(window.__baseStamp || {}), ...after };
+  return r;
+}
+</script>
 <script src="/assets/zigen.js"></script>
 <script>
 /* ============================== state ============================== */
@@ -1314,8 +1338,7 @@ async function scanAndApply(shape, letter) {
       if (a.newSkip.length) a.rec.skipped = a.newSkip; else delete a.rec.skipped;
       delete a.rec.final;
     }
-    await fetch('/api/codes', { method: 'PUT',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes, null, 2) });
+    await putGuarded('/api/codes', JSON.stringify(codes, null, 2), 'codes');
     $('#status').textContent = `已更新 ${picked.size} 個字`;
     $('#status').className = 'saved';
     codesCache = null;
@@ -2044,8 +2067,8 @@ async function save() {
   codesCache = null;
   sugLib = null;
   $('#status').textContent = '儲存中…';
-  const r = await fetch('/api/zigen', { method: 'PUT',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) });
+  const r = await putGuarded('/api/zigen', JSON.stringify(data, null, 2), 'zigen');
+  if (r && r.reloaded) return;
   if (r.ok) { dirty = false; $('#status').textContent = '已儲存 ✓'; $('#status').className = 'saved'; }
   else { $('#status').textContent = '儲存失敗'; $('#status').className = 'dirty'; }
 }
@@ -2098,6 +2121,7 @@ setInterval(async () => {
   if (s === stamp) return;
   stamp = s;
   data = await fetch('/api/zigen').then(r => r.json());
+  window.__baseStamp = await fetch('/api/state').then(r => r.json());
   sugLib = null;
   render();
   $('#status').textContent = '已同步 ↻'; $('#status').className = 'saved';
@@ -2105,8 +2129,9 @@ setInterval(async () => {
 
 setInterval(() => { if (dirty) save(); }, 15000);
 window.onbeforeunload = e => { if (dirty) return e.returnValue = '有未儲存的修改'; };
-Promise.all([fetch('/api/zigen').then(r => r.json()), fetchStamp()]).then(([d, s]) => {
-  data = d; stamp = s;
+Promise.all([fetch('/api/zigen').then(r => r.json()), fetchStamp(),
+             fetch('/api/state').then(r => r.json())]).then(([d, s, st]) => {
+  data = d; stamp = s; window.__baseStamp = st;
   thr.value = data.meta.merge_threshold || 0.25;
   thrv.textContent = (+thr.value).toFixed(3);
   render();

@@ -197,6 +197,15 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as e:
             return self._send(400, json.dumps({"error": str(e)}))
 
+        # 樂觀鎖：分頁送出它「讀到的版本」，若檔案在那之後被別人改過就擋下來。
+        # 不然一個開著舊資料的分頁，autosave 一下就把別處的修改整個蓋掉。
+        base = self.headers.get("X-Base-Stamp")
+        now = str(dest.stat().st_mtime_ns) if dest.exists() else "0"
+        if base and base != now:
+            return self._send(409, json.dumps({
+                "error": "stale", "current": now,
+                "message": "檔案已被別的分頁或程式改過"}))
+
         BACKUPS.mkdir(parents=True, exist_ok=True)
         if dest.exists():
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
