@@ -86,6 +86,11 @@
   .exgrp:last-child { border-bottom:0; }
   .exgrp .hd { font-size:12px; color:var(--muted); margin-bottom:3px; }
   .exgrp .hd b { color:var(--ink); font-weight:600; }
+  .exgrp.bad .hd b { color:var(--bad); }
+  .exhead { font-size:11px; font-weight:650; letter-spacing:.06em; color:var(--muted);
+    margin:14px 0 0; padding-top:10px; border-top:1px solid var(--line); }
+  .exhead:first-child { margin-top:0; padding-top:0; border-top:0; }
+  .exhead.bad { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -354,49 +359,65 @@ const RULE_WHY = {
 };
 const link = ch => `<a href="/annotate?c=${encodeURIComponent(ch)}">${ch}</a>`;
 
+/* 依原則歸類（同一個字在同一條原則下只算一次） */
+function groupByRule(entries, field) {
+  const m = new Map();
+  for (const [ch, r] of entries) {
+    for (const rule of new Set((r[field] || []).map(k => RULE_NAME[k.split(':')[0]] || k.split(':')[0]))) {
+      if (!m.has(rule)) m.set(rule, []);
+      m.get(rule).push(ch);
+    }
+  }
+  return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
+}
+const has = (r, f) => !!(r[f] && r[f].length);
+
 function renderExceptions(entries) {
   const conv = entries.filter(([, r]) => r.notComponent).map(([ch]) => ch);
   const notes = entries.filter(([, r]) => r.note).map(([ch, r]) => [ch, r.note]);
+  const ignored = groupByRule(entries, 'overrides');   /* 這個字是例外 */
+  const disputed = groupByRule(entries, 'disputes');   /* 你說原則判錯了 */
 
-  /* 忽略的警告：依「原則」歸類，同一個字在同一條原則下只算一次 */
-  const byRule = new Map();
-  let ovChars = 0;
-  for (const [ch, r] of entries) {
-    if (!r.overrides || !r.overrides.length) continue;
-    ovChars++;
-    for (const rule of new Set(r.overrides.map(k => RULE_NAME[k.split(':')[0]] || k.split(':')[0]))) {
-      if (!byRule.has(rule)) byRule.set(rule, []);
-      byRule.get(rule).push(ch);
-    }
-  }
-  const ruled = [...byRule.entries()].sort((a, b) => b[1].length - a[1].length);
+  const exChars = new Set([...conv, ...entries.filter(([, r]) => has(r, 'overrides')).map(([ch]) => ch)]);
+  const dpChars = new Set(entries.filter(([, r]) => has(r, 'disputes')).map(([ch]) => ch));
+  const pct = n => entries.length ? (n / entries.length * 100).toFixed(1) : '0.0';
 
-  const total = new Set([...conv, ...entries.filter(([, r]) => r.overrides?.length).map(([ch]) => ch)]).size;
-  const pct = entries.length ? (total / entries.length * 100).toFixed(1) : '0.0';
-
-  const grp = (title, hint, chars) => chars.length ? `<div class="exgrp">
+  const grp = (title, hint, chars, cls = '') => chars.length ? `<div class="exgrp${cls}">
       <div class="hd"><b>${title}　${chars.length} 字</b>　${hint}</div>
       <div class="exchars">${chars.map(link).join('')}</div>
     </div>` : '';
 
-  $('#exceptions').innerHTML = !entries.length
-    ? '<div class="empty">還沒有取碼資料。</div>'
-    : (!total
-        ? '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有任何特例，全部的字都照原則走。</div>'
-        : `<div class="sub" style="margin:-4px 0 8px">
-             共 <b>${total}</b> 個字有特例，佔已取碼字的 <b>${pct}%</b>。</div>`) +
-      grp('約定特例', '整個字的拆法是約定的，其他字不會拿它當偏旁的範本。', conv) +
-      ruled.map(([rule, chars]) =>
-        grp(`忽略「${rule}」`, RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '', chars)
-      ).join('') +
-      (notes.length ? `<div class="exgrp">
-          <div class="hd"><b>有備註　${notes.length} 字</b>　你自己寫下的說明。</div>
-          ${notes.map(([ch, n]) =>
-            `<div class="exchars" style="display:flex;align-items:center;gap:4px;margin-top:2px">
-               ${link(ch)}
-               <span style="font-size:12px;color:var(--muted)">${n.replace(/</g, '&lt;')}</span></div>`).join('')}
-        </div>` : '');
-  return total;
+  if (!entries.length) { $('#exceptions').innerHTML = '<div class="empty">還沒有取碼資料。</div>'; return 0; }
+  if (!exChars.size && !dpChars.size) {
+    $('#exceptions').innerHTML =
+      '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有任何特例，全部的字都照原則走。</div>';
+    return 0;
+  }
+
+  /* 「原則有誤」不是特例 —— 它是規則的 bug 回報：同一條原則被很多字判錯，
+     那要改的是規則，不是那些字。所以分開列、分開算。 */
+  $('#exceptions').innerHTML =
+    `<div class="sub" style="margin:-4px 0 10px">
+       <b>${exChars.size}</b> 字是特例（${pct(exChars.size)}%）；
+       另有 <b>${dpChars.size}</b> 字你判定<b>原則有誤</b>（${pct(dpChars.size)}%）—— 那是規則待修，不算特例。</div>` +
+
+    (disputed.length ? `<div class="exhead bad">你判定「原則有誤」的 —— 這些是規則要修的地方</div>` +
+      disputed.map(([rule, chars]) => grp(`「${rule}」判錯了`,
+        `${chars.length} 個字說這條原則的判斷不對。數字愈大，愈該回頭改規則。`, chars, ' bad')).join('') : '') +
+
+    `<div class="exhead">真正的特例 —— 原則沒錯，是這些字不照它走</div>` +
+    grp('約定特例', '整個字的拆法是約定的，其他字不會拿它當偏旁的範本。', conv) +
+    ignored.map(([rule, chars]) => grp(`忽略「${rule}」`,
+      RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '', chars)).join('') +
+
+    (notes.length ? `<div class="exgrp">
+        <div class="hd"><b>有備註　${notes.length} 字</b>　你自己寫下的說明。</div>
+        ${notes.map(([ch, n]) =>
+          `<div class="exchars" style="display:flex;align-items:center;gap:4px;margin-top:2px">
+             ${link(ch)}
+             <span style="font-size:12px;color:var(--muted)">${n.replace(/</g, '&lt;')}</span></div>`).join('')}
+      </div>` : '');
+  return exChars.size;
 }
 
 for (const [btn, tbl, chart, axis] of [

@@ -199,7 +199,10 @@
   .chk .act button { padding:2px 8px; font-size:11px; white-space:nowrap; }
   .chk .act button.apply { border-color:var(--accent); color:var(--accent); font-weight:600; }
   .chk .act button.apply:hover { background:var(--accent); color:#fff; }
-  .chk.muted { opacity:.5; }
+  .chk.muted { opacity:.62; }
+  /* 已壓下的警告不能藏起來 —— 看不見就等於不知道自己放過了什麼 */
+  .mutedzone:not(:empty) { margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); }
+  .mutedhd { font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:.04em; }
   .clash .ch { font-size:17px; font-family:"PingFang TC",serif; }
   /* 新字根 → 其他字要不要跟著改 */
   #propagate { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
@@ -939,67 +942,129 @@ function renderCheckRow(c, rec) {
       ex.onclick = () => markNotComponent(c.except);
       act.append(ex);
     }
+    /* 「忽略」與「原則有誤」都會讓警告閉嘴，但意思完全相反，所以分開記：
+       忽略 → 這個字是例外（原則沒錯，只是這個字不照它走）
+       原則有誤 → 原則（或它的實作）判斷錯了，該改的是規則，不是這個字
+       分析頁把兩者分開列 —— 一堆字都在說同一條原則有誤，那就是規則要修。 */
     const ig = el('button', '', '忽略');
-    ig.title = '這個字是例外，不用再提醒';
-    ig.onclick = async () => {
-      rec.overrides = [...(rec.overrides || []), c.key];
-      codes[cur] = rec;
-      touch(); renderChecks();
-      audit.set(cur, await auditChar(cur)); markQueue(cur);
-    };
+    ig.title = '這個字是例外，不用再提醒（原則本身沒錯）';
+    ig.onclick = async () => { rec.overrides = [...(rec.overrides || []), c.key]; await muteCheck(rec); };
     act.append(ig);
+
+    const dp = el('button', '', '原則有誤');
+    dp.title = '我的拆法才對，是這條原則（或它的判斷）錯了';
+    dp.onclick = async () => {
+      const why = prompt(`「${c.rule}」哪裡判斷錯了？（可留空）\n\n` +
+        `它說：${c.msg.replace(/<[^>]+>/g, '')}`, '');
+      if (why === null) return;                      /* 按取消就當沒事 */
+      rec.disputes = [...(rec.disputes || []), c.key];
+      if (why.trim()) rec.disputeWhy = { ...(rec.disputeWhy || {}), [c.key]: why.trim() };
+      await muteCheck(rec);
+    };
+    act.append(dp);
   }
   if (act.children.length) d.append(act);
   return d;
 }
 
+/* 被壓下的警告：忽略（這個字是例外）＋ 原則有誤（規則該改）—— 兩者都不再提醒 */
+const muted = rec => new Set([...(rec.overrides || []), ...(rec.disputes || [])]);
+/* key 前綴 → 原則名（用來描述已經不再出現的舊警告，那時拿不到 c.rule） */
+const RULE_OF = { order: '筆順原則', letter: '字根比對', new: '新字根', absorb: '併入既有字根',
+  tier: '優次等原則', merge: '能合不分原則', lone: '孤筆略過原則', skip: '孤筆略過原則',
+  skiplast: '孤筆略過原則', comp: '偏旁一致性' };
+
+async function unmute(rec, key) {
+  for (const f of ['overrides', 'disputes']) {
+    if (!rec[f]) continue;
+    rec[f] = rec[f].filter(k => k !== key);
+    if (!rec[f].length) delete rec[f];
+  }
+  if (rec.disputeWhy) {
+    delete rec.disputeWhy[key];
+    if (!Object.keys(rec.disputeWhy).length) delete rec.disputeWhy;
+  }
+  await muteCheck(rec);
+}
+async function muteCheck(rec) {       /* 壓下／還原之後都要做的事 */
+  codes[cur] = rec;
+  touch(); renderChecks();
+  audit.set(cur, await auditChar(cur)); markQueue(cur);
+}
+
+/* 已壓下的警告仍要看得見 —— 否則點進字裡只看到一片安靜，
+   根本不知道自己當初到底放過了什麼。 */
+function renderMutedRow(key, rec, msg, rule) {
+  const disputed = (rec.disputes || []).includes(key);
+  const d = el('div', 'chk muted');
+  d.append(el('span', 'ic', disputed ? '⚑' : '⊘'));
+  const body = el('div', 'body');
+  const why = disputed && rec.disputeWhy && rec.disputeWhy[key];
+  body.innerHTML = `${msg} <span class="rule">— ${rule}（${disputed ? '你判定原則有誤' : '已忽略'}` +
+    `${why ? '：' + why.replace(/</g, '&lt;') : ''}）</span>`;
+  d.append(body);
+  const act = el('div', 'act');
+  const un = el('button', '', '還原');
+  un.title = '恢復提醒這條警告';
+  un.onclick = () => unmute(rec, key);
+  act.append(un);
+  /* 忽略 ↔ 原則有誤 可以改判 */
+  const sw = el('button', '', disputed ? '改成：這個字是例外' : '改成：原則有誤');
+  sw.onclick = async () => {
+    rec.overrides = (rec.overrides || []).filter(k => k !== key);
+    rec.disputes = (rec.disputes || []).filter(k => k !== key);
+    (disputed ? rec.overrides : rec.disputes).push(key);
+    for (const f of ['overrides', 'disputes']) if (!rec[f].length) delete rec[f];
+    await muteCheck(rec);
+  };
+  act.append(sw);
+  d.append(act);
+  return d;
+}
+
 let compRun = 0;
-async function renderChecksAsync() {
+async function renderChecksAsync(syncList) {
   const run = ++compRun;
   const extra = await componentWarnings();
-  if (run !== compRun || !extra.length) return;
+  if (run !== compRun) return;
   const rec = codes[cur] || {};
-  const ignored = new Set(rec.overrides || []);
-  const box = $('#checks');
+  const off = muted(rec);
+  const box = $('#checks'), zone = box.querySelector('.mutedzone');
+  if (!zone) return;
   const ok = box.querySelector('.chk.ok');
-  if (ok && extra.some(c => !ignored.has(c.key))) ok.remove();
-  for (const c of extra) if (!ignored.has(c.key)) box.prepend(renderCheckRow(c, rec));
+  if (ok && extra.some(c => !off.has(c.key))) ok.remove();
+  for (const c of extra) if (!off.has(c.key)) box.prepend(renderCheckRow(c, rec));
+  for (const c of extra) if (off.has(c.key)) zone.append(renderMutedRow(c.key, rec, c.msg, c.rule));
+
+  /* 舊的壓制紀錄：警告已經不再出現（拆法改了、規則改了），但紀錄還在。
+     列出來，不然它會永遠躺在檔案裡，分析頁還一直把這個字算成特例。 */
+  const live = new Set([...syncList, ...extra].map(c => c.key));
+  for (const key of off) {
+    if (live.has(key)) continue;
+    zone.append(renderMutedRow(key, rec, '<i>這條警告目前已經不會出現了</i>',
+      RULE_OF[key.split(':')[0]] || key.split(':')[0]));
+  }
+  if (zone.children.length) zone.prepend(el('div', 'mutedhd', '已處理（不再提醒）'));
 }
 
 function renderChecks() {
   const box = $('#checks'); box.innerHTML = '';
   const rec = codes[cur] || {};
-  const ignored = new Set(rec.overrides || []);
+  const off = muted(rec);
   const list = checks({ segs, skipped, medians, nStrokes: strokes.length });
-  const active = list.filter(c => !ignored.has(c.key));
-  renderChecksAsync();
+  const active = list.filter(c => !off.has(c.key));
 
   if (!segs.length) { box.innerHTML = '<div class="newz">還沒取碼。</div>'; return; }
   if (!active.length) {
     box.innerHTML = '<div class="chk ok"><span class="ic">✓</span>' +
       '<div class="body">符合目前所有「會執行」的取碼原則。</div></div>';
   }
-  for (const c of active) {
-    box.append(renderCheckRow(c, rec));
-  }
-  /* 已忽略的仍列出來（淡色），可以還原 */
-  for (const c of list.filter(c => ignored.has(c.key))) {
-    const d = el('div', 'chk muted');
-    d.append(el('span', 'ic', '⊘'));
-    const body = el('div', 'body');
-    body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}（已忽略）</span>`;
-    d.append(body);
-    const act = el('div', 'act');
-    const un = el('button', '', '還原');
-    un.onclick = async () => {
-      rec.overrides = (rec.overrides || []).filter(k => k !== c.key);
-      if (!rec.overrides.length) delete rec.overrides;
-      touch(); renderChecks();
-      audit.set(cur, await auditChar(cur)); markQueue(cur);
-    };
-    act.append(un); d.append(act);
-    box.append(d);
-  }
+  for (const c of active) box.append(renderCheckRow(c, rec));
+
+  const zone = el('div', 'mutedzone');
+  box.append(zone);
+  for (const c of list) if (off.has(c.key)) zone.append(renderMutedRow(c.key, rec, c.msg, c.rule));
+  renderChecksAsync(list);            /* 偏旁一致性要查別的字，慢，所以非同步補上 */
 }
 
 /* 滑過某條警告時，把它講的那幾個字根／筆畫在畫面上點亮 */
@@ -1508,8 +1573,8 @@ async function auditChar(ch) {
     segs: rec.segments, skipped: rec.skipped || [],
     medians: g.medians, nStrokes: g.strokes.length,
   });
-  const ignored = new Set(rec.overrides || []);
-  return list.filter(c => c.lvl === 'warn' && !ignored.has(c.key)).length;
+  const off = muted(rec);
+  return list.filter(c => c.lvl === 'warn' && !off.has(c.key)).length;
 }
 
 async function auditAll() {
