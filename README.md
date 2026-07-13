@@ -42,6 +42,10 @@ python3 server.py         # → http://localhost:8777
 - **台灣筆順** — 教育部《國字標準字體筆順學習網》資料，經 [g0v/zh-stroke-data](https://github.com/g0v/zh-stroke-data)，4,847 常用字。
 - **香港筆順** — 教育局《香港小學學習字詞表》的筆順示範（Adobe Animate/CreateJS 匯出的向量資料，由 `hk.py` 解碼），隨用隨抓並快取。**屬教育局版權，只作個人參考，不隨本專案散布。**
 - **字頻** — 由 [rime-essay](https://github.com/rime/rime-essay) 統計，決定取碼佇列的先後。
+- **倉頡對照** — 碼表取自 [rime-cangjie](https://github.com/rime/rime-cangjie)（GPL）。
+  「哪一筆屬於哪一碼」則由 `cangjie_map.py` 從[倉頡字典](https://倉頡字典.com)的拆碼圖推出來
+  （沿筆畫中線取色 → 同色歸組 → 對到碼），隨用隨抓並快取。推出來的是事實資料，
+  用我們自己的筆畫重畫；圖片不保留、不散布。**屬該站版權，只作個人對照。**
 
 ## 你的資料
 

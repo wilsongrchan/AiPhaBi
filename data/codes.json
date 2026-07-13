@@ -27,7 +27,8 @@
     ],
     "code": "JBA",
     "overrides": [
-      "merge:2-3"
+      "merge:2-3",
+      "lone:0"
     ],
     "final": "JBA"
   },
@@ -604,7 +605,8 @@
     "code": "FXXFUPI",
     "final": "FXXI",
     "overrides": [
-      "tier:6"
+      "tier:6",
+      "merge:1-2"
     ]
   },
   "會": {
@@ -770,7 +772,8 @@
   },
   "好": {
     "overrides": [
-      "tier:3"
+      "tier:3",
+      "lone:0"
     ],
     "segments": [
       {
@@ -1123,7 +1126,10 @@
       }
     ],
     "code": "JDI",
-    "final": "JDI"
+    "final": "JDI",
+    "overrides": [
+      "lone:0"
+    ]
   },
   "他": {
     "segments": [
@@ -1458,7 +1464,10 @@
       }
     ],
     "code": "LJO",
-    "final": "LJO"
+    "final": "LJO",
+    "overrides": [
+      "lone:0"
+    ]
   },
   "於": {
     "segments": [
@@ -2250,7 +2259,10 @@
       }
     ],
     "code": "JLQQ",
-    "final": "JLQQ"
+    "final": "JLQQ",
+    "overrides": [
+      "lone:0"
+    ]
   },
   "現": {
     "segments": [
@@ -2341,7 +2353,10 @@
     ],
     "overrides": [
       "merge:2-3",
-      "merge:3-4"
+      "merge:3-4",
+      "lone:3",
+      "lone:2",
+      "lone:4"
     ]
   },
   "法": {
@@ -2417,7 +2432,8 @@
       1
     ],
     "overrides": [
-      "merge:3-4"
+      "merge:3-4",
+      "lone:0"
     ]
   },
   "高": {
@@ -2602,10 +2618,9 @@
       {
         "strokes": [
           0,
-          1,
-          2
+          1
         ],
-        "letter": "A"
+        "letter": "U"
       },
       {
         "strokes": [
@@ -2616,8 +2631,11 @@
         "letter": "O"
       }
     ],
-    "code": "AO",
-    "final": "AO"
+    "code": "UO",
+    "final": "UO",
+    "skipped": [
+      2
+    ]
   },
   "比": {
     "segments": [
@@ -3382,5 +3400,244 @@
     ],
     "code": "OXL",
     "final": "OXL"
+  },
+  "着": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "VFDI",
+    "final": "VFDI"
+  },
+  "和": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "JTO",
+    "final": "JTO"
+  },
+  "數": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          11,
+          12,
+          13,
+          14
+        ],
+        "letter": "X"
+      }
+    ],
+    "code": "QQLJX",
+    "final": "QQLX",
+    "overrides": [
+      "tier:2"
+    ]
+  },
+  "當": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          3,
+          4
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          12
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "WUOOT",
+    "final": "WUOT"
+  },
+  "新": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          11,
+          12
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "IVTRT",
+    "final": "IVTT"
+  },
+  "市": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "letter": "M"
+      }
+    ],
+    "code": "QM",
+    "final": "QM"
+  },
+  "樣": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "T",
+    "final": "T"
   }
 }

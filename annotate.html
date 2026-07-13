@@ -742,45 +742,11 @@ const CJ_RADICAL = {
 };
 let cangjie = null;
 
-/* 倉頡只給「哪些字根」，沒給「哪幾筆」。所以用同一套形狀比對，
-   替每個倉頡字根在這個字裡找出最像的一組筆畫，再上色。
-   找不到的就老實說找不到 —— 倉頡有些碼並不是字面上的筆畫（例：國的「田」）。 */
-async function cangjieStrokes(c, code) {
-  const used = new Set();
-  const out = [];
-  for (const L of code) {
-    const radical = CJ_RADICAL[L];
-    const rg = radical && await Zigen.getGlyph(radical);
-    if (!rg) { out.push({ L, radical, strokes: null }); continue; }
-    const rvec = Shape.strokeVec(rg.medians);
-    const k = rg.medians.length;
-    const n = medians.length;
-
-    let best = null;
-    const tryIdx = idx => {
-      if (idx.some(i => used.has(i))) return;
-      const v = Shape.strokeVec(idx.map(i => medians[i]));
-      if (!v) return;
-      const d = Shape.dist(v, rvec);
-      if (!best || d < best.d) best = { d, idx };
-    };
-    for (let i = 0; i + k <= n; i++) tryIdx([...Array(k)].map((_, j) => i + j));
-    if (k >= 2) for (let i = 0; i + k - 1 <= n; i++) {       /* 包圍式：一段 + 後補一筆 */
-      const run = [...Array(k - 1)].map((_, j) => i + j);
-      for (let j = i + k - 1; j < n; j++) tryIdx([...run, j]);
-    }
-    /* 門檻放寬一點：倉頡的字根只是近似，不是精確同形 */
-    if (best && best.d < 0.6) {
-      best.idx.forEach(i => used.add(i));
-      out.push({ L, radical, strokes: best.idx, d: best.d });
-    } else {
-      out.push({ L, radical, strokes: null });
-    }
-  }
-  return out;
-}
-
-const CJ_HUES = [200, 18, 140, 280, 45, 330];
+/* 倉頡的碼表只說「取哪些字根」，沒說「取哪幾筆」。這裡的對應是從
+   《五色倉頡字典》的拆碼圖推出來的（見 cangjie_map.py）：沿著筆畫中線取色、
+   同色歸為一組、再依先後對到碼上。所以連「國」的囗＝第 1、2、11 筆、
+   「學」中間十筆倉頡根本不取，都是真的資料，不是猜的。 */
+const CJ_HUES = [200, 18, 140, 280, 45, 330, 95, 250];
 const cjHue = i => `hsl(${CJ_HUES[i % CJ_HUES.length]} 60% 46%)`;
 
 async function renderCangjie(c) {
@@ -792,54 +758,52 @@ async function renderCangjie(c) {
     box.innerHTML = '<span class="none">倉頡碼表沒有這個字。</span>';
     return;
   }
+
   const row = el('div', 'cj');
-  for (const [i, L] of [...code].entries()) {
+  [...code].forEach((L, i) => {
     const k = el('div', 'k');
     k.dataset.i = i;
     k.append(el('div', 'r', CJ_RADICAL[L] || '?'));
     k.append(el('div', 'l', L));
     k.style.borderColor = cjHue(i);
     row.append(k);
-  }
+  });
   row.append(el('span', 'code', code));
   box.append(row);
 
-  /* 上色的小圖：哪一筆屬於哪一個倉頡字根 */
   const holder = el('div', 'cjmap');
+  holder.innerHTML = '<span class="cjnote">取碼對應讀取中…</span>';
   box.append(holder);
-  const map = await cangjieStrokes(c, code);
+
+  const map = await fetch('/api/cjmap?c=' + encodeURIComponent(c))
+    .then(r => (r.ok ? r.json() : null)).catch(() => null);
   if (c !== cur) return;
-  const colorOf = i => {
-    const k = map.findIndex(m => m.strokes && m.strokes.includes(i));
-    return k < 0 ? null : cjHue(k);
-  };
+
+  if (!map || !map.groups) {
+    holder.innerHTML = '<span class="cjnote">拆碼圖解取不到，只能顯示碼。</span>';
+    return;
+  }
+  const groupOf = i => map.groups.findIndex(g => g.includes(i));
   holder.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
     strokes.map((d, i) => {
-      const col = colorOf(i);
-      return `<path d="${d}" fill="${col || 'var(--ghost)'}"${col ? '' : ' opacity="0.55"'}/>`;
+      const g = groupOf(i);
+      return g < 0 ? `<path d="${d}" fill="var(--ghost)" opacity="0.5"/>`
+                   : `<path d="${d}" fill="${cjHue(g)}"/>`;
     }).join('') + '</g></svg>';
-  const miss = map.filter(m => !m.strokes);
+
   const note = el('div', 'cjnote');
-  note.innerHTML = miss.length
-    ? `灰色＝倉頡沒取到的筆畫。<b>${miss.map(m => m.radical).join('、')}</b> ` +
-      '在這個字裡找不到對應的筆畫（倉頡有些碼是取形、不是字面筆畫）。'
-    : '灰色＝倉頡沒取到的筆畫。';
+  note.innerHTML = map.untaken && map.untaken.length
+    ? `灰色的 <b>${map.untaken.length}</b> 筆倉頡沒有取（倉頡最多五碼，取不完整個字）。`
+    : '每一筆都對應到一個倉頡碼。';
   box.append(note);
 
-  /* 滑過某個倉頡字根 → 那幾筆亮起來 */
+  /* 滑過某個倉頡碼 → 它取的那幾筆亮起來 */
   for (const k of row.querySelectorAll('.k')) {
-    const m = map[+k.dataset.i];
-    k.onmouseenter = () => {
-      if (!m.strokes) return;
-      holder.querySelectorAll('path').forEach((pth, i) => {
-        pth.setAttribute('opacity', m.strokes.includes(i) ? '1' : '0.15');
-      });
-    };
-    k.onmouseleave = () => {
-      holder.querySelectorAll('path').forEach((pth, i) => {
-        pth.setAttribute('opacity', colorOf(i) ? '1' : '0.55');
-      });
-    };
+    const g = map.groups[+k.dataset.i] || [];
+    k.onmouseenter = () => holder.querySelectorAll('path').forEach((pth, i) =>
+      pth.setAttribute('opacity', g.includes(i) ? '1' : '0.12'));
+    k.onmouseleave = () => holder.querySelectorAll('path').forEach((pth, i) =>
+      pth.setAttribute('opacity', groupOf(i) < 0 ? '0.5' : '1'));
   }
 }
 

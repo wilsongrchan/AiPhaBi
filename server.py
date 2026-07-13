@@ -15,6 +15,7 @@
   /api/tw?c=字      GET      台灣教育部標準筆順（g0v/zh-stroke-data）
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
+  /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
   /api/state        GET      各檔 mtime，兩頁靠它互通
 """
 import json
@@ -26,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import cangjie_map
 import hk
 
 ROOT = Path(__file__).parent
@@ -118,6 +120,17 @@ class Handler(BaseHTTPRequestHandler):
             stamp = lambda f: f.stat().st_mtime_ns if f.exists() else 0
             return self._send(200, json.dumps(
                 {"zigen": stamp(DATA), "codes": stamp(CODES), "rules": stamp(RULES)}))
+
+        if u.path == "/api/cjmap":
+            c = (q.get("c") or [""])[0]
+            try:
+                c = c.encode("latin-1").decode("utf-8")
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
+            m = cangjie_map.get(c)
+            if not m:
+                return self._send(404, json.dumps({"error": "no data", "c": c}))
+            return self._send(200, json.dumps({"c": c, **m}, ensure_ascii=False), cache=True)
 
         if u.path == "/api/hk":
             c = (q.get("c") or [""])[0]
