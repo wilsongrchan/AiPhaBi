@@ -124,6 +124,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._page("rules.html")
         if u.path == "/stats":
             return self._page("stats.html")
+        if u.path == "/type":
+            return self._page("type.html")      # 試打：真的用愛發筆打字
 
         if u.path.startswith("/assets/") and u.path.endswith(".js"):
             f = (ROOT / u.path.lstrip("/")).resolve()

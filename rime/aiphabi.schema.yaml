@@ -1,0 +1,66 @@
+# 愛發筆 AiPhaBi —— 形碼輸入法
+# 由 build_rime.py 產生。字根看鍵盤上那個英文字母長什麼樣（山→W、口→O、弓→S…），
+# 不必背 A=日 B=月 這種對照表。
+
+schema:
+  schema_id: aiphabi
+  name: 愛發筆
+  version: "2026.07.13"
+  author:
+    - wilsongrchan
+  description: |
+    形碼輸入法。字根的形狀就是鍵盤上那個英文字母的形狀。
+    主碼最多 5 碼（前 4 碼 + 末 1 碼）；把整個字拆完、
+    每一碼都打出來（完整碼）一樣打得出字。
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半形, 全形 ]
+  - name: ascii_punct
+    states: [ 。，, ．， ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - table_translator
+  filters:
+    - uniquifier
+
+speller:
+  alphabet: zyxwvutsrqponmlkjihgfedcba
+  delimiter: " '"
+
+translator:
+  dictionary: aiphabi
+  enable_charset_filter: false
+  enable_sentence: false
+  enable_encoder: false
+  enable_completion: true      # 碼還沒打完就先給候選
+  strict_spelling: false
+
+punctuator:
+  import_preset: default
+
+key_binder:
+  import_preset: default
+
+recognizer:
+  import_preset: default

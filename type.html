@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛發筆 — 試打</title>
+<style>
+  :root {
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
+    --accent:#b4531f; --ok:#2e7d4f; --bad:#c0392b; --bar:#efece6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
+            --accent:#e0894f; --ok:#6bbd8e; --bad:#e57373; --bar:#2b2922; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang TC","Helvetica Neue",sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:var(--bg);
+    border-bottom:1px solid var(--line); padding:12px 20px; display:flex; gap:12px;
+    align-items:center; }
+  h1 { font-size:16px; margin:0; font-weight:650; }
+  nav { display:flex; gap:5px; }
+  nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; }
+  nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .grow { flex:1; }
+  main { max-width:880px; margin:0 auto; padding:20px; }
+  .sub { font-size:13px; color:var(--muted); margin-bottom:14px; }
+
+  /* 打字區：真的像個輸入法 —— 打字、看候選、選字、上屏 */
+  .paper { min-height:180px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:16px 18px; font-size:22px; line-height:1.8;
+    font-family:"PingFang TC",serif; white-space:pre-wrap; word-break:break-all;
+    outline:none; cursor:text; }
+  .paper:focus { border-color:var(--accent); }
+  .paper .caret { display:inline-block; width:2px; height:24px; background:var(--accent);
+    vertical-align:-4px; animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+  .paper:not(:focus) .caret { animation:none; opacity:.3; }
+
+  /* 候選列 */
+  .ime { position:sticky; bottom:0; margin-top:12px; min-height:52px; }
+  .imebox { display:none; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--card); border:1px solid var(--accent); border-radius:12px;
+    padding:8px 12px; box-shadow:0 6px 20px rgba(0,0,0,.10); }
+  .imebox.on { display:flex; }
+  .imecode { font:700 17px ui-monospace,monospace; color:var(--accent); letter-spacing:.12em; }
+  .cands { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .cand { display:flex; align-items:baseline; gap:3px; border:1px solid transparent;
+    border-radius:8px; padding:2px 7px; cursor:pointer; }
+  .cand:hover { background:var(--bar); }
+  .cand.on { border-color:var(--accent); background:var(--bar); }
+  .cand i { font:600 11px ui-monospace,monospace; color:var(--muted); font-style:normal; }
+  .cand b { font:24px/1.2 "PingFang TC",serif; font-weight:400; }
+  .cand em { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal; }
+  .imehint { font-size:11px; color:var(--muted); margin-left:auto; white-space:nowrap; }
+  .none { font-size:13px; color:var(--bad); }
+
+  .stat { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted);
+    margin-top:14px; }
+  .stat b { color:var(--ink); font-family:ui-monospace,monospace; }
+  kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px;
+    padding:0 4px; font:600 11px ui-monospace,monospace; }
+</style>
+</head>
+<body>
+<header>
+  <h1>愛發筆</h1>
+  <nav>
+    <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/stats">碼表分析</a>
+    <a href="/rules">取碼原則</a><a href="/type" class="on">試打</a>
+  </nav>
+  <div class="grow"></div>
+  <span class="sub" id="meta" style="margin:0"></span>
+</header>
+
+<main>
+  <div class="sub">
+    真的用愛發筆打字看看。點下面的紙面，直接按 <kbd>A</kbd>–<kbd>Z</kbd> 打碼；
+    <kbd>space</kbd> 上第一個字、<kbd>1</kbd>–<kbd>9</kbd> 選字、
+    <kbd>⌫</kbd> 刪碼、<kbd>esc</kbd> 清掉這一串碼。
+    打不出來的字表示還沒取碼。
+  </div>
+
+  <div class="paper" id="paper" tabindex="0"></div>
+
+  <div class="ime">
+    <div class="imebox" id="imebox">
+      <span class="imecode" id="imecode"></span>
+      <div class="cands" id="cands"></div>
+      <span class="imehint" id="imehint"></span>
+    </div>
+  </div>
+
+  <div class="stat" id="stat"></div>
+</main>
+
+<script src="/assets/shape.js"></script>
+<script src="/assets/zigen.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+
+let codes = {}, rules = null, rank = new Map();
+let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
+let text = '', code = '', pick = 0;
+
+const maxRule = () => rules && rules.rules.find(r =>
+  r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
+const finalOf = c => Zigen.shorten(c, maxRule());
+
+/* 一個字打得出來的所有碼：主碼（縮短後）＋完整碼＋手動收的兼容碼。
+   跟取碼頁、匯出、Rime 碼表完全一致 —— 這裡是同一份規則的第四個消費者，
+   所以規則寫在資料裡，不寫在任何一頁。 */
+function buildTable() {
+  table = new Map();
+  const add = (c, ch, kind) => {
+    if (!table.has(c)) table.set(c, []);
+    const list = table.get(c);
+    if (!list.some(x => x.ch === ch)) list.push({ ch, kind });
+  };
+  for (const [ch, r] of Object.entries(codes)) {
+    if (!r.code) continue;
+    const fin = finalOf(r.code);
+    add(fin, ch, '主');
+    if (r.code !== fin) add(r.code, ch, '完整');
+    for (const a of r.alts || []) {
+      const f = finalOf(a.code);
+      add(f, ch, '兼容');
+      if (a.code !== f) add(a.code, ch, '兼容');
+    }
+  }
+  /* 重碼時常用字排前面 —— 少按一次選字鍵 */
+  for (const list of table.values())
+    list.sort((a, b) => (rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9));
+
+  const chars = new Set(Object.values(codes).filter(r => r.code).length ? Object.keys(codes).filter(c => codes[c].code) : []);
+  const dup = [...table.values()].filter(l => l.length > 1).length;
+  $('#meta').innerHTML = `碼表 <b>${chars.size}</b> 字 · <b>${table.size}</b> 個碼`;
+  $('#stat').innerHTML =
+    `<span>已收 <b>${chars.size}</b> 字</span>` +
+    `<span>可打出的碼 <b>${table.size}</b> 個（含完整碼與兼容碼）</span>` +
+    `<span>其中 <b>${dup}</b> 個碼要選字</span>`;
+}
+
+/* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符） */
+function candidates() {
+  if (!code) return [];
+  const exact = (table.get(code) || []).map(x => ({ ...x, exact: true }));
+  const pre = [];
+  if (exact.length < 9) {
+    for (const [c, list] of table) {
+      if (c === code || !c.startsWith(code)) continue;
+      for (const x of list) {
+        if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
+        pre.push({ ...x, exact: false, code: c });
+      }
+      if (exact.length + pre.length >= 12) break;
+    }
+  }
+  return [...exact, ...pre].slice(0, 9);
+}
+
+function render() {
+  $('#paper').innerHTML = '';
+  $('#paper').append(document.createTextNode(text));
+  $('#paper').append(el('span', 'caret'));
+
+  const box = $('#imebox');
+  if (!code) { box.classList.remove('on'); return; }
+  box.classList.add('on');
+  $('#imecode').textContent = code;
+
+  const cands = candidates();
+  const cs = $('#cands'); cs.innerHTML = '';
+  if (!cands.length) {
+    cs.append(el('span', 'none', '打不出字 —— 這個碼還沒有對應的字'));
+    $('#imehint').textContent = '⌫ 刪一碼　esc 清掉';
+    return;
+  }
+  cands.forEach((x, i) => {
+    const d = el('div', 'cand' + (i === pick ? ' on' : ''));
+    d.append(el('i', '', String(i + 1)));
+    d.append(el('b', '', x.ch));
+    d.append(el('em', '', x.exact ? (x.kind === '主' ? '' : x.kind) : x.code));
+    d.onclick = () => commit(i);
+    cs.append(d);
+  });
+  $('#imehint').textContent = 'space 上第一個　1–9 選字';
+}
+
+function commit(i) {
+  const cands = candidates();
+  const c = cands[i];
+  if (!c) return;
+  text += c.ch;
+  code = ''; pick = 0;
+  render();
+}
+
+$('#paper').onkeydown = e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (/^[a-zA-Z]$/.test(k)) {
+    e.preventDefault();
+    code += k.toUpperCase(); pick = 0; render();
+  } else if (k === ' ') {
+    e.preventDefault();
+    if (code) commit(pick); else { text += ' '; render(); }
+  } else if (/^[1-9]$/.test(k) && code) {
+    e.preventDefault();
+    commit(+k - 1);
+  } else if (k === 'Backspace') {
+    e.preventDefault();
+    if (code) code = code.slice(0, -1);
+    else text = text.slice(0, -1);
+    pick = 0; render();
+  } else if (k === 'Escape') {
+    e.preventDefault();
+    code = ''; pick = 0; render();
+  } else if (k === 'Enter') {
+    e.preventDefault();
+    if (code) { code = ''; pick = 0; } else text += '\n';
+    render();
+  } else if (k === 'ArrowRight' && code) {
+    e.preventDefault(); pick = Math.min(pick + 1, candidates().length - 1); render();
+  } else if (k === 'ArrowLeft' && code) {
+    e.preventDefault(); pick = Math.max(0, pick - 1); render();
+  }
+};
+$('#paper').onclick = () => $('#paper').focus();
+
+Promise.all([
+  fetch('/api/codes').then(r => r.json()),
+  fetch('/api/rules').then(r => r.json()),
+  fetch('/api/freq').then(r => r.json()),
+]).then(([c, rl, f]) => {
+  codes = c; rules = rl;
+  f.order.forEach((ch, i) => rank.set(ch, i));
+  buildTable();
+  render();
+  $('#paper').focus();
+});
+
+/* 碼表改了就跟著更新（跟其他頁一樣） */
+let stamp = null;
+setInterval(async () => {
+  const s = JSON.stringify(await fetch('/api/state').then(r => r.json()));
+  if (stamp && s !== stamp) {
+    codes = await fetch('/api/codes').then(r => r.json());
+    rules = await fetch('/api/rules').then(r => r.json());
+    buildTable(); render();
+  }
+  stamp = s;
+}, 3000);
+</script>
+</body>
+</html>
