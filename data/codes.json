@@ -858,15 +858,10 @@
     "segments": [
       {
         "strokes": [
-          0
-        ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
+          0,
           1
         ],
-        "letter": "J"
+        "letter": "X"
       },
       {
         "strokes": [
@@ -875,11 +870,8 @@
         "letter": "L"
       }
     ],
-    "code": "CJL",
-    "final": "CJL",
-    "conventional": [
-      "lone:1"
-    ],
+    "code": "XL",
+    "final": "XL",
     "notComponent": true
   },
   "國": {
@@ -1145,9 +1137,10 @@
       },
       {
         "strokes": [
-          2
+          2,
+          3
         ],
-        "letter": "C"
+        "letter": "X"
       },
       {
         "strokes": [
@@ -1156,11 +1149,8 @@
         "letter": "L"
       }
     ],
-    "code": "YCL",
-    "final": "YCL",
-    "skipped": [
-      3
-    ]
+    "code": "YXL",
+    "final": "YXL"
   },
   "都": {
     "segments": [
@@ -1834,9 +1824,10 @@
       },
       {
         "strokes": [
-          3
+          3,
+          4
         ],
-        "letter": "C"
+        "letter": "X"
       },
       {
         "strokes": [
@@ -1845,11 +1836,8 @@
         "letter": "L"
       }
     ],
-    "code": "FCL",
-    "final": "FCL",
-    "skipped": [
-      4
-    ]
+    "code": "FXL",
+    "final": "FXL"
   },
   "行": {
     "segments": [
@@ -4073,13 +4061,19 @@
       }
     ],
     "code": "DLMJGM",
-    "final": "DLMM",
+    "final": "DLMJM",
     "skipped": [
       4
     ],
-    "overrides": [
+    "notComponent": true,
+    "compliant": [
+      "comp:目:0",
       "skip:4"
-    ]
+    ],
+    "compliantWhy": {
+      "comp:目:0": "偏旁。",
+      "skip:4": "這是橫。"
+    }
   },
   "明": {
     "segments": [
@@ -10596,9 +10590,10 @@
       },
       {
         "strokes": [
-          3
+          3,
+          4
         ],
-        "letter": "C"
+        "letter": "X"
       },
       {
         "strokes": [
@@ -10607,11 +10602,8 @@
         "letter": "L"
       }
     ],
-    "code": "LJCL",
-    "final": "LJCL",
-    "skipped": [
-      4
-    ]
+    "code": "LJXL",
+    "final": "LJXL"
   },
   "節": {
     "segments": [
@@ -11529,9 +11521,10 @@
     ],
     "code": "ID",
     "final": "ID",
-    "overrides": [
+    "conventional": [
       "lone:0"
-    ]
+    ],
+    "notComponent": true
   },
   "及": {
     "segments": [
@@ -12822,7 +12815,10 @@
       }
     ],
     "code": "FYIF",
-    "final": "FYIF"
+    "final": "FYIF",
+    "excludeComp": [
+      "王"
+    ]
   },
   "調": {
     "segments": [
@@ -13599,10 +13595,12 @@
     "code": "IJB",
     "final": "IJB",
     "overrides": [
-      "lone:0",
       "merge:0-1"
     ],
-    "notComponent": true
+    "notComponent": true,
+    "conventional": [
+      "lone:0"
+    ]
   },
   "備": {
     "segments": [
@@ -16765,16 +16763,7 @@
     "final": "TT"
   },
   "亞": {
-    "overrides": [
-      "lone:0"
-    ],
     "segments": [
-      {
-        "strokes": [
-          0
-        ],
-        "letter": "I"
-      },
       {
         "strokes": [
           1,
@@ -16782,15 +16771,23 @@
           3,
           4,
           5,
-          6,
-          7
+          6
         ],
         "letter": "H"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "I"
       }
     ],
-    "code": "IH",
-    "final": "IH",
-    "notComponent": true
+    "code": "HI",
+    "final": "HI",
+    "notComponent": true,
+    "skipped": [
+      0
+    ]
   },
   "素": {
     "segments": [
@@ -28336,8 +28333,7 @@
           3,
           4,
           5,
-          6,
-          7
+          6
         ],
         "letter": "H"
       },
@@ -28354,7 +28350,8 @@
     "code": "HW",
     "final": "HW",
     "skipped": [
-      0
+      0,
+      7
     ]
   },
   "骨": {
@@ -33714,10 +33711,9 @@
         "strokes": [
           7,
           8,
-          9,
-          10
+          9
         ],
-        "letter": "D"
+        "letter": "H"
       },
       {
         "strokes": [
@@ -33736,8 +33732,11 @@
         "letter": "M"
       }
     ],
-    "code": "HRDSM",
-    "final": "HRDSM"
+    "code": "HRHSM",
+    "final": "HRHSM",
+    "skipped": [
+      10
+    ]
   },
   "牙": {
     "segments": [
@@ -36014,16 +36013,11 @@
       {
         "strokes": [
           1,
-          2
-        ],
-        "letter": "T"
-      },
-      {
-        "strokes": [
+          2,
           3,
           4
         ],
-        "letter": "V"
+        "letter": "T"
       },
       {
         "strokes": [
@@ -36039,8 +36033,8 @@
         "letter": "I"
       }
     ],
-    "code": "JTVPI",
-    "final": "JTVPI"
+    "code": "JTPI",
+    "final": "JTPI"
   },
   "混": {
     "excludeComp": [
@@ -37407,5 +37401,149 @@
     ],
     "code": "CNEX",
     "final": "CNEX"
+  },
+  "朱": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "JT",
+    "final": "JT",
+    "skipped": [
+      1
+    ]
+  },
+  "為": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "S"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "letter": "M"
+      }
+    ],
+    "code": "WJSM",
+    "final": "WJSM"
+  },
+  "倉": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "A"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "ARO",
+    "final": "ARO"
+  },
+  "頡": {
+    "excludeComp": [
+      "順",
+      "見",
+      "日"
+    ],
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          6,
+          7
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          12,
+          13,
+          14
+        ],
+        "letter": "V"
+      }
+    ],
+    "code": "FOJDV",
+    "final": "FOJDV"
   }
 }
