@@ -214,9 +214,20 @@
   .newz { font-size:12px; color:var(--muted); }
   .newz b { color:var(--warn); }
 
-  /* 兼容碼 */
+  /* 兼容碼：編輯模式要一眼看得出來「現在畫的不是主碼」 */
+  .altbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; max-width:520px;
+    font-size:12px; padding:6px 10px; border-radius:9px;
+    border:1px solid var(--warn); background:color-mix(in srgb,var(--warn) 10%,transparent); }
+  .altbar.hide { display:none; }
+  .altbar code { font:700 12px ui-monospace,monospace; color:var(--accent); }
+  .altbar button { font-size:11px; padding:3px 9px; border-radius:7px; }
+  body.altmode #glyph { border-color:var(--warn); border-width:2px; }
+  body.altmode .stage .code { opacity:.55; }        /* 這時的碼不是主碼 */
+  body.altmode #saveNext { opacity:.4; pointer-events:none; }
+
   .alt { display:flex; align-items:center; gap:6px; flex-wrap:wrap;
     border:1px dashed var(--line); border-radius:8px; padding:3px 7px; margin-bottom:4px; }
+  .alt.main { border-style:solid; border-color:var(--accent); }   /* 主碼：實線，一眼分得開 */
   .alt b { font:700 14px ui-monospace,monospace; color:var(--accent); letter-spacing:.06em; }
   .alt i { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal; }
   .alt span { font-size:10px; color:var(--muted); }
@@ -390,6 +401,13 @@
       <div class="code" id="code">—</div>
     </div>
     <div class="ref" id="ref"></div>
+    <!-- 進入「編兼容碼」時才出現：明確告訴你主碼沒有被動到 -->
+    <div class="altbar hide" id="altbar">
+      <span id="altbarmsg"></span>
+      <span style="flex:1"></span>
+      <button class="primary" id="altDone">✓ 收為兼容碼</button>
+      <button id="altCancel">✕ 取消</button>
+    </div>
     <!-- 動作鈕排在字圖右側，直的一排：放在預測底下的話，預測一長就得捲下去按 -->
     <div class="glyphrow">
       <svg id="glyph" viewBox="0 0 1024 1024"></svg>
@@ -437,8 +455,8 @@
     <div class="lbl" style="display:flex;align-items:center;gap:6px">
       <span>兼容碼</span>
       <span style="flex:1"></span>
-      <button id="addAlt" style="font-size:10px;padding:1px 6px;border-radius:6px"
-        title="把目前這個拆法也收為可接受的碼（主碼不變）">＋ 收目前拆法</button>
+      <button id="newAlt" style="font-size:10px;padding:1px 6px;border-radius:6px"
+        title="另外畫一種拆法收進來；主碼不會被動到">＋ 新增一種拆法</button>
     </div>
     <div id="alts"></div>
 
@@ -773,28 +791,68 @@ function renderCode() {
    所以碼表分析頁把「主碼重碼率」跟「含兼容碼」分開算，看得到代價。 */
 const altsOf = ch => (codes[ch] && codes[ch].alts) || [];
 
+/* 編兼容碼是一個「模式」：進去之後畫的東西不會動到主碼，出來時明確地收下或丟掉。
+   （本來是「你先把主碼改掉，再按收下」—— 看起來就像在刪主碼，誰敢按。） */
+let altMode = false;
+
+function enterAltMode() {
+  const rec = codes[cur] || {};
+  if (!rec.code) { $('#status').textContent = '先存一個主碼，才能再收兼容碼'; return; }
+  altMode = true;
+  document.body.classList.add('altmode');
+  $('#altbar').classList.remove('hide');
+  $('#altbarmsg').innerHTML =
+    `正在畫<b>另一種拆法</b>　主碼 <code>${finalOf(rec.code)}</code> 不會被動到 ——` +
+    '　改字根、清掉重畫都可以，畫完按「收為兼容碼」。';
+  renderSegs();
+}
+function exitAltMode(keep) {
+  const rec = codes[cur] || {};
+  if (keep) {
+    const code = segs.map(s => s.letter).join('');
+    const left = strokes.length - (segs.flatMap(s => s.strokes).length + skipped.length);
+    if (!segs.length || left > 0) { $('#status').textContent = '還沒拆完，收不了'; return; }
+    if (code === rec.code) { $('#status').textContent = '這跟主碼一樣，不必收'; return; }
+    if ((rec.alts || []).some(a => a.code === code)) {
+      $('#status').textContent = '這個兼容碼已經有了'; return;
+    }
+    rec.alts = [...(rec.alts || []), { code,
+      segments: segs.map(s => ({ strokes: [...s.strokes], letter: s.letter })),
+      skipped: skipped.length ? [...skipped] : undefined }];
+    codes[cur] = rec;
+    touch();
+    $('#status').textContent = `已收兼容碼 ${finalOf(code)}（主碼 ${finalOf(rec.code)} 不變）`;
+  }
+  altMode = false;
+  document.body.classList.remove('altmode');
+  $('#altbar').classList.add('hide');
+  /* 一律把畫面還原成主碼 —— 編兼容碼從頭到尾都不該動到它 */
+  segs = (rec.segments || []).map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+  skipped = [...(rec.skipped || [])];
+  sel = [];
+  drawGlyph(); renderSegs(); suggest(); predict();
+}
+$('#newAlt').onclick = enterAltMode;
+$('#altDone').onclick = () => exitAltMode(true);
+$('#altCancel').onclick = () => exitAltMode(false);
+
 function renderAlts() {
   const box = $('#alts'); box.innerHTML = '';
   const rec = codes[cur] || {};
   const alts = rec.alts || [];
-  const curCode = segs.length ? segs.map(s => s.letter).join('') : '';
-
-  /* 目前這個拆法能不能收？（要拆完、要跟主碼與現有兼容碼都不一樣） */
-  const left = strokes.length - (segs.flatMap(s => s.strokes).length + skipped.length);
-  const can = segs.length && left === 0 && curCode !== rec.code &&
-              !alts.some(a => a.code === curCode);
-  const bt = $('#addAlt');
-  bt.disabled = !can;
-  bt.style.opacity = can ? 1 : .4;
-  bt.title = !segs.length || left > 0 ? '先把整個字拆完'
-    : curCode === rec.code ? '這就是主碼'
-    : alts.some(a => a.code === curCode) ? '已經收過這個碼了'
-    : `把 ${curCode} 也收為可接受的碼（主碼 ${rec.code} 不變）`;
+  $('#newAlt').disabled = !rec.code || altMode;
+  $('#newAlt').style.opacity = (!rec.code || altMode) ? .4 : 1;
 
   if (!alts.length) {
     box.innerHTML = '<div class="newz">沒有兼容碼。' +
-      '別人拆得跟你不一樣但也合理時，把那個碼收進來，他一樣打得出這個字。</div>';
+      '別人拆得跟你不一樣但也合理時，按上面的「＋ 新增一種拆法」畫給它看，' +
+      '他一樣打得出這個字（主碼不變）。</div>';
     return;
+  }
+  if (rec.code) {
+    const m = el('div', 'alt main');
+    m.innerHTML = `<b>${finalOf(rec.code)}</b><span>主碼</span>`;
+    box.append(m);
   }
   for (const a of alts) {
     const d = el('div', 'alt');
@@ -851,7 +909,8 @@ function addAlt(segments, skips) {
   touch(); renderSegs();
   $('#status').textContent = `已收兼容碼 ${finalOf(code)}（主碼 ${finalOf(rec.code)} 不變）`;
 }
-$('#addAlt').onclick = () => addAlt(segs, skipped);
+/* addAlt 只剩預測面板那顆「＋ 收為兼容碼」在用（一鍵收下，不必進編輯模式）；
+   手動畫另一種拆法走 enterAltMode()。 */
 
 /* ---------- 字與字之間的來回 ----------
    從「天」點進撞碼的「夫」，看完要回得了「天」。載入的路徑很多（佇列、相關字、
@@ -2341,6 +2400,11 @@ async function reanchor(sh, letter) {
 
 /* ---------- 儲存：碼表 + 學回字根表 ---------- */
 async function save() {
+  /* 編兼容碼的時候，畫面上那個拆法是「另一種」，不是主碼 —— 存下去會把主碼蓋掉 */
+  if (altMode) {
+    $('#status').textContent = '正在畫兼容碼：先按「收為兼容碼」或「取消」';
+    return { ok: false };
+  }
   const newborn = [];                 /* 這次存檔新生的字根 */
   if (cur && segs.length) {
     /* 先對帳：把這個字不再使用的舊字根從例字／計次裡拿掉 */
