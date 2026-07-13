@@ -64,7 +64,8 @@
   .qi { position:relative; }
 
   .stage { display:flex; flex-direction:column; align-items:center; gap:9px; }
-  #glyph { width:min(400px,46vh); height:min(400px,46vh); border:1px solid var(--line);
+  /* 字圖大小固定：預測一長，flex 就會把它壓扁，壓到筆畫小得點不到 —— 不准縮。 */
+  #glyph { flex:0 0 auto; width:400px; height:400px; border:1px solid var(--line);
     border-radius:14px; background:var(--card); }
   /* 透明粗描邊把命中區域加寬，細筆畫才好點 */
   #glyph path { cursor:pointer; transition:fill .08s; stroke:transparent; stroke-width:26; }
@@ -102,21 +103,31 @@
   .cjnote b { color:var(--ink); }
   #glyph .grid { stroke:var(--line); stroke-dasharray:8 8; stroke-width:2; fill:none; }
   #glyph text { font:600 34px ui-monospace,monospace; fill:var(--muted); pointer-events:none; opacity:.5; }
+  /* 字頭與取碼放在字圖正上方 —— 右欄本來就擠，這兩樣看的時候眼睛都在字上 */
+  .curline { display:flex; gap:14px; align-items:baseline; }
   .cur { font-size:15px; color:var(--muted); display:flex; gap:10px; align-items:baseline; }
   .cur b { font-size:22px; color:var(--ink); font-family:"PingFang TC",serif; }
-  /* 相關字：這個字裡有哪些已取碼的字（部件），以及哪些字用到了這個字 */
-  .related { display:flex; gap:5px; flex-wrap:wrap; justify-content:center; align-items:center;
-    min-height:22px; max-width:560px; }
+  .stage .code { font:700 26px/1.1 ui-monospace,monospace; color:var(--accent);
+    letter-spacing:.08em; min-height:0; }
+  .stage .ref, .stage .clash { max-width:520px; text-align:center; }
+  /* 相關字：這個字由哪些部件組成（結構拆分），以及同偏旁的一整組。
+     靠左上角，不置中 —— 置中的話字一多就把整個版面推歪。 */
+  .related { align-self:flex-start; width:100%; max-width:520px;
+    display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-start; align-items:center;
+    min-height:22px; }
   .related .lab { font-size:10px; color:var(--muted); }
-  .related a { display:flex; align-items:center; gap:3px; border:1px solid var(--line);
-    border-radius:7px; padding:1px 5px 1px 3px; text-decoration:none; background:var(--card);
+  .related a { display:flex; align-items:center; gap:4px; border:1px solid var(--line);
+    border-radius:7px; padding:1px 6px; text-decoration:none; background:var(--card);
     cursor:pointer; }
   .related a:hover { border-color:var(--accent); }
-  .related a svg { width:20px; height:20px; }
-  .related a svg .on { fill:var(--accent); } .related a svg .off { fill:var(--ghost); opacity:.4; }
-  .related a .rc { font-size:16px; font-family:"PingFang TC",serif; color:var(--ink); }
+  .related a .rc { font-size:17px; font-family:"PingFang TC",serif; color:var(--ink); }
   .related a .rk { font:600 10px ui-monospace,monospace; color:var(--accent); }
-  .related a.up .rc { color:var(--muted); }
+  .related a.up .rc { color:var(--muted); font-size:15px; }
+  .related a.todo .rk { color:var(--muted); font-weight:400; }   /* 這個部件還沒取碼 */
+  .related .fam { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .related .fam > button { font-size:11px; padding:2px 7px; border-radius:7px; }
+  .related .famlist { display:inline-flex; gap:4px; flex-wrap:wrap; }
+  .related .famlist.hide { display:none; }
 
   .hintbar { font-size:12px; color:var(--muted); text-align:center; max-width:520px; }
   kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px;
@@ -157,11 +168,12 @@
   .code .full { font-size:19px; color:var(--muted); letter-spacing:.06em; }
   .code .arrow { font-size:15px; color:var(--muted); }
   .code .short { color:var(--accent); }
-  .seg { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
-    border-radius:9px; padding:5px 8px; background:var(--card); margin-bottom:5px; }
-  .seg .no { flex:none; width:18px; height:18px; border-radius:50%; color:#fff;
-    font:700 10px/18px ui-monospace,monospace; text-align:center; }
-  .seg svg { width:34px; height:34px; flex:none; }
+  /* 已取字根：擠一點 —— 每一列省 10px，字多的時候就少捲一整頁去看筆順參考 */
+  .seg { display:flex; align-items:center; gap:6px; border:1px solid var(--line);
+    border-radius:7px; padding:2px 6px; background:var(--card); margin-bottom:3px; }
+  .seg .no { flex:none; width:15px; height:15px; border-radius:50%; color:#fff;
+    font:700 9px/15px ui-monospace,monospace; text-align:center; }
+  .seg svg { width:26px; height:26px; flex:none; }
   .seg.hl { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 8%,transparent); }
   .seg svg .on { fill:var(--ink); } .seg svg .off { fill:var(--ghost); opacity:.3; }
   .seg input { width:34px; text-align:center; font:700 17px ui-monospace,monospace;
@@ -170,7 +182,8 @@
   .seg .n { font-size:11px; color:var(--muted); flex:1; }
   .seg .mv { cursor:pointer; color:var(--muted); font-size:12px; }
   .seg .mv:hover { color:var(--accent); }
-  .lbl { font-size:11px; color:var(--muted); letter-spacing:.06em; margin:12px 0 4px; }
+  .lbl { font-size:11px; color:var(--muted); letter-spacing:.06em; margin:9px 0 3px; }
+  .lbl:first-child { margin-top:0; }
   .ref { font-size:12px; color:var(--muted); }
   .ref b { color:var(--warn); font-family:ui-monospace,monospace; }
   .ref .good { color:var(--ok); } .ref .bad { color:var(--dupe,#c0392b); }
@@ -276,8 +289,13 @@
   </div>
 
   <div class="pane stage">
-    <div class="cur" id="cur"></div>
     <div class="related" id="related"></div>
+    <div class="curline">
+      <div class="cur" id="cur"></div>
+      <div class="code" id="code">—</div>
+    </div>
+    <div class="ref" id="ref"></div>
+    <div class="clash" id="clash" style="display:none"></div>
     <svg id="glyph" viewBox="0 0 1024 1024"></svg>
 
     <div class="pred">
@@ -305,11 +323,6 @@
   </div>
 
   <div class="pane">
-    <div class="lbl">取碼</div>
-    <div class="code" id="code">—</div>
-    <div class="ref" id="ref"></div>
-    <div class="clash" id="clash" style="display:none"></div>
-
     <div class="lbl">選取中的筆畫</div>
     <div class="sugg" id="sugg"></div>
     <div class="newz" id="newz"></div>
@@ -1312,93 +1325,112 @@ async function markNotComponent(ch) {
 }
 
 /* ---------- 相關字 ----------
-   拿 → 合、手（這個字裡面有哪些你已經取過碼的字）
-        以及「哪些字用到了拿」。點一下就跳過去看你當初怎麼拆的。 */
+   訴 → 言、斥、斤（這個字由哪些部件組成），外加「同「言」旁的字」一整組。
+
+   部件用的是 makemeahanzi 的 IDS 結構拆分（訴 = ⿰言斥），不是拿形狀去猜。
+   以前用形狀猜，訴 的下半在幾何上很像「下」，就真的把「下」報成部件 —— 而且
+   「斤」「斥」只要沒取過碼就永遠不會出現（那時的部件庫只認已取碼的字）。
+   結構是查得到的事實，沒有理由用猜的。 */
+const IDS_OPS = '⿰⿱⿲⿳⿴⿵⿶⿷⿸⿹⿺⿻';
+let ids = {};                 /* 字 → 拆分字串 */
+let compOf = null;            /* 部件 → 用到它的字（只算已取碼的） */
+
+/* 單筆的「部件」不是偏旁，是筆畫 —— 列出來只是雜訊 */
+const STROKEISH = new Set([...'丶一丨丿乀乁乚亅㇏丷丶']);
+
+/* 拆到哪裡為止？—— 拆到「你已經取過碼的東西」為止。
+   訴 = ⿰言斥：言 你取過碼（IIO），停；斥 沒取過，再拆 → 斤（＋丶，丟掉）。
+   結果正好是 言、斥、斤 —— 你要的那三個。
+   反過來如果無腦遞迴，言 會再被拆成 亠、二、口，整排都是廢話。 */
+function partsOf(ch, depth = 2, seen = new Set()) {
+  const d = ids[ch];
+  if (!d || depth <= 0) return [];
+  const out = [];
+  for (const c of d) {
+    if (IDS_OPS.includes(c) || c === ch || seen.has(c)) continue;
+    if (!/[㐀-鿿]/.test(c) || STROKEISH.has(c)) continue;
+    seen.add(c);
+    out.push(c);
+    /* 已經取過碼的部件就是終點：它對你已經是一個「認得的東西」，不必再拆 */
+    const coded = codes[c] && codes[c].segments && codes[c].segments.length;
+    if (!coded) for (const sub of partsOf(c, depth - 1, seen)) out.push(sub);
+  }
+  return out;
+}
+
+/* 「同偏旁」只看第一層 —— 議、論、識 都是 ⿰言X，言 就在第一層。
+   若跟著遞迴下去，「口」會把 189 個字都算成同偏旁，那不叫偏旁，叫巧合。 */
+function topParts(ch) {
+  const d = ids[ch];
+  if (!d) return [];
+  return [...new Set([...d].filter(c =>
+    !IDS_OPS.includes(c) && c !== ch && /[㐀-鿿]/.test(c) && !STROKEISH.has(c)))];
+}
+
+function buildCompIndex() {
+  compOf = new Map();
+  for (const [c, rec] of Object.entries(codes)) {
+    if (!rec.segments || !rec.segments.length) continue;
+    for (const p of topParts(c)) {
+      if (!compOf.has(p)) compOf.set(p, []);
+      compOf.get(p).push(c);
+    }
+  }
+}
+
 let relRun = 0;
 async function renderRelated(ch) {
   const box = $('#related');
   box.innerHTML = '';
   const run = ++relRun;
-  if (!medians.length) return;
-
-  await primeMedians(Object.keys(codes).filter(c => codes[c].segments));
+  if (!ids[ch]) return;
+  if (!compOf) buildCompIndex();
   if (run !== relRun) return;
-  if (!compIndex || compStamp !== (window.__baseStamp && window.__baseStamp.codes))
-    buildComponentIndex();
-
-  const n = medians.length;
-  const inside = [];        /* 這個字裡的部件 */
-  const taken = [];
-  const sizes = [...compIndex.keys()].filter(k => k < n).sort((a, b) => b - a);
-  for (const k of sizes) {
-    for (let i = 0; i + k <= n; i++) {
-      const idx = [...Array(k)].map((_, j) => i + j);
-      if (taken.some(t => idx.some(x => t.includes(x)))) continue;
-      const v = Shape.strokeVec(idx.map(x => medians[x]));
-      if (!v) continue;
-      const best = compIndex.get(k)
-        .filter(c => c.ch !== ch)
-        .map(c => ({ c, d: Shape.dist(v, c.vec) }))
-        .filter(x => x.d < 0.15)
-        .sort((a, b) => a.d - b.d)[0];
-      if (!best) continue;
-      inside.push({ ch: best.c.ch, code: best.c.code, strokes: idx });
-      taken.push(idx);
-    }
-  }
-
-  /* 反過來：哪些字把「這個字」當部件用 */
-  const myVec = Shape.strokeVec(medians);
-  const usedIn = [];
-  for (const [c, rec] of Object.entries(codes)) {
-    if (c === ch || !rec.segments || rec.notComponent) continue;
-    const g = _medCache.get(c);
-    if (!g || g.length <= n || g.length > n + 12) continue;
-    for (let i = 0; i + n <= g.length; i++) {
-      const v = Shape.strokeVec([...Array(n)].map((_, j) => g[i + j]));
-      if (v && Shape.dist(v, myVec) < 0.15) {
-        usedIn.push({ ch: c, code: rec.code || '' });
-        break;
-      }
-    }
-    if (usedIn.length >= 8) break;
-  }
-
-  if (run !== relRun) return;
-  if (!inside.length && !usedIn.length) return;
 
   const go = async c => {
     if (dirty || zigenDirty) await save();
     load(c);
   };
+  const chip = (c, cls = '') => {
+    const rec = codes[c] || {};
+    const a = el('a', cls + (rec.code ? '' : ' todo'));
+    a.append(el('span', 'rc', c));
+    a.append(el('span', 'rk', rec.code || '未取碼'));
+    a.title = rec.code ? `${c} = ${rec.code} —— 點一下去看它怎麼拆` : `${c} 還沒取碼 —— 點一下去取`;
+    a.onclick = () => go(c);
+    return a;
+  };
 
-  if (inside.length) {
-    box.append(el('span', 'lab', '裡面有：'));
-    for (const r of inside) {
-      const a = el('a');
-      const sv = el('span');
-      sv.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
-        strokes.map((d, k) =>
-          `<path class="${r.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
-        '</g></svg>';
-      a.append(sv);
-      a.append(el('span', 'rc', r.ch));
-      a.append(el('span', 'rk', r.code));
-      a.title = `${r.ch} = ${r.code}（第 ${r.strokes.map(k => k + 1).join(',')} 筆）—— 點一下去看它怎麼拆`;
-      a.onclick = () => go(r.ch);
-      box.append(a);
-    }
+  const parts = partsOf(ch, 2).filter(p => p !== ch);
+  if (parts.length) {
+    box.append(el('span', 'lab', '部件：'));
+    for (const p of parts) box.append(chip(p));
   }
+
+  /* 同偏旁的一整組：同「言」旁的字（議、論、識…）—— 收起來，要看再展開。
+     只對這個字「第一層」的部件開組，不然 訴 會冒出一個「同口旁」的 189 字。 */
+  const top = new Set(topParts(ch));
+  for (const p of parts) {
+    if (!top.has(p)) continue;
+    const fam = (compOf.get(p) || []).filter(c => c !== ch);
+    if (fam.length < 2) continue;
+    const wrap = el('span', 'fam');
+    const bt = el('button', '', `同「${p}」旁　${fam.length} 字 ▾`);
+    const list = el('span', 'famlist hide');
+    for (const c of fam.slice(0, 80)) list.append(chip(c, 'up'));
+    bt.onclick = () => {
+      const on = list.classList.toggle('hide');
+      bt.textContent = `同「${p}」旁　${fam.length} 字 ${on ? '▾' : '▴'}`;
+    };
+    wrap.append(bt, list);
+    box.append(wrap);
+  }
+
+  /* 反過來：哪些字把「這個字」當部件用 */
+  const usedIn = (compOf.get(ch) || []).slice(0, 10);
   if (usedIn.length) {
-    box.append(el('span', 'lab', '　用到它的字：'));
-    for (const r of usedIn) {
-      const a = el('a', 'up');
-      a.append(el('span', 'rc', r.ch));
-      a.append(el('span', 'rk', r.code));
-      a.title = `${r.ch} = ${r.code}`;
-      a.onclick = () => go(r.ch);
-      box.append(a);
-    }
+    box.append(el('span', 'lab', '　用到它：'));
+    for (const c of usedIn) box.append(chip(c, 'up'));
   }
 }
 
@@ -1981,6 +2013,7 @@ async function save() {
   } else if (cur && codes[cur]) {
     delete codes[cur].segments; delete codes[cur].code; delete codes[cur].final;
   }
+  compOf = null;                   /* 多了一個已取碼的字，「同偏旁」的名單就變了 */
   $('#status').textContent = '儲存中…';
   const puts = [putGuarded('/api/codes', JSON.stringify(codes), 'codes')];
   if (zigenDirty) puts.push(putGuarded('/api/zigen', JSON.stringify(zigen), 'zigen'));
@@ -2112,8 +2145,10 @@ Promise.all([
   fetch('/api/cangjie').then(r => r.json()).catch(() => ({})),
   fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
   fetchStamp(),
-]).then(async ([f, c, z, rl, cj, ln, s]) => {
+  fetch('/api/ids').then(r => r.json()).catch(() => ({})),   /* 部件拆分（相關字用） */
+]).then(async ([f, c, z, rl, cj, ln, s, id]) => {
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
+  ids = id || {};
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
   window.__baseStamp = await fetch('/api/state').then(r => r.json());

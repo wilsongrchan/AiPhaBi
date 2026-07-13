@@ -16,6 +16,7 @@
   /api/tw?c=字      GET      台灣教育部標準筆順（g0v/zh-stroke-data）
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
+  /api/ids          GET      部件拆分（makemeahanzi，例 訴 = ⿰言斥）
   /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
   /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
   /api/state        GET      各檔 mtime，兩頁靠它互通
@@ -44,6 +45,7 @@ LEARNED = DATA_DIR / "learned.json"
 BACKUPS = DATA_DIR / "backups"
 FREQ = SHARED / "freq.json"
 GRAPHICS = SHARED / "graphics.txt"
+DICT = SHARED / "dictionary.txt"        # makemeahanzi：部件拆分（IDS，例 訴 = ⿰言斥）
 TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
@@ -62,6 +64,26 @@ def load_glyphs():
             g = json.loads(line)
             GLYPHS[g["character"]] = {"strokes": g["strokes"], "medians": g["medians"]}
     print(f"筆畫資料（大陸筆順）：{len(GLYPHS)} 字")
+
+
+IDS: dict[str, str] = {}          # 字 → 部件拆分（⿰言斥）
+_ids_lock = threading.Lock()
+
+
+def ids_map():
+    """字的「部件」是結構事實，不該用形狀去猜 ——
+    猜的下場：訴 的下半在幾何上很像「下」，就真的被當成部件報出來。
+    這裡直接用 makemeahanzi 的 IDS 拆分（訴 = ⿰言斥），第一次用到才載入。"""
+    with _ids_lock:
+        if not IDS and DICT.exists():
+            with DICT.open(encoding="utf-8") as f:
+                for line in f:
+                    g = json.loads(line)
+                    d = g.get("decomposition")
+                    if d:
+                        IDS[g["character"]] = d
+            print(f"部件拆分（IDS）：{len(IDS)} 字")
+    return IDS
 
 
 def tw_strokes():
@@ -122,6 +144,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, FREQ.read_text("utf-8"), cache=True)
         if u.path == "/api/cangjie":
             return self._send(200, CANGJIE.read_text("utf-8"), cache=True)
+        if u.path == "/api/ids":
+            return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
         if u.path == "/api/state":
             # 一律用字串：mtime_ns 是 19 位數，超過 JavaScript 的安全整數範圍，
             # 當成 JSON 數字送出去會被瀏覽器悄悄四捨五入，版本就永遠對不上，
