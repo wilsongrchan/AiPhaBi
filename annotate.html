@@ -228,6 +228,8 @@
   .alt { display:flex; align-items:center; gap:6px; flex-wrap:wrap;
     border:1px dashed var(--line); border-radius:8px; padding:3px 7px; margin-bottom:4px; }
   .alt.main { border-style:solid; border-color:var(--accent); }   /* 主碼：實線，一眼分得開 */
+  .alt.auto { border-style:dotted; opacity:.85; }   /* 自動兼容的完整碼：不是你手動收的 */
+  .alt.auto b { color:var(--muted); }
   .alt.edit { cursor:pointer; }
   .alt.edit:hover { border-color:var(--warn); background:color-mix(in srgb,var(--warn) 6%,transparent); }
   .alt b { font:700 14px ui-monospace,monospace; color:var(--accent); letter-spacing:.06em; }
@@ -766,12 +768,10 @@ function renderCode() {
      而且要等整個字拆完才報 —— 拆到一半的碼本來就是殘碼，跟人家撞在一起
      是必然的，這時候跳出來只是噪音。 */
   const complete = strokes.length > 0 && left === 0;
-  /* 別的字的兼容碼一樣佔碼位 —— 撞到它，打字時照樣要多選一次 */
-  const clash = (fin && complete) ? Object.entries(codes)
-    .filter(([ch, r]) => ch !== cur &&
-      ((r.code && finalOf(r.code) === fin) ||
-       (r.alts || []).some(a => finalOf(a.code) === fin)))
-    .map(([ch]) => ch) : [];
+  /* 別的字的兼容碼（含自動兼容的完整碼）一樣佔碼位 —— 撞到它，打字時照樣要多選一次 */
+  const clash = (fin && complete)
+    ? Object.keys(codes).filter(ch => ch !== cur && codesFor(ch).includes(fin))
+    : [];
   const w = $('#clash');
   if (clash.length) {
     w.style.display = 'block';
@@ -792,6 +792,31 @@ function renderCode() {
    但打兼容碼一樣打得出這個字。代價是它會佔掉碼空間，可能製造新的重碼 ——
    所以碼表分析頁把「主碼重碼率」跟「含兼容碼」分開算，看得到代價。 */
 const altsOf = ch => (codes[ch] && codes[ch].alts) || [];
+
+/* 一個字「打得出來」的所有碼：主碼（縮短後）＋ 完整碼 ＋ 手動收的兼容碼。
+   完整碼永遠算兼容碼 —— 使用者把整個字拆完、老實把每一碼都打出來，沒有道理
+   打不出這個字。它不必存進 codes.json，本來就推得出來。 */
+function codesFor(ch) {
+  const r = codes[ch];
+  if (!r || !r.code) return [];
+  const out = [finalOf(r.code)];
+  if (r.code !== out[0]) out.push(r.code);              /* 完整碼（自動兼容） */
+  for (const a of r.alts || []) {
+    const f = finalOf(a.code);
+    if (!out.includes(f)) out.push(f);
+    if (a.code !== f && !out.includes(a.code)) out.push(a.code);
+  }
+  return out;
+}
+
+/* 完整碼被縮短時，在面板上把它列出來（自動兼容，不必手動收） */
+function autoFullRow(box, rec) {
+  if (!rec.code || finalOf(rec.code) === rec.code) return;
+  const d = el('div', 'alt auto');
+  d.innerHTML = `<b>${rec.code}</b><span>完整碼 · 自動兼容（打完整碼也打得出來）</span>`;
+  d.title = '超過碼長上限才會縮短；完整碼一律接受，不必手動收';
+  box.append(d);
+}
 
 /* 編兼容碼是一個「模式」：進去之後畫的東西不會動到主碼，出來時明確地收下或丟掉。
    （本來是「你先把主碼改掉，再按收下」—— 看起來就像在刪主碼，誰敢按。） */
@@ -863,9 +888,10 @@ function renderAlts() {
   $('#newAlt').style.opacity = (!rec.code || altMode) ? .4 : 1;
 
   if (!alts.length) {
-    box.innerHTML = '<div class="newz">沒有兼容碼。' +
+    box.innerHTML = '<div class="newz">沒有手動收的兼容碼。' +
       '別人拆得跟你不一樣但也合理時，按上面的「＋ 新增一種拆法」畫給它看，' +
       '他一樣打得出這個字（主碼不變）。</div>';
+    autoFullRow(box, rec);
     return;
   }
   if (rec.code) {
@@ -873,6 +899,7 @@ function renderAlts() {
     m.innerHTML = `<b>${finalOf(rec.code)}</b><span>主碼</span>`;
     box.append(m);
   }
+  autoFullRow(box, rec);
   for (const a of alts) {
     const d = el('div', 'alt edit');
     const fin = finalOf(a.code);
@@ -2605,15 +2632,20 @@ for (const b of document.querySelectorAll('.filters button'))
     renderQueue();
   };
 $('#export').onclick = () => {
-  const lines = ['# 愛發筆碼表\t字\t碼(實際)\t完整碼\t筆畫分組\t主/兼'];
+  const lines = ['# 愛發筆碼表\t字\t要按的碼\t完整碼\t筆畫分組\t主/兼'];
   for (const [c, r] of Object.entries(codes)) if (r.segments) {
     const full = r.segments.map(s => s.letter).join('');
-    lines.push(`${c}\t${finalOf(full)}\t${full}\t` +
-      r.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+') + '\t主');
-    /* 兼容碼也要進碼表 —— 不然收了等於沒收，打字的人還是打不出來 */
-    for (const a of r.alts || [])
-      lines.push(`${c}\t${finalOf(a.code)}\t${a.code}\t` +
-        a.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+') + '\t兼');
+    const grp = ss => ss.map(s => s.strokes.map(n => n + 1).join('')).join('+');
+    lines.push(`${c}\t${finalOf(full)}\t${full}\t${grp(r.segments)}\t主`);
+    /* 完整碼永遠接受：整個字老實拆完、每一碼都打出來，沒有道理打不出這個字 */
+    if (finalOf(full) !== full)
+      lines.push(`${c}\t${full}\t${full}\t${grp(r.segments)}\t兼(完整碼)`);
+    /* 手動收的兼容碼也要進碼表 —— 不然收了等於沒收，打字的人還是打不出來 */
+    for (const a of r.alts || []) {
+      lines.push(`${c}\t${finalOf(a.code)}\t${a.code}\t${grp(a.segments)}\t兼`);
+      if (finalOf(a.code) !== a.code)
+        lines.push(`${c}\t${a.code}\t${a.code}\t${grp(a.segments)}\t兼(完整碼)`);
+    }
   }
   const a = el('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
