@@ -66,10 +66,22 @@
     display:flex; flex-direction:column; align-items:center; line-height:1.35; }
   .axis div.hot { color:var(--accent); }
   .axis .cjkey { font:12px "PingFang TC",serif; color:var(--s2); }   /* 倉頡字根：跟它的長條同色 */
-  .meanline { position:absolute; left:0; right:0; border-top:1px solid var(--line);
+  .meanline { position:absolute; left:0; right:0; border-top:1px dashed var(--line);
     pointer-events:none; }
   .meanline span { position:absolute; right:0; top:-15px; font-size:10px; color:var(--muted);
     background:var(--card); padding:0 3px; }
+
+  /* 均勻度：一條線畫不出「平不平均」（平均值是算術定死的 100%÷26，任何分佈都一樣）。
+     真正要看的是分散程度 —— 用「等效字母數」表示：熵取 2 的次方，直接讀成
+     「這 26 個鍵，實際上只等於幾個鍵在平均分擔」。 */
+  .evenness { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-size:12px; color:var(--muted); margin:2px 0 10px; }
+  .meter { position:relative; width:190px; height:7px; border-radius:4px;
+    background:var(--bar); overflow:hidden; }
+  .meter i { position:absolute; top:0; bottom:0; left:0; border-radius:4px; display:block; }
+  .meter i.m1 { background:var(--s1); }
+  .meter i.m2 { background:var(--s2); height:3px; top:auto; bottom:0; }
+  .evenness b { color:var(--ink); font-weight:650; }
   .tip { position:fixed; z-index:20; background:var(--ink); color:var(--bg); font-size:12px;
     padding:5px 8px; border-radius:6px; pointer-events:none; display:none; white-space:nowrap; }
 
@@ -157,6 +169,7 @@
       <button id="tabFreq">表格</button>
     </div>
     <div class="legend hide" id="legAll"></div>
+    <div class="evenness" id="evenAll"></div>
     <div class="chart" id="chartAll"></div>
     <div class="axis" id="axisAll"></div>
     <div id="tableAll" class="hide" style="margin-top:12px"></div>
@@ -173,6 +186,7 @@
       <button id="tabFirst">表格</button>
     </div>
     <div class="legend hide" id="legFirst"></div>
+    <div class="evenness" id="evenFirst"></div>
     <div class="chart" id="chartFirst"></div>
     <div class="axis" id="axisFirst"></div>
     <div id="tableFirst" class="hide" style="margin-top:12px"></div>
@@ -290,12 +304,13 @@ function bars(counts, chartId, axisId, tableId, cjCounts) {
     axis.append(ax);
   });
 
+  /* 這條線不是「資料的平均」——它是「若 26 個鍵完全平均分擔會在哪」的基準線
+     （100% ÷ 26，任何分佈都畫在同一個地方）。只拿來讀「誰在線上、誰在線下」。
+     真正的平不平均看上面的均勻度。 */
   if (total) {
     const ml = el('div', 'meanline');
     ml.style.bottom = `${(mean / max) * 100}%`;
-    /* 對照模式兩邊都是佔比，平均都是 100%÷26 —— 是同一條線，畫兩條只是假精確 */
-    ml.append(el('span', '',
-      cmp ? `平均 ${mean.toFixed(1)}%（兩邊同一條：100% ÷ 26）` : `平均 ${mean.toFixed(1)}`));
+    ml.append(el('span', '', cmp ? `均分基準 ${mean.toFixed(1)}%` : `均分基準 ${mean.toFixed(1)}`));
     chart.append(ml);
   }
 
@@ -319,12 +334,25 @@ let myAll = {}, myFirst = {}, cjAll = {}, cjFirst = {}, cjN = 0;
    所以是並排的兩根細棒，而且比的是佔比（兩邊的碼數不一樣多）。 */
 const cmpOn = { all: false, first: false };
 
+/* 「等效字母數」＝ 2^熵。26 個鍵完全平均分擔＝26；若只有一個鍵在用＝1。
+   比平均線有用得多 —— 平均線是 100%÷26，任何分佈都畫在同一個地方，看不出平不平均。 */
+function effLetters(counts) {
+  const tot = LETTERS.reduce((s, L) => s + (counts[L] || 0), 0);
+  if (!tot) return 0;
+  let H = 0;
+  for (const L of LETTERS) {
+    const p = (counts[L] || 0) / tot;
+    if (p > 0) H -= p * Math.log2(p);
+  }
+  return Math.pow(2, H);
+}
+
 function drawCharts() {
   const shots = [
-    ['all', myAll, cjAll, '#chartAll', '#axisAll', '#tableAll', '#legAll'],
-    ['first', myFirst, cjFirst, '#chartFirst', '#axisFirst', '#tableFirst', '#legFirst'],
+    ['all', myAll, cjAll, '#chartAll', '#axisAll', '#tableAll', '#legAll', '#evenAll'],
+    ['first', myFirst, cjFirst, '#chartFirst', '#axisFirst', '#tableFirst', '#legFirst', '#evenFirst'],
   ];
-  for (const [k, mine, cj, c, a, t, lg] of shots) {
+  for (const [k, mine, cj, c, a, t, lg, ev] of shots) {
     const on = cmpOn[k] && cjN > 0;
     bars(mine, c, a, t, on ? cj : null);
     $(lg).classList.toggle('hide', !on);
@@ -332,6 +360,17 @@ function drawCharts() {
       `<span><i style="background:var(--s1)"></i>愛發筆</span>` +
       `<span><i style="background:var(--s2)"></i>官方倉頡</span>` +
       `<span>—— 同一批 ${cjN} 個字，比的是<b>佔比</b>（兩邊碼數不同，比次數沒意義）</span>`;
+
+    const e1 = effLetters(mine), e2 = effLetters(cj);
+    $(ev).innerHTML = !e1 ? '' :
+      `<span>均勻度</span>
+       <span class="meter" title="等效字母數 ÷ 26">
+         <i class="m1" style="width:${e1 / 26 * 100}%"></i>
+         ${on ? `<i class="m2" style="width:${e2 / 26 * 100}%"></i>` : ''}
+       </span>
+       <span>26 個鍵，實際上只等於 <b>${e1.toFixed(1)}</b> 個鍵在平均分擔` +
+      (on ? `（倉頡 <b>${e2.toFixed(1)}</b>）` : '') +
+      `　—— 愈接近 26 愈平均。</span>`;
   }
 }
 
