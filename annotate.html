@@ -174,6 +174,9 @@
   .ref { font-size:12px; color:var(--muted); }
   .ref b { color:var(--warn); font-family:ui-monospace,monospace; }
   .ref .good { color:var(--ok); } .ref .bad { color:var(--dupe,#c0392b); }
+  .convlab { display:flex; gap:5px; align-items:flex-start; font-size:11px; color:var(--muted);
+    line-height:1.4; margin-bottom:5px; cursor:pointer; }
+  .convlab input { margin-top:1px; }
   .clash { margin-top:6px; font-size:12px; line-height:1.5; padding:6px 9px; border-radius:8px;
     border:1px solid var(--bad,#c0392b); color:var(--ink);
     background:color-mix(in srgb, var(--bad,#c0392b) 8%, transparent); }
@@ -303,6 +306,10 @@
     <div id="checks"></div>
 
     <div class="lbl">備註</div>
+    <label class="convlab">
+      <input type="checkbox" id="notcomp">
+      <span>約定特例：這個字這樣拆，但不作為其他字的偏旁範本</span>
+    </label>
     <textarea id="note" placeholder="例外／約定原則…"></textarea>
 
     <div class="lbl">官方倉頡（對照）</div>
@@ -923,6 +930,13 @@ function renderCheckRow(c, rec) {
       };
       act.append(fx);
     }
+    /* 那個「範本字」本身才是特例（例：二 單獨成字取 II，但作為部件只算一個 I）*/
+    if (c.except) {
+      const ex = el('button', '', `「${c.except}」是特例`);
+      ex.title = `把「${c.except}」標成約定特例：它自己這樣拆，但不再當別的字的偏旁範本`;
+      ex.onclick = () => markNotComponent(c.except);
+      act.append(ex);
+    }
     const ig = el('button', '', '忽略');
     ig.title = '這個字是例外，不用再提醒';
     ig.onclick = async () => {
@@ -1013,6 +1027,9 @@ function buildComponentIndex() {
   const byLen = new Map();
   for (const [ch, rec] of Object.entries(codes)) {
     if (!rec.segments || !rec.segments.length) continue;
+    /* 約定特例：這個字自己這樣拆，但不能當別的字的偏旁範本。
+       例：「二」單獨成字取 I I，但兩橫作為部件只取一個 I —— 拿它當範本只會一直誤報。 */
+    if (rec.notComponent) continue;
     const g = _medCache.get(ch);
     if (!g) continue;
     const n = g.length;
@@ -1088,6 +1105,7 @@ async function componentWarnings() {
           skipped: best.skipped.map(x => i + x),
           label: `照「${best.ch}」的拆法（${best.code}）`,
         },
+        except: best.ch,
         msg: `第 ${idx.map(x => x + 1).join('、')} 筆就是「<b>${best.ch}</b>」，` +
              `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`,
       });
@@ -1095,6 +1113,23 @@ async function componentWarnings() {
     }
   }
   return out;
+}
+
+/* 把某個字標成「約定特例」：它自己怎麼拆是它的事，但不再當別的字的偏旁範本 */
+async function markNotComponent(ch) {
+  const rec = codes[ch];
+  if (!rec) return;
+  if (!confirm(
+      `把「${ch}」標成約定特例。\n\n` +
+      `它自己的碼（${rec.code || ''}）不變，但以後不會再拿它去比對別的字的偏旁 ——\n` +
+      '也就是不會再問你「這裡為什麼跟它拆得不一樣」。\n\n' +
+      '（例：二 單獨成字取 II，但兩橫作為部件只算一個 I。）')) return;
+  rec.notComponent = true;
+  compIndex = null;
+  await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
+  $('#status').textContent = `「${ch}」已標為約定特例`;
+  $('#status').className = 'saved';
+  renderSegs(); renderRelated(cur); auditAll();
 }
 
 /* ---------- 相關字 ----------
@@ -1137,7 +1172,7 @@ async function renderRelated(ch) {
   const myVec = Shape.strokeVec(medians);
   const usedIn = [];
   for (const [c, rec] of Object.entries(codes)) {
-    if (c === ch || !rec.segments) continue;
+    if (c === ch || !rec.segments || rec.notComponent) continue;
     const g = _medCache.get(c);
     if (!g || g.length <= n || g.length > n + 12) continue;
     for (let i = 0; i + n <= g.length; i++) {
@@ -1313,6 +1348,7 @@ async function load(c) {
   if (rec && rec.skipped) skipped = [...rec.skipped];
   $('#cur').innerHTML = `<b>${c}</b><span>${strokes.length} 筆</span>`;
   $('#note').value = (rec && rec.note) || '';
+  $('#notcomp').checked = !!(rec && rec.notComponent);
   drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
   renderRelated(c);
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
@@ -1844,6 +1880,12 @@ $('#clearAll').onclick = clearAll;
 $('#clearSel').onclick = () => { sel = []; drawGlyph(); suggest(); };
 $('#undoSeg').onclick = () => { segs.pop(); touch(); drawGlyph(); renderSegs(); predict(); };
 $('#note').oninput = touch;
+$('#notcomp').onchange = () => {
+  const rec = codes[cur] || (codes[cur] = {});
+  if ($('#notcomp').checked) rec.notComponent = true; else delete rec.notComponent;
+  compIndex = null;
+  touch(); renderSegs(); renderRelated(cur);
+};
 $('#search').oninput = () => { shown = 120; renderQueue(); };
 $('#more').onclick = () => { shown += 120; renderQueue(); };
 for (const b of document.querySelectorAll('.filters button'))
