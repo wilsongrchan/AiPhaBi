@@ -85,6 +85,9 @@
   .chip .tools span { cursor:pointer; font-size:10px; width:16px; height:16px; border-radius:50%;
     background:var(--card); border:1px solid var(--line); display:grid; place-items:center; }
   .chip .tools .x:hover { color:var(--dupe); border-color:var(--dupe); }
+  .chip .tools .pk:hover { color:var(--accent); border-color:var(--accent); }
+  .chip.picked .tools .pk { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .chip.picked .tools { display:flex; }
   .chip.unc .tools .u { color:var(--warn); border-color:var(--warn); }
   .chip .set { position:absolute; top:-6px; left:-6px; font-size:9px; padding:0 3px;
     border-radius:4px; border:1px solid var(--line); background:var(--card); cursor:pointer;
@@ -160,6 +163,8 @@
   #mergebar .prev { display:flex; gap:4px; }
   #mergebar .prev svg { width:26px; height:26px; }
   #mergebar .prev svg .on { fill:var(--ink); } #mergebar .prev svg .off { fill:var(--ghost); opacity:.35; }
+  #mergebar .mghint { font-size:11px; color:var(--muted); flex-basis:100%; }
+  #mergebar { flex-wrap:wrap; max-width:min(680px, 92vw); }
   .grip { cursor:grab; color:var(--line); font-size:12px; line-height:1; user-select:none;
     padding:0 1px; }
   .grip:hover { color:var(--accent); }
@@ -415,6 +420,7 @@
   <span class="prev" id="mergeprev"></span>
   <button class="primary" id="domerge">合併成一個字根</button>
   <button id="cancelmerge">取消</button>
+  <span class="mghint">合併後，被併掉的形狀會成為「變體」，比對時一樣算數 —— 不會丟掉任何形狀。</span>
 </div>
 
 <div id="modal">
@@ -801,6 +807,10 @@ function chip(arr, i, s, dup, L, it) {
   c.append(set);
 
   const tools = el('div', 'tools');
+  const pk = el('span', 'pk', picked.has(s) ? '✓' : '⊕');
+  pk.title = '選取以合併：選兩個以上「其實是同一個」的字根，把它們併成一條';
+  pk.onclick = ev => { ev.stopPropagation(); togglePick(L ? L.letter : null, s); };
+  tools.append(pk);
   const u = el('span', 'u', '⚠'); u.title = '待核對';
   u.onclick = () => { s.uncertain = !s.uncertain; if (!s.uncertain) delete s.uncertain; touch(); render(); };
   const x = el('span', 'x', '✕');
@@ -1559,7 +1569,9 @@ function renderMergeBar() {
   const bar = $('#mergebar');
   bar.classList.toggle('on', picked.size > 0);
   if (!picked.size) return;
-  $('#mergetext').innerHTML = `已選 <b>${picked.size}</b> 個字根（${pickLetter}）`;
+  $('#mergetext').innerHTML = picked.size < 2
+    ? `已選 <b>1</b> 個字根（${pickLetter}）—— 再選一個同字母的字根就能合併`
+    : `已選 <b>${picked.size}</b> 個字根（${pickLetter}）`;
   const prev = $('#mergeprev'); prev.innerHTML = '';
   for (const s of picked) {
     const holder = el('span');
