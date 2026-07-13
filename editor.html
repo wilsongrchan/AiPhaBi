@@ -243,6 +243,33 @@
   .rvhint { font-size:11px; color:var(--muted); flex-basis:100%; }
   .rvpick { margin-right:2px; }
 
+  /* 掃描：哪些字可以改用這個字根 */
+  #apply { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; place-items:center;
+    z-index:97; }
+  #apply.on { display:grid; }
+  .apsheet { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; width:min(640px,95vw); max-height:85vh; display:flex; flex-direction:column; }
+  .apsheet h3 { margin:0 0 4px; font-size:15px; }
+  .apsub { font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.5; }
+  .apsub b { color:var(--ink); }
+  .aplist { overflow:auto; flex:1; }
+  .apitem { display:flex; align-items:center; gap:9px; padding:5px 3px;
+    border-bottom:1px solid var(--line); }
+  .apitem .apc { font-size:21px; font-family:"PingFang TC",serif; width:26px; text-align:center; }
+  .apitem svg { width:32px; height:32px; }
+  .apitem svg .on { fill:var(--accent); } .apitem svg .off { fill:var(--ghost); opacity:.35; }
+  .apitem .apcd { font:700 13px ui-monospace,monospace; color:var(--muted); }
+  .apitem .apcd b { color:var(--accent); }
+  .apitem .arrow { color:var(--muted); }
+  .aptag { font:600 10px ui-monospace,monospace; color:var(--ok); border:1px solid var(--ok);
+    border-radius:4px; padding:0 4px; margin-left:6px; white-space:nowrap; }
+  .aptag.warn { color:var(--warn); border-color:var(--warn); }
+  .aptag.bad { color:var(--bad); border-color:var(--bad); }
+  .apwarn { color:var(--bad); }
+  .apitem.regroup { background:color-mix(in srgb, var(--warn) 5%, transparent); }
+  .apitem.clash { background:color-mix(in srgb, var(--bad) 7%, transparent); }
+  .aprow { display:flex; gap:6px; align-items:center; margin-top:10px; }
+
   /* 點字根 → 用到它的字 */
   #usage { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; place-items:center;
     z-index:96; }
@@ -325,6 +352,21 @@
 <div id="dupes"></div>
 <nav id="jump"></nav>
 <main id="app"></main>
+<div id="apply">
+  <div class="apsheet">
+    <h3 id="aptitle"></h3>
+    <div class="apsub" id="apsub"></div>
+    <div class="aplist" id="aplist"></div>
+    <div class="aprow">
+      <button id="apall">全選</button>
+      <button id="apnone">全不選</button>
+      <div class="grow"></div>
+      <button id="apcancel">不改</button>
+      <button class="primary" id="apok">套用勾選的</button>
+    </div>
+  </div>
+</div>
+
 <div id="usage">
   <div class="ugsheet">
     <div id="ugtitle"></div>
@@ -336,6 +378,7 @@
     <div class="rvsrc" id="ugcap"></div>
     <div class="rvchars" id="ugchars"></div>
     <div class="rvacts">
+      <button class="primary" id="ugscan">找出可以改用它的字</button>
       <button id="ugedit">重新選筆畫</button>
       <div class="grow"></div>
       <button id="ugclose">關閉</button>
@@ -1111,6 +1154,173 @@ async function afterResolve() {
 }
 
 
+/* ---------- 新增字根之後：哪些已取碼的字可以改用它？ ----------
+   例：在 I 底下新增「兩橫」之後，所有含「言」的字（本來把第 3、4 筆略過）
+   都應該改成 I —— 記 IOZ 會變成 IIOZ。這裡把它們找出來，讓你逐一勾選。
+   會處理三種情況：那幾筆本來被略過、本來被拆成好幾個字根、或兩者混合。 */
+async function findApplications(shape, letter) {
+  const codes = await loadCodes();
+  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
+
+  /* 這個字根（含變體）的向量與頭尾結構 */
+  const forms = [];
+  for (const f of [shape.glyph, ...(shape.alts || [])].filter(Boolean)) {
+    const g = await Zigen.getGlyph(f.src);
+    if (!g) continue;
+    const med = f.strokes.map(i => g.medians[i]);
+    if (med.some(m => !m)) continue;
+    const v = Shape.strokeVec(med);
+    if (!v) continue;
+    const st = [...f.strokes].sort((a, b) => a - b);
+    let head = 1;
+    while (head < st.length && st[head] === st[head - 1] + 1) head++;
+    forms.push({ v, n: med.length, gapped: head < st.length, head, tail: st.length - head,
+                 thr: shape.thr ?? thr });
+  }
+  if (!forms.length) return [];
+
+  const out = [];
+  for (const [ch, rec] of Object.entries(codes)) {
+    if (!rec.segments || !rec.segments.length) continue;
+    const g = await Zigen.getGlyph(ch);
+    if (!g) continue;
+    const n = g.medians.length;
+
+    for (const f of forms) {
+      /* 依這個字根自己的結構列出候選筆畫組 */
+      const cands = [];
+      if (!f.gapped) {
+        for (let i = 0; i + f.n <= n; i++)
+          cands.push([...Array(f.n)].map((_, j) => i + j));
+      } else {
+        for (let i = 0; i + f.head <= n; i++) {
+          const run = [...Array(f.head)].map((_, j) => i + j);
+          for (let j = i + f.head; j + f.tail <= n; j++)
+            cands.push([...run, ...[...Array(f.tail)].map((_, k) => j + k)]);
+        }
+      }
+      for (const idx of cands) {
+        const v = Shape.strokeVec(idx.map(i => g.medians[i]));
+        if (!v) continue;
+        const d = Shape.dist(v, f.v);
+        if (d >= f.thr) continue;
+
+        const set = new Set(idx);
+        const skipped = new Set(rec.skipped || []);
+        const covering = rec.segments.filter(sg => sg.strokes.some(i => set.has(i)));
+        const union = new Set([
+          ...covering.flatMap(sg => sg.strokes),
+          ...idx.filter(i => skipped.has(i)),
+        ]);
+        /* 只在「這幾筆剛好被略過／剛好被那幾個字根蓋滿」時才提議 —— 
+           跨出去的話怎麼重切是你的判斷，不亂改 */
+        if (union.size !== set.size || [...union].some(i => !set.has(i))) continue;
+        if (covering.length === 1 && covering[0].letter === letter &&
+            covering[0].strokes.length === idx.length) continue;   /* 已經是它了 */
+
+        const segs = rec.segments
+          .filter(sg => !covering.includes(sg))
+          .concat([{ strokes: [...idx].sort((a, b) => a - b), letter }])
+          .sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+        const newSkip = (rec.skipped || []).filter(i => !set.has(i));
+        out.push({ ch, rec, segs, newSkip, strokes: idx,
+                   before: rec.code || rec.segments.map(s => s.letter).join(''),
+                   after: segs.map(s => s.letter).join(''),
+                   wasSkipped: idx.filter(i => skipped.has(i)).length });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+async function scanAndApply(shape, letter) {
+  $('#status').textContent = '掃描碼表…';
+  await loadRules();
+  const list = await findApplications(shape, letter);
+  if (!list.length) {
+    $('#status').textContent = '沒有字需要改';
+    $('#status').className = 'saved';
+    return;
+  }
+  /* 分兩類：
+       A. 那幾筆本來是「略過」的 —— 新字根把它們撿回來，幾乎一定是對的 → 預設勾選
+       B. 那幾筆本來已經取了碼 —— 這是「重新分組」，未必是你要的 → 預設不勾
+     再標出「改完會與別的字撞碼」的，那種要特別小心。 */
+  const codesNow = await loadCodes();
+  const maxR = (rulesCache && rulesCache.rules || []).find(r =>
+    r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
+  const shorten = c => Zigen.shorten(c, maxR);
+  const taken = new Map();
+  for (const [ch, r] of Object.entries(codesNow))
+    if (r.code) taken.set(shorten(r.code), ch);
+
+  for (const a of list) {
+    a.regroup = a.wasSkipped < a.strokes.length;      /* 有筆畫本來就已經取了碼 */
+    const other = taken.get(shorten(a.after));
+    a.clash = other && other !== a.ch ? other : null;
+  }
+  list.sort((x, y) => (x.regroup - y.regroup) || (x.ch < y.ch ? -1 : 1));
+
+  const picked = new Set(list.map((_, i) => i).filter(i => !list[i].regroup && !list[i].clash));
+  const box = $('#aplist'); box.innerHTML = '';
+  const nFix = list.filter(a => !a.regroup).length;
+  $('#aptitle').textContent = `有 ${list.length} 個字可以改用這個字根（${letter}）`;
+  $('#apsub').innerHTML =
+    `<b>${nFix}</b> 個字本來把那幾筆<b>略過</b> —— 新字根把它們撿回來，已預設勾選。<br>` +
+    `另外 <b>${list.length - nFix}</b> 個字那幾筆<b>本來已經取了碼</b>，改了等於重新分組，` +
+    '未必是你要的，預設不勾。<span class="apwarn">紅色</span>＝改完會與別的字撞碼。';
+
+  for (const [i, a] of list.entries()) {
+    const g = await Zigen.getGlyph(a.ch);
+    const it = el('div', 'apitem' + (a.regroup ? ' regroup' : '') + (a.clash ? ' clash' : ''));
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = picked.has(i);
+    cb.onchange = () => cb.checked ? picked.add(i) : picked.delete(i);
+    it.append(cb);
+    it.append(el('span', 'apc', a.ch));
+    const sv = el('span');
+    sv.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+      g.strokes.map((d, k) =>
+        `<path class="${a.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+      '</g></svg>';
+    it.append(sv);
+    const cd = el('span', 'apcd');
+    cd.innerHTML = `${a.before} <span class="arrow">→</span> <b>${a.after}</b>` +
+      (a.wasSkipped ? `<span class="aptag">撿回略過的 ${a.wasSkipped} 筆</span>` : '') +
+      (a.regroup ? '<span class="aptag warn">重新分組</span>' : '') +
+      (a.clash ? `<span class="aptag bad">會與「${a.clash}」撞碼</span>` : '');
+    it.append(cd);
+    box.append(it);
+  }
+
+  const done = async apply => {
+    $('#apply').classList.remove('on');
+    if (!apply || !picked.size) { $('#status').textContent = '未變更'; return; }
+    const codes = await loadCodes();
+    for (const i of picked) {
+      const a = list[i];
+      a.rec.segments = a.segs;
+      a.rec.code = a.segs.map(s => s.letter).join('');
+      if (a.newSkip.length) a.rec.skipped = a.newSkip; else delete a.rec.skipped;
+      delete a.rec.final;
+    }
+    await fetch('/api/codes', { method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes, null, 2) });
+    $('#status').textContent = `已更新 ${picked.size} 個字`;
+    $('#status').className = 'saved';
+    codesCache = null;
+    render();
+  };
+  $('#apok').onclick = () => done(true);
+  $('#apcancel').onclick = () => done(false);
+  $('#apall').onclick = () => box.querySelectorAll('input').forEach((c, i) => {
+    c.checked = true; picked.add(i); });
+  $('#apnone').onclick = () => { box.querySelectorAll('input').forEach(c => c.checked = false);
+    picked.clear(); };
+  $('#apply').classList.add('on');
+  $('#status').textContent = '';
+}
+
 /* ---------- 點字根 → 看有哪些字用到它，一個一個翻 ---------- */
 async function openUsage(arr, shape, L) {
   const letter = L ? L.letter : null;
@@ -1162,6 +1372,10 @@ async function openUsage(arr, shape, L) {
   $('#ugprev').onclick = () => { at = (at - 1 + views.length) % views.length; draw(); };
   $('#ugnext').onclick = () => { at = (at + 1) % views.length; draw(); };
   $('#ugedit').onclick = () => { sheet.classList.remove('on'); openPicker(arr, shape); };
+  $('#ugscan').onclick = async () => {
+    sheet.classList.remove('on');
+    await scanAndApply(shape, letter);
+  };
   $('#ugclose').onclick = () => sheet.classList.remove('on');
   await draw();
 }
@@ -1252,7 +1466,9 @@ async function suggestIntention(L, shape) {
    字根從 Y 移到 T，只改字根表是不夠的：那些用了這個字根取碼的字，碼裡還是 Y。
    所以移動後把碼表掃一遍，找出真的用到這個形狀的字，問你要不要一併改。 */
 let codesCache = null;
+let rulesCache = null;
 const loadCodes = async () => (codesCache ||= await fetch('/api/codes').then(r => r.json()));
+const loadRules = async () => (rulesCache ||= await fetch('/api/rules').then(r => r.json()));
 
 function letterOfArray(arr) {
   for (const L of data.letters)

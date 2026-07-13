@@ -3286,21 +3286,21 @@
     "segments": [
       {
         "strokes": [
-          0
+          0,
+          1,
+          2
         ],
-        "letter": "J"
+        "letter": "E"
       },
       {
         "strokes": [
-          1,
-          2,
           3
         ],
-        "letter": "F"
+        "letter": "J"
       }
     ],
-    "code": "JF",
-    "final": "JF",
+    "code": "EJ",
+    "final": "EJ",
     "overrides": [
       "merge:0-1"
     ]
@@ -3925,28 +3925,6 @@
       "lone:1",
       "merge:0-1"
     ],
-    "segments": [
-      {
-        "strokes": [
-          0
-        ],
-        "letter": "I"
-      },
-      {
-        "strokes": [
-          1
-        ],
-        "letter": "I"
-      },
-      {
-        "strokes": [
-          2
-        ],
-        "letter": "I"
-      }
-    ],
-    "code": "III",
-    "final": "III",
     "note": "約定原則。"
   },
   "日": {
@@ -6470,7 +6448,10 @@
       }
     ],
     "code": "YIV",
-    "final": "YIV"
+    "final": "YIV",
+    "overrides": [
+      "tier:2"
+    ]
   },
   "程": {
     "segments": [
@@ -11050,6 +11031,9 @@
     "skipped": [
       0,
       7
+    ],
+    "overrides": [
+      "merge:4-5"
     ]
   },
   "怎": {
@@ -11451,7 +11435,10 @@
       }
     ],
     "code": "GMIGJL",
-    "final": "GMIL"
+    "final": "GMIL",
+    "overrides": [
+      "merge:4-5"
+    ]
   },
   "界": {
     "segments": [
@@ -13402,5 +13389,70 @@
     "skipped": [
       5
     ]
+  },
+  "識": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          12,
+          13,
+          14,
+          15
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          16,
+          17
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          18
+        ],
+        "letter": "Q"
+      }
+    ],
+    "code": "IIOIVBXQ",
+    "final": "IIOQ"
   }
 }
