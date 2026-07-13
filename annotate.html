@@ -201,12 +201,10 @@
   .chk .act button.apply:hover { background:var(--accent); color:#fff; }
   .chk.muted { opacity:.62; }
   .chk.muted:hover { opacity:1; }
-  /* 還原之後閃一下：不然警告回來了，你還是不知道它在講哪裡 */
-  .chk.flash { animation:chkflash 2.2s ease-out; }
-  @keyframes chkflash {
-    0%, 55% { box-shadow:0 0 0 2px var(--warn, #d08a2a); background:var(--card); }
-    100% { box-shadow:0 0 0 0 transparent; }
-  }
+  /* 還原之後把那一列釘住：框起來、標成未處理，圖上的亮點也留著 */
+  .chk.flash { box-shadow:0 0 0 2px var(--warn, #d08a2a); }
+  .pinbadge { display:block; margin-top:4px; font-size:11px; font-weight:600;
+    color:var(--warn, #d08a2a); }
   /* 已壓下的警告不能藏起來 —— 看不見就等於不知道自己放過了什麼 */
   .mutedzone:not(:empty) { margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); }
   .mutedhd { font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:.04em; }
@@ -646,6 +644,8 @@ function checks(ctx) {
   const on = id => rules && rules.rules.find(r =>
     r.id === id && r.enabled && r.kind === 'enforced');
   const TIER_NAME = { primary: '優等', secondary: '次等', tertiary: '三等' };
+  /* 警告一定要講清楚「是哪幾筆」——只說「第 3 個字根」，等於要你自己去數 */
+  const SN = idx => `第 ${[...idx].sort((a, b) => a - b).map(i => i + 1).join('、')} 筆`;
 
   /* 1. 筆順原則：字根要按首筆先後排列 */
   if (on('stroke_order') && segs.length > 1) {
@@ -666,20 +666,21 @@ function checks(ctx) {
         fix: { type: 'letter', i, to: any.e.letter,
                label: `改成 ${any.e.letter}` },
         reject: { letter: any.e.letter, zlabel: any.e.label, strokes: sg.strokes },
-        msg: `第 ${i + 1} 個字根指派給 <b>${sg.letter}</b>，但它的形狀跟 ` +
+        msg: `第 ${i + 1} 個字根（${SN(sg.strokes)}）指派給 <b>${sg.letter}</b>，但它的形狀跟 ` +
              `<b>${any.e.letter}</b> 的既有字根 ${any.e.label} 幾乎一樣（距離 ${any.d.toFixed(3)}）。` });
     }
     /* 3. 全新的形狀：不是錯，只是提醒會新增一條字根 */
     else if (!mine || mine.d >= thrOf(mine.e)) {
       out.push({ key: `new:${i}`, lvl: 'info', rule: '新字根', refs: [i],
-        msg: `第 ${i + 1} 個字根（${sg.letter}）是新形狀，儲存後會在 ${sg.letter} 底下新增一條字根。` });
+        msg: `第 ${i + 1} 個字根（${SN(sg.strokes)}，${sg.letter}）是新形狀，` +
+             `儲存後會在 ${sg.letter} 底下新增一條字根。` });
     }
     /* 3b. 併進了既有字根 —— 但只是「勉強算同一個」的話，你有權不同意。
            不然它會悄悄被算成別的字根，字根表上只多一個計次，你根本看不到。 */
     else if (mine.d > thrOf(mine.e) * 0.35) {
       out.push({ key: `absorb:${i}`, lvl: 'info', rule: '併入既有字根', refs: [i],
         split: { i, letter: sg.letter, strokes: sg.strokes },
-        msg: `第 ${i + 1} 個字根（${sg.letter}）會<b>併入既有字根 ${mine.e.label}</b>` +
+        msg: `第 ${i + 1} 個字根（${SN(sg.strokes)}，${sg.letter}）會<b>併入既有字根 ${mine.e.label}</b>` +
              `（距離 ${mine.d.toFixed(3)}，門檻 ${thrOf(mine.e)}）—— ` +
              '不是新字根，字根表上只會多一個計次。如果你覺得這是不同的形狀，請另立新字根。' });
     }
@@ -696,7 +697,7 @@ function checks(ctx) {
         fix: { type: 'letter', i, to: better.e.letter,
                label: `改成 ${better.e.letter}` },
         reject: { letter: better.e.letter, zlabel: better.e.label, strokes: sg.strokes },
-        msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}` +
+        msg: `第 ${i + 1} 個字根（${SN(sg.strokes)}）用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}` +
              `（取 <b>${sg.letter}</b>），但同一組筆畫也配得上<b>優等</b>字根 ` +
              `${better.e.label}（取 <b>${better.e.letter}</b>）—— 碼會不一樣。` });
     }
@@ -716,7 +717,7 @@ function checks(ctx) {
         fix: { type: 'merge', a: a.i, b: b.i, to: m.e.letter,
                label: `合併成一個 ${m.e.letter}` },
         reject: { letter: m.e.letter, zlabel: m.e.label, strokes: union },
-        msg: `第 ${a.i + 1}、${b.i + 1} 個字根合起來剛好是既有字根 ${m.e.label}` +
+        msg: `第 ${a.i + 1}、${b.i + 1} 個字根（${SN(union)}）合起來剛好是既有字根 ${m.e.label}` +
              `（<b>${m.e.letter}</b>）—— 可以一碼取盡，不必分兩碼。` });
     }
   }
@@ -732,7 +733,7 @@ function checks(ctx) {
     out.push({ key: `lone:${i}`, lvl: 'warn', rule: '孤筆略過原則', refs: [i],
       teach: { stroke: st, kind },
       fix: { type: 'skip', i, stroke: st, label: '略過這一筆' },
-      msg: `第 ${i + 1} 個字根只有一筆（${kind}），而且不是末筆。` +
+      msg: `第 ${i + 1} 個字根只有一筆（${SN([st])}，${kind}），而且不是末筆。` +
            `依原則，無法與其他筆畫組成字根的孤立${kind}應該<b>略過</b>，不取碼。` });
   });
 
@@ -1001,22 +1002,35 @@ async function muteCheck(rec, flashKey) {   /* 壓下／還原／改判之後都
   audit.set(cur, await auditChar(cur)); markQueue(cur);
 }
 
-/* 還原一條警告，卻不告訴你它在講哪幾筆，等於沒還原 —— 所以直接替他滑過去：
-   捲到那一列、閃一下，並把它指的字根／筆畫點亮兩秒。 */
+/* 還原一條警告，卻沒有任何動靜，等於沒還原 —— 所以：捲到那一列、框起來、
+   標成「未處理」，並把它指的筆畫「釘住」點亮（不是閃一下就沒了），
+   直到你去碰別的東西為止。 */
+let pinned = null;
+function unpin() {
+  if (!pinned) return;
+  pinned.row.classList.remove('flash');
+  pinned.row.querySelector('.pinbadge')?.remove();
+  pinned.row.onmouseleave?.();
+  pinned = null;
+}
 function flashCheck(key, tries = 0) {
   const row = document.querySelector(`.chk[data-key="${CSS.escape(key)}"]`);
   if (!row) {                       /* 偏旁一致性是非同步算的，晚一點才會出現 */
     if (tries < 12) setTimeout(() => flashCheck(key, tries + 1), 250);
     return;
   }
+  unpin();
   row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   row.classList.add('flash');
-  row.onmouseenter?.();                                  /* 點亮它指的那幾筆 */
-  setTimeout(() => {
-    row.classList.remove('flash');
-    if (!row.matches(':hover')) row.onmouseleave?.();
-  }, 2200);
+  const b = el('span', 'pinbadge', '↩ 已還原：這條警告回到未處理，圖上標出的就是它說的筆畫');
+  row.querySelector('.body').append(b);
+  row.onmouseenter?.();                        /* 點亮它指的那幾筆，並且釘住 */
+  pinned = { row, key };
 }
+/* 碰到別的地方就取消釘選（點字、滑過別條警告都算） */
+document.addEventListener('pointerdown', e => {
+  if (pinned && !pinned.row.contains(e.target)) unpin();
+}, true);
 
 /* 已壓下的警告仍要看得見 —— 否則點進字裡只看到一片安靜，
    根本不知道自己當初到底放過了什麼。滑過去一樣會點亮它指的筆畫。 */
@@ -1077,6 +1091,7 @@ async function renderChecksAsync(syncList) {
 
 function renderChecks() {
   const box = $('#checks'); box.innerHTML = '';
+  pinned = null;                    /* 舊的列已經被砍掉了，別再抓著它 */
   const rec = codes[cur] || {};
   const off = muted(rec);
   const list = checks({ segs, skipped, medians, nStrokes: strokes.length });
@@ -1108,6 +1123,8 @@ function highlightOn(elm, c) {
   elm.onmouseleave = () => {
     document.querySelectorAll('.seg.hl').forEach(x => x.classList.remove('hl'));
     document.querySelectorAll('#glyph path.hl').forEach(x => x.classList.remove('hl'));
+    /* 有釘住的那條就把它的亮點放回去，不然滑過別條警告一次，釘選就白釘了 */
+    if (pinned && pinned.row !== elm && document.contains(pinned.row)) pinned.row.onmouseenter();
   };
 }
 
