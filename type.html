@@ -57,6 +57,17 @@
   .imehint { font-size:11px; color:var(--muted); margin-left:auto; white-space:nowrap; }
   .none { font-size:13px; color:var(--bad); }
 
+  /* 「連未取碼的字也算」：現場用字根表推它的碼，打得出來就表示這套規則自己接得住 */
+  .toolbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
+  .tog { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted);
+    cursor:pointer; }
+  .tog b { color:var(--ink); }
+  .prog { font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; }
+  .cand.pred b { color:var(--muted); }
+  .cand.pred { border-style:dashed; border-color:var(--line); }
+  .cand.pred em { color:var(--warn,#d98324); }
+  .predlink { font-size:11px; color:var(--accent); text-decoration:none; margin-left:6px; }
+
   .stat { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted);
     margin-top:14px; }
   .stat b { color:var(--ink); font-family:ui-monospace,monospace; }
@@ -82,6 +93,14 @@
     <kbd>⌫</kbd> 刪碼、<kbd>esc</kbd> 清掉這一串碼。
     標點直接按（<kbd>,</kbd>→，　<kbd>.</kbd>→。　<kbd>?</kbd>→？　<kbd>[</kbd><kbd>]</kbd>→「」　<kbd>"</kbd>→「」輪流）。
     打不出來的字表示還沒取碼。
+  </div>
+
+  <div class="toolbar">
+    <label class="tog">
+      <input type="checkbox" id="usePred">
+      <span>把<b>還沒取碼</b>的字也算進來（用字根表現場推它的碼）</span>
+    </label>
+    <span class="prog" id="predprog"></span>
   </div>
 
   <div class="paper" id="paper" tabindex="0"></div>
@@ -146,9 +165,81 @@ function buildTable() {
     `<span>其中 <b>${dup}</b> 個碼要選字</span>`;
 }
 
+/* ---------- 未取碼的字：現場推它的碼 ----------
+   打得出來，就表示這套字根表 + 原則自己接得住這個字；打出來的碼跟你心裡的拆法
+   不一樣，那就是規則還沒說清楚的地方 —— 這正是最值得看的東西。
+   只推最常用的那幾千字（照字頻），不然要把 9574 個字全跑一遍。 */
+/* 只推最常用的 2500 個未取碼字：實測 3 秒推完、覆蓋 99%。
+   再往下是罕用字，筆畫多，搜尋成本陡增（6000 字要跑好幾分鐘），不划算。 */
+const PRED_LIMIT = 2500;
+let zigen = null, lib = null, learned = { stroke_kinds: [] };
+let predTable = new Map();      /* 碼 → [{ch, code}]，預測出來的 */
+let predicting = false, predDone = 0;
+
+function rule(id) {
+  return rules && rules.rules.find(r => r.id === id && r.enabled && r.kind === 'enforced');
+}
+
+async function buildPredictions() {
+  if (predicting || !lib) return;
+  predicting = true;
+  const todo = [...rank.keys()]
+    .filter(ch => !codes[ch] || !codes[ch].code)
+    .slice(0, PRED_LIMIT);
+  const merge = rule('merge_over_split'), sk = rule('skip_isolated_hv'),
+        tp = rule('tier_priority');
+  const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+
+  for (let i = 0; i < todo.length; i++) {
+    const ch = todo[i];
+    const g = await Zigen.getGlyph(ch);
+    if (g && g.medians) {
+      const out = Zigen.predict(g.medians, lib, {
+        thr,
+        segPenalty: merge ? merge.params.seg_penalty : 0.05,
+        skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
+                     learned: learned.stroke_kinds,
+                     lastLetters: sk.params.last_stroke_letters } : null,
+        tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
+      });
+      /* 只收「整個字都拆得完」的預測 —— 拆一半的碼不是碼 */
+      const best = out.find(r => r.covered === r.total);
+      if (best) {
+        const code = best.segments.map(s => s.letter).join('');
+        const fin = finalOf(code);
+        for (const c of new Set([fin, code])) {
+          if (!predTable.has(c)) predTable.set(c, []);
+          predTable.get(c).push({ ch, code, full: code });
+        }
+      }
+    }
+    predDone = i + 1;
+    if (i % 25 === 0) {
+      $('#predprog').textContent =
+        `推導中… ${predDone} / ${todo.length} 字（邊推邊可以打，推到的字馬上就打得出來）`;
+      render();
+      await new Promise(r => setTimeout(r, 0));      /* 讓畫面喘口氣 */
+    }
+  }
+  const got = new Set([...predTable.values()].flat().map(x => x.ch)).size;
+  $('#predprog').textContent =
+    `完成：${todo.length} 個未取碼的字裡，用現有字根推得出 ${got} 個` +
+    `（${(got / todo.length * 100).toFixed(0)}%）`;
+  predicting = false;
+  render();
+}
+
+$('#usePred').onchange = () => {
+  if ($('#usePred').checked) {
+    if (!predTable.size && !predicting) buildPredictions();
+    else render();
+  } else { $('#predprog').textContent = ''; render(); }
+};
+
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符） */
 function candidates() {
   if (!code) return [];
+  const usePred = $('#usePred').checked;
   const exact = (table.get(code) || []).map(x => ({ ...x, exact: true }));
   const pre = [];
   if (exact.length < 9) {
@@ -161,7 +252,16 @@ function candidates() {
       if (exact.length + pre.length >= 12) break;
     }
   }
-  return [...exact, ...pre].slice(0, 9);
+  /* 預測出來的字排在已取碼的字後面 —— 你親手取的碼永遠優先 */
+  const pd = [];
+  if (usePred) {
+    for (const x of predTable.get(code) || []) {
+      if (exact.some(e => e.ch === x.ch)) continue;
+      pd.push({ ...x, exact: true, pred: true, kind: '預測' });
+    }
+    pd.sort((a, b) => (rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9));
+  }
+  return [...exact, ...pd, ...pre].slice(0, 9);
 }
 
 function render() {
@@ -182,11 +282,19 @@ function render() {
     return;
   }
   cands.forEach((x, i) => {
-    const d = el('div', 'cand' + (i === pick ? ' on' : ''));
+    const d = el('div', 'cand' + (i === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     d.append(el('em', '', x.exact ? (x.kind === '主' ? '' : x.kind) : x.code));
     d.onclick = () => commit(i);
+    /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
+    if (x.pred) {
+      const a = el('a', 'predlink', '去取碼 →');
+      a.href = '/annotate?c=' + encodeURIComponent(x.ch);
+      a.target = '_blank';
+      a.onclick = e => e.stopPropagation();
+      d.append(a);
+    }
     cs.append(d);
   });
   $('#imehint').textContent = 'space 上第一個　1–9 選字';
@@ -260,9 +368,13 @@ Promise.all([
   fetch('/api/codes').then(r => r.json()),
   fetch('/api/rules').then(r => r.json()),
   fetch('/api/freq').then(r => r.json()),
-]).then(([c, rl, f]) => {
-  codes = c; rules = rl;
+  fetch('/api/zigen').then(r => r.json()),
+  fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
+]).then(async ([c, rl, f, z, ln]) => {
+  codes = c; rules = rl; zigen = z;
+  learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   f.order.forEach((ch, i) => rank.set(ch, i));
+  lib = await Zigen.buildLibrary(zigen);      /* 推未取碼的字要用 */
   buildTable();
   render();
   $('#paper').focus();
