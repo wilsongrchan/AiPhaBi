@@ -592,6 +592,15 @@ function checks(ctx) {
       out.push({ key: `new:${i}`, lvl: 'info', rule: '新字根', refs: [i],
         msg: `第 ${i + 1} 個字根（${sg.letter}）是新形狀，儲存後會在 ${sg.letter} 底下新增一條字根。` });
     }
+    /* 3b. 併進了既有字根 —— 但只是「勉強算同一個」的話，你有權不同意。
+           不然它會悄悄被算成別的字根，字根表上只多一個計次，你根本看不到。 */
+    else if (mine.d > thrOf(mine.e) * 0.35) {
+      out.push({ key: `absorb:${i}`, lvl: 'info', rule: '併入既有字根', refs: [i],
+        split: { i, letter: sg.letter, strokes: sg.strokes },
+        msg: `第 ${i + 1} 個字根（${sg.letter}）會<b>併入既有字根 ${mine.e.label}</b>` +
+             `（距離 ${mine.d.toFixed(3)}，門檻 ${thrOf(mine.e)}）—— ` +
+             '不是新字根，字根表上只會多一個計次。如果你覺得這是不同的形狀，請另立新字根。' });
+    }
 
     /* 4. 優次等原則：用了次／三等，但同一組筆畫也配得上某個優等字根。
           只有在那個優等字根屬於「別的字母」時才要緊 —— 同一個字母的話，
@@ -726,10 +735,57 @@ async function rejectMatch(r) {
   for (const p of plans) p.e.shape.thr = p.tight;
   zigenDirty = true;
   await save();
+  await resyncZigen();
+  $('#status').textContent = `學會了：這不是 ${r.letter}`;
+  $('#status').className = 'saved';
+}
+
+/* 改完字根表之後，一律從伺服器讀回再重建字根庫 —— 
+   不然畫面會停在舊的比對結果（收緊了門檻，檢查卻還在講舊的字根）。 */
+async function resyncZigen() {
+  zigen = await fetch('/api/zigen').then(r => r.json());
+  stamp = await fetchStamp();
   lib = await Zigen.buildLibrary(zigen);
   libInfo();
   renderSegs(); suggest(); predict(); auditAll();
-  $('#status').textContent = `學會了：這不是 ${r.letter}`;
+}
+
+/* 「這是不同的形狀，另立新字根」——
+   把該字母底下所有「現在配得上它」的字根都收緊（不然收緊一個、另一個馬上頂上來），
+   並把這個字從它們的例字／計次裡拿掉，然後重存 —— merge() 找不到對象，就會新增一條。 */
+async function splitOutZigen(r) {
+  const vec = Shape.strokeVec(r.strokes.map(i => medians[i]));
+  if (!vec) return;
+  const globalThr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const thrOf = e => (e.shape.thr != null) ? e.shape.thr : globalThr;
+
+  const hits = lib
+    .filter(e => e.letter === r.letter && e.n === r.strokes.length)
+    .map(e => ({ e, d: Shape.dist(vec, e.vec) }))
+    .filter(x => x.d < thrOf(x.e));
+  if (!hits.length) { alert('它本來就不會併入任何字根。'); return; }
+
+  const plans = hits.map(({ e, d }) => ({
+    e, d, cur: thrOf(e), tight: Math.max(0.005, +(d * 0.9).toFixed(4)),
+  })).filter(p => p.tight < p.cur);
+  if (!plans.length) { alert('不需要再收緊。'); return; }
+
+  if (!confirm(
+      `把「${cur}」的這組筆畫獨立成 ${r.letter} 的新字根。\n\n` +
+      `同時收緊這些既有字根的門檻，免得它又被吸回去：\n` +
+      plans.map(p => `　${p.e.label}：${p.cur} → ${p.tight}（距離 ${p.d.toFixed(3)}）`).join('\n') +
+      '\n\n要繼續嗎？')) return;
+
+  for (const p of plans) {
+    p.e.shape.thr = p.tight;
+    /* 這個字本來被算進那條字根，拿回來 */
+    if (p.e.shape.seen) p.e.shape.seen = p.e.shape.seen.filter(c => c !== cur);
+    if (p.e.shape.count) p.e.shape.count = Math.max(1, p.e.shape.count - 1);
+  }
+  zigenDirty = true;
+  await save();                       /* merge() 這時找不到對象 → 自動新增一條 */
+  await resyncZigen();                /* 從伺服器讀回，畫面才不會停在舊狀態 */
+  $('#status').textContent = `已另立 ${r.letter} 的新字根`;
   $('#status').className = 'saved';
 }
 
@@ -775,6 +831,14 @@ function renderChecks() {
     const body = el('div', 'body');
     body.innerHTML = `${c.msg} <span class="rule">— ${c.rule}</span>`;
     d.append(body);
+    if (c.split) {
+      const act = el('div', 'act');
+      const sp = el('button', 'apply', '另立新字根');
+      sp.title = '這是不同的形狀：獨立成一條新字根，並收緊會吸走它的既有字根';
+      sp.onclick = () => splitOutZigen(c.split);
+      act.append(sp);
+      d.append(act);
+    }
     if (c.lvl === 'warn') {
       const act = el('div', 'act');
       if (c.fix) {
