@@ -97,8 +97,20 @@ def vec_of(shape):
 def main():
     z = json.loads(ZIGEN.read_text("utf-8"))
     meta = z["meta"]
-    distinct = meta.get("distinct", [])
     old_thr = meta.get("merge_threshold")
+
+    # 同字母的「確實不同」沒有意義：兩條字根取出來的碼一模一樣。
+    # 留著只會白白把門檻收緊，害預測認不出東西。丟掉。
+    before = meta.get("distinct", [])
+    distinct = [p for p in before if p[0].split(":")[0] != p[1].split(":")[0]]
+    dropped = len(before) - len(distinct)
+    meta["distinct"] = distinct
+
+    # 門檻全部重算（先清掉舊的，只由跨字母的裁決決定）
+    for L in z["letters"]:
+        for it in L["intentions"]:
+            for s in it["shapes"]:
+                s.pop("thr", None)
 
     # key（字母:定義） → 字根物件
     index = {}
@@ -135,7 +147,9 @@ def main():
                     "merge_threshold 是全域門檻；個別字根可用 thr 收緊（由「確實不同」的裁決自動設定）。")
     ZIGEN.write_text(json.dumps(z, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    print(f"\n全域門檻：{old_thr} → {GLOBAL_THR}")
+    print(f"\n丟掉同字母的裁決：{dropped} 組（碼一樣，收緊門檻毫無意義）")
+    print(f"保留跨字母的裁決：{len(distinct)} 組")
+    print(f"全域門檻：{old_thr} → {GLOBAL_THR}")
     print(f"個別收緊的字根：{len(tightened)} 個" + (f"（{unmatched} 組配對找不到字根，略過）" if unmatched else ""))
 
 

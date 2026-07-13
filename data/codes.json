@@ -301,7 +301,8 @@
     ],
     "code": "XL",
     "overrides": [
-      "tier:1"
+      "tier:1",
+      "merge:0-1"
     ],
     "final": "XL"
   },
@@ -1443,7 +1444,8 @@
     "code": "AFSNX",
     "final": "AFSX",
     "overrides": [
-      "letter:3"
+      "letter:3",
+      "merge:3-4"
     ]
   },
   "如": {
@@ -1781,19 +1783,19 @@
       },
       {
         "strokes": [
-          1
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          1,
           2
         ],
-        "letter": "L"
+        "letter": "Z"
       }
     ],
-    "code": "QJL",
-    "final": "QJL"
+    "code": "QZ",
+    "final": "QZ",
+    "overrides": [
+      "tier:2",
+      "merge:1-2",
+      "merge:0-1"
+    ]
   },
   "小": {
     "segments": [
@@ -3162,19 +3164,14 @@
       {
         "strokes": [
           7,
-          8
-        ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
+          8,
           9
         ],
-        "letter": "L"
+        "letter": "Z"
       }
     ],
-    "code": "TFYCL",
-    "final": "TFYL"
+    "code": "TFYZ",
+    "final": "TFYZ"
   },
   "想": {
     "segments": [
@@ -3292,7 +3289,10 @@
       }
     ],
     "code": "JF",
-    "final": "JF"
+    "final": "JF",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "電": {
     "segments": [
@@ -3346,7 +3346,11 @@
       }
     ],
     "code": "MQQQQBL",
-    "final": "MQQL"
+    "final": "MQQL",
+    "overrides": [
+      "merge:1-2",
+      "merge:3-4"
+    ]
   },
   "其": {
     "segments": [
@@ -3904,7 +3908,8 @@
       "tier:2",
       "merge:1-2",
       "lone:0",
-      "lone:1"
+      "lone:1",
+      "merge:0-1"
     ],
     "segments": [
       {
@@ -4246,7 +4251,10 @@
       }
     ],
     "code": "PUFZ",
-    "final": "PUFZ"
+    "final": "PUFZ",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "外": {
     "segments": [
@@ -4402,7 +4410,10 @@
       }
     ],
     "code": "UY",
-    "final": "UY"
+    "final": "UY",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "關": {
     "segments": [
@@ -4511,7 +4522,10 @@
       }
     ],
     "code": "CJO",
-    "final": "CJO"
+    "final": "CJO",
+    "overrides": [
+      "merge:0-1"
+    ]
   },
   "重": {
     "segments": [
@@ -6215,9 +6229,132 @@
           3
         ],
         "letter": "Z"
+      },
+      {
+        "strokes": [
+          4,
+          5
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "letter": "T"
       }
     ],
-    "code": "AZ",
-    "final": "AZ"
+    "code": "AZVT",
+    "final": "AZVT"
+  },
+  "單": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          3,
+          4,
+          5
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "OOBT",
+    "final": "OOBT"
+  },
+  "考": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          4,
+          5
+        ],
+        "letter": "S"
+      }
+    ],
+    "code": "TXS",
+    "final": "TXS"
+  },
+  "厂": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "R"
+      }
+    ],
+    "code": "R",
+    "final": "R"
+  },
+  "表": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "FJK",
+    "final": "FJK"
   }
 }

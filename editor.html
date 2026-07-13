@@ -881,26 +881,39 @@ async function openReview(i) {
     '每張圖是那個字根在「你當初定義它的那個字」裡的位置（橘色）。<br>' +
     '真的是同一個 → 選一個字母統一；你認為不同 → 按「確實不同」，我記住，以後不再問。';
 
-  const box = $('#rvcards'); box.innerHTML = '';
+  /* 一個字母一張卡。同一個字母底下就算有好幾條同形字根（例：H 的「開」與「基」），
+     取出來的碼都一樣 —— 那不是衝突，不該分成兩張長得一樣的卡；把它們併成同一張卡的
+     多個視圖，用小字／箭頭翻。真正的衝突是「字母 vs 字母」。 */
+  const byLetter = new Map();
   for (const item of g.shapes) {
-    /* 這個字根可以在哪些字裡看到：定義它的那個字 + 所有用到它的字。
-       點小字＝大圖換成那個字，並把該字根的筆畫塗橘 —— 看得到它在真實的字裡長怎樣。 */
-    const users = await charsUsing(item.s, item.letter);
-    const views = [
-      { ch: item.s.glyph.src, strokes: item.s.glyph.strokes, tag: '定義來源' },
-      ...users
-        .filter(u => u.ch !== item.s.glyph.src)
-        .map(u => ({ ch: u.ch, strokes: u.seg.strokes, tag: u.code || '' })),
-    ];
+    if (!byLetter.has(item.letter)) byLetter.set(item.letter, []);
+    byLetter.get(item.letter).push(item);
+  }
+
+  const box = $('#rvcards'); box.innerHTML = '';
+  for (const [letter, items] of byLetter) {
+    /* 這個字母的所有同形字根：每條字根的「定義來源」＋用到它的字，全部串成視圖 */
+    const views = [];
+    for (const item of items) {
+      views.push({ ch: item.s.glyph.src, strokes: item.s.glyph.strokes, tag: '定義來源' });
+      for (const u of await charsUsing(item.s, letter)) {
+        if (views.some(v => v.ch === u.ch)) continue;
+        views.push({ ch: u.ch, strokes: u.seg.strokes, tag: u.code || '' });
+      }
+    }
     let at = 0;
 
     const card = el('div', 'rvcard');
     const head = el('div', 'rvhead');
-    head.append(el('span', 'rvL', item.letter));
-    const L = data.letters.find(x => x.letter === item.letter);
-    const it = L.intentions.find(i2 => i2.shapes.includes(item.s));
-    head.append(el('span', 'rvdesc', it ? (it.desc || '未分類') : ''));
-    head.append(el('span', 'rvn', `×${item.s.count || 1}`));
+    head.append(el('span', 'rvL', letter));
+    const L = data.letters.find(x => x.letter === letter);
+    const descs = [...new Set(items.map(item => {
+      const it = L.intentions.find(i2 => i2.shapes.includes(item.s));
+      return it ? (it.desc || '未分類') : '';
+    }))].filter(Boolean);
+    head.append(el('span', 'rvdesc', descs.join(' / ')));
+    head.append(el('span', 'rvn',
+      items.length > 1 ? `${items.length} 條字根` : `×${items[0].s.count || 1}`));
     card.append(head);
 
     const stage = el('div', 'rvstage');
@@ -912,7 +925,6 @@ async function openReview(i) {
 
     const cap = el('div', 'rvsrc');
     card.append(cap);
-
     const chars = el('div', 'rvchars');
     card.append(chars);
 
@@ -929,8 +941,7 @@ async function openReview(i) {
         `　<a href="/annotate?c=${encodeURIComponent(v.ch)}" target="_blank" ` +
         'title="在逐字取碼頁打開">↗</a>' +
         `<span class="rvpos">${at + 1} / ${views.length}</span>`;
-      for (const [k, a] of [...chars.children].entries())
-        a.classList.toggle('on', k === at);
+      [...chars.children].forEach((a, k) => a.classList.toggle('on', k === at));
       prev.disabled = next.disabled = views.length < 2;
     };
 
@@ -943,7 +954,6 @@ async function openReview(i) {
     prev.onclick = () => { at = (at - 1 + views.length) % views.length; draw(); };
     next.onclick = () => { at = (at + 1) % views.length; draw(); };
     await draw();
-
     box.append(card);
   }
 
@@ -1000,16 +1010,19 @@ async function mergeGroupTo(group, to) {
 /* 「確實不同」→ 記住配對；門檻太鬆就提議調緊（這是它從你的裁決學到的） */
 async function markDistinct(group) {
   data.meta.distinct = data.meta.distinct || [];
-  const keys = group.shapes.map(pairKey);
-  for (let i = 0; i < keys.length; i++)
-    for (let j = i + 1; j < keys.length; j++) {
-      const pair = [keys[i], keys[j]].sort();
+  /* 只記「跨字母」的配對。同一個字母底下的兩條字根，取出來的碼一模一樣 ——
+     把它們標成「不同」沒有意義，只會白白把門檻收緊、害預測認不出東西。 */
+  const items = group.shapes;
+  for (let i = 0; i < items.length; i++)
+    for (let j = i + 1; j < items.length; j++) {
+      if (items[i].letter === items[j].letter) continue;
+      const pair = [pairKey(items[i]), pairKey(items[j])].sort();
       if (!data.meta.distinct.some(x => x[0] === pair[0] && x[1] === pair[1]))
         data.meta.distinct.push(pair);
     }
-  /* 只收緊「這兩個字根」，不要動全域門檻 ——
-     把全域壓到 0.03 只會讓預測連「日」都認不出來。 */
-  if (group.d) {
+  /* 只收緊「跨字母」衝突涉及的字根，而且不動全域門檻 */
+  const letters = new Set(group.shapes.map(x => x.letter));
+  if (group.d && letters.size > 1) {
     const tight = Math.max(0.01, +(group.d * 0.9).toFixed(4));
     for (const item of group.shapes) {
       const cur = item.s.thr;
