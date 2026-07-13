@@ -37,9 +37,19 @@
   .prog { font-size:12px; color:var(--muted); }
   .prog b { color:var(--ink); }
 
-  /* 三欄寬度可以拖 —— 中間夾兩條 6px 的把手，寬度存在 localStorage */
-  .cols { flex:1; display:grid;
-    grid-template-columns:var(--colL,200px) 6px 1fr 6px var(--colR,330px); min-height:0; }
+  /* 欄寬可以拖 —— 中間夾 6px 的把手，寬度存在 localStorage。
+     相關字自成一欄，可以用旁邊那條 tab 收起來（收起時該軌寬度歸零）。 */
+  .cols { flex:1; display:grid; min-height:0;
+    grid-template-columns:var(--colL,200px) 6px var(--colRel,136px) 15px 1fr 6px var(--colR,330px); }
+  body.relhide .cols { --colRel:0px; }
+  /* 收合＝把那一軌縮成 0 並裁掉內容。不能用 display:none —— grid 會把後面的
+     項目統統往前挪一軌，整個版面就散了（字圖會跑到最左邊）。 */
+  body.relhide #relpane { overflow:hidden; padding:0; border:0; }
+  /* 收合把手：一條窄長的直條，貼在相關字欄旁邊 */
+  .reltab { display:flex; align-items:center; justify-content:center; padding:0;
+    border:0; border-left:1px solid var(--line); border-right:1px solid var(--line);
+    background:var(--card); color:var(--muted); cursor:pointer; font-size:10px; }
+  .reltab:hover { background:var(--bar,var(--line)); color:var(--accent); }
   .drag { cursor:col-resize; background:var(--line); opacity:.35; }
   .drag:hover, .drag.on { opacity:1; background:var(--accent); }
   body.dragging { cursor:col-resize; user-select:none; }
@@ -51,11 +61,10 @@
   .filters { display:flex; gap:4px; margin-bottom:8px; }
   .filters button { flex:1; padding:4px; font-size:12px; }
   .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  /* 字圖底下那排：字級縮小，寬度夠時剛好一行。
-     但一定要能換行 —— 不換行的話，右欄一拉寬，中間欄變窄，這排按鈕就整條
-     溢出去、鑽到右欄底下，點都點不到。寧可換行，也不能不見。 */
-  .actbar { display:flex; gap:5px; flex-wrap:wrap; justify-content:center; max-width:100%; }
-  .actbar button { font-size:12px; padding:5px 8px; white-space:nowrap; }
+  /* 動作鈕：直排在字圖右邊。放在預測底下的話，預測一長就得捲下去才按得到。 */
+  .glyphrow { display:flex; gap:8px; align-items:flex-start; }
+  .actbar { display:flex; flex-direction:column; gap:5px; width:118px; flex:0 0 auto; }
+  .actbar button { font-size:12px; padding:5px 8px; white-space:nowrap; text-align:left; }
 
   /* 搜尋／篩選／字級／跳轉：釘在左欄頂端，捲名單的時候不會跟著跑掉。
      底下要留一塊不透明底色，不然字捲上來會從縫隙裡透出去。 */
@@ -110,6 +119,12 @@
   .so-t { font-size:11px; color:var(--muted); display:flex; gap:6px; align-items:baseline; }
   .so-t b { color:var(--ink); font-weight:600; }
   .so-g { display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; }
+  /* 筆順參考的格子可以調大小（筆畫多的字，小格子根本看不清）。
+     容器的類別不能叫 so-s —— 那是格子自己的類別，會撞在一起。 */
+  .sosz { font-size:10px; padding:1px 5px; border-radius:5px; }
+  #so.sz-s .so-s { width:24px; height:24px; }
+  #so.sz-l .so-s { width:48px; height:48px; }
+  #so.sz-l .so-s i { font-size:9px; }
   .so-s { width:34px; height:34px; border:1px solid var(--line); border-radius:5px;
     background:var(--card); position:relative; }
   .so-s svg { width:100%; height:100%; }
@@ -145,10 +160,8 @@
      變來變去，高度一變，底下的字圖就跟著跳。 */
   .stage .ref { max-width:520px; text-align:center; min-height:20px; }
   /* 相關字：這個字由哪些部件組成（結構拆分），以及同偏旁的一整組。
-     排成左邊窄長的一欄、由上往下 —— 橫排一定會擠到中間的字圖上。 */
-  .related { flex:0 0 118px; width:118px; align-self:stretch;
-    display:flex; flex-direction:column; gap:4px; align-items:stretch;
-    max-height:calc(100vh - 130px); overflow-y:auto; padding-right:2px; }
+     自成一欄、由上往下 —— 橫排一定會擠到中間的字圖上。 */
+  .related { display:flex; flex-direction:column; gap:4px; align-items:stretch; }
   .related .lab { font-size:10px; color:var(--muted); margin-top:4px; }
   .related .lab:first-child { margin-top:0; }
   .related a { display:flex; align-items:center; justify-content:space-between; gap:4px;
@@ -253,8 +266,9 @@
   .chk .act button.apply:hover { background:var(--accent); color:#fff; }
   /* 嵌在分析頁的複審面板裡時：不要頁首、不要字表，也不要「儲存並下一字」——
      那個「下一字」是這一頁自己的佇列，會把人帶離複審的那一組。 */
-  body.embed header, body.embed .cols > .pane:first-child, body.embed #dragL { display:none; }
-  /* 少了字表那一欄（和它的把手），格線也要跟著改成三軌 */
+  body.embed header, body.embed .cols > .pane:first-child, body.embed #dragL,
+  body.embed #relpane, body.embed .reltab { display:none; }
+  /* 少了字表、相關字（和把手），格線也要跟著改成三軌 */
   body.embed .cols { grid-template-columns:1fr 6px var(--colR,360px); }
 
   .chk.muted { opacity:.62; }
@@ -346,9 +360,13 @@
 
   <div class="drag" id="dragL"></div>
 
-  <div class="pane stage">
-    <!-- 相關字排在字圖左邊的空白帶，由上往下 —— 橫排會一路擠到字圖上 -->
+  <!-- 相關字自成一欄（部件、同偏旁、用到它的字），可以收起來 -->
+  <div class="pane" id="relpane">
     <div class="related" id="related"></div>
+  </div>
+  <button class="reltab" id="reltab" title="收合／展開相關字">◂</button>
+
+  <div class="pane stage">
     <div class="stagemain">
     <div class="curline">
       <button id="back" class="hide" title="回到上一個看的字">← 返回</button>
@@ -356,7 +374,18 @@
       <div class="code" id="code">—</div>
     </div>
     <div class="ref" id="ref"></div>
-    <svg id="glyph" viewBox="0 0 1024 1024"></svg>
+    <!-- 動作鈕排在字圖右側，直的一排：放在預測底下的話，預測一長就得捲下去按 -->
+    <div class="glyphrow">
+      <svg id="glyph" viewBox="0 0 1024 1024"></svg>
+      <div class="actbar">
+        <button id="skipSel">略過選取 ␣</button>
+        <button id="clearSel">清除選取</button>
+        <button id="undoSeg">刪最後字根</button>
+        <button id="clearAll">全部清除</button>
+        <button id="nums">顯示筆順 /</button>
+        <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
+      </div>
+    </div>
 
     <div class="pred">
       <div class="t">
@@ -371,14 +400,6 @@
       點筆畫 → 按 <kbd>A</kbd>–<kbd>Z</kbd> 指派字母，即成一個字根（並自動寫入字根表）。
       <kbd>space</kbd> 略過選取的筆畫（孤筆略過原則）　<kbd>/</kbd> 顯示筆順
       <kbd>⌫</kbd> 刪最後字根　<kbd>esc</kbd> 清除選取／全部清除　<kbd>enter</kbd> 儲存並下一字
-    </div>
-    <div class="actbar">
-      <button id="skipSel">略過選取 ␣</button>
-      <button id="clearSel">清除選取</button>
-      <button id="undoSeg">刪最後字根</button>
-      <button id="clearAll">全部清除</button>
-      <button id="nums">顯示筆順 /</button>
-      <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
     </div>
     </div><!-- /.stagemain -->
   </div>
@@ -409,8 +430,14 @@
     <div class="lbl">官方倉頡（對照）</div>
     <div id="cj"></div>
 
-    <div class="lbl">官方筆順參考</div>
-    <div id="so"></div>
+    <div class="lbl" style="display:flex;align-items:center;gap:5px">
+      <span>官方筆順參考</span>
+      <span style="flex:1"></span>
+      <button class="sosz" data-so="s">小</button>
+      <button class="sosz on" data-so="m">中</button>
+      <button class="sosz" data-so="l">大</button>
+    </div>
+    <div id="so" class="sz-m"></div>
   </div>
 </div>
 
@@ -1883,6 +1910,27 @@ for (const [id, varName, side] of [['#dragL', '--colL', 'L'], ['#dragR', '--colR
 for (const v of ['--colL', '--colR']) {
   const saved = localStorage.getItem('aiphabi' + v);
   if (saved) $('.cols').style.setProperty(v, saved + 'px');
+}
+
+/* ---------- 相關字那一欄：收合／展開 ---------- */
+const setRel = hide => {
+  document.body.classList.toggle('relhide', hide);
+  $('#reltab').textContent = hide ? '▸' : '◂';
+  localStorage.setItem('aiphabi-relhide', hide ? '1' : '');
+};
+setRel(localStorage.getItem('aiphabi-relhide') === '1');
+$('#reltab').onclick = () => setRel(!document.body.classList.contains('relhide'));
+
+/* ---------- 筆順參考：格子大小 ---------- */
+const sosz = localStorage.getItem('aiphabi-sosz') || 'm';
+$('#so').className = 'sz-' + sosz;
+for (const b of document.querySelectorAll('.sosz')) {
+  b.classList.toggle('on', b.dataset.so === sosz);
+  b.onclick = () => {
+    $('#so').className = 'sz-' + b.dataset.so;
+    localStorage.setItem('aiphabi-sosz', b.dataset.so);
+    for (const x of document.querySelectorAll('.sosz')) x.classList.toggle('on', x === b);
+  };
 }
 
 /* ---------- 左欄字表：字級、到底、下一個有警告的字 ---------- */
