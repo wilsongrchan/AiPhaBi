@@ -214,6 +214,17 @@
   .newz { font-size:12px; color:var(--muted); }
   .newz b { color:var(--warn); }
 
+  /* 兼容碼 */
+  .alt { display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    border:1px dashed var(--line); border-radius:8px; padding:3px 7px; margin-bottom:4px; }
+  .alt b { font:700 14px ui-monospace,monospace; color:var(--accent); letter-spacing:.06em; }
+  .alt i { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal; }
+  .alt span { font-size:10px; color:var(--muted); }
+  .alt .aact { margin-left:auto; display:flex; gap:4px; }
+  .alt .aact button { font-size:10px; padding:1px 6px; border-radius:6px; }
+  button.addalt { font-size:11px; padding:2px 8px; border-radius:7px; align-self:center;
+    border-style:dashed; }
+
   .code { font:700 30px/1.2 ui-monospace,Menlo,monospace; letter-spacing:.1em; color:var(--accent);
     min-height:38px; word-break:break-all; display:flex; align-items:baseline;
     flex-wrap:wrap; gap:6px; }
@@ -421,6 +432,15 @@
 
     <div class="lbl">已取字根（按筆順）</div>
     <div id="segs"></div>
+
+    <!-- 兼容碼：同一個字可以接受的另一種拆法。打字的人不必跟你拆得一模一樣。 -->
+    <div class="lbl" style="display:flex;align-items:center;gap:6px">
+      <span>兼容碼</span>
+      <span style="flex:1"></span>
+      <button id="addAlt" style="font-size:10px;padding:1px 6px;border-radius:6px"
+        title="把目前這個拆法也收為可接受的碼（主碼不變）">＋ 收目前拆法</button>
+    </div>
+    <div id="alts"></div>
 
     <div class="lbl">檢查</div>
     <div id="checks"></div>
@@ -684,7 +704,7 @@ function renderSegs() {
     d.append(up, x);
     box.append(d);
   });
-  renderCode();
+  renderCode();          /* 它會順帶重畫兼容碼面板 */
   renderChecks();
 }
 /* 打字實際要按的碼：超過上限時取前 head 碼 + 尾 tail 碼 */
@@ -692,6 +712,7 @@ const finalOf = code => Zigen.shorten(code, rules && rules.rules.find(r =>
   r.id === 'max_code_length' && r.enabled && r.kind === 'enforced'));
 
 function renderCode() {
+  renderAlts();          /* 碼一變，「能不能收成兼容碼」就跟著變 */
   const code = segs.map(s => s.letter).join('');
   const fin = finalOf(code);
   const max = maxLen();
@@ -725,8 +746,12 @@ function renderCode() {
      而且要等整個字拆完才報 —— 拆到一半的碼本來就是殘碼，跟人家撞在一起
      是必然的，這時候跳出來只是噪音。 */
   const complete = strokes.length > 0 && left === 0;
+  /* 別的字的兼容碼一樣佔碼位 —— 撞到它，打字時照樣要多選一次 */
   const clash = (fin && complete) ? Object.entries(codes)
-    .filter(([ch, r]) => ch !== cur && r.code && finalOf(r.code) === fin).map(([ch]) => ch) : [];
+    .filter(([ch, r]) => ch !== cur &&
+      ((r.code && finalOf(r.code) === fin) ||
+       (r.alts || []).some(a => finalOf(a.code) === fin)))
+    .map(([ch]) => ch) : [];
   const w = $('#clash');
   if (clash.length) {
     w.style.display = 'block';
@@ -737,6 +762,96 @@ function renderCode() {
     for (const s of w.querySelectorAll('.ch.go')) s.onclick = () => goTo(s.dataset.c);
   } else w.style.display = 'none';
 }
+
+/* ---------- 兼容碼 ----------
+   一個字只有一個「正確」的拆法，是這套系統最貴的假設：實測電腦照著原則重推，
+   只有 ~67% 的字跟你拆得一樣。打字的人也一樣 —— 他把「訴」拆成 IIO+R+F 還是
+   IIO+RF，其實都合理。
+
+   兼容碼＝這個字「也接受」的碼。主碼不變（統計、字根表都以主碼為準），
+   但打兼容碼一樣打得出這個字。代價是它會佔掉碼空間，可能製造新的重碼 ——
+   所以碼表分析頁把「主碼重碼率」跟「含兼容碼」分開算，看得到代價。 */
+const altsOf = ch => (codes[ch] && codes[ch].alts) || [];
+
+function renderAlts() {
+  const box = $('#alts'); box.innerHTML = '';
+  const rec = codes[cur] || {};
+  const alts = rec.alts || [];
+  const curCode = segs.length ? segs.map(s => s.letter).join('') : '';
+
+  /* 目前這個拆法能不能收？（要拆完、要跟主碼與現有兼容碼都不一樣） */
+  const left = strokes.length - (segs.flatMap(s => s.strokes).length + skipped.length);
+  const can = segs.length && left === 0 && curCode !== rec.code &&
+              !alts.some(a => a.code === curCode);
+  const bt = $('#addAlt');
+  bt.disabled = !can;
+  bt.style.opacity = can ? 1 : .4;
+  bt.title = !segs.length || left > 0 ? '先把整個字拆完'
+    : curCode === rec.code ? '這就是主碼'
+    : alts.some(a => a.code === curCode) ? '已經收過這個碼了'
+    : `把 ${curCode} 也收為可接受的碼（主碼 ${rec.code} 不變）`;
+
+  if (!alts.length) {
+    box.innerHTML = '<div class="newz">沒有兼容碼。' +
+      '別人拆得跟你不一樣但也合理時，把那個碼收進來，他一樣打得出這個字。</div>';
+    return;
+  }
+  for (const a of alts) {
+    const d = el('div', 'alt');
+    const fin = finalOf(a.code);
+    d.innerHTML = `<b>${fin}</b>` + (fin !== a.code ? `<i>完整 ${a.code}</i>` : '') +
+      `<span>${a.segments.map(s => s.strokes.map(k => k + 1).join(',')).join(' / ')}</span>`;
+    const act = el('div', 'aact');
+    const up = el('button', '', '設為主碼');
+    up.title = '跟主碼對調：這個變成主碼，原本的主碼變成兼容碼';
+    up.onclick = () => {
+      const old = { code: rec.code, segments: rec.segments.map(s => ({ ...s })),
+                    skipped: rec.skipped ? [...rec.skipped] : [] };
+      segs = a.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+      skipped = [...(a.skipped || [])];
+      rec.alts = alts.filter(x => x !== a);
+      if (old.code) rec.alts.push(old);
+      codes[cur] = rec;
+      sel = []; touch(); drawGlyph(); renderSegs(); suggest(); predict();
+    };
+    const rm = el('button', '', '✕');
+    rm.title = '刪掉這個兼容碼';
+    rm.onclick = () => {
+      rec.alts = alts.filter(x => x !== a);
+      if (!rec.alts.length) delete rec.alts;
+      codes[cur] = rec; touch(); renderAlts();
+    };
+    act.append(up, rm);
+    d.append(act);
+    box.append(d);
+  }
+}
+
+/* 把一組拆法收為兼容碼（來源可以是目前的拆法，也可以是預測給的另一種拆法） */
+function addAlt(segments, skips) {
+  const rec = codes[cur] || (codes[cur] = {});
+  const code = segments.map(s => s.letter).join('');
+  if (!rec.code) { $('#status').textContent = '先存一個主碼再收兼容碼'; return; }
+  if (code === rec.code) return;
+  rec.alts = rec.alts || [];
+  if (rec.alts.some(a => a.code === code)) return;
+  rec.alts.push({ code,
+    segments: segments.map(s => ({ strokes: [...s.strokes], letter: s.letter })),
+    skipped: skips && skips.length ? [...skips] : undefined });
+
+  /* 收完要把畫面上的拆法還原成主碼 —— 不然編輯區還留著剛剛那個「另一種拆法」，
+     一存檔它就變成主碼了（主碼跟兼容碼會變成同一個）。「兼容」的意思是
+     「主碼不動，另外也接受」。 */
+  if (rec.segments) {
+    segs = rec.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+    skipped = [...(rec.skipped || [])];
+    sel = [];
+    drawGlyph(); suggest();
+  }
+  touch(); renderSegs();
+  $('#status').textContent = `已收兼容碼 ${finalOf(code)}（主碼 ${finalOf(rec.code)} 不變）`;
+}
+$('#addAlt').onclick = () => addAlt(segs, skipped);
 
 /* ---------- 字與字之間的來回 ----------
    從「天」點進撞碼的「夫」，看完要回得了「天」。載入的路徑很多（佇列、相關字、
@@ -1640,6 +1755,18 @@ async function predict() {
     if (!full) b.style.borderStyle = 'dashed';
     row.append(b);
 
+    /* 預測出來、但跟你的主碼不同的完整拆法 —— 正是最該收成兼容碼的東西：
+       電腦照原則推出來的拆法，別的使用者也很可能這樣拆。 */
+    const rec = codes[cur] || {};
+    const pcode = p.segments.map(s => s.letter).join('');
+    if (full && !partial && rec.code && pcode !== rec.code &&
+        !(rec.alts || []).some(a => a.code === pcode)) {
+      const ab = el('button', 'addalt', '＋ 收為兼容碼');
+      ab.title = `把 ${pcode} 也收為可接受的碼（主碼 ${rec.code} 不變）`;
+      ab.onclick = () => addAlt(p.segments, p.skipped);
+      row.append(ab);
+    }
+
     /* 逐個字根：你只認同前面幾個的話，就只點那幾個 */
     const one = el('div', 'pseg');
     for (const sg of p.segments) {
@@ -2332,11 +2459,15 @@ for (const b of document.querySelectorAll('.filters button'))
     renderQueue();
   };
 $('#export').onclick = () => {
-  const lines = ['# 愛發筆碼表\t字\t碼(實際)\t完整碼\t筆畫分組'];
+  const lines = ['# 愛發筆碼表\t字\t碼(實際)\t完整碼\t筆畫分組\t主/兼'];
   for (const [c, r] of Object.entries(codes)) if (r.segments) {
     const full = r.segments.map(s => s.letter).join('');
     lines.push(`${c}\t${finalOf(full)}\t${full}\t` +
-      r.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+'));
+      r.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+') + '\t主');
+    /* 兼容碼也要進碼表 —— 不然收了等於沒收，打字的人還是打不出來 */
+    for (const a of r.alts || [])
+      lines.push(`${c}\t${finalOf(a.code)}\t${a.code}\t` +
+        a.segments.map(s => s.strokes.map(n => n + 1).join('')).join('+') + '\t兼');
   }
   const a = el('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));

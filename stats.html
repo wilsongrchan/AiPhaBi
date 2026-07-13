@@ -407,6 +407,20 @@ function render() {
     .sort((a, b) => a.best - b.best);
   const dupChars = dups.reduce((n, d) => n + d.chars.length, 0);
 
+  /* 兼容碼：同一個字也接受的另一種拆法。它讓「拆錯也打得出來」，
+     但也佔碼位 —— 所以要把它造成的額外重碼算出來，代價要看得見。 */
+  const altN = entries.reduce((n, [, r]) => n + (r.alts || []).length, 0);
+  const altChars = entries.filter(([, r]) => (r.alts || []).length).length;
+  const withAlts = new Map(byCode);            /* 主碼 + 兼容碼一起佔的碼空間 */
+  for (const [ch, r] of entries)
+    for (const a of r.alts || []) {
+      const code = Zigen.shorten(a.code, maxRule());
+      if (!withAlts.has(code)) withAlts.set(code, []);
+      if (!withAlts.get(code).includes(ch)) withAlts.get(code).push(ch);
+    }
+  const dupAll = [...withAlts.values()].filter(cs => cs.length > 1)
+    .reduce((n, cs) => n + cs.length, 0);
+
   const exN = renderExceptions(entries);
 
   /* KPI —— 一排數字，不需要做成圖 */
@@ -419,6 +433,7 @@ function render() {
     kpi(entries.length ? (dupChars / entries.length * 100).toFixed(1) + '%' : '0%',
         '重碼率（重碼字 ÷ 已取碼字）', dupChars > 0) +
     kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數') +
+    kpi(altN, `兼容碼（${altChars} 個字有）`) +
     kpi(cut, '被縮短的字（超過碼長上限）') +
     kpi(entries.length ? (exN / entries.length * 100).toFixed(1) + '%' : '0%',
         `特例率（${exN} 字沒照原則走）`, entries.length > 0 && exN / entries.length > 0.2);
@@ -478,7 +493,10 @@ function render() {
   $('#dupsub').innerHTML = entries.length
     ? `同一組碼對應多於一個字，打字時就要再選一次。以<b>實際要按的碼</b>（縮短後）計算。
        目前 <b>${dups.length}</b> 組重碼、涉及 <b>${dupChars}</b> 個字。
-       依最常用的成員排序 —— 排在前面的最值得處理。`
+       依最常用的成員排序 —— 排在前面的最值得處理。` +
+      (altN ? `<br>加上 <b>${altN}</b> 個兼容碼一起算，重碼字會變成 <b>${dupAll}</b> 個` +
+        `（${(dupAll / entries.length * 100).toFixed(1)}%，主碼是 ${(dupChars / entries.length * 100).toFixed(1)}%）` +
+        ` —— 這就是「拆錯也打得出來」的代價。` : '')
     : '還沒有取碼資料。';
   const box = $('#dups');
   if (!dups.length) {
