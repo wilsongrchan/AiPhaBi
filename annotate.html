@@ -301,25 +301,33 @@
 <script src="/assets/shape.js"></script>
 <script>
 /* 存檔前先問伺服器：我讀到的版本還是最新的嗎？不是的話就別蓋掉別人的改動。 */
+window.__baseStamp = window.__baseStamp || {};
+
 async function putGuarded(url, body, key) {
-  const st = await fetch('/api/state').then(r => r.json());
-  const base = window.__baseStamp && window.__baseStamp[key];
-  const r = await fetch(url, {
+  const base = window.__baseStamp[key];
+  const send = extra => fetch(url, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json',
-               ...(base ? { 'X-Base-Stamp': String(base) } : {}) },
+    headers: { 'Content-Type': 'application/json', ...extra },
     body,
   });
+
+  let r = await send(base ? { 'X-Base-Stamp': String(base) } : {});
+
   if (r.status === 409) {
     const ok = confirm(
       '這份資料已經被「別的分頁或程式」改過了。\n\n' +
       '按「確定」＝用你這邊的版本覆蓋掉對方的改動。\n' +
       '按「取消」＝丟掉你這邊未儲存的改動，重新載入最新的資料。');
     if (!ok) { location.reload(); return { ok: false, reloaded: true }; }
-    return fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+    r = await send({});                      /* 不帶版本＝強制覆蓋 */
   }
-  const after = await fetch('/api/state').then(r => r.json());
-  window.__baseStamp = { ...(window.__baseStamp || {}), ...after };
+
+  /* 只用回應裡回報的新版本更新這個檔案 —— 不要再去 /api/state 撈，
+     併發寫入時會撈到另一個檔案還沒寫完的舊值，下次存檔就自己跟自己 409。 */
+  if (r.ok) {
+    const j = await r.clone().json().catch(() => null);
+    if (j && j.stamp) window.__baseStamp[key] = j.stamp;
+  }
   return r;
 }
 </script>
@@ -1557,16 +1565,33 @@ async function saveNext() {
 
 /* ---------- 與字根表頁互通：偵測對方改動並重載 ---------- */
 const fetchStamp = () => fetch('/api/state').then(r => r.json()).then(s => s.zigen);
+/* 兩份資料都要盯：別的分頁改了字根表或碼表，這邊要跟著更新（連版本一起），
+   不然下次存檔就會拿著過期的版本去寫，被 409 擋下來、跳出惱人的覆蓋詢問。 */
 async function pollZigen() {
   if (dirty || zigenDirty) return;
-  const s = await fetchStamp();
-  if (s === stamp) return;
-  stamp = s;
+  const st = await fetch('/api/state').then(r => r.json());
+  const zChanged = st.zigen !== window.__baseStamp.zigen;
+  const cChanged = st.codes !== window.__baseStamp.codes;
+  if (!zChanged && !cChanged) return;
+
+  if (cChanged) {
+    codes = await fetch('/api/codes').then(r => r.json());
+    window.__baseStamp.codes = st.codes;
+    renderQueue(); auditAll();
+    if (!zChanged) {
+      renderSegs();
+      $('#status').textContent = '碼表已更新';
+      return;
+    }
+  }
+  stamp = st.zigen;
+  window.__baseStamp.zigen = st.zigen;
+  window.__baseStamp.rules = st.rules;
+  window.__baseStamp.learned = st.learned;
   zigen = await fetch('/api/zigen').then(r => r.json());
   rules = await fetch('/api/rules').then(r => r.json());
   learned = await fetch('/api/learned').then(r => r.json())
     .catch(() => learned) || learned;
-  window.__baseStamp = await fetch('/api/state').then(r => r.json());
   lib = await Zigen.buildLibrary(zigen);
   libInfo(); suggest();
   if (!segs.length) predict();

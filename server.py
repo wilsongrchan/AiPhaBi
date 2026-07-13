@@ -123,7 +123,10 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/cangjie":
             return self._send(200, CANGJIE.read_text("utf-8"), cache=True)
         if u.path == "/api/state":
-            stamp = lambda f: f.stat().st_mtime_ns if f.exists() else 0
+            # 一律用字串：mtime_ns 是 19 位數，超過 JavaScript 的安全整數範圍，
+            # 當成 JSON 數字送出去會被瀏覽器悄悄四捨五入，版本就永遠對不上，
+            # 於是每存一次檔都自己跟自己 409。
+            stamp = lambda f: str(f.stat().st_mtime_ns) if f.exists() else "0"
             return self._send(200, json.dumps(
                 {"zigen": stamp(DATA), "codes": stamp(CODES), "rules": stamp(RULES),
                  "learned": stamp(LEARNED)}))
@@ -214,7 +217,9 @@ class Handler(BaseHTTPRequestHandler):
                 old.unlink()
 
         dest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        self._send(200, json.dumps({"ok": True}))
+        # 把寫入後的新版本回給前端 —— 前端若自己再去 /api/state 撈，
+        # 併發寫入時會撈到另一個檔案「還沒寫完」的舊值，下次存檔就自己跟自己 409。
+        self._send(200, json.dumps({"ok": True, "stamp": str(dest.stat().st_mtime_ns)}))
 
     def log_message(self, *args):
         pass
