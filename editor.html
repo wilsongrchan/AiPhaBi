@@ -199,7 +199,35 @@
     text-decoration:none; border:1px solid var(--line); border-radius:6px; padding:0 4px;
     line-height:1.35; }
   .dupe-row .dchars a:hover { border-color:var(--accent); color:var(--accent); }
-  .dupe-row .dnone { font-size:11px; color:var(--muted); }
+  .dupe-panel button.primary { margin-left:10px; padding:3px 10px; font-size:12px; }
+
+  /* 逐組對照 */
+  #review { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; place-items:center;
+    z-index:95; }
+  #review.on { display:grid; }
+  .rvsheet { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:18px 20px; width:min(740px,95vw); max-height:88vh; overflow:auto; }
+  .rvsheet h3 { margin:0 0 5px; font-size:15px; font-weight:600; }
+  .rvsub { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:14px; }
+  .rvsub b { color:var(--ink); }
+  .rvcards { display:flex; gap:12px; flex-wrap:wrap; }
+  .rvcard { flex:1; min-width:220px; border:1px solid var(--line); border-radius:12px;
+    padding:10px 12px; background:var(--bg); }
+  .rvhead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .rvL { font:700 22px ui-monospace,monospace; color:var(--accent); }
+  .rvdesc { font-size:12px; color:var(--ink); flex:1; }
+  .rvn { font:600 11px ui-monospace,monospace; color:var(--muted); }
+  .rvglyph svg { width:150px; height:150px; display:block; margin:0 auto;
+    border:1px solid var(--line); border-radius:10px; background:var(--card); }
+  .rvglyph svg .on { fill:var(--accent); }
+  .rvglyph svg .off { fill:var(--ghost); opacity:.45; }
+  .rvsrc { font-size:11px; color:var(--muted); text-align:center; margin-top:5px; }
+  .rvchars { display:flex; flex-wrap:wrap; gap:3px; margin-top:7px; }
+  .rvchars a { font-size:18px; font-family:"PingFang TC",serif; color:var(--ink);
+    text-decoration:none; border:1px solid var(--line); border-radius:6px; padding:0 4px; }
+  .rvchars a:hover { border-color:var(--accent); color:var(--accent); }
+  .rvacts { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; }
+  .dnone { font-size:11px; color:var(--muted); }
   .dupe-row .dacts { margin-left:auto; display:flex; gap:4px; flex:none; }
   .dupe-row .dacts button { font-size:11px; padding:2px 7px; }
 
@@ -268,6 +296,15 @@
 <div id="dupes"></div>
 <nav id="jump"></nav>
 <main id="app"></main>
+<div id="review">
+  <div class="rvsheet">
+    <h3 id="rvtitle"></h3>
+    <div class="rvsub" id="rvsub"></div>
+    <div class="rvcards" id="rvcards"></div>
+    <div class="rvacts" id="rvacts"></div>
+  </div>
+</div>
+
 <div id="zdel">
   <div class="zsheet">
     <h3 id="ztitle"></h3>
@@ -794,14 +831,95 @@ function zoneArray(row) {
   return bucket.shapes;
 }
 
-/* 「這兩個其實是同一個」→ 挑一個字母，把另一邊的字根與已取碼的字都併過去 */
-async function resolveSame(group) {
-  const letters = group.keys;
-  const to = (prompt(
-    `這個形狀同時掛在 ${letters.join(' 和 ')} 底下。要統一成哪個字母？`,
-    letters[0]) || '').trim().toUpperCase();
-  if (!letters.includes(to)) return;
+/* ---------- 逐組對照：「這個我判成 E，那個你標成 F —— 到底一不一樣？」 ----------
+   一次只看一組，兩邊都畫出「當初定義它的那個字」，把該字根的筆畫塗橘色，
+   看得到上下文才判斷得了。裁決之後就記住，不再重複問。 */
+let reviewIdx = 0;
 
+async function openReview(i) {
+  const list = dupCache;
+  if (!list.length) { $('#review').classList.remove('on'); return; }
+  reviewIdx = Math.max(0, Math.min(i, list.length - 1));
+  const g = list[reviewIdx];
+  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
+
+  $('#rvtitle').innerHTML =
+    `第 <b>${reviewIdx + 1}</b> / ${list.length} 組　—　` +
+    `這個形狀你同時放在 ${g.keys.map(k => `<b>${k}</b>`).join(' 和 ')} 底下`;
+  $('#rvsub').innerHTML =
+    `我看起來它們是同一個形狀（距離 <b>${(g.d || 0).toFixed(3)}</b>，門檻 ${thr}）。` +
+    '每張圖是那個字根在「你當初定義它的那個字」裡的位置（橘色）。<br>' +
+    '真的是同一個 → 選一個字母統一；你認為不同 → 按「確實不同」，我記住，以後不再問。';
+
+  const box = $('#rvcards'); box.innerHTML = '';
+  for (const item of g.shapes) {
+    const card = el('div', 'rvcard');
+    const head = el('div', 'rvhead');
+    head.append(el('span', 'rvL', item.letter));
+    const L = data.letters.find(x => x.letter === item.letter);
+    const it = L.intentions.find(i2 => i2.shapes.includes(item.s));
+    head.append(el('span', 'rvdesc', it ? (it.desc || '未分類') : ''));
+    head.append(el('span', 'rvn', `×${item.s.count || 1}`));
+    card.append(head);
+
+    const src2 = item.s.glyph.src;
+    const gl = await Zigen.getGlyph(src2);
+    const sv = el('div', 'rvglyph');
+    sv.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+      gl.strokes.map((d, k) =>
+        `<path class="${item.s.glyph.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+      '</g></svg>';
+    card.append(sv);
+    card.append(el('div', 'rvsrc',
+      `取自「${src2}」第 ${item.s.glyph.strokes.map(k => k + 1).join('、')} 筆`));
+
+    const users = await charsUsing(item.s, item.letter);
+    const cs = el('div', 'rvchars');
+    if (!users.length) cs.innerHTML = '<span class="dnone">還沒有字用到它</span>';
+    else {
+      for (const u of users.slice(0, 12)) {
+        const a = el('a', '', u.ch);
+        a.href = '/annotate?c=' + encodeURIComponent(u.ch);
+        a.target = '_blank';
+        a.title = `${u.ch} = ${u.code}`;
+        cs.append(a);
+      }
+      if (users.length > 12) cs.append(el('span', 'dnone', `…共 ${users.length} 字`));
+    }
+    card.append(cs);
+    box.append(card);
+  }
+
+  const acts = $('#rvacts'); acts.innerHTML = '';
+  for (const k of g.keys) {
+    const b = el('button', 'primary', `都算 ${k}`);
+    b.title = `把另一邊的字根、以及已取碼的字，全部改成 ${k}`;
+    b.onclick = async () => { await mergeGroupTo(g, k); afterResolve(); };
+    acts.append(b);
+  }
+  const diff = el('button', '', '確實不同，記住');
+  diff.onclick = async () => { await markDistinct(g); afterResolve(); };
+  const skip = el('button', '', '先跳過');
+  skip.onclick = () => openReview(reviewIdx + 1);
+  const close = el('button', '', '關閉');
+  close.onclick = () => $('#review').classList.remove('on');
+  acts.append(diff, skip, close);
+
+  $('#review').classList.add('on');
+}
+
+async function afterResolve() {
+  await computeDuplicates();
+  render();
+  if (dupCache.length) openReview(Math.min(reviewIdx, dupCache.length - 1));
+  else {
+    $('#review').classList.remove('on');
+    $('#status').textContent = '重複都處理完了 ✓';
+    $('#status').className = 'saved';
+  }
+}
+
+async function mergeGroupTo(group, to) {
   for (const item of group.shapes) {
     if (item.letter === to) continue;
     const from = item.letter;
@@ -811,42 +929,40 @@ async function resolveSame(group) {
       if (k < 0) continue;
       it.shapes.splice(k, 1);
       const dest = data.letters.find(x => x.letter === to);
-      let bucket = dest.intentions.find(i => i.auto && tierOf(i) === 'primary');
+      let bucket = dest.intentions.find(i2 => i2.auto && tierOf(i2) === 'primary');
       if (!bucket) { bucket = { desc: '', auto: true, tier: 'primary', shapes: [] };
                      dest.intentions.push(bucket); }
       bucket.shapes.push(item.s);
       break;
     }
-    await reletter([item.s], from, to);        /* 已取碼的字也一起改 */
+    await reletter([item.s], from, to);        /* 已取碼的字一起改 */
   }
-  touch(); render();
+  touch();
 }
 
-/* 「不是同一個」→ 記住，並在門檻太鬆時提議調緊（這就是它學到的東西） */
-async function resolveDistinct(group) {
+/* 「確實不同」→ 記住配對；門檻太鬆就提議調緊（這是它從你的裁決學到的） */
+async function markDistinct(group) {
   data.meta.distinct = data.meta.distinct || [];
   const keys = group.shapes.map(pairKey);
   for (let i = 0; i < keys.length; i++)
     for (let j = i + 1; j < keys.length; j++) {
       const pair = [keys[i], keys[j]].sort();
-      if (!data.meta.distinct.some(p => p[0] === pair[0] && p[1] === pair[1]))
+      if (!data.meta.distinct.some(x => x[0] === pair[0] && x[1] === pair[1]))
         data.meta.distinct.push(pair);
     }
-
   const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
   if (group.d && group.d < thr) {
     const suggest = Math.max(0.02, +(group.d * 0.9).toFixed(3));
     if (confirm(
         `記住了：這兩個不是同一個字根（形狀距離 ${group.d.toFixed(3)}）。\n\n` +
-        `但目前的合併門檻是 ${thr} —— 比它們的距離還大，` +
-        `所以「逐字取碼」以後還是會把這種形狀自動併在一起。\n\n` +
-        `要把門檻調到 ${suggest} 嗎？（這樣像這樣的細微差別就分得開）`)) {
+        `但合併門檻是 ${thr}，比它們的距離還大 —— 「逐字取碼」以後還是會把這種形狀` +
+        `自動併在一起。\n\n要把門檻調到 ${suggest} 嗎？`)) {
       data.meta.merge_threshold = suggest;
       $('#thr').value = suggest;
       $('#thrv').textContent = suggest.toFixed(3);
     }
   }
-  touch(); render();
+  touch();
 }
 
 /* ---------- 哪些已取碼的字用到這個字根？ ---------- */
@@ -1317,62 +1433,21 @@ function renderStats() {
     `重複 <b style="color:var(--dupe)">${dup.length}</b>`;
 }
 
-/* 重複的字根：同一個形狀掛在多個字母下 —— 取碼一定會有歧義。
-   照「牽涉多少個已取碼的字」排序，並把那些字列出來（點一下就跳去看它怎麼拆）。 */
+/* 重複的字根：面板只放一條橫幅，細節交給「逐組檢視」的對照視窗 ——
+   一次看一組、看得到形狀在原字裡的位置，才有辦法真的裁決。 */
 async function renderDupes(dup) {
   const box = $('#dupes');
   box.innerHTML = '';
   if (!dup.length) return;
-
   const panel = el('div', 'dupe-panel');
-  panel.innerHTML = `<b>字根重複 ${dup.length} 組</b>` +
-    '<span class="hint">（同一個形狀掛在多個字母下，取碼會有歧義。' +
-    '點下面的字可以直接跳去看它是怎麼拆的。）</span>';
+  panel.innerHTML =
+    `<b>字根重複 ${dup.length} 組</b>` +
+    '<span class="hint">同一個形狀掛在不同字母下，取碼會有歧義。' +
+    '一組一組看，決定它們到底是同一個、還是真的不同。</span>';
+  const go = el('button', 'primary', `逐組檢視（${dup.length}）`);
+  go.onclick = () => openReview(0);
+  panel.append(go);
   box.append(panel);
-
-  const rows = [];
-  for (const x of dup) {
-    const users = x.s.glyph ? await charsUsing(x.s, null) : [];
-    rows.push({ x, users });
-  }
-  rows.sort((a, b) => b.users.length - a.users.length);      /* 影響最多字的排前面 */
-
-  for (const { x, users } of rows) {
-    const r = el('div', 'dupe-row');
-    const gly = el('span', 'dgly');
-    if (x.s.glyph) {
-      gly.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
-      getGlyph(x.s.glyph.src).then(st => { if (st) gly.innerHTML = glyphSvg(st, x.s.glyph.strokes); });
-    } else gly.textContent = x.s.z || '?';
-    r.append(gly);
-
-    const ks = el('span', 'dkeys');
-    ks.innerHTML = x.keys.map(k => `<b>${k}</b>`).join(' ／ ');
-    r.append(ks);
-
-    const cs = el('span', 'dchars');
-    if (!users.length) cs.innerHTML = '<span class="dnone">還沒有字用到它</span>';
-    else for (const u of users.slice(0, 30)) {
-      const a = el('a', '', u.ch);
-      a.href = '/annotate?c=' + encodeURIComponent(u.ch);
-      a.target = '_blank';
-      a.title = `${u.ch} = ${u.code}　（在逐字取碼頁打開）`;
-      cs.append(a);
-    }
-    if (users.length > 30) cs.append(el('span', 'dnone', `…共 ${users.length} 字`));
-    r.append(cs);
-
-    const acts = el('span', 'dacts');
-    const same = el('button', 'mini', '同一個 → 合併');
-    same.title = '兩邊其實是同一個字根：合併到你選的字母';
-    same.onclick = () => resolveSame(x);
-    const diff = el('button', 'mini', '不是同一個');
-    diff.title = '記住它們不同，以後不再當成重複';
-    diff.onclick = () => resolveDistinct(x);
-    acts.append(same, diff);
-    r.append(acts);
-    panel.append(r);
-  }
 }
 
 /* ====================== modal: stroke picker ====================== */
