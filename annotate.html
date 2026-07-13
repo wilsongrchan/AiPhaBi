@@ -55,8 +55,15 @@
   .actbar { display:flex; gap:5px; flex-wrap:nowrap; max-width:100%; }
   .actbar button { font-size:12px; padding:5px 8px; white-space:nowrap; }
 
+  /* 搜尋／篩選／字級／跳轉：釘在左欄頂端，捲名單的時候不會跟著跑掉。
+     底下要留一塊不透明底色，不然字捲上來會從縫隙裡透出去。 */
+  /* 負 margin + 同量 padding：把左欄自己的內距（12/14px）也一起蓋住，
+     不然字會從工具列上面那條縫裡捲出來。 */
+  .qhead { position:sticky; top:-12px; z-index:4; background:var(--bg);
+    margin:-12px -14px 6px; padding:12px 14px 7px;
+    border-bottom:1px solid var(--line); }
   /* 左欄字表：字級可調（小的時候不顯示碼，一次看更多字） */
-  .qtools { display:flex; gap:3px; align-items:center; margin-bottom:6px; flex-wrap:wrap; }
+  .qtools { display:flex; gap:3px; align-items:center; margin-bottom:2px; flex-wrap:wrap; }
   .qtools button { font-size:11px; padding:2px 6px; border-radius:6px; }
   .qlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(var(--qw,38px),1fr)); gap:3px; }
   .qlist.sz-s { --qw:26px; }
@@ -309,6 +316,8 @@
 
 <div class="cols">
   <div class="pane">
+    <!-- 搜尋、篩選、字級、跳轉全部釘在頂端：捲到名單一半還要捲回來按，很煩 -->
+    <div class="qhead">
     <input id="search" placeholder="搜尋／跳到某字">
     <div class="filters">
       <button data-f="todo" class="on">未取碼</button>
@@ -324,6 +333,7 @@
       <button id="nextWarn" title="跳到下一個還有未處理警告的字">下一個 ⚠</button>
       <button id="toBottom" title="載入全部並跳到最後">到底 ↓</button>
     </div>
+    </div><!-- /.qhead -->
     <div class="qlist sz-m" id="qlist"></div>
     <div style="text-align:center;margin-top:8px"><button id="more">載入更多</button></div>
   </div>
