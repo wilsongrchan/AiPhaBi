@@ -582,14 +582,18 @@ function checks(ctx) {
         msg: `第 ${i + 1} 個字根（${sg.letter}）是新形狀，儲存後會在 ${sg.letter} 底下新增一條字根。` });
     }
 
-    /* 4. 優次等原則：用了次／三等，但同一組筆畫也配得上某個優等字根 */
+    /* 4. 優次等原則：用了次／三等，但同一組筆畫也配得上某個優等字根。
+          只有在那個優等字根屬於「別的字母」時才要緊 —— 同一個字母的話，
+          取到哪一條字根都是同一個碼，沒有任何影響，不該拿來煩你。 */
     if (on('tier_priority') && mine && mine.d < thr && mine.e.tier !== 'primary') {
-      const better = lib.filter(e => e.n === sg.strokes.length && e.tier === 'primary')
+      const better = lib.filter(e => e.n === sg.strokes.length && e.tier === 'primary' &&
+                                     e.letter !== sg.letter)
         .map(e => ({ e, d: Shape.dist(Shape.strokeVec(sg.strokes.map(k => medians[k])), e.vec) }))
         .filter(x => x.d < thr).sort((a, b) => a.d - b.d)[0];
       if (better) out.push({ key: `tier:${i}`, lvl: 'warn', rule: '優次等原則', refs: [i],
-        msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}（${sg.letter}），` +
-             `但同一組筆畫也配得上<b>優等</b>字根 ${better.e.label}（<b>${better.e.letter}</b>）。` });
+        msg: `第 ${i + 1} 個字根用的是 <b>${TIER_NAME[mine.e.tier]}</b>字根 ${mine.e.label}` +
+             `（取 <b>${sg.letter}</b>），但同一組筆畫也配得上<b>優等</b>字根 ` +
+             `${better.e.label}（取 <b>${better.e.letter}</b>）—— 碼會不一樣。` });
     }
   });
 
