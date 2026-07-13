@@ -124,10 +124,17 @@
   .related a .rk { font:600 10px ui-monospace,monospace; color:var(--accent); }
   .related a.up .rc { color:var(--muted); font-size:15px; }
   .related a.todo .rk { color:var(--muted); font-weight:400; }   /* 這個部件還沒取碼 */
-  .related .fam { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .related .fam { position:relative; display:inline-flex; align-items:center; }
   .related .fam > button { font-size:11px; padding:2px 7px; border-radius:7px; }
-  .related .famlist { display:inline-flex; gap:4px; flex-wrap:wrap; }
+  /* 同偏旁的字往下展開成一欄浮層 —— 橫著排會一路擠到中間的字圖上去。
+     浮層（absolute）不佔版面，所以展不展開都不會把別的東西推走。 */
+  .related .famlist { position:absolute; top:calc(100% + 4px); left:0; z-index:20;
+    display:flex; flex-direction:column; gap:3px; padding:6px;
+    max-height:min(560px, 70vh); overflow-y:auto;
+    background:var(--card); border:1px solid var(--line); border-radius:9px;
+    box-shadow:0 6px 20px rgba(0,0,0,.14); }
   .related .famlist.hide { display:none; }
+  .related .famlist a { justify-content:space-between; }
 
   .hintbar { font-size:12px; color:var(--muted); text-align:center; max-width:520px; }
   kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px;
@@ -1419,8 +1426,13 @@ async function renderRelated(ch) {
     const list = el('span', 'famlist hide');
     for (const c of fam.slice(0, 80)) list.append(chip(c, 'up'));
     bt.onclick = () => {
-      const on = list.classList.toggle('hide');
-      bt.textContent = `同「${p}」旁　${fam.length} 字 ${on ? '▾' : '▴'}`;
+      const opening = list.classList.contains('hide');
+      /* 一次只開一個，不然兩個浮層疊在一起 */
+      for (const other of box.querySelectorAll('.famlist')) other.classList.add('hide');
+      for (const b2 of box.querySelectorAll('.fam > button'))
+        b2.textContent = b2.textContent.replace('▴', '▾');
+      list.classList.toggle('hide', !opening);
+      bt.textContent = `同「${p}」旁　${fam.length} 字 ${opening ? '▴' : '▾'}`;
     };
     wrap.append(bt, list);
     box.append(wrap);
