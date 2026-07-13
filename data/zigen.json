@@ -1598,6 +1598,22 @@
                 "無"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "經",
+                "strokes": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "ex": "經",
+              "count": 2,
+              "seen": [
+                "經"
+              ],
+              "learned": true
             }
           ]
         },
@@ -1655,26 +1671,9 @@
           ]
         },
         {
-          "desc": "",
-          "auto": true,
+          "desc": "多於兩豎並列",
           "tier": "primary",
           "shapes": [
-            {
-              "glyph": {
-                "src": "經",
-                "strokes": [
-                  3,
-                  4,
-                  5
-                ]
-              },
-              "ex": "經",
-              "count": 2,
-              "seen": [
-                "經"
-              ],
-              "learned": true
-            },
             {
               "glyph": {
                 "src": "無",
@@ -1747,6 +1746,22 @@
                 "前"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "最",
+                "strokes": [
+                  4,
+                  5,
+                  6
+                ]
+              },
+              "ex": "最",
+              "count": 1,
+              "seen": [
+                "最"
+              ],
+              "learned": true
             }
           ]
         },
@@ -1790,24 +1805,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "最",
-                "strokes": [
-                  4,
-                  5,
-                  6
-                ]
-              },
-              "ex": "最",
-              "count": 1,
-              "seen": [
-                "最"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -2689,21 +2687,16 @@
           "tier": "primary",
           "shapes": [
             {
+              "ex": "思",
               "glyph": {
                 "src": "思",
                 "strokes": [
-                  0,
-                  1,
-                  2,
-                  3,
-                  4,
                   5,
                   6,
                   7,
                   8
                 ]
-              },
-              "ex": "思"
+              }
             },
             {
               "ex": "恨",
@@ -2965,11 +2958,10 @@
     {
       "letter": "Z",
       "hint": "萬用鍵（wildcard）",
-      "notes": "萬用鍵：匹配任何一碼。",
+      "notes": "",
       "intentions": [
         {
-          "desc": "",
-          "auto": true,
+          "desc": "“辶”及類似字形",
           "tier": "primary",
           "shapes": [
             {
