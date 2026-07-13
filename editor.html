@@ -39,8 +39,19 @@
   #status { font-size:13px; min-width:76px; color:var(--muted); }
   #status.saved { color:var(--ok); } #status.dirty { color:var(--warn); }
 
-  main { padding:18px 20px; display:grid; gap:14px;
+  main { padding:18px 44px 18px 20px; display:grid; gap:14px;
     grid-template-columns:repeat(auto-fill,minmax(460px,1fr)); align-items:start; }
+
+  /* 右側 A–Z 快速跳字母 */
+  #jump { position:fixed; right:6px; top:50%; transform:translateY(-50%); z-index:20;
+    display:flex; flex-direction:column; gap:1px; padding:5px 3px; border-radius:10px;
+    background:color-mix(in srgb, var(--card) 88%, transparent);
+    border:1px solid var(--line); backdrop-filter:blur(4px); }
+  #jump a { font:600 10px/1 ui-monospace,monospace; color:var(--muted); text-decoration:none;
+    width:17px; height:15px; display:grid; place-items:center; border-radius:4px; }
+  #jump a:hover { background:var(--accent); color:#fff; }
+  #jump a.empty { opacity:.3; }
+  #jump a.has { color:var(--ink); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px 14px; }
   .card.hidden { display:none; }
   .key { font:650 26px/1 ui-monospace,Menlo,monospace; margin-bottom:2px; }
@@ -94,6 +105,26 @@
     outline:1px dashed var(--accent); }
   .ins { width:3px; align-self:stretch; min-height:40px; border-radius:2px;
     background:var(--accent); }
+  /* 刪字根前的確認 */
+  #zdel { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; place-items:center;
+    z-index:90; }
+  #zdel.on { display:grid; }
+  .zsheet { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; width:min(660px,94vw); max-height:82vh; display:flex; flex-direction:column; }
+  .zsheet h3 { margin:0 0 4px; font-size:15px; }
+  .zsub { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:10px; }
+  .zsub b { color:var(--ink); }
+  .zlist { overflow:auto; flex:1; display:flex; flex-wrap:wrap; gap:6px; }
+  .zitem { display:flex; align-items:center; gap:5px; border:1px solid var(--line);
+    border-radius:9px; padding:3px 7px; background:var(--bg); }
+  .zitem .zc { font-size:20px; font-family:"PingFang TC",serif; color:var(--ink);
+    text-decoration:none; }
+  .zitem .zc:hover { color:var(--accent); }
+  .zitem svg { width:26px; height:26px; }
+  .zitem svg .on { fill:var(--accent); } .zitem svg .off { fill:var(--ghost); opacity:.35; }
+  .zitem .zcd { font:600 11px ui-monospace,monospace; color:var(--muted); }
+  .zrow { display:flex; gap:6px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+
   .sugbox { margin-top:5px; }
   .sug { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--muted);
     padding:3px 6px; border:1px dashed var(--line); border-radius:8px; margin-top:4px; }
@@ -151,11 +182,24 @@
   .notes { width:100%; margin-top:8px; border:1px solid var(--line); border-radius:7px;
     background:var(--bg); color:var(--ink); padding:5px 8px; font:inherit; font-size:13px;
     resize:vertical; min-height:30px; }
-  .dupe-panel { margin:0 20px 4px; padding:9px 13px; border:1px solid var(--dupe);
+  .dupe-panel { margin:0 44px 4px 20px; padding:10px 13px; border:1px solid var(--dupe);
     border-radius:10px; background:var(--card); font-size:13px; }
-  .dupe-panel b { color:var(--dupe); }
-  .dupe-panel .d { display:inline-block; margin-right:11px; }
-  .dupe-panel .d i { font-size:18px; font-style:normal; }
+  .dupe-panel > b { color:var(--dupe); }
+  .dupe-panel .hint { color:var(--muted); font-size:11px; margin-left:6px; }
+  .dupe-row { display:flex; align-items:center; gap:9px; padding:5px 0;
+    border-top:1px solid var(--line); margin-top:5px; }
+  .dupe-row .dgly { flex:none; width:30px; }
+  .dupe-row .dgly svg { width:30px; height:30px; display:block; }
+  .dupe-row .dgly svg .on { fill:var(--dupe); } .dupe-row .dgly svg .off { fill:var(--ghost); opacity:.3; }
+  .dupe-row .dkeys { flex:none; font:600 12px ui-monospace,monospace; color:var(--muted);
+    min-width:70px; }
+  .dupe-row .dkeys b { color:var(--dupe); }
+  .dupe-row .dchars { display:flex; flex-wrap:wrap; gap:3px; }
+  .dupe-row .dchars a { font-size:19px; font-family:"PingFang TC",serif; color:var(--ink);
+    text-decoration:none; border:1px solid var(--line); border-radius:6px; padding:0 4px;
+    line-height:1.35; }
+  .dupe-row .dchars a:hover { border-color:var(--accent); color:var(--accent); }
+  .dupe-row .dnone { font-size:11px; color:var(--muted); }
 
   /* ---------- modal ---------- */
   #modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; place-items:center; z-index:50; }
@@ -220,7 +264,23 @@
   <button class="primary" id="save">儲存</button>
 </header>
 <div id="dupes"></div>
+<nav id="jump"></nav>
 <main id="app"></main>
+<div id="zdel">
+  <div class="zsheet">
+    <h3 id="ztitle"></h3>
+    <div class="zsub" id="zsub"></div>
+    <div class="zlist" id="zlist"></div>
+    <div class="zrow">
+      <button id="zcancel">取消，不刪</button>
+      <div class="grow"></div>
+      <button id="zdrop">刪字根，並刪掉那些字的這一碼</button>
+      <button id="zrelet">刪字根，那一碼改成…</button>
+      <button class="primary" id="zkeep">刪字根，碼維持原樣</button>
+    </div>
+  </div>
+</div>
+
 <div id="mergebar">
   <span id="mergetext"></span>
   <span class="prev" id="mergeprev"></span>
@@ -301,16 +361,35 @@ const intentionsOf = (L, tier) => L.intentions.filter(it => tierOf(it) === tier)
 const allShapes = () => data.letters.flatMap(L =>
   L.intentions.flatMap(it => it.shapes.map(s => ({ letter: L.letter, s, tier: tierOf(it) }))));
 
-function duplicates() {
-  const m = new Map();
+/* 重複＝「同一個形狀掛在不同字母下」。
+   注意不能比定義（明[1234] 與 早[1234] 都是「日」，定義卻不同），要比形狀。 */
+let dupCache = [];
+async function computeDuplicates() {
+  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const items = [];
   for (const { letter, s } of allShapes()) {
-    const k = shapeKey(s);
-    if (!m.has(k)) m.set(k, { s, keys: new Set() });
-    m.get(k).keys.add(letter);
+    if (!s.glyph) continue;
+    const g = await Zigen.getGlyph(s.glyph.src);
+    if (!g) continue;
+    const med = s.glyph.strokes.map(i => g.medians[i]);
+    if (med.some(m => !m)) continue;
+    const v = Shape.strokeVec(med);
+    if (v) items.push({ letter, s, v, n: med.length });
   }
-  return [...m.values()].filter(v => v.keys.size > 1)
-    .map(v => ({ s: v.s, keys: [...v.keys].sort() }));
+  /* 同筆數 + 形狀夠近 → 同一群 */
+  const groups = [];
+  for (const it of items) {
+    const g = groups.find(g => g.n === it.n && Shape.dist(g.items[0].v, it.v) < thr);
+    if (g) g.items.push(it);
+    else groups.push({ n: it.n, items: [it] });
+  }
+  dupCache = groups
+    .map(g => ({ s: g.items[0].s, keys: [...new Set(g.items.map(x => x.letter))].sort(),
+                 shapes: g.items }))
+    .filter(g => g.keys.length > 1);
+  return dupCache;
 }
+const duplicates = () => dupCache;
 
 /* ---------- glyph stroke data (makemeahanzi, 9574 chars, 繁+簡) ---------- */
 const glyphCache = new Map();
@@ -352,7 +431,7 @@ function render() {
   renderMergeBar();
   if (compact) return renderCompact();
 
-  const dup = new Set(duplicates().map(d => shapeKey(d.s)));
+  const dup = new Set(duplicates().flatMap(d => d.shapes.map(x => shapeKey(x.s))));
   const q = $('#q').value.trim();
 
   for (const L of data.letters) {
@@ -433,13 +512,15 @@ function render() {
     app.append(card);
   }
   renderStats();
+  renderJump();
+  refreshDupes();
 }
 
 /* 精簡檢視：一行一個字母，只列形狀（等級之間用直線隔開，意圖不再分隔），
    一眼看出每個字母有幾個字根。 */
 function renderCompact() {
   const app = $('#app');
-  const dup = new Set(duplicates().map(d => shapeKey(d.s)));
+  const dup = new Set(duplicates().flatMap(d => d.shapes.map(x => shapeKey(x.s))));
   const q = $('#q').value.trim();
 
   for (const L of data.letters) {
@@ -470,11 +551,30 @@ function renderCompact() {
     app.append(row);
   }
   renderStats();
+  renderJump();
+  refreshDupes();
+}
+
+/* 重複要比形狀（要抓筆畫資料），所以非同步算完再重畫一次 */
+let dupRun = 0;
+async function refreshDupes() {
+  const run = ++dupRun;
+  await computeDuplicates();
+  if (run !== dupRun) return;
+  await renderDupes(dupCache);
+  /* 重複的 chip 要標出來；算完才知道，所以這裡補上 */
+  const keys = new Set(dupCache.flatMap(d => d.shapes.map(x => shapeKey(x.s))));
+  document.querySelectorAll('.chip').forEach(c => {
+    const k = c.dataset.key;
+    c.classList.toggle('dupe', !!k && keys.has(k));
+  });
+  renderStats();
 }
 
 const SETS = { both: '繁簡', trad: '繁', simp: '簡' };
 function chip(arr, i, s, dup, L, it) {
   const c = el('div', 'chip' + (s.uncertain ? ' unc' : '') + (dup.has(shapeKey(s)) ? ' dupe' : ''));
+  c.dataset.key = shapeKey(s);
   if (dup.has(shapeKey(s))) c.title = '此字根同時屬於其他字母 — 取碼會有歧義';
 
   /* 拖放：把字根拖到別的意圖、別的等級、甚至別的字母。
@@ -548,10 +648,72 @@ function chip(arr, i, s, dup, L, it) {
   const u = el('span', 'u', '⚠'); u.title = '待核對';
   u.onclick = () => { s.uncertain = !s.uncertain; if (!s.uncertain) delete s.uncertain; touch(); render(); };
   const x = el('span', 'x', '✕');
-  x.onclick = () => { arr.splice(i, 1); touch(); render(); };
+  x.onclick = () => deleteShape(arr, i, s, L);
   tools.append(u, x);
   c.append(tools);
   return c;
+}
+
+/* 刪字根之前，先看看有沒有字在用它 —— 不然那些字的碼就變成孤兒 */
+async function deleteShape(arr, i, s, L) {
+  const letter = L ? L.letter : null;
+  const users = s.glyph ? await charsUsing(s, letter) : [];
+  if (!users.length) { arr.splice(i, 1); touch(); render(); return; }
+
+  const box = $('#zlist'); box.innerHTML = '';
+  $('#ztitle').textContent = `刪除 ${letter} 的這個字根？`;
+  $('#zsub').innerHTML =
+    `有 <b>${users.length}</b> 個已取碼的字用到它。刪掉字根之後，這些字的碼還是會留著 ${letter}，` +
+    '但字根表裡已經沒有這個形狀 —— 它們會在逐字取碼頁顯示「字根比對」警告。<br>' +
+    '你可以：維持它們的碼（之後自己處理）、把這一碼改成別的字母、或整碼刪掉。';
+  for (const u of users) {
+    const g = await Zigen.getGlyph(u.ch);
+    const it = el('div', 'zitem');
+    const a = el('a', 'zc', u.ch);
+    a.href = '/annotate?c=' + encodeURIComponent(u.ch);
+    a.target = '_blank';
+    a.title = '在逐字取碼頁打開';
+    it.append(a);
+    const sv = el('span');
+    sv.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
+      g.strokes.map((d, k) =>
+        `<path class="${u.seg.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+      '</g></svg>';
+    it.append(sv);
+    it.append(el('span', 'zcd', u.code || ''));
+    box.append(it);
+  }
+
+  const finish = async mode => {
+    $('#zdel').classList.remove('on');
+    if (mode === 'cancel') return;
+
+    if (mode === 'reletter' || mode === 'drop') {
+      const to = mode === 'reletter'
+        ? (prompt(`把這 ${users.length} 個字的這一碼改成哪個字母？`, '') || '').trim().toUpperCase()
+        : null;
+      if (mode === 'reletter' && !/^[A-Z]$/.test(to)) return;
+      const codes = await loadCodes();
+      for (const u of users) {
+        u.rec.segments = mode === 'reletter'
+          ? u.rec.segments.map(sg => sg === u.seg ? { ...sg, letter: to } : sg)
+          : u.rec.segments.filter(sg => sg !== u.seg);
+        u.rec.code = u.rec.segments.map(sg => sg.letter).join('');
+        delete u.rec.final;
+      }
+      await fetch('/api/codes', { method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(codes, null, 2) });
+      $('#status').textContent = `已更新 ${users.length} 個字`;
+      $('#status').className = 'saved';
+    }
+    arr.splice(i, 1);
+    touch(); render();
+  };
+  $('#zkeep').onclick = () => finish('keep');
+  $('#zrelet').onclick = () => finish('reletter');
+  $('#zdrop').onclick = () => finish('drop');
+  $('#zcancel').onclick = () => finish('cancel');
+  $('#zdel').classList.add('on');
 }
 
 async function renderSuggestions(box, L, auto) {
@@ -618,6 +780,39 @@ function zoneArray(row) {
   let bucket = L.intentions.find(i => i.auto && tierOf(i) === tier);
   if (!bucket) { bucket = { desc: '', auto: true, tier, shapes: [] }; L.intentions.push(bucket); }
   return bucket.shapes;
+}
+
+/* ---------- 哪些已取碼的字用到這個字根？ ---------- */
+async function charsUsing(shape, letter) {
+  const codes = await loadCodes();
+  const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
+  const forms = [];
+  for (const f of [shape.glyph, ...(shape.alts || [])].filter(Boolean)) {
+    const g = await Zigen.getGlyph(f.src);
+    if (!g) continue;
+    const med = f.strokes.map(i => g.medians[i]);
+    if (med.some(m => !m)) continue;
+    const v = Shape.strokeVec(med);
+    if (v) forms.push({ v, n: med.length });
+  }
+  if (!forms.length) return [];
+
+  const out = [];
+  for (const [ch, rec] of Object.entries(codes)) {
+    if (!rec.segments) continue;
+    const g = await Zigen.getGlyph(ch);
+    if (!g) continue;
+    for (const sg of rec.segments) {
+      if (letter && sg.letter !== letter) continue;
+      const v = Shape.strokeVec(sg.strokes.map(i => g.medians[i]));
+      if (!v) continue;
+      if (forms.some(f => f.n === sg.strokes.length && Shape.dist(v, f.v) < thr)) {
+        out.push({ ch, rec, seg: sg, code: rec.code });
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /* ---------- 建議：這個新字根該歸到哪個意圖？ ----------
@@ -1022,6 +1217,26 @@ function editable(cls, val, onchange) {
   return s;
 }
 
+/* 右側 A–Z：點一下跳到那個字母（沒字根的淡一點） */
+function renderJump() {
+  const nav = $('#jump'); nav.innerHTML = '';
+  for (const L of data.letters) {
+    const n = L.intentions.reduce((k, it) => k + it.shapes.length, 0);
+    const a = el('a', n ? 'has' : 'empty', L.letter);
+    a.href = '#';
+    a.title = n ? `${L.letter}：${n} 個字根` : `${L.letter}：還沒有字根`;
+    a.onclick = ev => {
+      ev.preventDefault();
+      const card = [...document.querySelectorAll('.card, .row')]
+        .find(c => c.querySelector('.key')?.textContent === L.letter);
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card?.animate([{ outline: '2px solid var(--accent)' }, { outline: '2px solid transparent' }],
+        { duration: 1200 });
+    };
+    nav.append(a);
+  }
+}
+
 function renderStats() {
   const sh = allShapes();
   const dup = duplicates();
@@ -1033,12 +1248,53 @@ function renderStats() {
     `累計指派 <b>${uses}</b>　` +
     `意圖 <b>${data.letters.reduce((n, L) => n + L.intentions.filter(i => !i.auto).length, 0)}</b>　` +
     `重複 <b style="color:var(--dupe)">${dup.length}</b>`;
-  const p = $('#dupes'); p.innerHTML = '';
-  if (dup.length) {
-    const d = el('div', 'dupe-panel');
-    d.innerHTML = '<b>字根重複（同形對應多個字母，取碼會有歧義）：</b><br>' +
-      dup.map(x => `<span class="d"><i>${x.s.z || x.s.glyph.src + '⁻'}</i> → ${x.keys.join('/')}</span>`).join('');
-    p.append(d);
+}
+
+/* 重複的字根：同一個形狀掛在多個字母下 —— 取碼一定會有歧義。
+   照「牽涉多少個已取碼的字」排序，並把那些字列出來（點一下就跳去看它怎麼拆）。 */
+async function renderDupes(dup) {
+  const box = $('#dupes');
+  box.innerHTML = '';
+  if (!dup.length) return;
+
+  const panel = el('div', 'dupe-panel');
+  panel.innerHTML = `<b>字根重複 ${dup.length} 組</b>` +
+    '<span class="hint">（同一個形狀掛在多個字母下，取碼會有歧義。' +
+    '點下面的字可以直接跳去看它是怎麼拆的。）</span>';
+  box.append(panel);
+
+  const rows = [];
+  for (const x of dup) {
+    const users = x.s.glyph ? await charsUsing(x.s, null) : [];
+    rows.push({ x, users });
+  }
+  rows.sort((a, b) => b.users.length - a.users.length);      /* 影響最多字的排前面 */
+
+  for (const { x, users } of rows) {
+    const r = el('div', 'dupe-row');
+    const gly = el('span', 'dgly');
+    if (x.s.glyph) {
+      gly.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
+      getGlyph(x.s.glyph.src).then(st => { if (st) gly.innerHTML = glyphSvg(st, x.s.glyph.strokes); });
+    } else gly.textContent = x.s.z || '?';
+    r.append(gly);
+
+    const ks = el('span', 'dkeys');
+    ks.innerHTML = x.keys.map(k => `<b>${k}</b>`).join(' ／ ');
+    r.append(ks);
+
+    const cs = el('span', 'dchars');
+    if (!users.length) cs.innerHTML = '<span class="dnone">還沒有字用到它</span>';
+    else for (const u of users.slice(0, 30)) {
+      const a = el('a', '', u.ch);
+      a.href = '/annotate?c=' + encodeURIComponent(u.ch);
+      a.target = '_blank';
+      a.title = `${u.ch} = ${u.code}　（在逐字取碼頁打開）`;
+      cs.append(a);
+    }
+    if (users.length > 30) cs.append(el('span', 'dnone', `…共 ${users.length} 字`));
+    r.append(cs);
+    panel.append(r);
   }
 }
 
