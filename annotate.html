@@ -760,6 +760,11 @@ function renderCode() {
       ` → <b style="color:var(--accent)">${fin}</b>`);
   }
   if (skipped.length) bits.push(`略過 ${skipped.length} 筆`);
+  /* 約定表上有這個字的話，把「該取的碼」擺出來當靶子 */
+  const cvr = convOf(cur);
+  if (cvr) bits.push(`約定碼 <b style="color:var(--accent)">${finalOf(cvr.code)}</b>` +
+    `（${cvr.group}${cvr.compCode && cvr.compCode !== cvr.code
+      ? `；作為偏旁取 ${cvr.compCode}` : ''}）`);
   bits.push(left ? `尚有 ${left} 筆未指派`
     : '<span style="color:var(--ok)">全部筆畫已處理</span>');
   $('#ref').innerHTML = bits.join('　');
@@ -1000,7 +1005,28 @@ function bestMatch(strokeIdx, letter, med = medians) {
   return best;
 }
 
-/* ctx = {segs, skipped, medians, nStrokes} —— 目前這個字，或佇列裡任何一個字 */
+/* ---------- 約定表 ----------
+   取碼原則裡的「約定原則」是一張表（數字類、木字類…）。凡是列在表上的字，
+   本來就明說了「凌駕筆順、能合不分」—— 那些原則對它不成立，不該再報成違規。 */
+function convOf(ch) {
+  const r = rules && rules.rules.find(x => x.id === 'convention' && x.enabled);
+  if (!r || !r.groups) return null;
+  for (const g of r.groups)
+    for (const row of g.chars || [])
+      if (row.c === ch && row.code) return { ...row, group: g.name || '約定' };
+  return null;
+}
+/* 約定表裡「作為偏旁時另有取法」的字，不能拿去當別的字的偏旁範本
+   —— 跟該字的 notComponent 是同一件事（例：二 單獨 II，當偏旁只算一個 I）。 */
+const convStandaloneOnly = ch => {
+  const c = convOf(ch);
+  return !!(c && c.compCode && c.compCode !== c.code);
+};
+
+/* 這幾條原則講的是「怎麼切、怎麼合」—— 約定原則明說凌駕它們 */
+const OVERRIDDEN_BY_CONVENTION = ['order', 'merge', 'lone', 'skip', 'skiplast', 'tier'];
+
+/* ctx = {ch, segs, skipped, medians, nStrokes} —— 目前這個字，或佇列裡任何一個字 */
 function checks(ctx) {
   const { segs, skipped, medians, nStrokes } = ctx;
   const bestMatch2 = (idx, letter) => bestMatch(idx, letter, medians);
@@ -1121,6 +1147,27 @@ function checks(ctx) {
           fix: { type: 'unskip', stroke: i, to: L, label: `改取 ${L}` },
           msg: `末筆是孤立的${kind}，依原則應取 <b>${L}</b>，不是略過。` });
     }
+  }
+
+  /* 這個字列在約定表上嗎？約定原則明說「凌駕筆順、能合不分」——
+     那就不該再把「沒照筆順、沒合起來」報成違規；降成說明，不再要求你處理。 */
+  const cv = convOf(ctx.ch);
+  if (cv) {
+    const code = segs.map(s => s.letter).join('');
+    for (const c of out) {
+      if (!OVERRIDDEN_BY_CONVENTION.includes(c.key.split(':')[0])) continue;
+      c.lvl = 'info';
+      c.conv = true;
+      c.rule = `${c.rule}　←　被「約定原則」凌駕（${cv.group}）`;
+      c.msg += `　<b>「${ctx.ch}」在約定表上（${cv.group}：${cv.code}）</b>，` +
+               '約定原則凌駕筆順與能合不分 —— 這不算違規。';
+    }
+    /* 但如果拆出來的碼跟約定表上寫的不一樣，那就真的要講一聲 */
+    if (code && finalOf(code) !== finalOf(cv.code))
+      out.unshift({ key: 'conv', lvl: 'warn', rule: '約定原則',
+        msg: `約定表上「${ctx.ch}」是 <b>${finalOf(cv.code)}</b>（${cv.group}），` +
+             `這裡卻取成 <b>${finalOf(code)}</b> —— 兩邊要一致。`,
+        fix: null });
   }
   return out;
 }
@@ -1505,9 +1552,21 @@ function renderChecks() {
   pinned = null;                    /* 舊的列已經被砍掉了，別再抓著它 */
   const rec = codes[cur] || {};
   const off = muted(rec);
-  const list = checks({ segs, skipped, medians, nStrokes: strokes.length });
+  const list = checks({ ch: cur, segs, skipped, medians, nStrokes: strokes.length });
   const active = list.filter(c => !off.has(c.key));
 
+  /* 碼有了、筆畫分組還沒有：從約定表寫進來的碼會這樣（現有字根拼不出那個碼時，
+     只寫了碼）。畫面本來一片空白，什麼都不說 —— 至少要告訴他還缺什麼。 */
+  if (!segs.length && rec.code && !rec.segments) {
+    const cv = convOf(cur);
+    box.innerHTML = `<div class="chk warn"><span class="ic">⚠</span><div class="body">` +
+      `碼表裡「${cur}」的碼是 <b>${finalOf(rec.code)}</b>` +
+      (cv ? `（來自約定表的「${cv.group}」）` : '') +
+      '，但<b>還沒有筆畫分組</b> —— 現有字根拼不出這個碼，所以當初只寫了碼。<br>' +
+      '請直接點筆畫、按字母，把它湊出來（湊出來的字根會自動進字根表）。' +
+      '</div></div>';
+    return;
+  }
   if (!segs.length) { box.innerHTML = '<div class="newz">還沒取碼。</div>'; return; }
   if (!active.length) {
     box.innerHTML = '<div class="chk ok"><span class="ic">✓</span>' +
@@ -1566,8 +1625,9 @@ function buildComponentIndex() {
   for (const [ch, rec] of Object.entries(codes)) {
     if (!rec.segments || !rec.segments.length) continue;
     /* 約定特例：這個字自己這樣拆，但不能當別的字的偏旁範本。
-       例：「二」單獨成字取 I I，但兩橫作為部件只取一個 I —— 拿它當範本只會一直誤報。 */
-    if (rec.notComponent) continue;
+       例：「二」單獨成字取 I I，但兩橫作為部件只取一個 I —— 拿它當範本只會一直誤報。
+       約定表裡填了「作為偏旁時的碼」而且跟單獨成字不同的，也是同一回事。 */
+    if (rec.notComponent || convStandaloneOnly(ch)) continue;
     const g = _medCache.get(ch);
     if (!g) continue;
     const n = g.length;
@@ -2081,7 +2141,7 @@ async function auditChar(ch) {
   const g = await Zigen.getGlyph(ch);
   if (!g) return 0;
   const list = checks({
-    segs: rec.segments, skipped: rec.skipped || [],
+    ch, segs: rec.segments, skipped: rec.skipped || [],
     medians: g.medians, nStrokes: g.strokes.length,
   });
   const off = muted(rec);
@@ -2120,7 +2180,7 @@ async function pruneStale() {
       if (!keys.size) continue;
       const g = await Zigen.getGlyph(ch);
       if (!g) continue;
-      const ctx = { segs: rec.segments, skipped: rec.skipped || [],
+      const ctx = { ch, segs: rec.segments, skipped: rec.skipped || [],
                     medians: g.medians, nStrokes: g.strokes.length };
       const live = new Set(checks(ctx).map(c => c.key));
       /* 偏旁一致性是另外算的（要比對別的字），但它也會留下 comp:… 紀錄 */
