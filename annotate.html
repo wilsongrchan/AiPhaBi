@@ -1778,6 +1778,17 @@ async function componentWarnings(ctx) {
   /* 你說過「這幾筆不是那個部件」的，就別再拿它來比 ——
      形狀像不等於就是它：碼 的前兩筆長得像「厂」，但那是「石」的頭。 */
   const excluded = new Set((codes[CH] && codes[CH].excludeComp) || []);
+  /* 更根本的把關：只跟「這個字結構上真的有的部件」比。
+     形狀比對會把 德 的右半當成「恩」、把 生 的中段當成「中」—— 那是幾何上的巧合，
+     不是部件。部件是查得到的事實（IDS：碼 = ⿰石馬），沒有理由用猜的。
+
+     拆到哪為止？拆到「你已經取過碼的東西」為止（partsOf 的規則）：
+     碼 = 石 + 馬，兩個你都取過碼 → 就停在這裡。
+     不能一路拆到底 —— 石 = ⿸厂口，再拆下去「厂」又跑出來了，
+     而「碼的前兩筆是厂」正是當初那個誤報。你認得「石」，就不該再把它拆散去比。
+
+     查不到拆分的罕用字才退回舊行為（寧可多問，也不要漏掉）。 */
+  const struct = ids[CH] ? new Set(partsOf(CH, 4)) : null;
 
   /* 由大到小找：住 的第 3-7 筆同時「像三」也「像主」，該報的是主（比較大的那個部件），
      不然會一直被更小的部件搶走。 */
@@ -1793,7 +1804,8 @@ async function componentWarnings(ctx) {
       /* 這一段筆畫「長得像」哪些已取碼的字？門檻收緊一點 ——
          整字比對用全域門檻太鬆，主 與 立 都會互相配上。 */
       const cands = list
-        .filter(c => c.ch !== CH && !excluded.has(c.ch))
+        .filter(c => c.ch !== CH && !excluded.has(c.ch) &&
+                     (!struct || struct.has(c.ch)))       /* 結構上真的有這個部件才比 */
         .map(c => ({ c, d: Shape.dist(v, c.vec) }))
         .filter(x => x.d < 0.15)
         .sort((a, b) => a.d - b.d);
@@ -2331,6 +2343,19 @@ async function pruneStale() {
     let removed = 0, touched = 0;
     for (const ch of chars) {
       const rec = codes[ch];
+
+      /* 「這個字裡沒有那個部件」的紀錄：現在檢查改用結構拆分（IDS）來把關，
+         本來就不會再把「厂」當成「碼」的部件了 —— 這種紀錄已經是多餘的。 */
+      if (rec.excludeComp && ids[ch]) {
+        const struct = new Set(partsOf(ch, 4));      /* 跟檢查用同一把尺 */
+        const keep = rec.excludeComp.filter(c => struct.has(c));
+        if (keep.length !== rec.excludeComp.length) {
+          removed += rec.excludeComp.length - keep.length;
+          touched++;
+          if (keep.length) rec.excludeComp = keep; else delete rec.excludeComp;
+        }
+      }
+
       const keys = new Set([...(rec.overrides || []), ...(rec.conventional || []),
                             ...(rec.compliant || [])]);
       if (!keys.size) continue;
