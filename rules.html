@@ -83,7 +83,9 @@
     border:1px solid var(--line); background:var(--card); color:var(--muted);
     cursor:pointer; text-decoration:none; }
   .tiny:hover { border-color:var(--accent); color:var(--accent); }
-  .gonly { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
+  /* 偏旁碼：空著就是「跟單獨成字時一樣」，所以低調一點，填了才顯眼 */
+  .gcomp { color:var(--warn); border-style:dashed; }
+  .gcomp:not(:placeholder-shown) { border-style:solid; border-color:var(--warn); }
   .gnew { font-size:12px; padding:3px 9px; border-radius:7px; }
   .params input[type=number] { width:64px; padding:3px 5px; border:1px solid var(--line);
     border-radius:6px; background:var(--bg); color:var(--ink); font:inherit; font-size:12px; }
@@ -254,8 +256,8 @@ function renderGroups(box, r) {
     gd.append(add);
 
     const tbl = el('table', 'gtbl');
-    tbl.innerHTML = '<thead><tr><th>字</th><th>約定碼</th><th>碼表現況</th>' +
-      '<th>作為偏旁時</th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>字</th><th>單獨成字的碼</th><th>碼表現況</th>' +
+      '<th>作為偏旁時的碼</th><th></th></tr></thead>';
     const tb = el('tbody');
     for (const [ci, row] of (g.chars || []).entries()) {
       const tr = el('tr');
@@ -270,14 +272,21 @@ function renderGroups(box, r) {
       t2.append(ci2); tr.append(t2);
       /* 碼表現況：這個字現在實際取的碼 */
       const t3 = el('td'); t3.className = 'gnow'; tr.append(t3);
-      /* 作為偏旁時的約定（例：二 單獨是 II，當偏旁只算一個 I） */
+      /* 作為偏旁時的碼：例 二 單獨成字取 II，但當偏旁時兩橫只算一個 I。
+         空著＝跟單獨成字時一樣（大多數字都是這樣，不必每個都填）。 */
       const t4 = el('td');
-      const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!row.standaloneOnly;
-      cb.title = '這個約定只適用於「單獨成字」；當它作為別的字的偏旁時另計';
-      cb.onchange = () => { row.standaloneOnly = cb.checked || undefined; touch(); };
-      const lb = el('label', 'gonly');
-      lb.append(cb, el('span', '', '另計'));
-      t4.append(lb); tr.append(t4);
+      const cc = el('input', 'gcode gcomp'); cc.value = row.compCode || '';
+      cc.placeholder = '同左';
+      cc.title = '這個字當作別的字的偏旁時，取的碼（空著＝跟單獨成字時一樣）';
+      cc.oninput = () => {
+        row.compCode = cc.value.toUpperCase().replace(/[^A-Z]/g, '') || undefined;
+        cc.value = row.compCode || '';
+        /* 填了不一樣的碼，就是「單獨成字時另有約定」—— 這個旗標讓取碼頁知道
+           別拿它去當偏旁範本（跟該字的 notComponent 是同一件事） */
+        row.standaloneOnly = (row.compCode && row.compCode !== row.code) || undefined;
+        touch();
+      };
+      t4.append(cc); tr.append(t4);
       /* 刪掉這一列 */
       const t5 = el('td');
       const x = el('span', 'mv', '✕');
