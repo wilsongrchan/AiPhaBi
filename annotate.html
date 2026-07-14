@@ -228,6 +228,17 @@
   .alt { display:flex; align-items:center; gap:6px; flex-wrap:wrap;
     border:1px dashed var(--line); border-radius:8px; padding:3px 7px; margin-bottom:4px; }
   .alt.main { border-style:solid; border-color:var(--accent); }   /* 主碼：實線，一眼分得開 */
+  /* 約定字：備註欄不再給勾勾，直接顯示它在約定表上的身分，並連過去 */
+  .convchip { display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-size:12px;
+    border:1px solid var(--accent); border-radius:9px; padding:5px 8px; margin-bottom:5px;
+    background:color-mix(in srgb,var(--accent) 7%,transparent); }
+  .convchip b { color:var(--accent); }
+  .convchip .g { font-weight:600; }
+  .convchip .m { color:var(--muted); }
+  .convchip code { font:700 12px ui-monospace,monospace; color:var(--accent); }
+  .convchip a { margin-left:auto; font-size:11px; color:var(--accent); white-space:nowrap; }
+  .convlab.hide { display:none; }
+
   .alt.auto { border-style:dotted; opacity:.85; }   /* 自動兼容的完整碼：不是你手動收的 */
   .alt.auto b { color:var(--muted); }
   .alt.edit { cursor:pointer; }
@@ -468,7 +479,9 @@
     <div id="checks"></div>
 
     <div class="lbl">備註</div>
-    <label class="convlab">
+    <!-- 這個字在約定表上的話，這裡只顯示它、連過去改；約定寫在一個地方就好 -->
+    <div id="convbox"></div>
+    <label class="convlab" id="convlab">
       <input type="checkbox" id="notcomp">
       <span>約定特例：這個字這樣拆，但不作為其他字的偏旁範本</span>
     </label>
@@ -1026,6 +1039,52 @@ const convStandaloneOnly = ch => {
 /* 這幾條原則講的是「怎麼切、怎麼合」—— 約定原則明說凌駕它們 */
 const OVERRIDDEN_BY_CONVENTION = ['order', 'merge', 'lone', 'skip', 'skiplast', 'tier'];
 
+/* 備註欄：這個字在約定表上的話，就不要再給一個「約定特例」的勾勾 ——
+   同一件事有兩個地方可以填，兩邊就一定會不一致。約定表是唯一的來源。 */
+function renderConv() {
+  const box = $('#convbox');
+  const cv = convOf(cur);
+  box.innerHTML = '';
+  $('#convlab').classList.toggle('hide', !!cv);
+  if (!cv) return;
+  const asComp = cv.compCode && cv.compCode !== cv.code;
+  box.innerHTML =
+    `<div class="convchip"><b>約定字</b>` +
+    `<span class="g">${cv.group}</span>` +
+    `<span>單獨成字 <code>${finalOf(cv.code)}</code></span>` +
+    (asComp ? `<span>作為偏旁 <code>${cv.compCode}</code>（不當偏旁範本）</span>`
+            : '<span class="m">作為偏旁時同上</span>') +
+    `<a href="/rules" target="_blank">去約定表改 →</a></div>` +
+    '<div class="newz">筆順、能合不分、孤筆略過、優次等對這個字都不適用（約定原則凌駕）。</div>';
+}
+
+/* 把一個字加進約定表：檢查列的「約定特例」按鈕會走這條路 ——
+   與其在這個字身上偷偷插一個旗標，不如讓它出現在那張大家都看得到的表上。 */
+async function addToConvention(ch) {
+  const r = rules && rules.rules.find(x => x.id === 'convention');
+  if (!r) return false;
+  r.groups = r.groups || [];
+  const names = r.groups.map((g, i) => `${i + 1}. ${g.name || '（未命名）'}`).join('\n');
+  const pickTxt = prompt(
+    `把「${ch}」加進約定表的哪一類？\n\n${names}\n\n` +
+    '輸入編號；或直接輸入新的分類名稱。', String(r.groups.length || 1));
+  if (pickTxt === null) return false;
+  let g;
+  const n = parseInt(pickTxt, 10);
+  if (!isNaN(n) && n >= 1 && n <= r.groups.length) g = r.groups[n - 1];
+  else { g = { name: pickTxt.trim() || '約定', note: '', chars: [] }; r.groups.push(g); }
+  g.chars = g.chars || [];
+  const code = codes[ch] && codes[ch].code ? finalOf(codes[ch].code) : '';
+  const row = g.chars.find(x => x.c === ch);
+  if (row) row.code = row.code || code;
+  else g.chars.push({ c: ch, code });
+  await putGuarded('/api/rules', JSON.stringify(rules, null, 2), 'rules');
+  window.__baseStamp.rules = await fetch('/api/state').then(s => s.json()).then(s => s.rules);
+  $('#status').textContent = `「${ch}」已加進約定表（${g.name}）`;
+  $('#status').className = 'saved';
+  return true;
+}
+
 /* ctx = {ch, segs, skipped, medians, nStrokes} —— 目前這個字，或佇列裡任何一個字 */
 function checks(ctx) {
   const { segs, skipped, medians, nStrokes } = ctx;
@@ -1421,8 +1480,13 @@ async function setDisposition(rec, c, field) {
   }
   rec[field] = [...(rec[field] || []), c.key];
   if (why && why.trim()) rec.compliantWhy = { ...(rec.compliantWhy || {}), [c.key]: why.trim() };
-  /* 約定特例＝這個字自己說了算，當然也不該再被別的字拿去當範本 */
-  if (field === 'conventional') { rec.notComponent = true; $('#notcomp').checked = true; compIndex = null; }
+  /* 約定特例＝這個字自己說了算 —— 那就把它寫進「約定表」，而不是在這個字身上
+     偷偷插一個旗標。約定要寫在一個大家都看得到的地方，才不會兩邊講不一樣的話。 */
+  if (field === 'conventional' && !convOf(cur)) {
+    await addToConvention(cur);
+    compIndex = null;
+    renderConv();
+  }
   await muteCheck(rec);
 }
 /* key 前綴 → 原則名（用來描述已經不再出現的舊警告，那時拿不到 c.rule） */
@@ -1987,6 +2051,7 @@ async function load(c) {
   $('#cur').innerHTML = `<b>${c}</b><span>${strokes.length} 筆</span>`;
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
+  renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
   drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
   renderRelated(c); renderBack();
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
