@@ -83,6 +83,12 @@
     border:1px solid var(--line); background:var(--card); color:var(--muted);
     cursor:pointer; text-decoration:none; }
   .tiny:hover { border-color:var(--accent); color:var(--accent); }
+  .tiny.hot { color:var(--accent); border-color:var(--accent); font-weight:600; }
+  .tiny.hot:hover { background:var(--accent); color:#fff; }
+  /* 拖曳排序 */
+  .gtbl tbody tr.dragging { opacity:.4; }
+  .gtbl tbody tr.over td { border-top:2px solid var(--accent); }
+  .gtbl td.gc { cursor:grab; }
   /* 偏旁碼：空著就是「跟單獨成字時一樣」，所以低調一點，填了才顯眼 */
   .gcomp { color:var(--warn); border-style:dashed; }
   .gcomp:not(:placeholder-shown) { border-style:solid; border-color:var(--warn); }
@@ -261,8 +267,35 @@ function renderGroups(box, r) {
     const tb = el('tbody');
     for (const [ci, row] of (g.chars || []).entries()) {
       const tr = el('tr');
+      /* 拖曳排序（也可以拖到別的分類去） */
+      tr.draggable = true;
+      tr.dataset.gi = gi; tr.dataset.ci = ci;
+      tr.ondragstart = e => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ gi, ci }));
+        e.dataTransfer.effectAllowed = 'move';
+        tr.classList.add('dragging');
+      };
+      tr.ondragend = () => tr.classList.remove('dragging');
+      tr.ondragover = e => { e.preventDefault(); tr.classList.add('over'); };
+      tr.ondragleave = () => tr.classList.remove('over');
+      tr.ondrop = e => {
+        e.preventDefault();
+        tr.classList.remove('over');
+        const from = JSON.parse(e.dataTransfer.getData('text/plain') || '{}');
+        if (from.gi == null) return;
+        const src = r.groups[from.gi].chars;
+        const [moved] = src.splice(from.ci, 1);
+        if (!moved) return;
+        const dst = r.groups[gi].chars;
+        /* 同一組往後移時，前面少了一個，插入位置要往前一格 */
+        const at = (from.gi === gi && from.ci < ci) ? ci - 1 : ci;
+        dst.splice(at, 0, moved);
+        touch(); render();
+      };
       /* 字 */
-      const t1 = el('td'); t1.className = 'gc'; t1.textContent = row.c; tr.append(t1);
+      const t1 = el('td'); t1.className = 'gc'; t1.textContent = row.c;
+      t1.title = '拖我可以換順序（也可以拖到別的分類）';
+      tr.append(t1);
       /* 約定碼 */
       const t2 = el('td');
       const ci2 = el('input', 'gcode'); ci2.value = row.code || '';
@@ -308,33 +341,117 @@ function renderGroups(box, r) {
 }
 
 /* 「碼表現況」：約定碼跟這個字實際取的碼對不對得上。
-   對不上不代表誰錯 —— 但你總得看得見，不然約定寫了跟沒寫一樣。 */
+   對不上不代表誰錯 —— 但你總得看得見，而且要能一鍵把約定寫進碼表，
+   不然這張表寫了跟沒寫一樣。 */
 function syncStatus() {
   for (const tr of document.querySelectorAll('.gtbl tbody tr')) {
     const ch = tr.querySelector('.gc').textContent;
-    const want = (tr.querySelector('.gcode').value || '').toUpperCase();
+    const want = (tr.querySelector('.gcode:not(.gcomp)').value || '').toUpperCase();
     const now = codes[ch] && codes[ch].code ? finalOf(codes[ch].code) : '';
     const cell = tr.querySelector('.gnow');
     cell.innerHTML = '';
-    if (!now) {
+    if (!now && !want) {
       cell.append(el('span', 'muted', '還沒取碼'));
+    } else if (!now && want) {
+      cell.append(el('span', 'muted', '碼表還沒有'));
+      const add = el('button', 'tiny hot', '寫進碼表');
+      add.onclick = () => writeCode(ch, want);
+      cell.append(add);
     } else if (!want) {
-      const b = el('span', 'now', now);
+      cell.append(el('span', 'now', now));
       const use = el('button', 'tiny', '填入');
       use.title = '把碼表現況填進約定碼';
-      use.onclick = () => { tr.querySelector('.gcode').value = now;
-        tr.querySelector('.gcode').dispatchEvent(new Event('input')); };
-      cell.append(b, use);
+      use.onclick = () => { const i = tr.querySelector('.gcode:not(.gcomp)');
+        i.value = now; i.dispatchEvent(new Event('input')); };
+      cell.append(use);
     } else if (want === now) {
       cell.append(el('span', 'ok', `${now} ✓`));
     } else {
       cell.append(el('span', 'bad', `${now} ≠ 約定`));
-      const a = el('a', 'tiny', '去改');
+      const fix = el('button', 'tiny hot', '以約定為準');
+      fix.title = `把碼表裡的 ${now} 改成約定的 ${want}`;
+      fix.onclick = () => writeCode(ch, want);
+      cell.append(fix);
+      const a = el('a', 'tiny', '去取碼頁');
       a.href = '/annotate?c=' + encodeURIComponent(ch);
       a.target = '_blank';
       cell.append(a);
     }
   }
+}
+
+/* ---------- 把約定碼寫進碼表 ----------
+   碼表存的不只是字母，還有「哪幾筆是哪一碼」。所以不能只塞一串字母進去 ——
+   要找出一組「拆出來剛好等於這個碼」的筆畫分組。
+   作法：用字根表把這個字的所有可能拆法跑一遍，挑出碼相符的那一個。
+   找不到就代表現有字根拼不出這個碼 —— 那是真的要去取碼頁手動拆。 */
+let lib = null, zigen = null;
+async function ensureLib() {
+  if (lib) return lib;
+  zigen = await fetch('/api/zigen').then(r => r.json());
+  lib = await Zigen.buildLibrary(zigen);
+  return lib;
+}
+function ruleOf(id) {
+  return data.rules.find(r => r.id === id && r.enabled && r.kind === 'enforced');
+}
+
+async function writeCode(ch, want) {
+  const now = codes[ch] && codes[ch].code ? finalOf(codes[ch].code) : '';
+  if (!confirm(now
+      ? `把「${ch}」的碼從 ${now} 改成約定的 ${want}？\n\n（會直接寫進碼表）`
+      : `把「${ch}」以 ${want} 寫進碼表？\n\n（會用字根表找出對應的筆畫分組）`)) return;
+
+  $('#status').textContent = `${ch}：找拆法…`;
+  await ensureLib();
+  const g = await Zigen.getGlyph(ch);
+  if (!g) { $('#status').textContent = `${ch}：沒有筆畫資料`; return; }
+
+  const merge = ruleOf('merge_over_split'), sk = ruleOf('skip_isolated_hv'),
+        tp = ruleOf('tier_priority');
+  const out = Zigen.predict(g.medians, lib, {
+    thr: zigen.meta.merge_threshold || Zigen.SAME_SHAPE,
+    segPenalty: merge ? merge.params.seg_penalty : 0.05,
+    skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
+                 lastLetters: sk.params.last_stroke_letters } : null,
+    tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
+    maxNodes: 200000,
+  });
+  /* 完整覆蓋、而且碼（縮短後）剛好等於約定的那一個 */
+  const hit = out.find(r => r.covered === r.total &&
+    finalOf(r.segments.map(s => s.letter).join('')) === want);
+
+  const rec = { ...(codes[ch] || {}) };
+  if (hit) {
+    const full = hit.segments.map(s => s.letter).join('');
+    rec.segments = hit.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+    rec.skipped = (hit.skipped && hit.skipped.length) ? [...hit.skipped] : undefined;
+    rec.code = full;
+    rec.final = finalOf(full);
+  } else {
+    if (!confirm(`現有字根拼不出「${ch}」= ${want}。\n\n` +
+        '要先只把碼寫進去嗎？（沒有筆畫分組，之後請到取碼頁手動拆）')) {
+      $('#status').textContent = '沒有寫入'; return;
+    }
+    rec.code = want; rec.final = want;
+    delete rec.segments; delete rec.skipped;
+  }
+  codes[ch] = rec;
+
+  const st = await fetch('/api/state').then(r => r.json());
+  const res = await fetch('/api/codes', { method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Base-Stamp': st.codes },
+    body: JSON.stringify(codes) });
+  if (!res.ok) {
+    codes = await fetch('/api/codes').then(r => r.json());
+    $('#status').textContent = '碼表被別的分頁改過了，已重新載入 —— 請再試一次';
+    render(); return;
+  }
+  $('#status').textContent = hit
+    ? `${ch} = ${want} 已寫進碼表 ✓`
+    : `${ch} = ${want} 已寫進碼表（還缺筆畫分組）`;
+  $('#status').className = 'saved';
+  render();
 }
 
 $('#add').onclick = () => {
