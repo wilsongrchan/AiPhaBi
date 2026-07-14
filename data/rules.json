@@ -90,11 +90,12 @@
       "groups": [
         {
           "name": "數字類",
-          "note": "逐筆取碼，不套用能合不分",
+          "note": "凌駕孤筆原則。",
           "chars": [
             {
               "c": "一",
-              "code": "I"
+              "code": "I",
+              "compCode": "I"
             },
             {
               "c": "二",
@@ -104,57 +105,98 @@
             },
             {
               "c": "三",
-              "code": "III"
+              "code": "III",
+              "compCode": "E",
+              "standaloneOnly": true
             },
             {
               "c": "四",
-              "code": "MI"
+              "code": "MI",
+              "compCode": "M",
+              "standaloneOnly": true
             },
             {
               "c": "五",
-              "code": "ID"
+              "code": "ID",
+              "compCode": "D",
+              "standaloneOnly": true
             },
             {
               "c": "六",
-              "code": "IJQ"
+              "code": "IJQ",
+              "compCode": "IV",
+              "standaloneOnly": true
             },
             {
               "c": "七",
-              "code": "IL"
+              "code": "IL",
+              "compCode": "F",
+              "standaloneOnly": true
             },
             {
               "c": "八",
-              "code": "JL"
+              "code": "JL",
+              "compCode": "V",
+              "standaloneOnly": true
             },
             {
               "c": "九",
-              "code": "JZ"
+              "code": "JZ",
+              "compCode": "JZ"
             },
             {
               "c": "十",
               "code": "T"
+            },
+            {
+              "c": "百",
+              "code": "IJB",
+              "compCode": "JB",
+              "standaloneOnly": true
+            },
+            {
+              "c": "千",
+              "code": "JT"
             }
           ]
         },
         {
           "name": "木字類",
-          "note": "",
+          "note": "凌駕能合不分原則。",
           "chars": [
             {
               "c": "木",
-              "code": "TJL"
+              "code": "TJL",
+              "compCode": "T",
+              "standaloneOnly": true
             },
             {
               "c": "本",
-              "code": "TJLI"
+              "code": "TJLI",
+              "compCode": "TI",
+              "standaloneOnly": true
             },
             {
               "c": "末",
-              "code": ""
+              "code": "ITJL"
             },
             {
               "c": "未",
-              "code": "FJL"
+              "code": "FJL",
+              "compCode": "T",
+              "standaloneOnly": true
+            },
+            {
+              "c": "朱",
+              "code": "JFJL",
+              "compCode": "JT",
+              "standaloneOnly": true
+            },
+            {
+              "c": "休",
+              "code": "YTJL",
+              "compCode": "YT",
+              "standaloneOnly": true
             },
             {
               "c": "才",
@@ -162,7 +204,9 @@
             },
             {
               "c": "牙",
-              "code": "ILJJ"
+              "code": "ILJJ",
+              "standaloneOnly": true,
+              "compCode": "FJ"
             }
           ]
         },
@@ -172,7 +216,9 @@
           "chars": [
             {
               "c": "大",
-              "code": "XL"
+              "code": "XL",
+              "compCode": "K",
+              "standaloneOnly": true
             },
             {
               "c": "太",
@@ -180,15 +226,21 @@
             },
             {
               "c": "天",
-              "code": "IY"
+              "code": "IXL",
+              "compCode": "IY",
+              "standaloneOnly": true
             },
             {
               "c": "夫",
-              "code": "IY"
+              "code": "IIY",
+              "compCode": "IY",
+              "standaloneOnly": true
             },
             {
               "c": "犬",
-              "code": ""
+              "code": "XLQ",
+              "compCode": "KQ",
+              "standaloneOnly": true
             }
           ]
         },
@@ -197,20 +249,26 @@
           "note": "",
           "chars": [
             {
+              "c": "乙",
+              "code": "Z"
+            },
+            {
               "c": "己",
-              "code": "CL"
+              "code": "CL",
+              "compCode": "Z",
+              "standaloneOnly": true
             },
             {
               "c": "已",
-              "code": "CL"
-            },
-            {
-              "c": "乙",
-              "code": ""
+              "code": "CL",
+              "compCode": "Z",
+              "standaloneOnly": true
             },
             {
               "c": "巳",
-              "code": ""
+              "code": "CL",
+              "compCode": "Z",
+              "standaloneOnly": true
             }
           ]
         },
@@ -224,11 +282,85 @@
             },
             {
               "c": "鳥",
-              "code": ""
+              "code": "JSEM"
             },
             {
               "c": "島",
               "code": "JSEW"
+            }
+          ]
+        },
+        {
+          "name": "其他類",
+          "note": "",
+          "chars": [
+            {
+              "c": "片",
+              "code": "JH",
+              "compCode": "K",
+              "standaloneOnly": true
+            }
+          ]
+        },
+        {
+          "name": "偏旁另有取法",
+          "note": "單獨成字與作為偏旁時取法不同",
+          "chars": [
+            {
+              "c": "金",
+              "code": "AFV",
+              "compCode": "YFV",
+              "standaloneOnly": true
+            },
+            {
+              "c": "足",
+              "code": "OTY",
+              "compCode": "OTL",
+              "standaloneOnly": true
+            }
+          ]
+        },
+        {
+          "name": "土字類",
+          "note": "",
+          "chars": [
+            {
+              "c": "土",
+              "code": "TI",
+              "compCode": "F",
+              "standaloneOnly": true
+            },
+            {
+              "c": "士",
+              "code": "IJI",
+              "compCode": "F",
+              "standaloneOnly": true
+            },
+            {
+              "c": "干",
+              "code": "IT",
+              "compCode": "F",
+              "standaloneOnly": true
+            },
+            {
+              "c": "于",
+              "code": "IIJ",
+              "compCode": "IJ",
+              "standaloneOnly": true
+            },
+            {
+              "c": "丁",
+              "code": "IJ",
+              "compCode": "J",
+              "standaloneOnly": true
+            },
+            {
+              "c": "上",
+              "code": "JII"
+            },
+            {
+              "c": "生",
+              "code": "JFI"
             }
           ]
         }
