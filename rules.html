@@ -52,6 +52,39 @@
   .params { display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; font-size:12px;
     color:var(--muted); align-items:center; }
   .params label { display:flex; gap:5px; align-items:center; }
+
+  /* 約定分類：這條原則本來就不是一句話，是一張表 */
+  .groups { margin-top:10px; border-top:1px dashed var(--line); padding-top:10px; }
+  .grp { border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px;
+    background:var(--bg); }
+  .grh { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+  .gname { font-weight:650; font-size:14px; width:150px; flex:none;
+    border:1px solid transparent; background:transparent; color:var(--ink); padding:3px 5px;
+    border-radius:6px; }
+  .gnote { flex:1; font-size:12px; color:var(--muted);
+    border:1px solid transparent; background:transparent; padding:3px 5px; border-radius:6px; }
+  .gname:hover, .gnote:hover { border-color:var(--line); }
+  .gname:focus, .gnote:focus { outline:none; border-color:var(--accent); background:var(--card); }
+  .gadd input { width:100%; font-size:12px; padding:4px 7px; border-radius:7px;
+    border:1px dashed var(--line); background:transparent; color:var(--ink); margin-bottom:6px; }
+  .gtbl { width:100%; border-collapse:collapse; font-size:12px; }
+  .gtbl th { text-align:left; font-size:10px; color:var(--muted); font-weight:600;
+    padding:2px 6px; border-bottom:1px solid var(--line); }
+  .gtbl td { padding:2px 6px; border-bottom:1px solid var(--line); }
+  .gtbl td.gc { font:20px/1.3 "PingFang TC",serif; width:34px; }
+  .gcode { width:78px; font:700 13px ui-monospace,monospace; color:var(--accent);
+    text-transform:uppercase; padding:2px 5px; border-radius:6px;
+    border:1px solid var(--line); background:var(--card); }
+  .gnow .ok { color:var(--ok); font:600 12px ui-monospace,monospace; }
+  .gnow .bad { color:var(--bad); font:600 12px ui-monospace,monospace; }
+  .gnow .now { font:600 12px ui-monospace,monospace; color:var(--muted); }
+  .gnow .muted { color:var(--muted); font-style:italic; }
+  .tiny { font-size:10px; padding:1px 5px; margin-left:5px; border-radius:5px;
+    border:1px solid var(--line); background:var(--card); color:var(--muted);
+    cursor:pointer; text-decoration:none; }
+  .tiny:hover { border-color:var(--accent); color:var(--accent); }
+  .gonly { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
+  .gnew { font-size:12px; padding:3px 9px; border-radius:7px; }
   .params input[type=number] { width:64px; padding:3px 5px; border:1px solid var(--line);
     border-radius:6px; background:var(--bg); color:var(--ink); font:inherit; font-size:12px; }
   .mv { cursor:pointer; color:var(--muted); font-size:12px; padding:0 3px; }
@@ -83,6 +116,8 @@
   <button class="add" id="add">＋ 新增一條原則</button>
 </main>
 
+<script src="/assets/shape.js"></script>
+<script src="/assets/zigen.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t);
@@ -172,8 +207,125 @@ function render() {
     note.oninput = () => { r.note = note.value; touch(); };
     d.append(note);
 
+    /* 約定原則不是一句話能講完的，它是一張表：哪一類字、約定怎麼取。
+       所以這條原則底下直接編分類（數字類、木字類、大字類…）。 */
+    if (r.id === 'convention' || r.groups) renderGroups(d, r);
+
     list.append(d);
   });
+  syncStatus();          /* 列都進 document 了，這時才算得出「碼表現況」 */
+}
+
+/* ---------- 約定分類 ---------- */
+function renderGroups(box, r) {
+  r.groups = r.groups || [];
+  const wrap = el('div', 'groups');
+
+  for (const [gi, g] of r.groups.entries()) {
+    const gd = el('div', 'grp');
+
+    const gh = el('div', 'grh');
+    const nm = el('input', 'gname'); nm.value = g.name || '';
+    nm.placeholder = '分類名（例：木字類）';
+    nm.oninput = () => { g.name = nm.value; touch(); };
+    const nt = el('input', 'gnote'); nt.value = g.note || '';
+    nt.placeholder = '這一類的約定怎麼取（例：逐筆取碼，不套用能合不分）';
+    nt.oninput = () => { g.note = nt.value; touch(); };
+    const del = el('span', 'mv', '✕');
+    del.title = '刪掉這一類';
+    del.onclick = () => { if (confirm(`刪除「${g.name || '未命名'}」？`)) {
+      r.groups.splice(gi, 1); touch(); render(); } };
+    gh.append(nm, nt, del);
+    gd.append(gh);
+
+    /* 一次貼一串字進來，比一個一個加快得多 */
+    const add = el('div', 'gadd');
+    const inp = el('input');
+    inp.placeholder = '貼一串字（木本末未才牙）→ Enter';
+    inp.onkeydown = e => {
+      if (e.key !== 'Enter') return;
+      const chars = [...inp.value].filter(c => /[㐀-鿿]/.test(c));
+      g.chars = g.chars || [];
+      for (const c of chars)
+        if (!g.chars.some(x => x.c === c)) g.chars.push({ c, code: '' });
+      inp.value = ''; touch(); render();
+    };
+    add.append(inp);
+    gd.append(add);
+
+    const tbl = el('table', 'gtbl');
+    tbl.innerHTML = '<thead><tr><th>字</th><th>約定碼</th><th>碼表現況</th>' +
+      '<th>作為偏旁時</th><th></th></tr></thead>';
+    const tb = el('tbody');
+    for (const [ci, row] of (g.chars || []).entries()) {
+      const tr = el('tr');
+      /* 字 */
+      const t1 = el('td'); t1.className = 'gc'; t1.textContent = row.c; tr.append(t1);
+      /* 約定碼 */
+      const t2 = el('td');
+      const ci2 = el('input', 'gcode'); ci2.value = row.code || '';
+      ci2.placeholder = '—';
+      ci2.oninput = () => { row.code = ci2.value.toUpperCase().replace(/[^A-Z]/g, '');
+                            ci2.value = row.code; touch(); syncStatus(); };
+      t2.append(ci2); tr.append(t2);
+      /* 碼表現況：這個字現在實際取的碼 */
+      const t3 = el('td'); t3.className = 'gnow'; tr.append(t3);
+      /* 作為偏旁時的約定（例：二 單獨是 II，當偏旁只算一個 I） */
+      const t4 = el('td');
+      const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!row.standaloneOnly;
+      cb.title = '這個約定只適用於「單獨成字」；當它作為別的字的偏旁時另計';
+      cb.onchange = () => { row.standaloneOnly = cb.checked || undefined; touch(); };
+      const lb = el('label', 'gonly');
+      lb.append(cb, el('span', '', '另計'));
+      t4.append(lb); tr.append(t4);
+      /* 刪掉這一列 */
+      const t5 = el('td');
+      const x = el('span', 'mv', '✕');
+      x.onclick = () => { g.chars.splice(ci, 1); touch(); render(); };
+      t5.append(x); tr.append(t5);
+      tb.append(tr);
+    }
+    tbl.append(tb);
+    gd.append(tbl);
+    wrap.append(gd);
+  }
+
+  const nb = el('button', 'gnew', '＋ 新增一類');
+  nb.onclick = () => { r.groups.push({ name: '', note: '', chars: [] }); touch(); render(); };
+  wrap.append(nb);
+  box.append(wrap);
+  /* 這裡不能直接 syncStatus()：這幾列還沒接進 document，
+     querySelectorAll 找不到它們，狀態欄會一片空白。等 render() 收尾時再算。 */
+}
+
+/* 「碼表現況」：約定碼跟這個字實際取的碼對不對得上。
+   對不上不代表誰錯 —— 但你總得看得見，不然約定寫了跟沒寫一樣。 */
+function syncStatus() {
+  for (const tr of document.querySelectorAll('.gtbl tbody tr')) {
+    const ch = tr.querySelector('.gc').textContent;
+    const want = (tr.querySelector('.gcode').value || '').toUpperCase();
+    const now = codes[ch] && codes[ch].code ? finalOf(codes[ch].code) : '';
+    const cell = tr.querySelector('.gnow');
+    cell.innerHTML = '';
+    if (!now) {
+      cell.append(el('span', 'muted', '還沒取碼'));
+    } else if (!want) {
+      const b = el('span', 'now', now);
+      const use = el('button', 'tiny', '填入');
+      use.title = '把碼表現況填進約定碼';
+      use.onclick = () => { tr.querySelector('.gcode').value = now;
+        tr.querySelector('.gcode').dispatchEvent(new Event('input')); };
+      cell.append(b, use);
+    } else if (want === now) {
+      cell.append(el('span', 'ok', `${now} ✓`));
+    } else {
+      cell.append(el('span', 'bad', `${now} ≠ 約定`));
+      const a = el('a', 'tiny', '去改');
+      a.href = '/annotate?c=' + encodeURIComponent(ch);
+      a.target = '_blank';
+      cell.append(a);
+    }
+  }
 }
 
 $('#add').onclick = () => {
@@ -195,9 +347,15 @@ document.addEventListener('keydown', e => {
 });
 setInterval(() => { if (dirty) save(); }, 15000);
 window.onbeforeunload = e => { if (dirty) return e.returnValue = '有未儲存的修改'; };
+/* 約定分類要對照碼表現況，所以這一頁也要讀碼表（唯讀，不寫） */
+let codes = {};
+const finalOf = code => Zigen.shorten(code, data && data.rules &&
+  data.rules.find(r => r.id === 'max_code_length' && r.enabled && r.kind === 'enforced'));
+
 Promise.all([fetch('/api/rules').then(r => r.json()),
-             fetch('/api/state').then(r => r.json())]).then(([d, s]) => {
-  data = d; stamp = s.rules; render();
+             fetch('/api/state').then(r => r.json()),
+             fetch('/api/codes').then(r => r.json()).catch(() => ({}))]).then(([d, s, c]) => {
+  data = d; stamp = s.rules; codes = c; render();
 });
 </script>
 </body>
