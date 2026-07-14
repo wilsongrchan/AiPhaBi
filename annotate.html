@@ -1813,10 +1813,33 @@ async function componentWarnings(ctx) {
         .sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes))
         .map(sg => sg.letter).join('');
 
+      /* 部件的碼會隨「它站在哪裡」而變 —— 而且這不是特例，是同一條原則的必然結果：
+         孤筆略過原則說「孤立的橫略過，除非它是末筆，末筆取 I」。
+         「畫」自己那一橫是末筆 → 取 I → EFOTI；
+         「劃」裡的畫不在字尾（後面還有刂）→ 那一橫就是中途的孤筆 → 略過 → EFOT。
+         所以比對前要按位置把樣板的碼重算一次，不能拿它單獨成字的碼硬比。 */
+      const atEnd = idx[idx.length - 1] === n - 1;
+      const expected = c => {
+        if (atEnd || !c.segs || !c.segs.length) return c.code;
+        const sk = rule('skip_isolated_hv');
+        if (!sk) return c.code;
+        const lastLetters = sk.params.last_stroke_letters ||
+          (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {});
+        const tail = c.segs[c.segs.length - 1];
+        const tn = Math.max(...c.segs.flatMap(s => s.strokes),
+                            ...(c.skipped || [])) + 1;      /* 樣板字的筆數 */
+        /* 樣板的最後一碼，是不是「單獨一筆、而且就是末筆、而且靠末筆規則才取到」？ */
+        const isLastStrokeRule = tail.strokes.length === 1 &&
+          tail.strokes[0] === tn - 1 &&
+          Object.values(lastLetters).includes(tail.letter);
+        return isLastStrokeRule ? c.code.slice(0, -1) : c.code;
+      };
+
       /* 只要跟其中任何一個「長得像」的字取法一致，就算一致 —— 不必都一樣 */
-      if (cands.some(x => x.c.code === mineCode)) { usedRanges.push(idx); continue; }
+      if (cands.some(x => expected(x.c) === mineCode)) { usedRanges.push(idx); continue; }
 
       const best = cands[0].c;
+      const want = expected(best);
       out.push({
         key: `comp:${best.ch}:${i}`, lvl: 'warn', rule: '偏旁一致性',
         refs: mineSegs.map(sg => SG.indexOf(sg)),
@@ -1825,9 +1848,14 @@ async function componentWarnings(ctx) {
            拿它去「照著拆」只會拆出錯的碼，所以這種情況不給自動修正 */
         fix: best.convComp ? null : {
           type: 'component', strokes: idx, from: best.ch,
-          segs: best.segs.map(sg => ({ letter: sg.letter, strokes: sg.strokes.map(x => i + x) })),
-          skipped: best.skipped.map(x => i + x),
-          label: `照「${best.ch}」的拆法（${best.code}）`,
+          /* 樣板的末筆規則在這裡不成立時，那一筆要改成「略過」，不能照抄 */
+          segs: best.segs
+            .filter(sg => want === best.code || sg !== best.segs[best.segs.length - 1])
+            .map(sg => ({ letter: sg.letter, strokes: sg.strokes.map(x => i + x) })),
+          skipped: [...best.skipped.map(x => i + x),
+                    ...(want === best.code ? []
+                        : best.segs[best.segs.length - 1].strokes.map(x => i + x))],
+          label: `照「${best.ch}」的拆法（${want}）`,
         },
         /* 「金」單獨成字是 AFV，作為偏旁才是 YFV —— 一鍵把這件事寫進約定表 */
         compConv: best.convComp ? null : { ch: best.ch, code: mineCode, standalone: best.code },
@@ -1836,7 +1864,10 @@ async function componentWarnings(ctx) {
         msg: `第 ${idx.map(x => x + 1).join('、')} 筆就是「<b>${best.ch}</b>」，` +
              (best.convComp
                ? `約定表說它<b>作為偏旁時取 ${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`
-               : `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`),
+               : want !== best.code
+                 ? `「${best.ch}」單獨成字取 <b>${best.code}</b>，但它不在這個字的字尾，` +
+                   `末筆的孤立筆畫要略過 → 這裡應該取 <b>${want}</b>，你卻取成 <b>${mineCode}</b>。`
+                 : `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`),
       });
       usedRanges.push(idx);
     }
