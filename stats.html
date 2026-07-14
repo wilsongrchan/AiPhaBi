@@ -110,8 +110,16 @@
   .exhead:first-child { margin-top:0; padding-top:0; border-top:0; }
   .exhead.bad { color:var(--bad); }
   .revbtn { margin-left:8px; font-size:11px; padding:2px 8px; border-radius:20px;
-    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer;
+    text-decoration:none; display:inline-block; }
   .revbtn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* 系統誤判：擺最後、收起來 —— 那是我們的 bug，不是使用者的特例，不必天天看 */
+  .misjudge { margin-top:16px; padding-top:10px; border-top:1px solid var(--line); }
+  .misjudge summary { cursor:pointer; font-size:12px; color:var(--muted);
+    font-weight:600; letter-spacing:.04em; }
+  .misjudge summary:hover { color:var(--bad); }
+  .misjudge[open] summary { color:var(--bad); margin-bottom:4px; }
 
   /* 逐字複審：整個取碼頁嵌進來 —— 與其在這裡重寫一遍檢查邏輯，不如直接用那一頁 */
   .revwrap { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45);
@@ -604,42 +612,43 @@ function renderExceptions(entries) {
   };
 
   if (!entries.length) { $('#exceptions').innerHTML = '<div class="empty">還沒有取碼資料。</div>'; return 0; }
-  if (!exChars.size && !dpChars.size) {
-    $('#exceptions').innerHTML =
-      '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有任何特例，全部的字都照原則走。</div>';
-    return 0;
-  }
 
-  /* 「確認遵守原則」不是特例 —— 那是檢查誤判的紀錄：原則沒問題、拆法也沒問題，
-     是系統看錯了。同一條檢查一直誤判，該修的是檢查邏輯，不是那些字。 */
+  /* 約定字：直接看「約定表」（取碼原則裡那張表），不要再從每個字身上的紀錄
+     反推一堆「約定違反 X 原則」的清單 —— 同一件事講兩遍，而且講得比較難懂。 */
+  const groups = convGroups();
+  const convChars = new Set(groups.flatMap(g => g.chars));
+  /* 有 conventional 紀錄、卻還沒進約定表的字：那才是要處理的（歸類進去） */
+  const loose = entries.filter(([ch, r]) => has(r, 'conventional') && !convChars.has(ch))
+    .map(([ch]) => ch);
+
+  const exSet = new Set([...convChars, ...loose,
+    ...entries.filter(([, r]) => has(r, 'overrides')).map(([ch]) => ch)]);
+
+  const convBlock = groups.length ? `<div class="exhead">約定字 —— 照約定表取碼（約定原則凌駕筆順與能合不分）</div>` +
+    groups.map(g => `<div class="exgrp">
+        <div class="hd"><b>${g.name}　${g.chars.length} 字</b>　${g.note || ''}
+          <a class="revbtn" href="/rules" target="_blank">去約定表 →</a></div>
+        <div class="exchars">${g.rows.map(r =>
+          `<a href="/annotate?c=${encodeURIComponent(r.c)}" title="${r.code || '還沒取碼'}${
+            r.compCode && r.compCode !== r.code ? `；作為偏旁 ${r.compCode}` : ''}">${r.c}</a>`).join('')}</div>
+      </div>`).join('') : '';
+
   $('#exceptions').innerHTML =
     `<div class="sub" style="margin:-4px 0 10px">
-       <b>${exChars.size}</b> 字是特例（${pct(exChars.size)}%）；
-       另有 <b>${dpChars.size}</b> 字你已<b>確認遵守原則</b>（${pct(dpChars.size)}%）—— 那是系統誤判，不算特例。</div>` +
+       <b>${convChars.size}</b> 字寫在約定表上（${pct(convChars.size)}%）、
+       <b>${new Set(entries.filter(([, r]) => has(r, 'overrides')).map(([ch]) => ch)).size}</b> 字是單純忽略警告。
+       系統誤判的部分收在最下面（那是我們的 bug，不是你的特例）。</div>` +
 
-    (disputed.length || noComp.length
-      ? `<div class="exhead bad">系統誤判 —— 這些字其實沒破例，是檢查看錯了；該修的是我們的邏輯</div>` +
-        disputed.map(([rule, chars]) => grp(`「${rule}」誤判`,
-          `${chars.length} 個字其實沒違反這條原則，是檢查看錯了。數字愈大，愈該回頭修這條檢查。`,
-          chars, ' bad', 'compliant')).join('') +
-        (noComp.length ? `<div class="exgrp bad">
-            <div class="hd"><b>認錯部件　${noComp.length} 字</b>
-              檢查把某幾筆當成某個部件，其實只是形狀像（例：「碼」的前兩筆像「厂」，那其實是「石」的頭）。</div>
-            ${noComp.map(([ch, r]) =>
-              `<div class="exchars" style="display:flex;align-items:center;gap:4px;margin-top:2px">
-                 ${link(ch)}<span style="font-size:12px;color:var(--muted)">裡沒有 ${r.excludeComp.join('、')}</span>
-               </div>`).join('')}
-          </div>` : '')
-      : '') +
+    convBlock +
 
-    `<div class="exhead">真正的特例 —— 這些字確實不照原則走</div>` +
-    grp('約定特例', '整個字的拆法是約定的（多半是簡單的獨體字），其他字不會拿它當偏旁的範本。', conv) +
-    agreed.map(([rule, chars]) => grp(`約定違反「${rule}」`,
-      `這些字明知違反這條原則，仍照約定這樣拆（例：「上」的前兩筆本該合成一個 T，但獨體字就取 J I）。`,
-      chars, '', 'conventional')).join('') +
-    ignored.map(([rule, chars]) => grp(`忽略「${rule}」`,
-      RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '',
-      chars, '', 'overrides')).join('') +
+    (loose.length ? grp('還沒歸類的約定',
+      '這些字被標成「約定特例」，但還沒寫進約定表 —— 歸到某一類裡，規則才成體系。',
+      loose.map(ch => ({ ch, keys: (codes[ch].conventional || []) })), '', 'conventional') : '') +
+
+    (ignored.length ? `<div class="exhead">單純忽略的警告 —— 沒有成體系的理由，就是不理它</div>` +
+      ignored.map(([rule, chars]) => grp(`忽略「${rule}」`,
+        RULE_WHY[rule] ? `原則說：${RULE_WHY[rule]}；這些字你選擇不理。` : '',
+        chars, '', 'overrides')).join('') : '') +
 
     (notes.length ? `<div class="exgrp">
         <div class="hd"><b>有備註　${notes.length} 字</b>　你自己寫下的說明。</div>
@@ -647,8 +656,32 @@ function renderExceptions(entries) {
           `<div class="exchars" style="display:flex;align-items:center;gap:4px;margin-top:2px">
              ${link(ch)}
              <span style="font-size:12px;color:var(--muted)">${n.replace(/</g, '&lt;')}</span></div>`).join('')}
-      </div>` : '');
-  return exChars.size;
+      </div>` : '') +
+
+    /* 系統誤判擺最後，而且收起來 —— 你不需要天天看我判錯了哪些字 */
+    ((disputed.length || noComp.length) ? `<details class="misjudge">
+        <summary>系統誤判　${dpChars.size} 字　—— 這些字其實沒破例，是檢查看錯了（點開看）</summary>
+        <div class="sub" style="margin:8px 0 4px">同一條檢查一直誤判，該修的是我們的邏輯，不是那些字。</div>` +
+        disputed.map(([rule, chars]) => grp(`「${rule}」誤判`,
+          `${chars.length} 個字其實沒違反這條原則。`, chars, ' bad', 'compliant')).join('') +
+        (noComp.length ? `<div class="exgrp bad">
+            <div class="hd"><b>認錯部件　${noComp.length} 字</b>
+              檢查把某幾筆當成某個部件，其實只是形狀像（例：「碼」的前兩筆像「厂」，那其實是「石」的頭）。</div>
+            <div class="exchars">${noComp.map(([ch]) => link(ch)).join('')}</div>
+          </div>` : '') +
+      '</details>' : '');
+  return exSet.size;
+}
+
+/* 約定表（取碼原則 → 約定原則）：這裡只是把它讀出來顯示，不在這頁改。 */
+function convGroups() {
+  const r = rules && rules.rules && rules.rules.find(x => x.id === 'convention' && x.enabled);
+  if (!r || !r.groups) return [];
+  return r.groups
+    .map(g => ({ name: g.name || '（未命名）', note: g.note || '',
+                 rows: (g.chars || []).filter(x => x.c),
+                 chars: (g.chars || []).map(x => x.c).filter(Boolean) }))
+    .filter(g => g.chars.length);
 }
 
 /* ---------- 逐字複審 ----------
