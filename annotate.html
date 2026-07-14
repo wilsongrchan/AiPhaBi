@@ -1058,6 +1058,44 @@ function renderConv() {
     '<div class="newz">筆順、能合不分、孤筆略過、優次等對這個字都不適用（約定原則凌駕）。</div>';
 }
 
+/* 教它「這個部件作為偏旁時另有取法」：寫進約定表的「作為偏旁時的碼」。
+   例：金 單獨成字 AFV，作為偏旁（銀、鐵）YFV —— 兩者都對，看它站在哪裡。 */
+async function teachCompCode(ch, compCode) {
+  const r = rules && rules.rules.find(x => x.id === 'convention');
+  if (!r) return;
+  const rec = codes[ch] || {};
+  const standalone = rec.code ? finalOf(rec.code) : '';
+  const code = (prompt(
+    `「${ch}」作為偏旁時取什麼碼？\n\n` +
+    `單獨成字：${standalone || '（還沒取碼）'}\n` +
+    `你在「${cur}」裡取的是：${compCode}`, compCode) || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (!code) return;
+
+  r.groups = r.groups || [];
+  let g = r.groups.find(x => (x.chars || []).some(y => y.c === ch));
+  if (!g) {
+    const names = r.groups.map((x, i) => `${i + 1}. ${x.name || '（未命名）'}`).join('\n');
+    const pick = prompt(`「${ch}」要放進約定表的哪一類？\n\n${names}\n\n` +
+      '輸入編號；或直接輸入新的分類名稱。', '偏旁另有取法');
+    if (pick === null) return;
+    const n = parseInt(pick, 10);
+    if (!isNaN(n) && n >= 1 && n <= r.groups.length) g = r.groups[n - 1];
+    else { g = { name: pick.trim() || '偏旁另有取法', note: '單獨成字與作為偏旁時取法不同', chars: [] };
+           r.groups.push(g); }
+  }
+  g.chars = g.chars || [];
+  const row = g.chars.find(x => x.c === ch);
+  if (row) { row.code = row.code || standalone; row.compCode = code; row.standaloneOnly = true; }
+  else g.chars.push({ c: ch, code: standalone, compCode: code, standaloneOnly: true });
+
+  await putGuarded('/api/rules', JSON.stringify(rules, null, 2), 'rules');
+  window.__baseStamp.rules = await fetch('/api/state').then(s => s.json()).then(s => s.rules);
+  compIndex = null;                 /* 部件庫要用新的偏旁碼重建 */
+  $('#status').textContent = `已記住：「${ch}」作為偏旁取 ${code}（單獨成字 ${standalone || '—'}）`;
+  $('#status').className = 'saved';
+  renderChecks(); auditAll();
+}
+
 /* 把一個字加進約定表：檢查列的「約定特例」按鈕會走這條路 ——
    與其在這個字身上偷偷插一個旗標，不如讓它出現在那張大家都看得到的表上。 */
 async function addToConvention(ch) {
@@ -1418,6 +1456,16 @@ function renderCheckRow(c, rec) {
       };
       act.append(fx);
     }
+    /* 「金」單獨成字是 AFV（上面是人字頭 A），但作為偏旁（銀、鐵）人字頭壓扁了取 Y，
+       整個是 YFV —— 這不是誰錯了，是這個部件本來就有兩種取法。
+       說一聲，寫進約定表的「作為偏旁時的碼」，以後所有含它的字都照這個比。 */
+    if (c.compConv) {
+      const cc = el('button', 'apply', `「${c.compConv.ch}」作為偏旁取 ${c.compConv.code}`);
+      cc.title = `「${c.compConv.ch}」單獨成字取 ${c.compConv.standalone}，` +
+                 `作為偏旁時取 ${c.compConv.code} —— 寫進約定表，以後不再提醒`;
+      cc.onclick = () => teachCompCode(c.compConv.ch, c.compConv.code);
+      act.append(cc);
+    }
     /* 它根本認錯了部件：形狀像不代表就是它（碼 的前兩筆像「厂」，其實是「石」的頭）。
        這不是破例，是誤判 —— 說一聲，這個字以後就不再拿那個部件來比。 */
     if (c.notComp) {
@@ -1691,7 +1739,7 @@ function buildComponentIndex() {
     /* 約定特例：這個字自己這樣拆，但不能當別的字的偏旁範本。
        例：「二」單獨成字取 I I，但兩橫作為部件只取一個 I —— 拿它當範本只會一直誤報。
        約定表裡填了「作為偏旁時的碼」而且跟單獨成字不同的，也是同一回事。 */
-    if (rec.notComponent || convStandaloneOnly(ch)) continue;
+    if (rec.notComponent) continue;
     const g = _medCache.get(ch);
     if (!g) continue;
     const n = g.length;
@@ -1699,8 +1747,14 @@ function buildComponentIndex() {
     const vec = Shape.strokeVec(g);
     if (!vec) continue;
     if (!byLen.has(n)) byLen.set(n, []);
+    /* 「作為偏旁時的碼」—— 金 單獨成字是 AFV（上面那個人字頭取 A），
+       但作為偏旁（銀、鐵）人字頭壓扁了，取 Y，整個是 YFV。
+       約定表上填了偏旁碼的字，比對時就要拿偏旁碼去比，不是拿它單獨成字的碼。 */
+    const cv = convOf(ch);
+    const asComp = cv && cv.compCode ? cv.compCode : null;
     byLen.get(n).push({ ch, vec, segs: rec.segments, skipped: rec.skipped || [],
-                        code: rec.code || rec.segments.map(s => s.letter).join('') });
+                        code: asComp || rec.code || rec.segments.map(s => s.letter).join(''),
+                        convComp: !!asComp });
   }
   compIndex = byLen;
   compStamp = window.__baseStamp && window.__baseStamp.codes;
@@ -1767,16 +1821,22 @@ async function componentWarnings(ctx) {
         key: `comp:${best.ch}:${i}`, lvl: 'warn', rule: '偏旁一致性',
         refs: mineSegs.map(sg => SG.indexOf(sg)),
         strokeRefs: idx,
-        fix: {
+        /* 偏旁碼是約定表填的，那個字自己的筆畫分組拆出來是別的碼 ——
+           拿它去「照著拆」只會拆出錯的碼，所以這種情況不給自動修正 */
+        fix: best.convComp ? null : {
           type: 'component', strokes: idx, from: best.ch,
           segs: best.segs.map(sg => ({ letter: sg.letter, strokes: sg.strokes.map(x => i + x) })),
           skipped: best.skipped.map(x => i + x),
           label: `照「${best.ch}」的拆法（${best.code}）`,
         },
+        /* 「金」單獨成字是 AFV，作為偏旁才是 YFV —— 一鍵把這件事寫進約定表 */
+        compConv: best.convComp ? null : { ch: best.ch, code: mineCode, standalone: best.code },
         except: best.ch,
         notComp: best.ch,        /* 也可能是「這幾筆根本不是那個部件」—— 見 excludeComp */
         msg: `第 ${idx.map(x => x + 1).join('、')} 筆就是「<b>${best.ch}</b>」，` +
-             `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`,
+             (best.convComp
+               ? `約定表說它<b>作為偏旁時取 ${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`
+               : `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`),
       });
       usedRanges.push(idx);
     }
