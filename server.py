@@ -31,6 +31,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import cangjie_map
+import extract_text
 import hk
 
 ROOT = Path(__file__).parent
@@ -192,6 +193,18 @@ class Handler(BaseHTTPRequestHandler):
             if not data:
                 return self._send(404, json.dumps({"error": "no data", "c": c}))
             return self._send(200, json.dumps({"c": c, **data}, ensure_ascii=False), cache=True)
+
+        if u.path == "/api/extract":
+            url = (q.get("url") or [""])[0]
+            try:
+                url = url.encode("latin-1").decode("utf-8")
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
+            try:
+                text = extract_text.text_from_url(url)
+            except Exception as e:
+                return self._send(400, json.dumps({"error": str(e)}, ensure_ascii=False))
+            return self._send(200, json.dumps({"text": text}, ensure_ascii=False))
 
         if u.path in ("/api/glyph", "/api/tw"):
             c = (q.get("c") or [""])[0]

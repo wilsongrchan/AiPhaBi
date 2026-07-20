@@ -68,6 +68,19 @@
   .cand.pred em { color:var(--warn,#d98324); }
   .predlink { font-size:11px; color:var(--accent); text-decoration:none; margin-left:6px; }
 
+  button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* 貼連結擷取來的練習文字：跟打字用的紙面分開，唯讀，只是拿來唸 */
+  .sample { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:10px 14px; margin-bottom:12px; max-height:220px; overflow:auto; }
+  .sample-head { display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .sample-head button { font-size:11px; padding:2px 8px; }
+  .sample-text { font-size:16px; line-height:1.9; font-family:"PingFang TC",serif;
+    white-space:pre-wrap; word-break:break-all; }
+
   .stat { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted);
     margin-top:14px; }
   .stat b { color:var(--ink); font-family:ui-monospace,monospace; }
@@ -92,6 +105,7 @@
     <kbd>space</kbd> 上第一個字、<kbd>1</kbd>–<kbd>9</kbd> 選字、
     <kbd>⌫</kbd> 刪碼、<kbd>esc</kbd> 清掉這一串碼。
     標點直接按（<kbd>,</kbd>→，　<kbd>.</kbd>→。　<kbd>?</kbd>→？　<kbd>[</kbd><kbd>]</kbd>→「」　<kbd>"</kbd>→「」輪流）。
+    沒有正在打碼時，數字鍵就是打數字。
     打不出來的字表示還沒取碼。
   </div>
 
@@ -101,6 +115,22 @@
       <span>把<b>還沒取碼</b>的字也算進來（用字根表現場推它的碼）</span>
     </label>
     <span class="prog" id="predprog"></span>
+  </div>
+
+  <div class="toolbar">
+    <input type="url" id="srcUrl" placeholder="貼一個文章連結…" style="flex:1;min-width:220px;
+      padding:6px 10px;border:1px solid var(--line);border-radius:7px;
+      background:var(--card);color:var(--ink);font-size:13px">
+    <button id="fetchUrl">擷取文字</button>
+    <span class="prog" id="fetchStatus"></span>
+  </div>
+
+  <div class="sample" id="sampleBox" style="display:none">
+    <div class="sample-head">
+      <span>練習文字 —— 唸這段，自己打（不會自動貼進紙面）</span>
+      <button id="sampleClose">收起</button>
+    </div>
+    <div class="sample-text" id="sampleText"></div>
   </div>
 
   <div class="paper" id="paper" tabindex="0"></div>
@@ -125,7 +155,32 @@ const el = (t, c, x) => { const e = document.createElement(t);
 
 let codes = {}, rules = null, rank = new Map();
 let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
-let text = '', code = '', pick = 0;
+let text = '', code = '', pick = 0, pos = 0;   /* pos：游標在 text 裡的字元位置 */
+
+/* ---------- 存檔：換頁／切分頁再回來，紙面跟練習文字都還在 ----------
+   這頁本來就沒有存檔按鈕、也不進碼表，純粹是「打字練習」的暫存狀態，
+   放 localStorage 就夠，不必驚動伺服器。 */
+const STATE_KEY = 'aiphabi_type_state';
+function saveState() {
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      text, pos,
+      srcUrl: $('#srcUrl').value,
+      sampleText: $('#sampleText').textContent,
+      sampleOn: $('#sampleBox').style.display !== 'none',
+    }));
+  } catch {}
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+    if (!s) return;
+    text = s.text || ''; pos = Math.max(0, Math.min(s.pos ?? text.length, text.length));
+    if (s.srcUrl) $('#srcUrl').value = s.srcUrl;
+    if (s.sampleText) { $('#sampleText').textContent = s.sampleText; }
+    if (s.sampleOn) $('#sampleBox').style.display = 'block';
+  } catch {}
+}
 
 const maxRule = () => rules && rules.rules.find(r =>
   r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
@@ -169,9 +224,9 @@ function buildTable() {
    打得出來，就表示這套字根表 + 原則自己接得住這個字；打出來的碼跟你心裡的拆法
    不一樣，那就是規則還沒說清楚的地方 —— 這正是最值得看的東西。
    只推最常用的那幾千字（照字頻），不然要把 9574 個字全跑一遍。 */
-/* 只推最常用的 2500 個未取碼字：實測 3 秒推完、覆蓋 99%。
-   再往下是罕用字，筆畫多，搜尋成本陡增（6000 字要跑好幾分鐘），不划算。 */
-const PRED_LIMIT = 2500;
+/* 只推最常用的 3500 個未取碼字：實測約 4 秒推完、覆蓋 99.8%。
+   再往下是罕用字，筆畫多，搜尋成本陡增，不划算。 */
+const PRED_LIMIT = 3500;
 let zigen = null, lib = null, learned = { stroke_kinds: [] };
 let predTable = new Map();      /* 碼 → [{ch, code}]，預測出來的 */
 let predicting = false, predDone = 0;
@@ -236,6 +291,31 @@ $('#usePred').onchange = () => {
   } else { $('#predprog').textContent = ''; render(); }
 };
 
+/* ---------- 貼連結 → 抓那頁的文字，當練習文字用 ----------
+   伺服器端抓（瀏覽器直接 fetch 外站會被 CORS 擋），土法 HTML 轉文字，
+   抓不準「這是不是正文」——排版乾淨的文章頁效果最好，別期望太多。
+   只是拿來唸、自己打，不會自動貼進紙面（那樣就不是練打字了）。 */
+async function fetchSample() {
+  const url = $('#srcUrl').value.trim();
+  if (!url) return;
+  $('#fetchStatus').textContent = '擷取中…';
+  try {
+    const r = await fetch('/api/extract?url=' + encodeURIComponent(url));
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || `HTTP ${r.status}`);
+    if (!j.text) throw new Error('沒擷取到文字');
+    $('#sampleText').textContent = j.text;
+    $('#sampleBox').style.display = 'block';
+    $('#fetchStatus').textContent = `已擷取 ${j.text.length} 字`;
+    saveState();
+  } catch (e) {
+    $('#fetchStatus').textContent = '擷取失敗：' + e.message;
+  }
+}
+$('#fetchUrl').onclick = fetchSample;
+$('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
+$('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
+
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符） */
 function candidates() {
   if (!code) return [];
@@ -265,9 +345,12 @@ function candidates() {
 }
 
 function render() {
-  $('#paper').innerHTML = '';
-  $('#paper').append(document.createTextNode(text));
-  $('#paper').append(el('span', 'caret'));
+  const paper = $('#paper');
+  paper.innerHTML = '';
+  paper.append(document.createTextNode(text.slice(0, pos)));
+  paper.append(el('span', 'caret'));
+  paper.append(document.createTextNode(text.slice(pos)));
+  saveState();
 
   const box = $('#imebox');
   if (!code) { box.classList.remove('on'); return; }
@@ -300,11 +383,17 @@ function render() {
   $('#imehint').textContent = 'space 上第一個　1–9 選字';
 }
 
+/* 在游標處插入，而不是永遠加在最後 —— 這樣游標移過去之後打字才會插對地方 */
+function insertAtPos(s) {
+  text = text.slice(0, pos) + s + text.slice(pos);
+  pos += s.length;
+}
+
 function commit(i) {
   const cands = candidates();
   const c = cands[i];
   if (!c) return;
-  text += c.ch;
+  insertAtPos(c.ch);
   code = ''; pick = 0;
   render();
 }
@@ -327,11 +416,11 @@ $('#paper').onkeydown = e => {
   if (PUNCT[k] || PAIRS[k]) {
     e.preventDefault();
     /* 打標點時如果還有沒上屏的碼，先把候選上屏 —— 真的輸入法都是這樣 */
-    if (code) { const c = candidates()[pick]; if (c) { text += c.ch; } code = ''; pick = 0; }
+    if (code) { const c = candidates()[pick]; if (c) { insertAtPos(c.ch); } code = ''; pick = 0; }
     if (PAIRS[k]) {
       pairOpen[k] = !pairOpen[k];
-      text += PAIRS[k][pairOpen[k] ? 0 : 1];
-    } else text += PUNCT[k];
+      insertAtPos(PAIRS[k][pairOpen[k] ? 0 : 1]);
+    } else insertAtPos(PUNCT[k]);
     render();
     return;
   }
@@ -340,29 +429,63 @@ $('#paper').onkeydown = e => {
     code += k.toUpperCase(); pick = 0; render();
   } else if (k === ' ') {
     e.preventDefault();
-    if (code) commit(pick); else { text += ' '; render(); }
+    if (code) commit(pick); else { insertAtPos(' '); render(); }
   } else if (/^[1-9]$/.test(k) && code) {
     e.preventDefault();
     commit(+k - 1);
+  } else if (/^[0-9]$/.test(k) && !code) {
+    /* 沒有正在打碼時，1–9 就不是選字鍵了 —— 數字鍵單純打數字（半形） */
+    e.preventDefault();
+    insertAtPos(k); render();
   } else if (k === 'Backspace') {
     e.preventDefault();
     if (code) code = code.slice(0, -1);
-    else text = text.slice(0, -1);
+    else if (pos > 0) { text = text.slice(0, pos - 1) + text.slice(pos); pos--; }
     pick = 0; render();
   } else if (k === 'Escape') {
     e.preventDefault();
     code = ''; pick = 0; render();
   } else if (k === 'Enter') {
     e.preventDefault();
-    if (code) { code = ''; pick = 0; } else text += '\n';
+    if (code) { code = ''; pick = 0; } else insertAtPos('\n');
     render();
   } else if (k === 'ArrowRight' && code) {
     e.preventDefault(); pick = Math.min(pick + 1, candidates().length - 1); render();
   } else if (k === 'ArrowLeft' && code) {
     e.preventDefault(); pick = Math.max(0, pick - 1); render();
+  } else if (k === 'ArrowRight' && !code) {
+    /* 沒在打碼時，左右鍵才是移動游標（打碼時留給切候選） */
+    e.preventDefault(); pos = Math.min(text.length, pos + 1); render();
+  } else if (k === 'ArrowLeft' && !code) {
+    e.preventDefault(); pos = Math.max(0, pos - 1); render();
   }
 };
-$('#paper').onclick = () => $('#paper').focus();
+
+/* 點紙面 → 游標移到點的位置（打字才不是永遠加在最後） */
+function offsetFromPoint(clientX, clientY) {
+  let range = null;
+  if (document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(clientX, clientY);
+  } else if (document.caretPositionFromPoint) {
+    const p = document.caretPositionFromPoint(clientX, clientY);
+    if (p) { range = document.createRange(); range.setStart(p.offsetNode, p.offset); }
+  }
+  const paper = $('#paper');
+  if (!range || !paper.contains(range.startContainer)) return null;
+  let idx = 0;
+  const walker = document.createTreeWalker(paper, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node === range.startContainer) return idx + range.startOffset;
+    idx += node.textContent.length;
+  }
+  return idx;
+}
+$('#paper').onclick = e => {
+  $('#paper').focus();
+  const idx = offsetFromPoint(e.clientX, e.clientY);
+  if (idx != null) { pos = Math.max(0, Math.min(text.length, idx)); code = ''; pick = 0; render(); }
+};
 
 Promise.all([
   fetch('/api/codes').then(r => r.json()),
@@ -376,6 +499,7 @@ Promise.all([
   f.order.forEach((ch, i) => rank.set(ch, i));
   lib = await Zigen.buildLibrary(zigen);      /* 推未取碼的字要用 */
   buildTable();
+  loadState();                                /* 換頁／切分頁再回來，接著打 */
   render();
   $('#paper').focus();
 });

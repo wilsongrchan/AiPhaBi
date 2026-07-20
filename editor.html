@@ -153,6 +153,43 @@
   .row .tsep-l { font-size:9px; color:var(--muted); align-self:center; }
   .row.empty-row { opacity:.45; }
 
+  /* 總表格式：仿倉頡官方「輔助字形列表」，一列一個取形意圖 */
+  main.chart { display:block; padding:14px 20px; overflow-x:auto; }
+  .chart-cap { font-weight:700; font-size:15px; text-align:center; margin-bottom:10px; }
+  table.zchart { table-layout:fixed; border-collapse:collapse; background:var(--card); }
+  table.zchart th, table.zchart td { border:1px solid var(--line); padding:7px 10px; vertical-align:middle;
+    overflow:hidden; }
+  table.zchart thead th { background:var(--bg); color:var(--muted); font-size:12px; font-weight:650;
+    text-align:left; position:sticky; top:0; z-index:2; overflow:visible; }
+  /* 貼著右邊界、完全留在自己這個 th 的框內 —— 曾經用 right:-4px 讓它溢出到
+     隔壁 th 的範圍，結果隔壁 th（sticky，自成一個 stacking context，DOM 順序
+     排後面）畫在上面，滑鼠點到的其實是隔壁的 th，不是這個手把。 */
+  table.zchart .colrz { position:absolute; top:0; right:0; width:8px; height:100%;
+    cursor:col-resize; z-index:3; touch-action:none; }
+  table.zchart .colrz:hover, table.zchart .colrz.active { background:color-mix(in srgb, var(--accent) 35%, transparent); }
+  table.zchart td.ckey { font:700 28px/1 ui-monospace,Menlo,monospace; text-align:center;
+    background:var(--bg); }
+  /* 注意：td 本身不能設 display:flex —— Chromium 會讓它脫離表格版面，
+     跟隔壁的 td 疊在一起（曾經踩過）。用 inline-flex 的子元素自然換行就好。 */
+  table.zchart td.cshapes { min-width:140px; line-height:0; }
+  table.zchart .cglyph { display:inline-flex; align-items:flex-end; justify-content:center;
+    vertical-align:middle; margin:2px 6px 2px 0; }
+  table.zchart .cglyph svg { display:block; }
+  table.zchart .cglyph svg .on { fill:var(--ink); }
+  table.zchart .cglyph.ctext { font-size:24px; font-family:"PingFang TC","Songti TC",serif;
+    width:28px; height:28px; line-height:1; }
+  table.zchart td.cex { min-width:120px; line-height:0; }
+  table.zchart .exglyph { display:inline-flex; vertical-align:middle; margin:2px 4px 2px 0; }
+  table.zchart .exglyph svg { width:28px; height:28px; display:block; }
+  table.zchart .exglyph svg .on { fill:var(--accent); }
+  table.zchart .exglyph svg .off { fill:var(--ink); }
+  table.zchart .exch { display:inline-block; color:var(--accent); font-family:"PingFang TC",serif;
+    font-size:15px; line-height:1.4; vertical-align:middle; margin-right:6px; }
+  table.zchart td.cdesc { color:var(--muted); font-size:13px; }
+  table.zchart tr.empty-crow td.cempty { color:var(--muted); font-style:italic; font-size:12px; }
+  table.zchart tbody tr:hover td { background:color-mix(in srgb, var(--accent) 5%, transparent); }
+  .viewsw { display:flex; gap:4px; }
+
   /* 選取 → 合併 */
   .chip.picked { outline:2px solid var(--accent); outline-offset:1px; }
   #mergebar { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:60;
@@ -343,7 +380,11 @@
   </nav>
   <div class="stats" id="stats"></div>
   <div class="grow"></div>
-  <button id="compact">精簡檢視</button>
+  <div class="viewsw">
+    <button id="viewFull" class="primary">詳細</button>
+    <button id="viewCompact">精簡</button>
+    <button id="viewChart">總表</button>
+  </div>
   <input type="search" id="q" placeholder="搜尋字根／例字／意圖…">
   <label style="font-size:13px;color:var(--muted)"
     title="全域門檻：愈大愈容易把相似筆畫視為同一字根。個別字根可以有更嚴格的專屬門檻（chip 上的橘色數字）。">
@@ -600,13 +641,15 @@ function bboxOf(strokes, sel) {
 }
 
 /* ============================== render ============================== */
-let compact = false;
+let viewMode = 'full';   /* 'full' | 'compact' | 'chart' */
 
 function render() {
   const app = $('#app'); app.innerHTML = '';
-  app.classList.toggle('compact', compact);
+  app.classList.toggle('compact', viewMode === 'compact');
+  app.classList.toggle('chart', viewMode === 'chart');
   renderMergeBar();
-  if (compact) return renderCompact();
+  if (viewMode === 'compact') return renderCompact();
+  if (viewMode === 'chart') return renderChart();
 
   const dup = new Set(duplicates().flatMap(d => d.shapes.map(x => shapeKey(x.s))));
   const q = $('#q').value.trim();
@@ -727,6 +770,181 @@ function renderCompact() {
       row.classList.add('hidden');
     app.append(row);
   }
+  renderStats();
+  renderJump();
+  refreshDupes();
+}
+
+/* 字例欄：不只列出例字，還要塗色標出字根在那個字裡是哪幾筆 —— 跟 chip 標示
+   「定義來源」筆畫是同一套視覺語言，只是這裡標的是「例字」而不是定義來源。
+   找不到已取碼的例字（ex 只是手填的提示，還沒進碼表）就退回純文字。
+   非同步、不擋主渲染 —— 呼叫端把 td 先掛進畫面，這裡自己補內容。 */
+async function fillExampleCell(td, it, letter) {
+  let any = false;
+  for (const s of it.shapes) {
+    if (!s.ex) continue;
+    any = true;
+    if (s.glyph) {
+      /* ex 剛好就是定義來源本字 → 不必查碼表，這幾筆本來就是準的
+         （查碼表反而可能因為那個字後來被重新取碼、已經不是這個字母而找不到）。 */
+      let hit = s.glyph.src === s.ex
+        ? { ch: s.ex, seg: { strokes: s.glyph.strokes }, code: null }
+        : null;
+      if (!hit) {
+        const users = await charsUsing(s, letter);
+        hit = users.find(u => u.ch === s.ex);
+      }
+      if (hit) {
+        const holder = el('span', 'exglyph');
+        holder.title = `${hit.ch}${hit.code ? `（${hit.code}）` : ''}　第 ${hit.seg.strokes.map(k => k + 1).join('、')} 筆`;
+        const g = await Zigen.getGlyph(hit.ch);
+        holder.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${SVG_TF}">` +
+          g.strokes.map((d, k) =>
+            `<path class="${hit.seg.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+          '</g></svg>';
+        td.append(holder);
+        continue;
+      }
+    }
+    td.append(el('span', 'exch', s.ex));
+  }
+  if (!any) td.append(el('span', '', '—'));
+}
+
+/* 字根欄的圖示：只畫這個字根本身，不畫其餘筆畫。
+   尺寸用筆畫真實大小的平方根去對應 px —— 純線性（px = 大小 × 固定比例）會讓
+   一筆的字根跟六筆的字根差到 3 倍大小；開根號把這個落差壓扁到肉眼看起來
+   差不多大，同時仍保留「筆畫真的比較多/比較大」時略大一點的層次，
+   不會完全變回固定框撐滿而讓粗細又跑掉。 */
+const ROOT_PAD = 40;
+function rootIconSvg(strokes, sel) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const i of sel) for (const m of strokes[i].matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)) {
+    const x = +m[1], y = 900 - +m[2];
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < x0) return '<svg viewBox="0 0 1024 1024"></svg>';
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const m = Math.max(x1 - x0, y1 - y0) + ROOT_PAD * 2;
+  const px = Math.max(16, Math.min(40, Math.round(1 + 0.98 * Math.sqrt(m))));
+  return `<svg viewBox="${cx - m / 2} ${cy - m / 2} ${m} ${m}" width="${px}" height="${px}">` +
+    `<g transform="${SVG_TF}">` +
+    sel.map(i => `<path class="on" d="${strokes[i]}"/>`).join('') +
+    '</g></svg>';
+}
+
+/* 欄寬：可拖拉調整，記在 localStorage 裡，換頁／重新整理都還在。 */
+const CHART_COLW_KEY = 'aiphabi_chart_colw';
+const CHART_COLS = [['key', '字母', 52], ['shapes', '字根', 480], ['ex', '字例', 420], ['desc', '說明', 380]];
+let chartColW = null;
+function loadChartColW() {
+  if (chartColW) return chartColW;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(CHART_COLW_KEY)) || {}; } catch {}
+  chartColW = Object.fromEntries(CHART_COLS.map(([k, , def]) => [k, saved[k] || def]));
+  return chartColW;
+}
+function startColResize(ev, key, colEl) {
+  ev.preventDefault();
+  ev.target.classList.add('active');
+  const startX = ev.clientX, startW = colEl.offsetWidth;
+  const move = e => { colEl.style.width = Math.max(40, startW + (e.clientX - startX)) + 'px'; };
+  const up = e => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    ev.target.classList.remove('active');
+    chartColW[key] = Math.max(40, startW + (e.clientX - startX));
+    try { localStorage.setItem(CHART_COLW_KEY, JSON.stringify(chartColW)); } catch {}
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
+
+/* 總表格式：仿倉頡官方「輔助字形列表」——一列＝一個取形意圖（同一形狀的所有變體
+   共用一列，跟字例、說明對齊）。字母欄跨列合併，一眼看出每個字母底下有幾條。 */
+function renderChart() {
+  const app = $('#app');
+  const q = $('#q').value.trim();
+  const colw = loadChartColW();
+
+  app.append(el('div', 'chart-cap', '字根總表'));
+  const table = el('table', 'zchart');
+
+  const colgroup = el('colgroup');
+  const colEls = {};
+  for (const [key, , ] of CHART_COLS) {
+    const c = el('col'); c.style.width = colw[key] + 'px';
+    colEls[key] = c; colgroup.append(c);
+  }
+  table.append(colgroup);
+
+  const thead = el('thead');
+  const htr = el('tr');
+  CHART_COLS.forEach(([key, label], i) => {
+    const th = el('th', '', label);
+    if (i < CHART_COLS.length - 1) {
+      const rz = el('span', 'colrz');
+      rz.onpointerdown = ev => startColResize(ev, key, colEls[key]);
+      th.append(rz);
+    }
+    htr.append(th);
+  });
+  thead.append(htr);
+  table.append(thead);
+  const tbody = el('tbody');
+
+  for (const L of data.letters) {
+    if (q && !JSON.stringify(L).includes(q) && L.letter !== q.toUpperCase()) continue;
+
+    const rows = [];
+    for (const [tier, label] of TIERS)
+      for (const it of intentionsOf(L, tier))
+        if (it.shapes.length) rows.push({ it, tier, label });
+
+    if (!rows.length) {
+      const tr = el('tr', 'crow empty-crow');
+      const tdL = el('td', 'ckey', L.letter);
+      const td = el('td', 'cempty', '（還沒有字根）'); td.colSpan = 3;
+      tr.append(tdL, td);
+      tbody.append(tr);
+      continue;
+    }
+
+    rows.forEach(({ it, tier, label }, ri) => {
+      const tr = el('tr', 'crow');
+      if (ri === 0) {
+        const tdL = el('td', 'ckey', L.letter);
+        tdL.rowSpan = rows.length;
+        tr.append(tdL);
+      }
+
+      const tdShapes = el('td', 'cshapes');
+      it.shapes.forEach(s => {
+        const holder = el('span', 'cglyph' + (s.glyph ? '' : ' ctext'));
+        if (s.glyph) {
+          holder.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
+          getGlyph(s.glyph.src).then(st => { if (st) holder.innerHTML = rootIconSvg(st, s.glyph.strokes); });
+        } else {
+          holder.textContent = s.z || '';
+        }
+        tdShapes.append(holder);
+      });
+      tr.append(tdShapes);
+
+      const tdEx = el('td', 'cex');
+      tr.append(tdEx);
+      fillExampleCell(tdEx, it, L.letter);
+
+      let desc = it.desc || (it.auto ? '未分類' : '');
+      if (tier !== 'primary') desc = `〔${label}〕${desc ? '　' + desc : ''}`;
+      tr.append(el('td', 'cdesc', desc || '—'));
+
+      tbody.append(tr);
+    });
+  }
+  table.append(tbody);
+  app.append(table);
   renderStats();
   renderJump();
   refreshDupes();
@@ -2100,11 +2318,15 @@ function exportTxt() {
 }
 $('#save').onclick = save;
 $('#export').onclick = exportTxt;
-$('#compact').onclick = () => {
-  compact = !compact;
-  $('#compact').classList.toggle('primary', compact);
+const viewBtns = { full: $('#viewFull'), compact: $('#viewCompact'), chart: $('#viewChart') };
+function setView(m) {
+  viewMode = m;
+  for (const [k, b] of Object.entries(viewBtns)) b.classList.toggle('primary', k === m);
   render();
-};
+}
+viewBtns.full.onclick = () => setView('full');
+viewBtns.compact.onclick = () => setView('compact');
+viewBtns.chart.onclick = () => setView('chart');
 $('#domerge').onclick = mergePicked;
 $('#cancelmerge').onclick = () => { picked.clear(); pickLetter = null; render(); };
 $('#q').oninput = render;
