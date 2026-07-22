@@ -1829,10 +1829,19 @@ async function componentWarnings(ctx) {
          孤筆略過原則說「孤立的橫略過，除非它是末筆，末筆取 I」。
          「畫」自己那一橫是末筆 → 取 I → EFOTI；
          「劃」裡的畫不在字尾（後面還有刂）→ 那一橫就是中途的孤筆 → 略過 → EFOT。
-         所以比對前要按位置把樣板的碼重算一次，不能拿它單獨成字的碼硬比。 */
+         所以比對前要按位置把樣板的碼重算一次，不能拿它單獨成字的碼硬比。
+
+         但這只對「碼是從 c.segs 直接拼出來的」成立。約定表填了偏旁碼的字
+         （c.convComp）不是這樣：c.code 是約定表另外填的最終答案（金＝AFV，
+         偏旁時 YFV，一個字母對一個字母都不一樣了），c.segs 卻還是它單獨
+         成字的筆畫分組——兩者早就對不上。拿「單獨成字有幾筆、末碼是不是
+         孤筆」去砍偏旁碼的最後一個字母，砍出來的字串跟哪個筆畫分組都對不上，
+         純屬意外（工 的偏旁碼只有一個字母 I，砍掉最後一個字母後變成空字串，
+         害這裡誤判成「不一致」，明明兩邊都是 I）。約定表填的偏旁碼本來就
+         已經涵蓋「站在哪裡都適用」，不必再猜。 */
       const atEnd = idx[idx.length - 1] === n - 1;
       const expected = c => {
-        if (atEnd || !c.segs || !c.segs.length) return c.code;
+        if (atEnd || c.convComp || !c.segs || !c.segs.length) return c.code;
         const sk = rule('skip_isolated_hv');
         if (!sk) return c.code;
         const lastLetters = sk.params.last_stroke_letters ||
