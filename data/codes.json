@@ -383,7 +383,8 @@
         "letter": "Q"
       }
     ],
-    "code": "QOMXLQ"
+    "code": "QOMXLQ",
+    "final": "QOMXQ"
   },
   "以": {
     "segments": [
@@ -1926,6 +1927,9 @@
     "final": "NVVT",
     "skipped": [
       8
+    ],
+    "excludeComp": [
+      "果"
     ]
   },
   "那": {
@@ -2099,7 +2103,11 @@
       }
     ],
     "code": "YCJ",
-    "final": "YCJ"
+    "final": "YCJ",
+    "excludeComp": [
+      "斗",
+      "工"
+    ]
   },
   "理": {
     "segments": [
@@ -2758,7 +2766,11 @@
         "letter": "V"
       }
     ],
-    "code": "OUDUHIOV"
+    "code": "OUDUHIOV",
+    "excludeComp": [
+      "農"
+    ],
+    "final": "OUDUV"
   },
   "無": {
     "segments": [
@@ -3240,7 +3252,10 @@
     ],
     "code": "JIJ",
     "final": "JIJ",
-    "notComponent": true
+    "notComponent": true,
+    "excludeComp": [
+      "干"
+    ]
   },
   "電": {
     "segments": [
@@ -56801,5 +56816,60 @@
     ],
     "code": "WRF",
     "final": "WRF"
+  },
+  "拳": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          6
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          9
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "VIJLJIJ",
+    "final": "VIJLJ",
+    "excludeComp": [
+      "午",
+      "干"
+    ]
   }
 }
