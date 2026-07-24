@@ -17,8 +17,9 @@
 ## 跑起來
 
 ```bash
-python3 fetch_data.py     # 第一次：下載字形資料（約 30 MB）
-python3 server.py         # → http://localhost:8777
+pip install -r requirements.txt   # 倉頡拆碼圖取色要 Pillow；其餘只用標準庫
+python3 fetch_data.py             # 第一次：下載字形資料（約 30 MB）
+python3 server.py                 # → http://localhost:8777
 ```
 
 ## 字根怎麼表示

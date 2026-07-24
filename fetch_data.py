@@ -5,6 +5,7 @@
 
 會產生：
     data/graphics.txt     makemeahanzi 的筆畫輪廓 + 中線（大陸筆順，9574 字）
+    data/dictionary.txt   makemeahanzi 的部件拆分（IDS，例 訴 = ⿰言斥；相關字欄用）
     data/tw_strokes.json  台灣教育部標準筆順（g0v/zh-stroke-data，4847 字）
     data/freq.json        字頻排序（由 rime-essay 統計而來，決定取碼佇列次序）
 
@@ -21,6 +22,7 @@ import zipfile
 ROOT = pathlib.Path(__file__).parent
 DATA = ROOT / "data"
 MMH = "https://raw.githubusercontent.com/skishore/makemeahanzi/master/graphics.txt"
+MMH_DICT = "https://raw.githubusercontent.com/skishore/makemeahanzi/master/dictionary.txt"
 G0V = "https://github.com/g0v/zh-stroke-data/archive/refs/heads/master.zip"
 ESSAY = "https://raw.githubusercontent.com/rime/rime-essay/master/essay.txt"
 CJ = ["https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.base.dict.yaml",
@@ -40,6 +42,11 @@ def main():
     if not graphics.exists():
         print("makemeahanzi（大陸筆順）")
         graphics.write_bytes(fetch(MMH))
+    dictionary = DATA / "dictionary.txt"
+    if not dictionary.exists():
+        print("makemeahanzi 部件拆分（IDS，相關字欄用）")
+        dictionary.write_bytes(fetch(MMH_DICT))
+
     chars = {json.loads(l)["character"] for l in graphics.open(encoding="utf-8")}
     strokes = {json.loads(l)["character"]: len(json.loads(l)["strokes"])
                for l in graphics.open(encoding="utf-8")}
