@@ -152,8 +152,18 @@
   #glyph text { font:600 34px ui-monospace,monospace; fill:var(--muted); pointer-events:none; opacity:.5; }
   /* 字頭與取碼放在字圖正上方 —— 右欄本來就擠，這兩樣看的時候眼睛都在字上 */
   .curline { display:flex; gap:14px; align-items:baseline; }
+  /* 兼容字型徽章：這個字另有通行寫法時亮起，點開官方筆順對照 */
+  .vbadge { align-self:center; font-size:11px; line-height:1.3; cursor:pointer;
+    border:1px solid var(--warn); color:var(--warn); background:color-mix(in srgb,var(--warn) 10%,transparent);
+    border-radius:999px; padding:2px 10px; white-space:nowrap; }
+  .vbadge:hover { background:color-mix(in srgb,var(--warn) 20%,transparent); }
+  .vbadge.hide { display:none; }
   .cur { font-size:15px; color:var(--muted); display:flex; gap:10px; align-items:baseline; }
   .cur b { font-size:22px; color:var(--ink); font-family:"PingFang TC",serif; }
+  .cur #curglyph { cursor:pointer; border-bottom:1px dashed var(--ghost); }
+  .cur #curglyph:hover { border-bottom-color:var(--accent); color:var(--accent); }
+  .cur .cplabel { font-size:11px; color:var(--warn); align-self:center;
+    border:1px solid var(--warn); border-radius:5px; padding:0 5px; }
   .stage .code { font:700 26px/1.1 ui-monospace,monospace; color:var(--accent);
     letter-spacing:.08em; min-height:0; }
   /* 固定高度：這行字會在「尚有 N 筆未指派 / 全部筆畫已處理 / 超過碼長上限」之間
@@ -238,6 +248,75 @@
   .convchip code { font:700 12px ui-monospace,monospace; color:var(--accent); }
   .convchip a { margin-left:auto; font-size:11px; color:var(--accent); white-space:nowrap; }
   .convlab.hide { display:none; }
+
+  /* 連坐建議：這個部件的另一種拆法，別的同偏旁字要不要也收 */
+  #altsib:not(:empty) { margin-top:6px; padding:7px 9px; border-radius:9px;
+    border:1px dashed var(--accent); background:color-mix(in srgb,var(--accent) 6%,transparent); }
+  #altsib .sibhead { font-size:12px; line-height:1.5; margin-bottom:5px; }
+  #altsib .sibhead code { font:700 12px ui-monospace,monospace; color:var(--accent); }
+  #altsib .sibrow { display:flex; align-items:center; gap:7px; padding:2px 0; cursor:pointer; }
+  #altsib .sibrow .ch { font-size:16px; font-family:"PingFang TC",serif; }
+  #altsib .sibrow .ch.go { border-bottom:1px dashed currentColor; }
+  #altsib .sibrow .ch.go:hover { color:var(--accent); }
+  #altsib .sibrow code { font:700 11px ui-monospace,monospace; color:var(--accent); }
+  #altsib .sibbar { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  #altsib .sibbar button { font-size:11px; padding:2px 8px; border-radius:6px; }
+
+  #vwrap.collapsed { display:none; }
+  /* 主字形輸出更正（碼位與字形不符時） */
+  .morow { display:flex; align-items:center; gap:6px; margin:2px 0 6px; font-size:12px; color:var(--muted); }
+  .morow input { font:600 17px "PingFang TC",serif; width:44px; text-align:center; padding:2px 4px;
+    border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); }
+  .morow input.diff { border-color:var(--warn); color:var(--warn); }
+  .morow .mohint { font-size:10px; color:var(--warn); }
+
+  /* 兼容字型清單（側欄） */
+  #variants .vrow { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
+    border-radius:8px; padding:4px 8px; margin-bottom:4px; background:var(--card); cursor:pointer; }
+  #variants .vrow:hover { border-color:var(--warn); }
+  #variants .vrow .vc { font-size:19px; font-family:"PingFang TC",serif; color:var(--ink); }
+  #variants .vrow b { font:700 13px ui-monospace,monospace; color:var(--accent); letter-spacing:.05em; }
+  #variants .vrow .vf { font-size:10px; color:var(--muted); }
+  #variants .vrow .vx { margin-left:auto; font-size:12px; }
+  #variants .newz { font-size:11px; }
+
+  /* 兼容字型編輯器（彈出） */
+  .vfmodal { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:20px; }
+  .vfmodal.hide { display:none; }
+  .vfcard { background:var(--bg); border:1px solid var(--line); border-radius:14px;
+    width:min(760px,96vw); max-height:92vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,.3); }
+  .vfhead { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); }
+  .vfhead b { font-size:15px; }
+  .vfsub { font-size:13px; color:var(--muted); }
+  .vfbody { display:flex; gap:16px; padding:16px; flex-wrap:wrap; }
+  .vfleft { flex:0 0 auto; }
+  #vfglyph { width:300px; height:300px; border:1px solid var(--line); border-radius:12px;
+    background:var(--card); display:block; }
+  #vfglyph path { cursor:pointer; transition:fill .08s; stroke:transparent; stroke-width:20; }
+  #vfglyph path.un { fill:var(--ghost); } #vfglyph path.un:hover { fill:var(--muted); }
+  #vfglyph path.sel { fill:var(--accent); }
+  #vfglyph path.skip { fill:var(--prev); }
+  #vfglyph text { font:600 60px ui-monospace,monospace; fill:var(--muted); pointer-events:none; opacity:.55; }
+  .vfregion { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; color:var(--muted); }
+  .vfreg { font-size:12px; padding:2px 10px; border-radius:6px; }
+  .vfreg.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .vfnums { margin-left:auto; display:flex; align-items:center; gap:3px; cursor:pointer; }
+  .vfright { flex:1 1 260px; min-width:240px; display:flex; flex-direction:column; gap:10px; }
+  .vfrow { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .vfrow input { font:600 20px "PingFang TC",serif; padding:5px 9px; width:90px;
+    border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
+  .vfcode { font-size:13px; color:var(--muted); }
+  .vfcode b { font:700 24px ui-monospace,monospace; color:var(--accent); letter-spacing:.1em; margin-left:6px; }
+  .vfsegs { display:flex; flex-wrap:wrap; gap:5px; min-height:24px; }
+  .vfseg { display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:7px;
+    padding:2px 7px; font-size:12px; }
+  .vfseg b { font:700 14px ui-monospace,monospace; color:var(--accent); }
+  .vfseg .n { color:var(--muted); font:600 10px ui-monospace,monospace; }
+  .vfhint { font-size:11px; color:var(--muted); line-height:1.5; }
+  .vfbar { display:flex; gap:6px; align-items:center; }
+  .vfbar button { font-size:12px; padding:5px 10px; }
+  .vfmsg { font-size:12px; color:var(--warn); min-height:16px; }
 
   .alt.auto { border-style:dotted; opacity:.85; }   /* 自動兼容的完整碼：不是你手動收的 */
   .alt.auto b { color:var(--muted); }
@@ -353,7 +432,7 @@
 <body>
 <header>
   <h1>愛發筆</h1>
-  <nav><a href="/">字根表</a><a href="/annotate" class="on">逐字取碼</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/type">試打</a></nav>
+  <nav><a href="/">字根表</a><a href="/annotate" class="on">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/type">試打</a></nav>
   <div class="grow"></div>
   <span class="prog" id="prog"></span>
   <span class="prog" id="libinfo"></span>
@@ -414,6 +493,8 @@
       <button id="back" class="hide" title="回到上一個看的字">← 返回</button>
       <div class="cur" id="cur"></div>
       <div class="code" id="code">—</div>
+      <!-- 這個字另有通行寫法（台灣／香港字形與大陸不同）時亮起 -->
+      <button class="vbadge hide" id="vbadge" title="這個字有另一種通行字形 —— 點一下看官方筆順對照"></button>
     </div>
     <div class="ref" id="ref"></div>
     <!-- 進入「編兼容碼」時才出現：明確告訴你主碼沒有被動到 -->
@@ -474,6 +555,29 @@
         title="另外畫一種拆法收進來；主碼不會被動到">＋ 新增一種拆法</button>
     </div>
     <div id="alts"></div>
+    <!-- 收了一種另類拆法後，這裡問你「別的同偏旁字要不要也收」 -->
+    <div id="altsib"></div>
+
+    <!-- 兼容字型：這個字的另一種通行寫法（台灣／香港字形），另取一個碼，兩形互通。
+         很少用到，預設收起；點標題展開，或按「＋ 兼容字型」直接展開並新增。 -->
+    <div class="lbl vhead" id="vhead" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">
+      <span id="vcaret" style="width:10px;display:inline-block;color:var(--muted)">▸</span>
+      <span>兼容字型</span>
+      <span style="flex:1"></span>
+      <button id="newVariant" style="font-size:10px;padding:1px 6px;border-radius:6px"
+        title="用另一種通行字形（例：為 的台灣字形）另取一個碼；打那個碼優先出那個字形，本字也接受">＋ 兼容字型</button>
+    </div>
+    <div id="vwrap" class="collapsed">
+      <!-- 主 田字格 的字形實際輸出哪個字。makemeahanzi 偶爾把字形畫成別的通行體
+           （為 U+70BA 畫成 12 筆的 爲），碼位與字形不符時，在這裡更正主字形要輸出的字。 -->
+      <label class="morow" id="moRow"
+        title="主 田字格 這個字形實際輸出哪個字。預設就是本字；makemeahanzi 把 為 畫成 爲 這種情況，改成 爲。">
+        <span>主字形輸出</span>
+        <input id="mainDisplay" maxlength="2" placeholder="—">
+        <span class="mohint" id="moHint"></span>
+      </label>
+      <div id="variants"></div>
+    </div>
 
     <div class="lbl">檢查</div>
     <div id="checks"></div>
@@ -492,12 +596,50 @@
 
     <div class="lbl" style="display:flex;align-items:center;gap:5px">
       <span>官方筆順參考</span>
+      <a href="/variants" title="哪些字有兩種通行寫法（兼容字型）" style="font-size:10px;color:var(--muted);text-decoration:none">兼容字型一覽 →</a>
       <span style="flex:1"></span>
       <button class="sosz" data-so="s">小</button>
       <button class="sosz on" data-so="m">中</button>
       <button class="sosz" data-so="l">大</button>
     </div>
     <div id="so" class="sz-m"></div>
+  </div>
+</div>
+
+<!-- 兼容字型編輯器：載入另一種通行字形（台灣／香港輪廓），手動把每一筆指給字母，另取一個碼 -->
+<div class="vfmodal hide" id="vfmodal">
+  <div class="vfcard">
+    <div class="vfhead">
+      <b>兼容字型</b><span class="vfsub" id="vfsub"></span>
+      <span style="flex:1"></span>
+      <button id="vfclose">✕ 關閉</button>
+    </div>
+    <div class="vfbody">
+      <div class="vfleft">
+        <svg id="vfglyph" viewBox="0 0 2048 2048"></svg>
+        <div class="vfregion">
+          <span>字形來源</span>
+          <button class="vfreg on" data-reg="tw">台灣</button>
+          <button class="vfreg" data-reg="hk">香港</button>
+          <label class="vfnums"><input type="checkbox" id="vfshownums"> 筆序</label>
+        </div>
+      </div>
+      <div class="vfright">
+        <label class="vfrow"><span>打這個碼優先出哪個字形</span>
+          <input id="vfdisplay" maxlength="2" placeholder="例：爲"></label>
+        <div class="vfcode">碼　<b id="vfcodeval">—</b></div>
+        <div id="vfsegs" class="vfsegs"></div>
+        <div class="vfhint">點筆畫選取 → 按一個<b>字母鍵</b>把它們併成一個字根；
+          <kbd>空白</kbd> 略過選取的筆；<kbd>⌫</kbd> 退回上一個字根。字根照筆順排出碼。</div>
+        <div class="vfbar">
+          <button id="vfskip">略過選取 ␣</button>
+          <button id="vfclear">清除重來</button>
+          <span style="flex:1"></span>
+          <button id="vfsave" class="primary">收為兼容字型</button>
+        </div>
+        <div id="vfmsg" class="vfmsg"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -748,6 +890,7 @@ const finalOf = code => Zigen.shorten(code, rules && rules.rules.find(r =>
 
 function renderCode() {
   renderAlts();          /* 碼一變，「能不能收成兼容碼」就跟著變 */
+  if (typeof renderVariants === 'function') renderVariants();   /* 兼容字型鈕也隨主碼完成與否亮／灰 */
   const code = segs.map(s => s.letter).join('');
   const fin = finalOf(code);
   const max = maxLen();
@@ -847,6 +990,7 @@ function enterAltMode(alt) {
   if (!rec.code) { $('#status').textContent = '先存一個主碼，才能再收兼容碼'; return; }
   altMode = true;
   altEditing = alt || null;
+  $('#altsib').innerHTML = '';        /* 開始畫新拆法時，先收掉上一輪的連坐建議 */
   document.body.classList.add('altmode');
   $('#altbar').classList.remove('hide');
   $('#altbarmsg').innerHTML = (alt
@@ -859,12 +1003,18 @@ function enterAltMode(alt) {
     skipped = [...(alt.skipped || [])];
     sel = [];
     drawGlyph(); suggest(); predict();
+  } else {                    /* 新增：清空畫面，讓你從頭畫另一種拆法（別留著主碼的拆法擋路） */
+    segs = [];
+    skipped = [];
+    sel = [];
+    drawGlyph(); suggest(); predict();
   }
   $('#altDone').textContent = alt ? '✓ 存回這條兼容碼' : '✓ 收為兼容碼';
   renderSegs();
 }
 function exitAltMode(keep) {
   const rec = codes[cur] || {};
+  let savedNew = null;             /* 這次「新收」的兼容碼（不是改既有的）→ 拿去問連坐 */
   if (keep) {
     const code = segs.map(s => s.letter).join('');
     const left = strokes.length - (segs.flatMap(s => s.strokes).length + skipped.length);
@@ -878,7 +1028,7 @@ function exitAltMode(keep) {
       segments: segs.map(s => ({ strokes: [...s.strokes], letter: s.letter })),
       skipped: skipped.length ? [...skipped] : undefined };
     if (altEditing) Object.assign(altEditing, body);        /* 改回原來那一條 */
-    else rec.alts = [...(rec.alts || []), body];
+    else { rec.alts = [...(rec.alts || []), body]; savedNew = body; }
     codes[cur] = rec;
     touch();
     $('#status').textContent = (altEditing ? '已更新兼容碼 ' : '已收兼容碼 ') +
@@ -893,17 +1043,29 @@ function exitAltMode(keep) {
   skipped = [...(rec.skipped || [])];
   sel = [];
   drawGlyph(); renderSegs(); suggest(); predict();
+  /* 新收了一種拆法 → 問問別的同偏旁字要不要也收（結構相同、目前又照主碼拆的那些） */
+  $('#altsib').innerHTML = '';
+  if (savedNew) renderSiblingSuggestions(cur, savedNew);
 }
 $('#newAlt').onclick = () => enterAltMode();
 $('#altDone').onclick = () => exitAltMode(true);
 $('#altCancel').onclick = () => exitAltMode(false);
+/* 點兼容字型徽章 → 捲到官方筆順對照，閃一下提示 */
+$('#vbadge').onclick = () => {
+  const so = $('#so');
+  so.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  so.style.outline = '2px solid var(--warn)';
+  so.style.borderRadius = '8px';
+  setTimeout(() => { so.style.outline = '2px solid transparent'; }, 1000);
+};
 
 function renderAlts() {
   const box = $('#alts'); box.innerHTML = '';
   const rec = codes[cur] || {};
   const alts = rec.alts || [];
-  $('#newAlt').disabled = !rec.code || altMode;
-  $('#newAlt').style.opacity = (!rec.code || altMode) ? .4 : 1;
+  const altOK = mainCoded() && !altMode;
+  $('#newAlt').disabled = !altOK;
+  $('#newAlt').style.opacity = altOK ? 1 : .4;
 
   if (!alts.length) {
     box.innerHTML = '<div class="newz">沒有手動收的兼容碼。' +
@@ -952,6 +1114,445 @@ function renderAlts() {
     box.append(d);
   }
 }
+
+/* ---------- 兼容碼：連坐建議 ----------
+   你替 A 的某個部件（例：訴 的「言」）收了另一種拆法，那別的同偏旁字（論、議、識…）
+   多半也該接受同一種拆法。這裡找「結構上有同一個部件、而且目前就照你原本的主碼拆法拆」
+   的字，把對應的兼容碼算好，讓你勾一勾一次收進去。靠的是既有的偏旁一致性引擎
+   （compIndex ＋ IDS 結構），所以只在「形狀像、結構上也真有這個部件」時才建議。 */
+
+/* 每一筆屬於哪一組（「字母@該組筆序」當標記，連字母不同也算不同拆法）；略過的筆記為 null */
+function partitionSig(segList, skipList, n) {
+  const sig = new Array(n).fill(undefined);
+  for (const s of skipList) if (s >= 0 && s < n) sig[s] = null;
+  for (const sg of segList) {
+    const tag = sg.letter + '@' + [...sg.strokes].sort((a, b) => a - b).join(',');
+    for (const k of sg.strokes) if (k >= 0 && k < n) sig[k] = tag;
+  }
+  return sig;
+}
+
+/* segments／skipped 落在 [r0,r1] 這段裡的部分：要剛好蓋滿、沒有跨出去才回傳，
+   否則 null（跨出去就沒法乾淨地「只換這一段」）。回傳按筆序的字母碼與局部拆法。 */
+function subOverRange(segList, skipList, r0, r1) {
+  const inRange = k => k >= r0 && k <= r1;
+  const segsIn = segList.filter(sg => sg.strokes.some(inRange));
+  if (!segsIn.length) return null;
+  if (segsIn.some(sg => sg.strokes.some(k => !inRange(k)))) return null;   /* 跨出去了 */
+  const skipIn = skipList.filter(inRange);
+  const covered = new Set([...segsIn.flatMap(sg => sg.strokes), ...skipIn]);
+  for (let k = r0; k <= r1; k++) if (!covered.has(k)) return null;         /* 沒蓋滿 */
+  const ordered = [...segsIn].sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+  return {
+    code: ordered.map(sg => sg.letter).join(''),
+    segs: ordered.map(sg => ({ letter: sg.letter,
+      local: sg.strokes.map(k => k - r0).sort((a, b) => a - b) })),
+    skipLocal: skipIn.map(k => k - r0).sort((a, b) => a - b),
+  };
+}
+
+const SIB_THR = 0.13;             /* 連坐要自動寫入，門檻收得比偏旁一致性(0.15)嚴一點 */
+
+async function siblingAltCandidates(A, alt) {
+  const rec = codes[A];
+  if (!rec || !rec.segments || !rec.segments.length || !ids[A]) return null;
+  const MED = medians;                        /* 目前畫面上就是 A */
+  if (!MED || !MED.length) return null;
+  const n = MED.length;
+
+  /* 主碼 vs 這條另類拆法，差在哪幾筆 → 收斂成一段連續筆畫 R */
+  const mainSig = partitionSig(rec.segments, rec.skipped || [], n);
+  const altSig = partitionSig(alt.segments, alt.skipped || [], n);
+  const diff = [];
+  for (let k = 0; k < n; k++) if (mainSig[k] !== altSig[k]) diff.push(k);
+  if (!diff.length) return null;
+  const r0 = Math.min(...diff), r1 = Math.max(...diff), k = r1 - r0 + 1;
+  if (k < 2 || k > 14) return null;           /* 太短沒意義、太長不會是單一部件 */
+
+  /* 這段是哪個「已取碼、而且結構上真的在 A 裡」的部件？
+     buildComponentIndex 只收「medians 已在快取裡」的字，所以先把已取碼的字都備妥，
+     不然 P（例：言）可能因為還沒抓到中線而漏掉。 */
+  await primeMedians(Object.keys(codes).filter(c => c !== A && codes[c].segments));
+  if (!compIndex || compStamp !== (window.__baseStamp && window.__baseStamp.codes))
+    buildComponentIndex();
+  const structA = new Set(partsOf(A, 4));
+  const vR = Shape.strokeVec(Array.from({ length: k }, (_, j) => MED[r0 + j]));
+  if (!vR) return null;
+  const pool = (compIndex.get(k) || [])
+    .filter(c => c.ch !== A && structA.has(c.ch))
+    .map(c => ({ c, d: Shape.dist(vR, c.vec) }))
+    .filter(x => x.d < SIB_THR)
+    .sort((a, b) => a.d - b.d);
+  if (!pool.length) return null;
+  const P = pool[0].c, Pch = P.ch;
+
+  /* A 在這段的主拆法 / 另一種拆法（都要乾淨蓋住 R） */
+  const mainSub = subOverRange(rec.segments, rec.skipped || [], r0, r1);
+  const altSub = subOverRange(alt.segments, alt.skipped || [], r0, r1);
+  if (!mainSub || !altSub || mainSub.code === altSub.code) return null;
+
+  /* 候選字：結構上也有 P、medians 拿得到 */
+  const cands = Object.keys(codes).filter(c =>
+    c !== A && codes[c].segments && codes[c].segments.length &&
+    ids[c] && partsOf(c, 4).includes(Pch));
+  await primeMedians(cands);
+
+  const out = [];
+  for (const B of cands) {
+    const bmed = _medCache.get(B);
+    if (!bmed || bmed.length < k) continue;
+    const brec = codes[B];
+    /* P 在 B 裡的位置：哪一段 k 連續筆畫最像 P */
+    let best = null;
+    for (let j = 0; j + k <= bmed.length; j++) {
+      const v = Shape.strokeVec(Array.from({ length: k }, (_, t) => bmed[j + t]));
+      if (!v) continue;
+      const d = Shape.dist(v, P.vec);
+      if (d < SIB_THR && (!best || d < best.d)) best = { j, d };
+    }
+    if (!best) continue;
+    const j = best.j;
+    /* B 目前在這段的拆法，要跟 A 的「主拆法」一致，才是同樣情況 */
+    const bSub = subOverRange(brec.segments, brec.skipped || [], j, j + k - 1);
+    if (!bSub || bSub.code !== mainSub.code) continue;
+
+    /* 把 A 的另一種拆法搬到 B：這一段換成 altSub，其餘保留 B 的主拆法 */
+    const inRange = x => x >= j && x <= j + k - 1;
+    const kept = brec.segments.filter(sg => !sg.strokes.some(inRange))
+      .map(sg => ({ letter: sg.letter, strokes: [...sg.strokes] }));
+    const moved = altSub.segs.map(s => ({ letter: s.letter,
+      strokes: s.local.map(x => x + j) }));
+    const segments = [...kept, ...moved]
+      .sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+    const skipped = [...(brec.skipped || []).filter(x => !inRange(x)),
+                     ...altSub.skipLocal.map(x => x + j)].sort((a, b) => a - b);
+    const code = segments.map(s => s.letter).join('');
+    if (code === brec.code) continue;                            /* 跟主碼一樣，不必收 */
+    if ((brec.alts || []).some(a => a.code === code)) continue;   /* 已經有了 */
+    out.push({ ch: B, code, segments,
+      skipped: skipped.length ? skipped : undefined });
+  }
+  return out.length ? { comp: Pch, alt, list: out } : null;
+}
+
+async function renderSiblingSuggestions(A, alt) {
+  const box = $('#altsib');
+  box.innerHTML = '<div class="newz">找同樣情況的字…</div>';
+  let res;
+  try { res = await siblingAltCandidates(A, alt); }
+  catch (e) { console.error(e); box.innerHTML = ''; return; }
+  if (cur !== A) { box.innerHTML = ''; return; }   /* 使用者已經切到別的字了 */
+  box.innerHTML = '';
+  if (!res || !res.list.length) return;
+
+  const head = el('div', 'sibhead');
+  head.innerHTML = `「<b>${res.comp}</b>」的這種拆法（<code>${finalOf(alt.code)}</code>），` +
+    `以下 ${res.list.length} 個字結構相同、目前也照主碼拆 —— 要不要也收成兼容碼？`;
+  box.append(head);
+
+  const rows = [];
+  for (const it of res.list) {
+    const row = el('label', 'sibrow');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = true;
+    const ch = el('span', 'ch go', it.ch);
+    ch.title = `去看「${it.ch}」`;
+    ch.onclick = e => { e.preventDefault(); e.stopPropagation(); goTo(it.ch); };
+    const code = el('code', '', '+' + finalOf(it.code));
+    row.append(cb, ch, code);
+    box.append(row);
+    rows.push({ cb, it });
+  }
+
+  const bar = el('div', 'sibbar');
+  const all = el('button', '', '全選／全不選');
+  all.onclick = () => { const to = rows.some(r => !r.cb.checked);
+    rows.forEach(r => r.cb.checked = to); };
+  const add = el('button', 'primary', '加入勾選的');
+  add.onclick = async () => {
+    const picked = rows.filter(r => r.cb.checked).map(r => r.it);
+    if (!picked.length) { box.innerHTML = ''; return; }
+    for (const it of picked) {
+      const brec = codes[it.ch] || (codes[it.ch] = {});
+      brec.alts = brec.alts || [];
+      if (!brec.alts.some(a => a.code === it.code))
+        brec.alts.push({ code: it.code, segments: it.segments, skipped: it.skipped });
+    }
+    const r = await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
+    if (r.reloaded) return;
+    if (!r.ok) { box.innerHTML = '<div class="newz" style="color:var(--bad)">寫入失敗，請再試一次。</div>'; return; }
+    dirty = false; $('#status').textContent = '已儲存'; $('#status').className = 'saved';
+    compIndex = null;                            /* 別的字改了拆法，部件庫要重建 */
+    box.innerHTML = `<div class="newz" style="color:var(--ok)">已替 ${picked.length} 個字收下兼容碼。</div>`;
+    if (codes[cur]) renderAlts();
+  };
+  const skip = el('button', '', '不用');
+  skip.onclick = () => { box.innerHTML = ''; };
+  bar.append(all, add, skip);
+  box.append(bar);
+}
+
+/* ---------- 兼容字型 ----------
+   有些字有兩種通行寫法（為 的大陸字形 12 筆、台灣字形 9 筆），視為同一個字。
+   這裡用「另一種字形」（台灣／香港輪廓）另取一個碼：打那個碼優先出那個字形，
+   本字也接受；反過來打本字的碼，那個字形排在後面（需要選字）。build_rime 據此產生互通的碼表。
+
+   輪廓資料沒有中線，所以這個編輯器不做字根建議／預測，全靠你點筆、按字母手動指派。 */
+let vfForm = 'tw', vfStrokes = [], vfViewBox = '0 0 2048 2048',
+    vfSegs = [], vfSkip = [], vfSel = [], vfEditing = null, vfChar = '', vfShowNums = false;
+
+const vfOpenNow = () => !$('#vfmodal').classList.contains('hide');
+const vfCode = () => [...vfSegs].sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes))
+  .map(s => s.letter).join('');
+
+async function vfLoadForm() {
+  const c = vfChar;
+  $('#vfmsg').textContent = '載入字形…';
+  vfStrokes = [];
+  if (vfForm === 'tw') {
+    const tw = await fetch('/api/tw?c=' + encodeURIComponent(c)).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (vfChar !== c) return;
+    if (!tw) { $('#vfmsg').textContent = '台灣沒有這個字的字形資料——換「香港」試試。'; vfDraw(); return; }
+    vfViewBox = '0 0 2048 2048';
+    vfStrokes = tw.strokes.map(d => ({ d }));
+  } else {
+    const hk = await fetch('/api/hk?c=' + encodeURIComponent(c)).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (vfChar !== c) return;
+    if (!hk) { $('#vfmsg').textContent = '香港沒有這個字的字形資料——換「台灣」試試。'; vfDraw(); return; }
+    vfViewBox = hk.viewBox;
+    vfStrokes = hk.strokes.map(s => ({ d: s.d, tx: s.tx, ty: s.ty }));
+  }
+  $('#vfmsg').textContent = '';
+  vfSel = [];
+  vfDraw(); vfRenderSegs();
+}
+
+function vfDraw() {
+  const g = $('#vfglyph');
+  g.setAttribute('viewBox', vfViewBox);
+  const vw = parseFloat(vfViewBox.split(/\s+/)[2]) || 2048;
+  const fs = vw / 28;
+  const segOf = i => vfSegs.findIndex(s => s.strokes.includes(i));
+  let html = '';
+  vfStrokes.forEach((st, i) => {
+    const si = segOf(i);
+    const cls = si >= 0 ? 'asg' : vfSkip.includes(i) ? 'skip' : vfSel.includes(i) ? 'sel' : 'un';
+    const fill = si >= 0 ? ` fill="${hue(si)}"` : '';
+    const path = `<path class="${cls}"${fill} d="${st.d}" data-i="${i}"></path>`;
+    html += st.tx != null ? `<g transform="translate(${st.tx},${st.ty})">${path}</g>` : path;
+  });
+  if (vfShowNums) vfStrokes.forEach((st, i) => {
+    const c = pathCenter(st.d);
+    html += `<text x="${c.x + (st.tx || 0)}" y="${c.y + (st.ty || 0)}" font-size="${fs}"` +
+      ` text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
+  });
+  g.innerHTML = html;
+  g.querySelectorAll('path[data-i]').forEach(p => { p.onclick = () => vfClickStroke(+p.dataset.i); });
+}
+
+function vfClickStroke(i) {
+  if (vfSegs.some(s => s.strokes.includes(i))) return;        /* 已指派：不動（改用清除重來） */
+  const sk = vfSkip.indexOf(i);
+  if (sk >= 0) { vfSkip.splice(sk, 1); vfDraw(); return; }     /* 已略過：點一下取消略過 */
+  const k = vfSel.indexOf(i);
+  k < 0 ? vfSel.push(i) : vfSel.splice(k, 1);
+  vfSel.sort((a, b) => a - b);
+  vfDraw();
+}
+
+function vfAssign(letter) {
+  if (!vfSel.length) return;
+  vfSegs.push({ strokes: [...vfSel], letter: letter.toUpperCase() });
+  vfSel = [];
+  vfDraw(); vfRenderSegs();
+}
+function vfSkipSel() {
+  if (!vfSel.length) return;
+  vfSkip = [...new Set([...vfSkip, ...vfSel])].sort((a, b) => a - b);
+  vfSel = []; vfDraw(); vfRenderSegs();
+}
+function vfUndo() {
+  if (vfSel.length) { vfSel = []; vfDraw(); return; }
+  if (vfSegs.length) { vfSegs.pop(); vfDraw(); vfRenderSegs(); }
+}
+
+function vfRenderSegs() {
+  const code = vfCode();
+  const fin = finalOf(code);
+  $('#vfcodeval').textContent = code ? (fin + (fin !== code ? `（完整 ${code}）` : '')) : '—';
+  const box = $('#vfsegs'); box.innerHTML = '';
+  [...vfSegs].sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes)).forEach(s => {
+    const d = el('div', 'vfseg');
+    d.innerHTML = `<b>${s.letter}</b><span class="n">${s.strokes.map(i => i + 1).join(',')}</span>`;
+    box.append(d);
+  });
+}
+
+async function vfOpen(variant) {
+  const rec = codes[cur] || (codes[cur] = {});
+  if (!mainCoded()) { $('#status').textContent = '先把這個字的主碼取完，才能收兼容字型'; return; }
+  vfChar = cur; vfEditing = variant || null;
+  vfSegs = []; vfSkip = []; vfSel = [];
+  vfForm = (variant && variant.form) || 'tw';
+  /* 新增時的預設：主字形若已改成別的字（為 的主形輸出 爲），那這個台灣／香港字形
+     多半就是碼位本字（為）——先填上，省一步。 */
+  $('#vfdisplay').value = variant ? variant.display
+    : (mainOutOf(cur) !== cur ? cur : '');
+  $('#vfsub').textContent = `　${cur} 的另一種通行字形`;
+  $('#vfmsg').textContent = '';
+  $('#vfshownums').checked = vfShowNums;
+  document.querySelectorAll('.vfreg').forEach(b => b.classList.toggle('on', b.dataset.reg === vfForm));
+  $('#vfmodal').classList.remove('hide');
+  await vfLoadForm();
+  if (variant && vfChar === cur) {
+    /* 既有兼容字型：把它的指派載回來（前提是筆數對得上目前這個字形） */
+    const maxI = Math.max(-1, ...variant.segments.flatMap(s => s.strokes), ...(variant.skipped || []));
+    if (maxI < vfStrokes.length) {
+      vfSegs = variant.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+      vfSkip = [...(variant.skipped || [])];
+      vfDraw(); vfRenderSegs();
+    } else {
+      $('#vfmsg').textContent = '字形資料的筆數對不上原本的指派，請重畫。';
+    }
+  }
+}
+function vfClose() { $('#vfmodal').classList.add('hide'); }
+
+function vfSave() {
+  const rec = codes[cur] || (codes[cur] = {});
+  if (!mainCoded()) { $('#vfmsg').textContent = '主碼還沒取完。'; return; }
+  const display = ($('#vfdisplay').value || '').trim();
+  const code = vfCode();
+  if ([...display].length !== 1) { $('#vfmsg').textContent = '「優先出哪個字形」請填正好一個字（例：爲）。'; return; }
+  if (display === mainOutOf(cur)) {
+    $('#vfmsg').textContent = `這跟主字形輸出的「${display}」相同——同一字形的另一種拆法請用「兼容碼」。`; return;
+  }
+  if (!vfStrokes.length) { $('#vfmsg').textContent = '沒有字形資料，收不了。'; return; }
+  const left = vfStrokes.length - (vfSegs.flatMap(s => s.strokes).length + vfSkip.length);
+  if (!vfSegs.length || left > 0) { $('#vfmsg').textContent = `還有 ${left} 筆沒指派。`; return; }
+  const body = { display, form: vfForm, code,
+    segments: [...vfSegs].sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes))
+      .map(s => ({ strokes: [...s.strokes], letter: s.letter })),
+    skipped: vfSkip.length ? [...vfSkip] : undefined };
+  rec.variants = rec.variants || [];
+  if (vfEditing) Object.assign(vfEditing, body);
+  else {
+    const same = rec.variants.find(v => v.display === display);
+    if (same) Object.assign(same, body); else rec.variants.push(body);
+  }
+  codes[cur] = rec;
+  touch();
+  vfClose();
+  renderVariants();
+  $('#status').textContent = `已收兼容字型 ${display}（碼 ${finalOf(code)}，打它優先出 ${display}）`;
+}
+
+/* 主 田字格 這個字形實際輸出哪個字（預設本字）。makemeahanzi 把 為 畫成 爲 時，改成 爲。 */
+const mainOutOf = ch => (codes[ch] && codes[ch].display) || ch;
+
+/* 主碼算不算「取好了」——已存檔的碼，或畫面上已把每一筆都指派／略過的完整拆解。
+   （兼容碼、兼容字型都要等主碼好了才能收；不能只看已存檔的 codes[cur].code，
+    否則剛取完、還沒存的字就一直是灰的。） */
+const mainCoded = () => !!(codes[cur] && codes[cur].code) ||
+  (segs.length > 0 && restStrokes().length === 0);
+
+/* 設定「這個字形實際輸出哪個字」——標題那個大字、側欄那格，都由它更新。 */
+function setMainOut(v) {
+  const rec = codes[cur] || (codes[cur] = {});
+  v = (v || '').trim();
+  if (v && [...v].length !== 1) { $('#status').textContent = '請填正好一個字（例：爲）'; return false; }
+  if (!v || v === cur) delete rec.display; else rec.display = v;
+  touch(); renderCurHeader(); renderMainOut();
+  return true;
+}
+
+/* 標題左上那個大字：顯示「實際輸出的字」；點一下可改（makemeahanzi 把 為 畫成 爲 時用得上）。 */
+function renderCurHeader() {
+  const out = mainOutOf(cur);
+  const diff = out !== cur;
+  $('#cur').innerHTML =
+    `<b id="curglyph" title="點一下：這個字形實際是哪個字（makemeahanzi 把 為 畫成 爲）">${out}</b>` +
+    (diff ? `<span class="cplabel" title="鍵盤佇列與字頻仍以碼位字為準">碼位 ${cur}</span>` : '') +
+    `<span>${strokes.length} 筆</span>`;
+  $('#curglyph').onclick = () => {
+    const r = prompt('這個字形實際是哪個字？\n\n' +
+      'makemeahanzi 把「為」(U+70BA) 畫成 12 筆的「爲」。想讓這個字形輸出 爲，就填 爲；' +
+      '填回本字或留空＝用碼位本字。', mainOutOf(cur));
+    if (r === null) return;
+    setMainOut(r);
+  };
+}
+
+function renderMainOut() {
+  const inp = $('#mainDisplay');
+  const out = mainOutOf(cur);
+  inp.value = out;
+  const diff = out !== cur;
+  inp.classList.toggle('diff', diff);
+  $('#moHint').textContent = diff ? `≠ 碼位「${cur}」` : '';
+}
+
+/* 兼容字型很少用，預設收起；有既有設定（變體或主字形改過）的字才自動展開。 */
+let vExpanded = false;
+function applyVwrap() {
+  $('#vwrap').classList.toggle('collapsed', !vExpanded);
+  $('#vcaret').textContent = vExpanded ? '▾' : '▸';
+}
+
+function renderVariants() {
+  renderMainOut();
+  applyVwrap();
+  const box = $('#variants'); box.innerHTML = '';
+  const rec = codes[cur] || {};
+  const vs = rec.variants || [];
+  const coded = mainCoded();
+  $('#newVariant').disabled = !coded;
+  $('#newVariant').style.opacity = coded ? 1 : .4;
+  if (!vs.length) {
+    box.innerHTML = '<div class="newz">這個字若有另一種通行寫法（例：為 的台灣字形 爲），' +
+      '按上面「＋ 兼容字型」，用那個字形另取一個碼——打那個碼優先出那個字形，本字也接受。</div>';
+    return;
+  }
+  for (const v of vs) {
+    const row = el('div', 'vrow');
+    row.innerHTML = `<span class="vc">${v.display}</span><b>${finalOf(v.code)}</b>` +
+      `<span class="vf">${v.form === 'hk' ? '香港字形' : '台灣字形'}</span>`;
+    row.title = '點一下改這個兼容字型';
+    row.onclick = () => vfOpen(v);
+    const x = el('button', 'vx', '✕');
+    x.title = '刪掉這個兼容字型';
+    x.onclick = e => {
+      e.stopPropagation();
+      rec.variants = vs.filter(z => z !== v);
+      if (!rec.variants.length) delete rec.variants;
+      codes[cur] = rec; touch(); renderVariants();
+    };
+    row.append(x);
+    box.append(row);
+  }
+}
+
+$('#newVariant').onclick = e => { e.stopPropagation(); vExpanded = true; applyVwrap(); vfOpen(); };
+$('#vhead').onclick = e => { if (e.target.closest('#newVariant')) return; vExpanded = !vExpanded; applyVwrap(); };
+$('#mainDisplay').onchange = () => { if (!setMainOut($('#mainDisplay').value)) renderMainOut(); };
+$('#vfclose').onclick = () => vfClose();
+$('#vfsave').onclick = () => vfSave();
+$('#vfskip').onclick = () => vfSkipSel();
+$('#vfclear').onclick = () => { vfSegs = []; vfSkip = []; vfSel = []; vfDraw(); vfRenderSegs(); $('#vfmsg').textContent = ''; };
+$('#vfshownums').onchange = e => { vfShowNums = e.target.checked; vfDraw(); };
+$('#vfmodal').onclick = e => { if (e.target.id === 'vfmodal') vfClose(); };
+document.querySelectorAll('.vfreg').forEach(b => b.onclick = () => {
+  if (b.classList.contains('on')) return;
+  document.querySelectorAll('.vfreg').forEach(x => x.classList.toggle('on', x === b));
+  vfForm = b.dataset.reg; vfSegs = []; vfSkip = []; vfSel = []; vfLoadForm();
+});
+/* 編輯器開著時，鍵盤歸它：點筆選取 → 字母鍵成字根、空白略過、⌫ 退回 */
+document.addEventListener('keydown', e => {
+  if (!vfOpenNow() || e.target.id === 'vfdisplay') return;
+  if (e.key === 'Escape') { e.preventDefault(); vfClose(); }
+  else if (e.key === ' ') { e.preventDefault(); vfSkipSel(); }
+  else if (e.key === 'Backspace') { e.preventDefault(); vfUndo(); }
+  else if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); vfAssign(e.key); }
+}, true);
 
 /* 把一組拆法收為兼容碼（來源可以是目前的拆法，也可以是預測給的另一種拆法） */
 function addAlt(segments, skips) {
@@ -2160,12 +2761,15 @@ async function load(c) {
   const rec = codes[c];
   if (rec && rec.segments) segs = rec.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
   if (rec && rec.skipped) skipped = [...rec.skipped];
-  $('#cur').innerHTML = `<b>${c}</b><span>${strokes.length} 筆</span>`;
+  renderCurHeader();
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
   renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
   drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
-  renderRelated(c); renderBack();
+  /* 兼容字型欄預設收起；已設過主字形輸出或已有變體的字才自動展開 */
+  vExpanded = !!(rec && ((rec.variants && rec.variants.length) || rec.display));
+  renderRelated(c); renderBack(); renderVariants();
+  if (vfOpenNow()) vfClose();      /* 換了字就別讓上一個字的兼容字型編輯器開著 */
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
 }
 
@@ -2231,8 +2835,25 @@ async function renderCangjie(c) {
 /* ---------- 官方筆順參考 ----------
    大陸：makemeahanzi（PRC 筆順）。台灣：教育部《國字標準字體筆順學習網》資料（g0v/zh-stroke-data）。
    香港教育局的筆順沒有公開資料集，只能給查詢連結。 */
+/* 兼容字型徽章：蒐集「筆數與大陸不同」的地區字形，亮起徽章讓人一眼看到、點開對照。
+   守著 c === cur —— 換了字的舊請求不准回頭蓋掉徽章。 */
+function setVariantBadge(c, variants) {
+  if (c !== cur) return;
+  const b = $('#vbadge');
+  if (!variants.length) { b.className = 'vbadge hide'; b.textContent = ''; return; }
+  b.className = 'vbadge';
+  b.textContent = `⚑ 兼容字型 · 另有通行寫法：${variants.join('、')}`;
+}
+
+/* 系統性偏旁差異：走之底(辶)、阜/邑旁(阝) —— 各地筆數不同，但無論算幾筆，取的碼都一樣
+   （辶 一律 Z），對取碼毫無影響，就別拿「兼容字型」徽章來煩人。 */
+const SYSTEMATIC_RADICAL = /[辶辵⻌⻍⻎阝⻏⻖]/;
+
 async function strokeOrder(c) {
   const box = $('#so'); box.innerHTML = '';
+  $('#vbadge').className = 'vbadge hide';        /* 先熄掉，等地區資料回來再決定亮不亮 */
+  const variants = [];
+  const systematic = SYSTEMATIC_RADICAL.test(ids[c] || '');   /* 只差在 辶／阝 → 不算兼容字型 */
   const seq = (paths, viewBox) => {
     const g = el('div', 'so-g');
     paths.forEach((d, i) => {
@@ -2264,6 +2885,7 @@ async function strokeOrder(c) {
   const t2 = el('div', 'so-t');
   if (tw) {
     const diff = tw.strokes.length !== strokes.length;
+    if (diff && !systematic) { variants.push(`台灣 ${tw.strokes.length} 筆`); setVariantBadge(c, variants); }
     t2.innerHTML = `<b>台灣</b><span>教育部標準 · ${tw.strokes.length} 筆` +
       (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
     twRow.append(t2);
@@ -2286,6 +2908,7 @@ async function strokeOrder(c) {
   const t3 = el('div', 'so-t');
   if (hk) {
     const diff = hk.strokes.length !== strokes.length;
+    if (diff && !systematic) { variants.push(`香港 ${hk.strokes.length} 筆`); setVariantBadge(c, variants); }
     t3.innerHTML = `<b>香港</b><span>教育局 · ${hk.strokes.length} 筆` +
       (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
     hkRow.append(t3);
@@ -2902,6 +3525,7 @@ $('#export').onclick = () => {
   a.download = 'aiphabi.dict.txt'; a.click();
 };
 document.addEventListener('keydown', e => {
+  if (!$('#vfmodal').classList.contains('hide')) return;   /* 兼容字型編輯器開著時，鍵盤歸它 */
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   /* A–Z 全部留給字根指派，所以略過用 space，顯示筆順改用 / */
   if (e.key === ' ') { e.preventDefault(); skipSelected(); }

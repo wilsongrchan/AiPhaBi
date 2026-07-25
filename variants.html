@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>兼容字型一覽 · 愛發筆</title>
+<style>
+  :root {
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
+    --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --bad:#c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
+            --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --bad:#e57373; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang TC","Helvetica Neue",sans-serif; }
+  nav { display:flex; gap:5px; flex-wrap:wrap; max-width:900px; margin:0 auto; padding:14px 20px 0; }
+  nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; }
+  nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .wrap { max-width:900px; margin:0 auto; padding:18px 20px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .lede { color:var(--muted); font-size:13px; margin:0 0 22px; max-width:640px; }
+  .lede code { font:600 12px ui-monospace,monospace; color:var(--accent); }
+  .sec { margin-top:26px; }
+  .sec > h2 { font-size:14px; margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+  .sec > h2 .n { color:var(--muted); font-weight:400; font-size:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+  a.card { display:flex; align-items:center; gap:10px; text-decoration:none;
+    border:1px solid var(--line); border-radius:10px; padding:7px 10px; background:var(--card); }
+  a.card:hover { border-color:var(--accent); }
+  a.card .c { font-size:28px; font-family:"PingFang TC","Songti TC",serif; color:var(--ink); line-height:1; }
+  a.card .meta { font:600 11px ui-monospace,monospace; color:var(--muted); }
+  a.card .meta b { color:var(--warn); }
+  details { border:1px solid var(--line); border-radius:10px; background:var(--card); padding:0 12px; }
+  details[open] { padding-bottom:12px; }
+  details > summary { cursor:pointer; padding:11px 0; font-size:13px; color:var(--muted);
+    list-style:none; display:flex; align-items:center; gap:8px; }
+  details > summary::-webkit-details-marker { display:none; }
+  details > summary .tw { color:var(--accent); }
+  details .grid { margin-top:2px; }
+  .note { font-size:12px; color:var(--muted); margin-top:6px; }
+  .status { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants" class="on">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/type">試打</a>
+</nav>
+<div class="wrap">
+  <h1>兼容字型一覽</h1>
+  <p class="lede">
+    同一個字有兩種通行寫法（例如 <b>為</b>：大陸 <code>12</code> 筆、台灣 <code>9</code> 筆），
+    兩種形狀都被視為同一個字。這裡列出「台灣教育部標準字形」與「大陸 makemeahanzi 字形」
+    <b>筆數不同</b>的字，依字頻排序——這是可自動偵測的可靠訊號。
+    同筆數的細部變體（中線比對才分得出）抓不到，得靠你在取碼時自行留意。
+    點任何一個字，到逐字取碼頁看三地官方筆順對照。
+  </p>
+  <div id="body"><p class="status">計算中…</p></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+
+function card(it) {
+  const a = el('a', 'card');
+  a.href = '/annotate?c=' + encodeURIComponent(it.c);
+  a.title = `${it.c}：大陸 ${it.prc} 筆 / 台灣 ${it.tw} 筆 —— 點去看`;
+  a.append(el('span', 'c', it.c));
+  const m = el('span', 'meta');
+  m.innerHTML = `陸 ${it.prc}<br><b>台 ${it.tw}</b>`;
+  a.append(m);
+  return a;
+}
+
+function grid(items) {
+  const g = el('div', 'grid');
+  for (const it of items) g.append(card(it));
+  return g;
+}
+
+fetch('/api/variants').then(r => r.json()).then(list => {
+  const body = $('#body');
+  body.innerHTML = '';
+  if (!list.length) { body.innerHTML = '<p class="status">沒有資料（台灣筆順檔可能還沒下載）。</p>'; return; }
+
+  const distinct = list.filter(x => x.group === 'distinct');
+  const walk = list.filter(x => x.group === 'walk');
+  const mound = list.filter(x => x.group === 'mound');
+  /* 筆數差 ≥2 多半是真的兩種字形（為 陸12/台9）；差 1 很多只是計筆慣例（之、以、及）。 */
+  const big = distinct.filter(x => Math.abs(x.prc - x.tw) >= 2);
+  const one = distinct.filter(x => Math.abs(x.prc - x.tw) === 1);
+
+  /* 形狀明顯不同的：直接攤開，這是「兼容字型」最典型的一群 */
+  const s1 = el('div', 'sec');
+  const h = el('h2'); h.innerHTML = `形狀明顯不同（筆數差 ≥2）　<span class="n">${big.length} 字</span>`;
+  s1.append(h);
+  s1.append(grid(big));
+  s1.append(Object.assign(el('p', 'note'),
+    { textContent: '差兩筆以上，通常是真的兩種通行寫法（為、勻、鄉…），最值得逐個確認取碼。' }));
+  body.append(s1);
+
+  /* 系統性偏旁差異：摺起來，要看再展開 */
+  const collapse = (title, items, hint) => {
+    if (!items.length) return;
+    const s = el('div', 'sec');
+    const d = document.createElement('details');
+    const sm = document.createElement('summary');
+    sm.innerHTML = `${title}　<span class="tw">${items.length} 字</span>　▾`;
+    d.append(sm);
+    d.append(grid(items));
+    if (hint) d.append(Object.assign(el('p', 'note'), { textContent: hint }));
+    s.append(d);
+    body.append(s);
+  };
+  collapse('筆數只差 1（多為計筆慣例）', one,
+    '差一筆的，很多只是兩地「同一形、算法不同」（之、以、及、年…），未必是不同字形——看看就好。');
+  collapse('走之底「辶」系統性差異', walk,
+    '大陸「辶」一點、台灣兩點，凡走之底的字筆數都差 1（這、過、道、進…）——同一條差異，不必逐個看。');
+  collapse('阜／邑旁「阝」系統性差異', mound,
+    '「阝」旁的字（都、部、防、阿…）也是整批同型的筆數差異。');
+}).catch(e => {
+  $('#body').innerHTML = '<p class="status">讀取失敗：' + e + '</p>';
+});
+</script>
+</body>
+</html>

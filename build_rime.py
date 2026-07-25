@@ -53,11 +53,28 @@ def main():
                      if r["id"] == "max_code_length" and r.get("enabled")), None)
 
     # 字 → 它所有打得出來的碼（去重、保持順序）
-    entries = []            # (碼, 字, 權重)
+    NATIVE = 10_000_000     # 自己的碼永遠排在「別的字形借用同一個碼」之前
+
+    def freq_w(c):
+        # 常用字權重大 —— 重碼時排前面，少按一次選字鍵
+        return max(1, 100000 - rank.get(c, 99999))
+
+    weight = {}             # (碼, 字) -> 權重（重複時取最大）
+
+    def put(code, char, w):
+        key = (code.lower(), char)
+        if weight.get(key, -1) < w:
+            weight[key] = w
+
     per_char = {}
+    main_out = {}                       # 碼位字 → 主 田字格 字形實際輸出哪個字（預設本字）
     for ch, rec in codes.items():
         if not rec.get("code"):
             continue
+        # makemeahanzi 偶爾把字形畫成別的通行體（為 U+70BA 畫成 12 筆的 爲）；
+        # display 讓主字形改輸出那個字，碼位（字頻、佇列）仍是本字。
+        out = rec.get("display") or ch
+        main_out[ch] = out
         seen = []
         def add(c):
             if c and c not in seen:
@@ -69,12 +86,30 @@ def main():
             add(shorten(a["code"], max_rule))
             add(a["code"])
         per_char[ch] = seen
-        # 常用字權重大 —— 重碼時排前面，少按一次選字鍵
-        w = max(1, 100000 - rank.get(ch, 99999))
-        for c in seen:
-            entries.append((c.lower(), ch, w))
+        for c in seen:                  # 這些碼都是主字形（out）自己的（native）
+            put(c, out, NATIVE + freq_w(out))
 
+    # 兼容字型：另一種通行字形（為 的台灣字形 → 為）當成另一個字，與主字形輸出互通。
+    # 打那個字形的碼，優先出那個字形（native 加成）；主字形的碼也接受它，但排在後面（需要選字）。
+    for ch, rec in codes.items():
+        out = main_out.get(ch, rec.get("display") or ch)
+        for v in rec.get("variants", []):
+            disp, vcode = v.get("display"), v.get("code")
+            if not disp or not vcode:
+                continue
+            vseen = []
+            for c in (shorten(vcode, max_rule), vcode):
+                if c and c not in vseen:
+                    vseen.append(c)
+            for c in vseen:
+                put(c, disp, NATIVE + freq_w(disp))   # 這個字形的碼 → 對它自己是 native
+                put(c, out, freq_w(out))              # 也打得出主字形（相容，排後面）
+            for c in per_char.get(ch, []):
+                put(c, disp, freq_w(disp))            # 主字形的碼 → 也出這個字形（相容，排後面）
+
+    entries = [(code, char, w) for (code, char), w in weight.items()]
     entries.sort(key=lambda e: (e[0], -e[2]))
+    char_count = len({char for _, char in weight})
 
     OUT.mkdir(exist_ok=True)
     today = date.today().isoformat().replace("-", ".")
@@ -214,7 +249,7 @@ recognizer:
 
     readme = f"""# 愛發筆 · Rime 輸入法
 
-由 `python3 build_rime.py` 產生。共 **{len(per_char)} 字**、**{len(entries)} 條碼**
+由 `python3 build_rime.py` 產生。共 **{char_count} 字**、**{len(entries)} 條碼**
 （主碼 + 完整碼 + 手動收的兼容碼）。
 
 ## macOS（Squirrel 鼠鬚管）
@@ -277,7 +312,7 @@ patch:
 """
     (OUT / "README.md").write_text(readme, encoding="utf-8")
 
-    print(f"字 {len(per_char)}　碼 {len(entries)}　重碼組 {len(dups)}")
+    print(f"字 {char_count}　碼 {len(entries)}　重碼組 {len(dups)}")
     print(f"寫出：{OUT}/aiphabi.schema.yaml、aiphabi.dict.yaml、README.md")
 
     if "--install" in sys.argv:

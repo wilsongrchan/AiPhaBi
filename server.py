@@ -96,6 +96,41 @@ def tw_strokes():
     return TW_STROKES
 
 
+# 兼容字型：地區字形與大陸不同的字。中線比對只有大陸這份有，台灣資料只有輪廓，
+# 所以自動偵測靠「筆數不同」這個可靠訊號（同筆數的變體抓不到，得靠人補）。走之底(辶)、
+# 阜/邑(阝) 是整批系統性差異，另外標出來，好讓一覽表把它們摺起來、突出真正一字一形的。
+_WALK = set("辶辵⻍⻌")            # 走之底：這、過、道…（大陸一點、台灣兩點，筆數差 1）
+_MOUND = set("阝⻏⻖")             # 阜/邑旁：都、部、防、阿…
+
+
+def variants_data():
+    tw = tw_strokes()
+    ids = ids_map()
+    try:
+        order = json.loads(FREQ.read_text("utf-8")).get("order", [])
+    except (OSError, json.JSONDecodeError):
+        order = []
+    seen, out = set(), []
+    for c in order:
+        if c in seen:
+            continue
+        seen.add(c)
+        g = GLYPHS.get(c)
+        forms = tw.get(c)
+        if not g or not forms:
+            continue
+        a, b = len(g["strokes"]), len(forms)
+        # 差太多不是「另一種字形」，是資料對錯了字（g0v 偶有壞行，如 懂 被記成 32 筆）
+        if a == b or abs(a - b) > 8:
+            continue
+        d = ids.get(c, "")
+        grp = ("walk" if any(ch in d for ch in _WALK)
+               else "mound" if any(ch in d for ch in _MOUND)
+               else "distinct")
+        out.append({"c": c, "prc": a, "tw": b, "group": grp})
+    return out
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"      # keep-alive：頁面切換時省下重複握手
 
@@ -127,6 +162,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._page("stats.html")
         if u.path == "/type":
             return self._page("type.html")      # 試打：真的用愛發筆打字
+        if u.path == "/variants":
+            return self._page("variants.html")   # 兼容字型一覽：地區字形與大陸不同的字
 
         if u.path.startswith("/assets/") and u.path.endswith(".js"):
             f = (ROOT / u.path.lstrip("/")).resolve()
@@ -149,6 +186,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, CANGJIE.read_text("utf-8"), cache=True)
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
+        if u.path == "/api/variants":
+            return self._send(200, json.dumps(variants_data(), ensure_ascii=False), cache=True)
         if u.path == "/api/state":
             # 一律用字串：mtime_ns 是 19 位數，超過 JavaScript 的安全整數範圍，
             # 當成 JSON 數字送出去會被瀏覽器悄悄四捨五入，版本就永遠對不上，
