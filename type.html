@@ -191,27 +191,58 @@ const finalOf = c => Zigen.shorten(c, maxRule());
    所以規則寫在資料裡，不寫在任何一頁。 */
 function buildTable() {
   table = new Map();
-  const add = (c, ch, kind) => {
+  /* native＝這是這個字「自己的」碼；相容＝別的字形借用同一個碼。native 排在相容前面。 */
+  const add = (c, ch, kind, native) => {
+    if (!c || !ch) return;
     if (!table.has(c)) table.set(c, []);
     const list = table.get(c);
-    if (!list.some(x => x.ch === ch)) list.push({ ch, kind });
+    const ex = list.find(x => x.ch === ch);
+    if (ex) { if (native && !ex.native) { ex.native = true; ex.kind = kind; } return; }
+    list.push({ ch, kind, native: !!native });
+  };
+  /* 一個字自己所有的碼（主碼＋完整碼＋手動兼容碼），縮短前後都收 */
+  const codesOf = r => {
+    const out = [];
+    const push = c => { if (c && !out.includes(c)) out.push(c); };
+    push(finalOf(r.code)); push(r.code);
+    for (const a of r.alts || []) { push(finalOf(a.code)); push(a.code); }
+    return out;
   };
   for (const [ch, r] of Object.entries(codes)) {
     if (!r.code) continue;
+    const out = r.display || ch;          /* 主 田字格 字形實際輸出的字（為→爲） */
     const fin = finalOf(r.code);
-    add(fin, ch, '主');
-    if (r.code !== fin) add(r.code, ch, '完整');
+    add(fin, out, '主', true);
+    if (r.code !== fin) add(r.code, out, '完整', true);
     for (const a of r.alts || []) {
       const f = finalOf(a.code);
-      add(f, ch, '兼容');
-      if (a.code !== f) add(a.code, ch, '兼容');
+      add(f, out, '兼容', true);
+      if (a.code !== f) add(a.code, out, '兼容', true);
     }
   }
-  /* 重碼時常用字排前面 —— 少按一次選字鍵 */
+  /* 兼容字型：另一種通行字形當成另一個字，與主字形輸出互相接受對方的碼。
+     打自己的碼優先出自己（native），對方的碼也打得出來但排後面（相容）。 */
+  for (const [ch, r] of Object.entries(codes)) {
+    if (!r.code || !r.variants) continue;
+    const out = r.display || ch;
+    const mainCodes = codesOf(r);
+    for (const v of r.variants) {
+      if (!v.display || !v.code) continue;
+      const vf = finalOf(v.code);
+      add(vf, v.display, '字型', true);                 /* 變體碼 → 變體字形（native） */
+      if (v.code !== vf) add(v.code, v.display, '字型', true);
+      add(vf, out, '字型', false);                      /* 變體碼 → 也出主字形（相容） */
+      if (v.code !== vf) add(v.code, out, '字型', false);
+      for (const mc of mainCodes) add(mc, v.display, '字型', false);  /* 主碼 → 也出變體字形 */
+    }
+  }
+  /* 排序：自己的碼（native）在前；同類時常用字在前 —— 少按一次選字鍵 */
   for (const list of table.values())
-    list.sort((a, b) => (rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9));
+    list.sort((a, b) => (b.native - a.native) ||
+      ((rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9)));
 
-  const chars = new Set(Object.values(codes).filter(r => r.code).length ? Object.keys(codes).filter(c => codes[c].code) : []);
+  const chars = new Set();
+  for (const list of table.values()) for (const x of list) chars.add(x.ch);
   const dup = [...table.values()].filter(l => l.length > 1).length;
   $('#meta').innerHTML = `碼表 <b>${chars.size}</b> 字 · <b>${table.size}</b> 個碼`;
   $('#stat').innerHTML =

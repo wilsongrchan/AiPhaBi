@@ -1393,10 +1393,10 @@ async function vfOpen(variant) {
   vfChar = cur; vfEditing = variant || null;
   vfSegs = []; vfSkip = []; vfSel = [];
   vfForm = (variant && variant.form) || 'tw';
-  /* 新增時的預設：主字形若已改成別的字（為 的主形輸出 爲），那這個台灣／香港字形
-     多半就是碼位本字（為）——先填上，省一步。 */
-  $('#vfdisplay').value = variant ? variant.display
-    : (mainOutOf(cur) !== cur ? cur : '');
+  /* 新增時的預設輸出＝碼位本字：
+     賴 的台灣字形還是輸出「賴」（同字、另一種寫法）；
+     為 的台灣字形輸出「為」（主字形已改成 爲，這個才是碼位本字）。兩種都對。 */
+  $('#vfdisplay').value = variant ? variant.display : cur;
   $('#vfsub').textContent = `　${cur} 的另一種通行字形`;
   $('#vfmsg').textContent = '';
   $('#vfshownums').checked = vfShowNums;
@@ -1422,9 +1422,12 @@ function vfSave() {
   if (!mainCoded()) { $('#vfmsg').textContent = '主碼還沒取完。'; return; }
   const display = ($('#vfdisplay').value || '').trim();
   const code = vfCode();
-  if ([...display].length !== 1) { $('#vfmsg').textContent = '「優先出哪個字形」請填正好一個字（例：爲）。'; return; }
-  if (display === mainOutOf(cur)) {
-    $('#vfmsg').textContent = `這跟主字形輸出的「${display}」相同——同一字形的另一種拆法請用「兼容碼」。`; return;
+  if ([...display].length !== 1) { $('#vfmsg').textContent = '「輸出哪個字」請填正好一個字。'; return; }
+  /* 只有「輸出同一個字、而且碼也跟主碼一模一樣」才是白收 —— 那才擋。
+     輸出同字但碼不同（賴 的台灣字形把負頂取成 S）是有意義的：另一種寫法的人照樣打得出賴。 */
+  const liveMain = (codes[cur] && codes[cur].code) || segs.map(s => s.letter).join('');
+  if (display === mainOutOf(cur) && finalOf(code) === finalOf(liveMain)) {
+    $('#vfmsg').textContent = '這跟主碼一模一樣，不必收。'; return;
   }
   if (!vfStrokes.length) { $('#vfmsg').textContent = '沒有字形資料，收不了。'; return; }
   const left = vfStrokes.length - (vfSegs.flatMap(s => s.strokes).length + vfSkip.length);
@@ -1508,8 +1511,10 @@ function renderVariants() {
   $('#newVariant').disabled = !coded;
   $('#newVariant').style.opacity = coded ? 1 : .4;
   if (!vs.length) {
-    box.innerHTML = '<div class="newz">這個字若有另一種通行寫法（例：為 的台灣字形 爲），' +
-      '按上面「＋ 兼容字型」，用那個字形另取一個碼——打那個碼優先出那個字形，本字也接受。</div>';
+    box.innerHTML = '<div class="newz">這個字有另一種通行寫法、而大陸字形畫不出來時，' +
+      '按上面「＋ 兼容字型」載入台灣／香港字形另取一個碼。' +
+      '同一個字（賴 的台灣字形把負頂取成 S）或另一個字（為 的台灣字形 為）都可以——' +
+      '那個碼打得出那個字形，本字也接受。</div>';
     return;
   }
   for (const v of vs) {
@@ -2016,6 +2021,32 @@ function applyFix(f) {
   drawGlyph(); renderSegs(); suggest(); predict();
 }
 
+/* 偏旁一致性專用：把「照X的拆法」那個版本另存為兼容碼，主碼原封不動。
+   兼容碼從不進字根表（學習只跑主碼 segs），所以這不會讓系統學成「刀 也是 S」。
+   順手把這條警告記為「已忽略」，你已經決定了，不必再被提醒。 */
+async function fixToComponentAlt(c) {
+  const f = c.fix;
+  if (!f || f.type !== 'component') return;
+  const rec = codes[cur] || (codes[cur] = {});
+  const set = new Set(f.strokes);
+  const aSegs = segs.filter(sg => !sg.strokes.some(i => set.has(i)))
+                    .map(sg => ({ strokes: [...sg.strokes], letter: sg.letter }));
+  for (const sg of f.segs) aSegs.push({ strokes: [...sg.strokes], letter: sg.letter });
+  aSegs.sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+  const aSkip = [...new Set([...skipped.filter(i => !set.has(i)), ...f.skipped])].sort((a, b) => a - b);
+  const code = aSegs.map(s => s.letter).join('');
+  const mainCode = rec.code || segs.map(s => s.letter).join('');
+  if (code === mainCode) { $('#status').textContent = '這版本跟主碼一樣，不必收'; return; }
+  rec.alts = rec.alts || [];
+  if (rec.alts.some(a => a.code === code)) $('#status').textContent = '這個兼容碼已經有了';
+  else {
+    rec.alts.push({ code, segments: aSegs, skipped: aSkip.length ? aSkip : undefined });
+    $('#status').textContent = `已收兼容碼 ${finalOf(code)}（主碼 ${finalOf(mainCode)} 不變，字根表不受影響）`;
+  }
+  renderAlts();
+  await setDisposition(rec, c, 'overrides');    /* 主碼不動，把這條提醒記為已處理 */
+}
+
 function renderCheckRow(c, rec) {
   const d = el('div', 'chk ' + c.lvl);
   d.dataset.key = c.key;
@@ -2038,6 +2069,14 @@ function renderCheckRow(c, rec) {
       ap.title = '照建議改，碼會跟著更新';
       ap.onclick = () => applyFix(c.fix);
       act.append(ap);
+      /* 偏旁一致性：不改主碼，把那個版本另存為兼容碼（不會學成新字根） */
+      if (c.fix.type === 'component') {
+        const asAlt = el('button', '', '↳ 收為兼容碼');
+        asAlt.title = `主碼保持不變，把「${c.fix.label}」那個版本另存為兼容碼 —— ` +
+          `兼容碼不進字根表，所以不會學成「這個形狀也是那個字母」。`;
+        asAlt.onclick = () => fixToComponentAlt(c);
+        act.append(asAlt);
+      }
     }
     if (c.reject) {
       const rj = el('button', '', `這不是 ${c.reject.letter}`);
