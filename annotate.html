@@ -114,6 +114,13 @@
   #glyph path.un:hover { fill:var(--muted); }
   #glyph path.sel { fill:var(--accent); }
   #glyph path.skip { fill:var(--prev); opacity:1; }   /* 略過：灰色實心，一眼看得出 */
+  /* 切出來的半筆：沒有獨立輪廓，改用中線粗線表示（顏色同樣代表字根／選取／略過） */
+  #glyph path.split { fill:none; stroke-width:36; stroke-linecap:round; stroke-linejoin:round; }
+  #glyph path.split.un { stroke:var(--ghost); }
+  #glyph path.split.un:hover { stroke:var(--muted); }
+  #glyph path.split.sel { stroke:var(--accent); }
+  #glyph path.split.skip { stroke:var(--prev); }
+  body.splitmode #glyph { cursor:crosshair; border-color:var(--warn); border-width:2px; }
   #glyph path.hl { stroke:var(--accent); stroke-width:34; stroke-opacity:.35; }
   .so-row { margin-bottom:8px; }
   .so-t { font-size:11px; color:var(--muted); display:flex; gap:6px; align-items:baseline; }
@@ -262,7 +269,7 @@
   #altsib .sibbar { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
   #altsib .sibbar button { font-size:11px; padding:2px 8px; border-radius:6px; }
 
-  #vwrap.collapsed { display:none; }
+  #vwrap.collapsed, #awrap.collapsed { display:none; }
   /* 主字形輸出更正（碼位與字形不符時） */
   .morow { display:flex; align-items:center; gap:6px; margin:2px 0 6px; font-size:12px; color:var(--muted); }
   .morow input { font:600 17px "PingFang TC",serif; width:44px; text-align:center; padding:2px 4px;
@@ -513,6 +520,7 @@
         <button id="undoSeg">刪最後字根</button>
         <button id="clearAll">全部清除</button>
         <button id="nums">顯示筆順 /</button>
+        <button id="splitBtn" title="makemeahanzi 把兩筆畫成一筆時，在這裡切開它">✂ 切開筆畫</button>
         <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
       </div>
     </div>
@@ -547,16 +555,19 @@
     <div class="lbl">已取字根（按筆順）</div>
     <div id="segs"></div>
 
-    <!-- 兼容碼：同一個字可以接受的另一種拆法。打字的人不必跟你拆得一模一樣。 -->
-    <div class="lbl" style="display:flex;align-items:center;gap:6px">
+    <!-- 兼容碼：同一個字可以接受的另一種拆法。打字的人不必跟你拆得一模一樣。預設收起。 -->
+    <div class="lbl ahead" id="ahead" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">
+      <span id="acaret" style="width:10px;display:inline-block;color:var(--muted)">▸</span>
       <span>兼容碼</span>
       <span style="flex:1"></span>
       <button id="newAlt" style="font-size:10px;padding:1px 6px;border-radius:6px"
         title="另外畫一種拆法收進來；主碼不會被動到">＋ 新增一種拆法</button>
     </div>
-    <div id="alts"></div>
-    <!-- 收了一種另類拆法後，這裡問你「別的同偏旁字要不要也收」 -->
-    <div id="altsib"></div>
+    <div id="awrap" class="collapsed">
+      <div id="alts"></div>
+      <!-- 收了一種另類拆法後，這裡問你「別的同偏旁字要不要也收」 -->
+      <div id="altsib"></div>
+    </div>
 
     <!-- 兼容字型：這個字的另一種通行寫法（台灣／香港字形），另取一個碼，兩形互通。
          很少用到，預設收起；點標題展開，或按「＋ 兼容字型」直接展開並新增。 -->
@@ -721,15 +732,20 @@ function drawGlyph() {
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     p.setAttribute('d', d);
     const si = segOf(i);
-    if (si >= 0) { p.setAttribute('fill', hue(si)); p.setAttribute('class', 'asg'); }
-    else if (skipped.includes(i)) p.setAttribute('class', 'skip');
-    else p.setAttribute('class', sel.includes(i) ? 'sel' : 'un');
+    const state = si >= 0 ? 'asg' : skipped.includes(i) ? 'skip' : sel.includes(i) ? 'sel' : 'un';
+    if (splitHalves.has(i)) {           /* 切出來的半筆：中線粗線 */
+      p.setAttribute('class', 'split ' + state);
+      if (si >= 0) p.setAttribute('stroke', hue(si));
+    } else if (si >= 0) {
+      p.setAttribute('fill', hue(si)); p.setAttribute('class', 'asg');
+    } else p.setAttribute('class', state);
     gg.append(p);
   });
   g.append(gg);
   /* 命中判定用「離哪一筆的中線最近」，不靠 SVG 疊放次序：
      十 的橫與豎交叉，靠圖形疊放會永遠點到後畫的那一筆。 */
   g.onclick = ev => {
+    if (splitMode) { doSplit(ev); return; }
     const i = nearestStroke(ev);
     if (i < 0 || segOf(i) >= 0) return;
     const sk = skipped.indexOf(i);
@@ -769,6 +785,85 @@ function segDist(p, a, b) {
   const L = vx * vx + vy * vy;
   const t = L ? Math.max(0, Math.min(1, ((p.x - a[0]) * vx + (p.y - a[1]) * vy) / L)) : 0;
   return Math.hypot(p.x - (a[0] + t * vx), p.y - (a[1] + t * vy));
+}
+
+/* ---------- 切開被合併的一筆 ----------
+   makemeahanzi 偶爾把兩筆畫成一條連續路徑（鑽：大陸 26 筆、台灣 27、香港 28）。
+   兩筆若屬於不同字根又不相鄰，就得切開。切法記在該字的 splits（原始筆序＋切點），
+   每次載入重新套用，碼位與字根都當它是兩筆。切的是中線；顯示上那兩半改畫成中線粗線。
+   切出來的字型是這個字獨有的，所以不拿去當別的字的字根範本／不併進字根表（見 save／偏旁一致性）。 */
+let baseStrokes = [], baseMedians = [];   /* 原始 makemeahanzi 字形（未切） */
+let splitHalves = new Set();              /* 目前哪些筆是切出來的（畫成中線） */
+let origIdx = [];                         /* 每一筆 → 原始筆序 */
+let splitMode = false;
+
+const medPath = m => 'M' + m.map(p => `${p[0]} ${p[1]}`).join(' L');
+const hasSplits = ch => !!(codes[ch] && codes[ch].splits && codes[ch].splits.length);
+
+function glyphPoint(ev) {                  /* 點擊位置換算到筆畫座標系 */
+  const g = $('#glyph'), grp = g.querySelector('g');
+  if (!grp) return null;
+  const pt = g.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+  const q = pt.matrixTransform(grp.getScreenCTM().inverse());
+  return [q.x, q.y];
+}
+
+function cutMedian(med, x, y) {            /* 在最靠近 (x,y) 處把中線切成共用切點的兩半 */
+  let best = { d: Infinity, k: 0, q: med[0] };
+  for (let k = 0; k < med.length - 1; k++) {
+    const a = med[k], b = med[k + 1];
+    const vx = b[0] - a[0], vy = b[1] - a[1], L = vx * vx + vy * vy;
+    const t = L ? Math.max(0, Math.min(1, ((x - a[0]) * vx + (y - a[1]) * vy) / L)) : 0;
+    const q = [a[0] + t * vx, a[1] + t * vy], d = Math.hypot(x - q[0], y - q[1]);
+    if (d < best.d) best = { d, k, q };
+  }
+  const same = (p, r) => p && r && p[0] === r[0] && p[1] === r[1];
+  const A = med.slice(0, best.k + 1); if (!same(A[A.length - 1], best.q)) A.push(best.q);
+  const B = med.slice(best.k + 1); if (!same(B[0], best.q)) B.unshift(best.q);
+  return [A, B];
+}
+
+/* 從原始字形 + splits 重建 strokes／medians／splitHalves／origIdx */
+function applySplits(splits) {
+  strokes = baseStrokes.slice();
+  medians = baseMedians.map(m => m.map(p => [...p]));
+  origIdx = baseStrokes.map((_, i) => i);
+  splitHalves = new Set();
+  let off = 0;
+  for (const s of [...(splits || [])].sort((a, b) => a.i - b.i)) {
+    const i = s.i + off;
+    if (i < 0 || i >= medians.length) continue;
+    const [A, B] = cutMedian(medians[i], s.x, s.y);
+    medians.splice(i, 1, A, B);
+    strokes.splice(i, 1, medPath(A), medPath(B));
+    origIdx.splice(i, 1, s.i, s.i);
+    splitHalves.add(i); splitHalves.add(i + 1);
+    off += 1;
+  }
+}
+
+function doSplit(ev) {
+  const i = nearestStroke(ev), pt = glyphPoint(ev);
+  splitMode = false; document.body.classList.remove('splitmode');
+  if (i < 0 || !pt) { $('#status').textContent = '沒點到筆畫，取消切開'; drawGlyph(); return; }
+  const rec = codes[cur] || (codes[cur] = {});
+  if (splitHalves.has(i)) {                 /* 點已經切出來的半筆 → 還原這一刀 */
+    rec.splits = (rec.splits || []).filter(s => s.i !== origIdx[i]);
+    if (!rec.splits.length) delete rec.splits;
+    $('#status').textContent = '已還原切開';
+  } else {
+    rec.splits = rec.splits || [];
+    rec.splits.push({ i: origIdx[i], x: Math.round(pt[0]), y: Math.round(pt[1]) });
+    $('#status').textContent = '已切開這一筆（現在是兩筆）';
+  }
+  /* 筆序變了，之前的取碼作廢 */
+  if (segs.length || skipped.length) {
+    segs = []; skipped = [];
+    $('#status').textContent += '；筆序已變，原本的取碼已清掉，請重取';
+  }
+  applySplits(rec.splits || []);
+  sel = []; touch();
+  renderCurHeader(); drawGlyph(); renderSegs(); renderCode(); suggest(); predict();
 }
 
 const HUES = [18, 200, 140, 280, 45, 330, 95, 250];
@@ -1047,7 +1142,8 @@ function exitAltMode(keep) {
   $('#altsib').innerHTML = '';
   if (savedNew) renderSiblingSuggestions(cur, savedNew);
 }
-$('#newAlt').onclick = () => enterAltMode();
+$('#newAlt').onclick = e => { e.stopPropagation(); aExpanded = true; applyAwrap(); enterAltMode(); };
+$('#ahead').onclick = e => { if (e.target.closest('#newAlt')) return; aExpanded = !aExpanded; applyAwrap(); };
 $('#altDone').onclick = () => exitAltMode(true);
 $('#altCancel').onclick = () => exitAltMode(false);
 /* 點兼容字型徽章 → 捲到官方筆順對照，閃一下提示 */
@@ -1059,7 +1155,16 @@ $('#vbadge').onclick = () => {
   setTimeout(() => { so.style.outline = '2px solid transparent'; }, 1000);
 };
 
+/* 兼容碼欄預設收起（多數字沒有手動兼容碼）；有兼容碼、或正在編兼容碼時自動展開。 */
+let aExpanded = false;
+function applyAwrap() {
+  const open = aExpanded || altMode;
+  $('#awrap').classList.toggle('collapsed', !open);
+  $('#acaret').textContent = open ? '▾' : '▸';
+}
+
 function renderAlts() {
+  applyAwrap();
   const box = $('#alts'); box.innerHTML = '';
   const rec = codes[cur] || {};
   const alts = rec.alts || [];
@@ -1193,7 +1298,7 @@ async function siblingAltCandidates(A, alt) {
 
   /* 候選字：結構上也有 P、medians 拿得到 */
   const cands = Object.keys(codes).filter(c =>
-    c !== A && codes[c].segments && codes[c].segments.length &&
+    c !== A && codes[c].segments && codes[c].segments.length && !codes[c].splits &&
     ids[c] && partsOf(c, 4).includes(Pch));
   await primeMedians(cands);
 
@@ -1570,6 +1675,7 @@ function addAlt(segments, skips) {
   rec.alts.push({ code,
     segments: segments.map(s => ({ strokes: [...s.strokes], letter: s.letter })),
     skipped: skips && skips.length ? [...skips] : undefined });
+  aExpanded = true;
 
   /* 收完要把畫面上的拆法還原成主碼 —— 不然編輯區還留著剛剛那個「另一種拆法」，
      一存檔它就變成主碼了（主碼跟兼容碼會變成同一個）。「兼容」的意思是
@@ -2043,6 +2149,7 @@ async function fixToComponentAlt(c) {
     rec.alts.push({ code, segments: aSegs, skipped: aSkip.length ? aSkip : undefined });
     $('#status').textContent = `已收兼容碼 ${finalOf(code)}（主碼 ${finalOf(mainCode)} 不變，字根表不受影響）`;
   }
+  aExpanded = true;
   renderAlts();
   await setDisposition(rec, c, 'overrides');    /* 主碼不動，把這條提醒記為已處理 */
 }
@@ -2380,6 +2487,7 @@ function buildComponentIndex() {
        例：「二」單獨成字取 I I，但兩橫作為部件只取一個 I —— 拿它當範本只會一直誤報。
        約定表裡填了「作為偏旁時的碼」而且跟單獨成字不同的，也是同一回事。 */
     if (rec.notComponent) continue;
+    if (rec.splits) continue;      /* 切開過的字筆序跟原字形對不上，不當範本 */
     const g = _medCache.get(ch);
     if (!g) continue;
     const n = g.length;
@@ -2796,7 +2904,9 @@ async function load(c) {
   cur = c; sel = []; segs = []; skipped = [];
   const g = await Zigen.getGlyph(c);
   if (!g) { $('#cur').textContent = `${c}：沒有筆畫資料`; strokes = []; medians = []; drawGlyph(); return; }
-  strokes = g.strokes; medians = g.medians;
+  splitMode = false; document.body.classList.remove('splitmode');
+  baseStrokes = g.strokes; baseMedians = g.medians;
+  applySplits((codes[c] && codes[c].splits) || []);    /* 切開的字每次載入重新套用 */
   const rec = codes[c];
   if (rec && rec.segments) segs = rec.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
   if (rec && rec.skipped) skipped = [...rec.skipped];
@@ -2807,6 +2917,7 @@ async function load(c) {
   drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
   /* 兼容字型欄預設收起；已設過主字形輸出或已有變體的字才自動展開 */
   vExpanded = !!(rec && ((rec.variants && rec.variants.length) || rec.display));
+  aExpanded = !!(rec && rec.alts && rec.alts.length);   /* 有手動兼容碼才自動展開 */
   renderRelated(c); renderBack(); renderVariants();
   if (vfOpenNow()) vfClose();      /* 換了字就別讓上一個字的兼容字型編輯器開著 */
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
@@ -3250,6 +3361,7 @@ async function propagate(newShapes) {
 
     for (const [ch, rec] of Object.entries(codes)) {
       if (ch === cur || !rec.segments || !rec.segments.length) continue;
+      if (rec.splits) continue;      /* 切開過的字筆序跟原字形對不上，別套字根到它身上 */
       const g = await Zigen.getGlyph(ch);
       if (!g) continue;
 
@@ -3433,8 +3545,10 @@ async function save() {
       it.shapes.filter(sh => sh.glyph && (sh.seen || []).includes(cur))
         .map(sh => sh.glyph.src))));
     await reconcileZigen(cur);
-    /* 每個確認的字根都併入字根表（同形合併計次，新形新增） */
-    for (const s of segs) {
+    /* 每個確認的字根都併入字根表（同形合併計次，新形新增）。
+       但「切開過的字」筆序跟 makemeahanzi 原字形對不上（字根表靠 getGlyph 拿原字形重算），
+       拿它的半筆去定義字根會錯位 —— 所以切開的字只取碼、不併進字根表、不當別的字的範本。 */
+    if (!hasSplits(cur)) for (const s of segs) {
       const vec = Shape.strokeVec(s.strokes.map(i => medians[i]));
       if (!vec) continue;
       const r = Zigen.merge(zigen, lib, { letter: s.letter, char: cur, strokeIdx: s.strokes, vec });
@@ -3526,6 +3640,15 @@ function toggleNums() {
 $('#nums').onclick = toggleNums;
 $('#skipSel').onclick = skipSelected;
 $('#clearAll').onclick = clearAll;
+$('#splitBtn').onclick = () => {
+  if (!strokes.length) return;
+  splitMode = !splitMode;
+  document.body.classList.toggle('splitmode', splitMode);
+  sel = []; drawGlyph();
+  $('#status').textContent = splitMode
+    ? '切開模式：在要切開的位置點一下那一筆（點已切開的半筆＝還原；Esc 取消）'
+    : '';
+};
 $('#clearSel').onclick = () => { sel = []; drawGlyph(); suggest(); };
 $('#undoSeg').onclick = () => { segs.pop(); touch(); drawGlyph(); renderSegs(); predict(); };
 $('#note').oninput = touch;
@@ -3574,7 +3697,8 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); segs.pop(); touch(); drawGlyph(); renderSegs(); predict();
   }
   else if (e.key === 'Escape') {
-    if (sel.length) { sel = []; drawGlyph(); suggest(); }   /* 先清選取 */
+    if (splitMode) { splitMode = false; document.body.classList.remove('splitmode'); drawGlyph(); $('#status').textContent = ''; }
+    else if (sel.length) { sel = []; drawGlyph(); suggest(); }   /* 先清選取 */
     else clearAll();                                        /* 沒有選取時＝全部清除 */
   }
   else if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); commit(e.key); }

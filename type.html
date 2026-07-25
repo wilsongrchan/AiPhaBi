@@ -103,10 +103,13 @@
   <div class="sub">
     真的用愛發筆打字看看。點下面的紙面，直接按 <kbd>A</kbd>–<kbd>Z</kbd> 打碼；
     <kbd>space</kbd> 上第一個字、<kbd>1</kbd>–<kbd>9</kbd> 選字、
+    候選多時用 <kbd>→</kbd><kbd>↓</kbd> 翻頁（<kbd>←</kbd><kbd>↑</kbd> 回上一頁）、
     <kbd>⌫</kbd> 刪碼、<kbd>esc</kbd> 清掉這一串碼。
     標點直接按（<kbd>,</kbd>→，　<kbd>.</kbd>→。　<kbd>?</kbd>→？　<kbd>[</kbd><kbd>]</kbd>→「」　<kbd>"</kbd>→「」輪流）。
     沒有正在打碼時，數字鍵就是打數字。
     打不出來的字表示還沒取碼。
+    某一碼想不起來？按 <kbd>`</kbd> 當萬用鍵代替它（每個 <kbd>`</kbd> 配一個字母，
+    例：<code>WJ`M</code> 找出 <code>WJSM</code>），候選會把真正的碼列給你看。
   </div>
 
   <div class="toolbar">
@@ -154,6 +157,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let codes = {}, rules = null, rank = new Map();
+let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
 let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
 let text = '', code = '', pick = 0, pos = 0;   /* pos：游標在 text 裡的字元位置 */
 
@@ -347,32 +351,71 @@ $('#fetchUrl').onclick = fetchSample;
 $('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
 $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
 
-/* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符） */
+/* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
+   ` 是萬用鍵 —— 代表一個你不知道的碼位（每個 ` 配一個字母）。
+   例：WJ`M 找得出 WJSM；`JSM 找出任何 ?JSM 的字。整段相符的排前面，更長的當補全。 */
+const MAX_CAND = 72;          /* 最多收這麼多候選（分頁 9 個一頁，約 8 頁） */
 function candidates() {
   if (!code) return [];
   const usePred = $('#usePred').checked;
-  const exact = (table.get(code) || []).map(x => ({ ...x, exact: true }));
+  const rk = ch => (rank.get(ch) ?? 1e9);
+  const wild = code.includes('`');
+  const rxE = wild ? new RegExp('^' + code.replace(/`/g, '.') + '$') : null;   /* 整段相符 */
+  const rxP = wild ? new RegExp('^' + code.replace(/`/g, '.')) : null;          /* 補全（更長） */
+
+  let exact = [];
   const pre = [];
-  if (exact.length < 9) {
-    for (const [c, list] of table) {
-      if (c === code || !c.startsWith(code)) continue;
-      for (const x of list) {
-        if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
-        pre.push({ ...x, exact: false, code: c });
+  if (!wild) {
+    exact = (table.get(code) || []).map(x => ({ ...x, exact: true }));
+    if (exact.length < 9) {
+      for (const [c, list] of table) {
+        if (c === code || !c.startsWith(code)) continue;
+        for (const x of list) {
+          if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
+          pre.push({ ...x, exact: false, code: c });
+        }
+        if (exact.length + pre.length >= MAX_CAND) break;
       }
-      if (exact.length + pre.length >= 12) break;
+    }
+  } else {
+    for (const [c, list] of table) {
+      if (!rxE.test(c)) continue;
+      for (const x of list)
+        if (!exact.some(e => e.ch === x.ch)) exact.push({ ...x, exact: true, wild: true, code: c });
+    }
+    exact.sort((a, b) => (b.native - a.native) || (rk(a.ch) - rk(b.ch)));
+    if (exact.length < 9) {
+      for (const [c, list] of table) {
+        if (rxE.test(c) || !rxP.test(c)) continue;
+        for (const x of list) {
+          if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
+          pre.push({ ...x, exact: false, wild: true, code: c });
+        }
+        if (exact.length + pre.length >= MAX_CAND) break;
+      }
+      pre.sort((a, b) => rk(a.ch) - rk(b.ch));
     }
   }
+
   /* 預測出來的字排在已取碼的字後面 —— 你親手取的碼永遠優先 */
   const pd = [];
   if (usePred) {
-    for (const x of predTable.get(code) || []) {
-      if (exact.some(e => e.ch === x.ch)) continue;
-      pd.push({ ...x, exact: true, pred: true, kind: '預測' });
+    const seen = ch => exact.some(e => e.ch === ch) || pd.some(e => e.ch === ch);
+    if (!wild) {
+      for (const x of predTable.get(code) || [])
+        if (!seen(x.ch)) pd.push({ ...x, exact: true, pred: true, kind: '預測' });
+    } else {
+      for (const [c, list] of predTable) {
+        if (!rxE.test(c)) continue;
+        for (const x of list)
+          if (!seen(x.ch)) pd.push({ ...x, exact: true, pred: true, wild: true, kind: '預測', code: c });
+      }
     }
-    pd.sort((a, b) => (rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9));
+    pd.sort((a, b) => rk(a.ch) - rk(b.ch));
   }
-  return [...exact, ...pd, ...pre].slice(0, 9);
+  const all = [...exact, ...pd, ...pre];
+  candOverflow = Math.max(0, all.length - MAX_CAND);
+  return all.slice(0, MAX_CAND);
 }
 
 function render() {
@@ -395,12 +438,19 @@ function render() {
     $('#imehint').textContent = '⌫ 刪一碼　esc 清掉';
     return;
   }
-  cands.forEach((x, i) => {
-    const d = el('div', 'cand' + (i === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
+  /* 一頁 9 個，像拼音／其他輸入法那樣用方向鍵翻頁（pick 停在每頁第一個） */
+  const pages = Math.ceil(cands.length / 9);
+  if (pick >= cands.length) pick = 0;
+  const page = Math.floor(pick / 9);
+  const start = page * 9;
+  cands.slice(start, start + 9).forEach((x, i) => {
+    const gi = start + i;
+    const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
-    d.append(el('em', '', x.exact ? (x.kind === '主' ? '' : x.kind) : x.code));
-    d.onclick = () => commit(i);
+    /* 用萬用鍵找到的，把真正的碼顯示出來——順便學起來 */
+    d.append(el('em', '', x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code)));
+    d.onclick = () => commit(gi);
     /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
     if (x.pred) {
       const a = el('a', 'predlink', '去取碼 →');
@@ -411,7 +461,9 @@ function render() {
     }
     cs.append(d);
   });
-  $('#imehint').textContent = 'space 上第一個　1–9 選字';
+  $('#imehint').textContent =
+    (pages > 1 ? `第 ${page + 1}/${pages}${candOverflow ? '+' : ''} 頁 · →↓ 翻頁　` : '') +
+    'space 上第一個　1–9 選字';
 }
 
 /* 在游標處插入，而不是永遠加在最後 —— 這樣游標移過去之後打字才會插對地方 */
@@ -444,6 +496,13 @@ const pairOpen = {};          /* 這個引號現在該出左邊還是右邊 */
 $('#paper').onkeydown = e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
+  /* 萬用鍵：用「實體按鍵」判斷（`），不看 e.key —— 有些鍵盤佈局 ` 是死鍵（打重音 à è），
+     那時 e.key 會是 "Dead"、根本收不到反引號。攔下來就不會觸發死鍵合成。Shift+` 是 ~，留給標點。 */
+  if ((e.code === 'Backquote' && !e.shiftKey) || k === '`') {
+    e.preventDefault();
+    code += '`'; pick = 0; render();
+    return;
+  }
   if (PUNCT[k] || PAIRS[k]) {
     e.preventDefault();
     /* 打標點時如果還有沒上屏的碼，先把候選上屏 —— 真的輸入法都是這樣 */
@@ -463,7 +522,7 @@ $('#paper').onkeydown = e => {
     if (code) commit(pick); else { insertAtPos(' '); render(); }
   } else if (/^[1-9]$/.test(k) && code) {
     e.preventDefault();
-    commit(+k - 1);
+    commit(Math.floor(pick / 9) * 9 + (+k - 1));   /* 1–9 選「本頁」的第 n 個 */
   } else if (/^[0-9]$/.test(k) && !code) {
     /* 沒有正在打碼時，1–9 就不是選字鍵了 —— 數字鍵單純打數字（半形） */
     e.preventDefault();
@@ -480,10 +539,16 @@ $('#paper').onkeydown = e => {
     e.preventDefault();
     if (code) { code = ''; pick = 0; } else insertAtPos('\n');
     render();
-  } else if (k === 'ArrowRight' && code) {
-    e.preventDefault(); pick = Math.min(pick + 1, candidates().length - 1); render();
-  } else if (k === 'ArrowLeft' && code) {
-    e.preventDefault(); pick = Math.max(0, pick - 1); render();
+  } else if ((k === 'ArrowRight' || k === 'ArrowDown') && code) {
+    /* 翻到下一頁（停在該頁第一個）—— 像拼音那樣一頁一頁翻 */
+    e.preventDefault();
+    const n = candidates().length, next = (Math.floor(pick / 9) + 1) * 9;
+    if (next < n) pick = next;
+    render();
+  } else if ((k === 'ArrowLeft' || k === 'ArrowUp') && code) {
+    e.preventDefault();
+    if (pick >= 9) pick = (Math.floor(pick / 9) - 1) * 9;
+    render();
   } else if (k === 'ArrowRight' && !code) {
     /* 沒在打碼時，左右鍵才是移動游標（打碼時留給切候選） */
     e.preventDefault(); pos = Math.min(text.length, pos + 1); render();
