@@ -25,6 +25,9 @@
   nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
     border:1px solid var(--line); border-radius:7px; }
   nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .proglink { font-size:12px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; white-space:nowrap; }
+  .proglink:hover { border-color:var(--accent); color:var(--accent); }
   .grow { flex:1; }
   button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
     border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
@@ -270,6 +273,18 @@
   #altsib .sibbar button { font-size:11px; padding:2px 8px; border-radius:6px; }
 
   #vwrap.collapsed, #awrap.collapsed { display:none; }
+
+  /* 繁簡對照小面板（右上）：連過去取那個字的碼 */
+  .simppanel { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;
+    border:1px solid var(--line); border-radius:10px; padding:6px 9px; background:var(--card); }
+  .simppanel.hide { display:none; }
+  .simppanel .lab { font-size:10px; letter-spacing:.1em; color:var(--muted); }
+  .simppanel a.sc { display:flex; align-items:center; gap:7px; text-decoration:none;
+    border:1px solid var(--line); border-radius:8px; padding:2px 8px 2px 7px; background:var(--bg); }
+  .simppanel a.sc:hover { border-color:var(--accent); }
+  .simppanel a.sc .g { font-size:22px; font-family:"PingFang TC","Songti TC",serif; color:var(--ink); line-height:1.15; }
+  .simppanel a.sc .st { font:600 10px ui-monospace,monospace; color:var(--accent); white-space:nowrap; }
+  .simppanel a.sc.todo .st { color:var(--warn); }
   /* 主字形輸出更正（碼位與字形不符時） */
   .morow { display:flex; align-items:center; gap:6px; margin:2px 0 6px; font-size:12px; color:var(--muted); }
   .morow input { font:600 17px "PingFang TC",serif; width:44px; text-align:center; padding:2px 4px;
@@ -444,6 +459,7 @@
   <span class="prog" id="prog"></span>
   <span class="prog" id="libinfo"></span>
   <span id="status">載入中…</span>
+  <a href="/progress" class="proglink" title="逐日取碼進度圖">📈 取碼進度</a>
   <button id="export">匯出碼表</button>
 </header>
 
@@ -521,6 +537,7 @@
         <button id="clearAll">全部清除</button>
         <button id="nums">顯示筆順 /</button>
         <button id="splitBtn" title="makemeahanzi 把兩筆畫成一筆時，在這裡切開它">✂ 切開筆畫</button>
+        <button id="saveOnly" title="只儲存這個字，不跳下一字">儲存 ⌘S</button>
         <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
       </div>
     </div>
@@ -545,6 +562,8 @@
   <div class="drag" id="dragR"></div>
 
   <div class="pane">
+    <!-- 繁簡對照：這個字的另一體。試打開「簡繁兼容」時，這個碼也打得出它。 -->
+    <div class="simppanel hide" id="simppanel"></div>
     <!-- 重碼提醒放在右欄：它一出現就把中間那一欄往下推，字圖跟著上上下下 -->
     <div class="clash" id="clash" style="display:none"></div>
 
@@ -696,6 +715,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
 let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
 let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
+let opencc = { t2s: {}, s2t: {} };      /* 繁簡對照（右上小面板用） */
 
 const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#status').className = 'dirty'; };
 
@@ -1588,6 +1608,31 @@ function renderCurHeader() {
     if (r === null) return;
     setMainOut(r);
   };
+}
+
+/* 繁簡對照小面板：這個字的另一體（繁→簡 或 簡→繁）。點它跳過去看那個字。
+   試打開「簡繁兼容」時，這個字的碼也打得出它——面板順便說一聲。 */
+function renderSimp(c) {
+  const box = $('#simppanel');
+  const simp = (opencc.t2s[c] || []).filter(x => x !== c);
+  const trad = (opencc.s2t[c] || []).filter(x => x !== c);
+  const isTrad = simp.length > 0;
+  const others = isTrad ? simp : trad;
+  if (!others.length) { box.className = 'simppanel hide'; box.innerHTML = ''; return; }
+  box.className = 'simppanel';
+  box.innerHTML = '';
+  box.append(el('span', 'lab', isTrad ? '簡體' : '繁體'));
+  for (const o of others.slice(0, 3)) {
+    const rec = codes[o];
+    const coded = rec && rec.code;
+    const a = el('a', 'sc' + (coded ? '' : ' todo'));
+    a.href = 'javascript:void 0';
+    a.title = coded ? `「${o}」＝${finalOf(rec.code)} —— 點去看` : `「${o}」還沒取碼 —— 點去取碼`;
+    a.onclick = e => { e.preventDefault(); goTo(o); };
+    a.append(el('span', 'g', o));
+    a.append(el('span', 'st', coded ? finalOf(rec.code) : '未取碼 →'));
+    box.append(a);
+  }
 }
 
 function renderMainOut() {
@@ -2911,6 +2956,7 @@ async function load(c) {
   if (rec && rec.segments) segs = rec.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
   if (rec && rec.skipped) skipped = [...rec.skipped];
   renderCurHeader();
+  renderSimp(c);
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
   renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
@@ -3638,6 +3684,7 @@ function toggleNums() {
   drawGlyph();
 }
 $('#nums').onclick = toggleNums;
+$('#saveOnly').onclick = () => save();      /* 只存，不跳下一字（同 ⌘/Ctrl+S） */
 $('#skipSel').onclick = skipSelected;
 $('#clearAll').onclick = clearAll;
 $('#splitBtn').onclick = () => {
@@ -3717,9 +3764,11 @@ Promise.all([
   fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
   fetchStamp(),
   fetch('/api/ids').then(r => r.json()).catch(() => ({})),   /* 部件拆分（相關字用） */
-]).then(async ([f, c, z, rl, cj, ln, s, id]) => {
+  fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
+]).then(async ([f, c, z, rl, cj, ln, s, id, oc]) => {
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
+  opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
   window.__baseStamp = await fetch('/api/state').then(r => r.json());

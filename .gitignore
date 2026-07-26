@@ -4,6 +4,9 @@ data/dictionary.txt
 data/tw_strokes.json
 data/freq.json
 
+# 繁簡對照（OpenCC，Apache-2.0）：由 fetch_data.py 下載
+data/opencc.json
+
 # 香港教育局筆順快取：EDB 版權內容，只作個人參考，不上傳。
 data/hk_cache.json
 

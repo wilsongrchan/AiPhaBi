@@ -93,7 +93,7 @@
   <h1>愛發筆</h1>
   <nav>
     <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a>
-    <a href="/rules">取碼原則</a><a href="/type" class="on">試打</a>
+    <a href="/rules">取碼原則</a><a href="/type" class="on">試打</a><a href="/progress">取碼進度</a>
   </nav>
   <div class="grow"></div>
   <span class="sub" id="meta" style="margin:0"></span>
@@ -118,6 +118,13 @@
       <span>把<b>還沒取碼</b>的字也算進來（用字根表現場推它的碼）</span>
     </label>
     <span class="prog" id="predprog"></span>
+  </div>
+
+  <div class="toolbar">
+    <label class="tog">
+      <input type="checkbox" id="simpCompat">
+      <span><b>簡繁兼容</b>：一個碼同時打得出繁體與簡體（繁體字排前，對應的簡體排後；反之亦然）</span>
+    </label>
   </div>
 
   <div class="toolbar">
@@ -158,6 +165,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
 
 let codes = {}, rules = null, rank = new Map();
 let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
+let opencc = { t2s: {}, s2t: {} };   /* 繁簡對照（簡繁兼容用） */
 let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
 let text = '', code = '', pick = 0, pos = 0;   /* pos：游標在 text 裡的字元位置 */
 
@@ -172,6 +180,7 @@ function saveState() {
       srcUrl: $('#srcUrl').value,
       sampleText: $('#sampleText').textContent,
       sampleOn: $('#sampleBox').style.display !== 'none',
+      simpCompat: $('#simpCompat').checked,
     }));
   } catch {}
 }
@@ -183,6 +192,7 @@ function loadState() {
     if (s.srcUrl) $('#srcUrl').value = s.srcUrl;
     if (s.sampleText) { $('#sampleText').textContent = s.sampleText; }
     if (s.sampleOn) $('#sampleBox').style.display = 'block';
+    if (s.simpCompat) $('#simpCompat').checked = true;
   } catch {}
 }
 
@@ -350,6 +360,7 @@ async function fetchSample() {
 $('#fetchUrl').onclick = fetchSample;
 $('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
 $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
+$('#simpCompat').onchange = () => { pick = 0; render(); saveState(); };
 
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
    ` 是萬用鍵 —— 代表一個你不知道的碼位（每個 ` 配一個字母）。
@@ -413,9 +424,32 @@ function candidates() {
     }
     pd.sort((a, b) => rk(a.ch) - rk(b.ch));
   }
-  const all = [...exact, ...pd, ...pre];
+  let all = [...exact, ...pd, ...pre];
+  if ($('#simpCompat').checked) all = withSimpCompat(all);
   candOverflow = Math.max(0, all.length - MAX_CAND);
   return all.slice(0, MAX_CAND);
+}
+
+/* 簡繁兼容：一個字打得出來，它的另一體（繁↔簡）也一起列出來，緊接在它後面。
+   繁體字後面接它的簡體、簡體後面接它的繁體（一對多也照收，如 发→發／髮）。 */
+function counterpartsOf(ch) {
+  const out = [];
+  for (const s of (opencc.t2s[ch] || [])) out.push({ ch: s, conv: '簡' });
+  for (const t of (opencc.s2t[ch] || [])) out.push({ ch: t, conv: '繁' });
+  return out;
+}
+function withSimpCompat(list) {
+  const seen = new Set(list.map(x => x.ch));
+  const out = [];
+  for (const x of list) {
+    out.push(x);
+    for (const cp of counterpartsOf(x.ch)) {
+      if (seen.has(cp.ch)) continue;
+      seen.add(cp.ch);
+      out.push({ ch: cp.ch, exact: x.exact, conv: cp.conv, code: x.code });
+    }
+  }
+  return out;
 }
 
 function render() {
@@ -448,8 +482,8 @@ function render() {
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
-    /* 用萬用鍵找到的，把真正的碼顯示出來——順便學起來 */
-    d.append(el('em', '', x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code)));
+    /* 簡繁兼容轉出來的標「簡／繁」；萬用鍵找到的把真正的碼列出來 */
+    d.append(el('em', '', x.conv ? x.conv : (x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code))));
     d.onclick = () => commit(gi);
     /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
     if (x.pred) {
@@ -589,8 +623,9 @@ Promise.all([
   fetch('/api/freq').then(r => r.json()),
   fetch('/api/zigen').then(r => r.json()),
   fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
-]).then(async ([c, rl, f, z, ln]) => {
-  codes = c; rules = rl; zigen = z;
+  fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
+]).then(async ([c, rl, f, z, ln, oc]) => {
+  codes = c; rules = rl; zigen = z; opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   f.order.forEach((ch, i) => rank.set(ch, i));
   lib = await Zigen.buildLibrary(zigen);      /* 推未取碼的字要用 */

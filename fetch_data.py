@@ -8,6 +8,7 @@
     data/dictionary.txt   makemeahanzi 的部件拆分（IDS，例 訴 = ⿰言斥；相關字欄用）
     data/tw_strokes.json  台灣教育部標準筆順（g0v/zh-stroke-data，4847 字）
     data/freq.json        字頻排序（由 rime-essay 統計而來，決定取碼佇列次序）
+    data/opencc.json      繁簡對照（OpenCC；試打的「簡繁兼容」用）
 
 這些是第三方資料，各有授權，所以不放進 git；用時自行下載。
 香港教育局的筆順（data/hk_cache.json）由 hk.py 隨用隨抓，同樣不入 git。
@@ -27,6 +28,7 @@ G0V = "https://github.com/g0v/zh-stroke-data/archive/refs/heads/master.zip"
 ESSAY = "https://raw.githubusercontent.com/rime/rime-essay/master/essay.txt"
 CJ = ["https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.base.dict.yaml",
       "https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.extended.dict.yaml"]
+OPENCC = "https://raw.githubusercontent.com/BYVoid/OpenCC/master/data/dictionary/"
 
 
 def fetch(url):
@@ -126,6 +128,24 @@ def main():
                     table[parts[0]] = parts[1].upper()
         cj.write_text(json.dumps(table, ensure_ascii=False, separators=(",", ":")), "utf-8")
         print(f"  {len(table)} 字")
+
+    opencc = DATA / "opencc.json"
+    if not opencc.exists():
+        print("繁簡對照（OpenCC，試打的「簡繁兼容」用）")
+
+        def load_map(name):
+            out = {}
+            for line in fetch(OPENCC + name).decode("utf-8", "replace").splitlines():
+                p = line.split("\t")
+                if len(p) == 2 and len(p[0]) == 1:
+                    out[p[0]] = [c for c in p[1].split(" ") if c and c != p[0]]
+            return {k: v for k, v in out.items() if v}
+
+        t2s = load_map("TSCharacters.txt")     # 繁 → 簡（多半一對一）
+        s2t = load_map("STCharacters.txt")     # 簡 → 繁（一對多常見：发 ← 發／髮）
+        opencc.write_text(json.dumps({"t2s": t2s, "s2t": s2t}, ensure_ascii=False,
+                                     separators=(",", ":")), "utf-8")
+        print(f"  繁→簡 {len(t2s)}、簡→繁 {len(s2t)}")
 
     print("\n完成。啟動： python3 server.py  →  http://localhost:8777")
 

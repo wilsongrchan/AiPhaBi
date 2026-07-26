@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>取碼進度 · 愛發筆</title>
+<style>
+  :root{
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a; --line:#e3ded4;
+    --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12);
+    --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb;
+    --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455; --line:#33312a;
+      --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15);
+      --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
+  }
+  :root[data-theme="light"]{ --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a;
+    --line:#e3ded4; --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12);
+    --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb; --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26); }
+  :root[data-theme="dark"]{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455;
+    --line:#33312a; --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15);
+    --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c; --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang TC","Helvetica Neue",system-ui,sans-serif;}
+  .num{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;}
+  nav{display:flex;gap:5px;flex-wrap:wrap;max-width:900px;margin:0 auto;padding:14px 20px 0;}
+  nav a{font-size:13px;color:var(--muted);text-decoration:none;padding:4px 9px;border:1px solid var(--line);border-radius:7px;}
+  nav a.on{color:#fff;background:var(--accent);border-color:var(--accent);}
+  .wrap{max-width:900px;margin:0 auto;padding:18px 20px 60px;display:flex;flex-direction:column;gap:24px;}
+
+  header{display:flex;flex-direction:column;gap:4px;}
+  .eyebrow{font-size:12px;letter-spacing:.28em;color:var(--accent);font-weight:600;}
+  h1{margin:2px 0 0;font-weight:400;line-height:.9;display:flex;align-items:baseline;gap:.16em;}
+  h1 .big{font-size:clamp(52px,12vw,96px);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;}
+  h1 .unit{font-size:clamp(22px,5vw,36px);color:var(--accent);font-family:"Songti TC","Songti SC",serif;}
+  .lede{margin:4px 0 0;color:var(--muted);max-width:52ch;font-size:14px;}
+  .lede b{color:var(--ink);font-weight:600;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:clamp(14px,3vw,24px);}
+  .plabel{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    font-size:12px;letter-spacing:.14em;color:var(--muted);margin:0 2px 2px;}
+  .plabel .r{letter-spacing:.02em;color:var(--faint);}
+  figure{margin:0;position:relative;}
+  svg{display:block;width:100%;height:auto;overflow:visible;touch-action:none;}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px;
+    display:flex;flex-direction:column;gap:3px;}
+  .tile .k{font-size:11px;letter-spacing:.13em;color:var(--muted);}
+  .tile .v{font-size:24px;color:var(--ink);line-height:1.1;}
+  .tile .v small{font-size:12px;color:var(--muted);margin-left:4px;letter-spacing:0;}
+  .tile.hl .v{color:var(--accent);}
+
+  footer{color:var(--faint);font-size:12px;text-align:center;line-height:1.7;}
+
+  .tip{position:fixed;pointer-events:none;z-index:20;opacity:0;transform:translateY(4px);
+    transition:opacity .12s,transform .12s;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:11px;padding:9px 12px;box-shadow:var(--shadow);font-size:13px;min-width:128px;}
+  .tip.on{opacity:1;transform:translateY(0);}
+  .tip .td{font-size:11px;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;}
+  .tip .row{display:flex;justify-content:space-between;gap:14px;}
+  .tip .row .lab{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;}
+  .tip .row .lab i{width:9px;height:9px;border-radius:3px;display:inline-block;}
+  .tip .row .val{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+  .grid-line{stroke:var(--grid);stroke-width:1;}
+  .zero-line{stroke:var(--line);stroke-width:1;}
+  .tick{fill:var(--faint);font:500 11px ui-monospace,Menlo,monospace;}
+  .xtick{fill:var(--muted);font:500 10px ui-monospace,Menlo,monospace;}
+  .cum-area{fill:var(--accent-soft);}
+  .cum-line{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;}
+  .cum-line.dash{stroke-dasharray:5 4;opacity:.8;}
+  .dot{fill:var(--card);stroke:var(--accent);stroke-width:2;}
+  .dot-last{fill:var(--accent);stroke:var(--card);stroke-width:2.5;}
+  .bar{fill:var(--bar);}
+  .bar-neg{fill:var(--faint);}
+  .bar-now{fill:var(--bar);opacity:.5;}
+  .cross{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;opacity:0;}
+  .cross.on{opacity:.7;}
+  .tianzi{stroke:var(--faint);stroke-dasharray:5 6;stroke-width:1;opacity:.3;fill:none;}
+  .msg{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
+  @media (prefers-reduced-motion:reduce){.tip{transition:none;}}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/type">試打</a><a href="/progress" class="on">取碼進度</a>
+</nav>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">愛發筆 AiPhaBi · 取碼進度</div>
+    <h1><span class="big num" id="total">—</span><span class="unit">字</span></h1>
+    <p class="lede" id="lede">讀取中…</p>
+  </header>
+
+  <div class="card" id="chartcard">
+    <div class="plabel"><span>累計取碼</span><span class="r" id="cumr"></span></div>
+    <div class="plabel" style="margin-top:12px"><span>每天新增</span><span class="r">依取碼提交</span></div>
+    <figure><svg id="chart" viewBox="0 0 820 470" role="img" aria-label="逐日累計取碼曲線與每日新增長條圖。"></svg></figure>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <footer>
+    資料由 git 提交歷史即時重建（每個有取碼提交的日子）· 目前數字含尚未提交的取碼<br>
+    愛發筆 · 自製形碼中文輸入法
+  </footer>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const SVGNS='http://www.w3.org/2000/svg';
+const mk=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const W=820,H=470,padL=48,padR=30,cumTop=54,cumBot=250,dTop=306,dZero=430;
+
+fetch('/api/progress').then(r=>r.json()).then(draw).catch(e=>{
+  $('#chartcard').innerHTML='<div class="msg">讀取進度失敗：'+e+'</div>';
+  $('#lede').textContent='';
+});
+
+function draw(data){
+  const total=data.total;
+  $('#total').textContent=total.toLocaleString();
+  const days=(data.days||[]).slice();
+  if(!days.length){
+    $('#chartcard').innerHTML='<div class="msg">還沒有取碼提交紀錄。</div>';
+    $('#lede').textContent='目前已取碼 '+total.toLocaleString()+' 字。';
+    return;
+  }
+  const first=days[0].date, lastCum=days[days.length-1].cum;
+  const d0=new Date(first);
+  const off=ds=>Math.round((new Date(ds)-d0)/864e5);
+  const pts=days.map(p=>({date:p.date,cum:p.cum,add:p.add,x:off(p.date),label:p.date.slice(5)}));
+  const uncommitted=total-lastCum;
+  if(uncommitted>0) pts.push({date:'現在',cum:total,add:uncommitted,x:pts[pts.length-1].x+1,label:'現在',now:true});
+
+  const dayMax=Math.max(1,pts[pts.length-1].x);
+  const cumMax=Math.max(200,Math.ceil(Math.max(...pts.map(p=>p.cum))/300)*300);
+  const addMax=Math.max(100,Math.ceil(Math.max(...pts.map(p=>p.add),1)/100)*100);
+  const x=v=>padL+v/dayMax*(W-padL-padR);
+  const yc=v=>cumBot-v/cumMax*(cumBot-cumTop);
+  const yd=v=>dZero-v/addMax*(dZero-dTop);
+
+  const days_active=days.length;
+  const best=days.reduce((m,p)=>p.add>m.add?p:m,days[0]);
+  $('#cumr').textContent='0 → '+total.toLocaleString()+' 字';
+  $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${total.toLocaleString()} 字</b>`+
+    `（佔 makemeahanzi 全字集 9,574 的 <b>${(total/9574*100).toFixed(0)}%</b>）。`+
+    (uncommitted>0?` 其中 <b>${uncommitted}</b> 字還沒提交。`:'');
+
+  const svg=$('#chart'); svg.innerHTML='';
+  // 田字格 watermark
+  const bx={x:padL,y:cumTop,w:W-padL-padR,h:cumBot-cumTop};
+  svg.appendChild(mk('rect',{x:bx.x,y:bx.y,width:bx.w,height:bx.h,rx:12,class:'tianzi'}));
+  svg.appendChild(mk('line',{x1:bx.x+bx.w/2,y1:bx.y,x2:bx.x+bx.w/2,y2:bx.y+bx.h,class:'tianzi'}));
+  svg.appendChild(mk('line',{x1:bx.x,y1:bx.y+bx.h/2,x2:bx.x+bx.w,y2:bx.y+bx.h/2,class:'tianzi'}));
+  // cum gridlines
+  for(let i=0;i<=3;i++){const v=Math.round(cumMax*i/3);
+    svg.appendChild(mk('line',{x1:padL,y1:yc(v),x2:W-padR,y2:yc(v),class:'grid-line'}));
+    const t=mk('text',{x:padL-8,y:yc(v)+4,'text-anchor':'end',class:'tick'});t.textContent=v;svg.appendChild(t);}
+  // area
+  let aD=`M ${x(pts[0].x)} ${cumBot} `; pts.forEach(p=>aD+=`L ${x(p.x)} ${yc(p.cum)} `);
+  aD+=`L ${x(pts[pts.length-1].x)} ${cumBot} Z`;
+  svg.appendChild(mk('path',{d:aD,class:'cum-area'}));
+  // line: solid over committed, dashed to the 現在 point
+  const solid=pts.filter(p=>!p.now); const nowP=pts.find(p=>p.now);
+  svg.appendChild(mk('path',{d:'M '+solid.map(p=>`${x(p.x)} ${yc(p.cum)}`).join(' L '),class:'cum-line'}));
+  if(nowP){const a=solid[solid.length-1];
+    svg.appendChild(mk('path',{d:`M ${x(a.x)} ${yc(a.cum)} L ${x(nowP.x)} ${yc(nowP.cum)}`,class:'cum-line dash'}));}
+  // daily
+  svg.appendChild(mk('line',{x1:padL,y1:dZero,x2:W-padR,y2:dZero,class:'zero-line'}));
+  const bw=Math.min(18,(W-padL-padR)/(dayMax+2));
+  pts.forEach(p=>{const cx=x(p.x);const top=p.add>=0?yd(p.add):dZero;const h=Math.max(2,Math.abs(yd(p.add)-dZero));
+    svg.appendChild(mk('rect',{x:cx-bw/2,y:top,width:bw,height:h,rx:4,class:p.now?'bar-now':p.add<0?'bar-neg':'bar'}));});
+  // x labels
+  pts.forEach(p=>{const t=mk('text',{x:x(p.x),y:dZero+22,'text-anchor':'middle',class:'xtick'});t.textContent=p.label;svg.appendChild(t);});
+  // crosshair + dots
+  const cross=mk('line',{y1:cumTop,y2:dZero,class:'cross'});svg.appendChild(cross);
+  pts.forEach((p,i)=>{const last=i===pts.length-1;
+    svg.appendChild(mk('circle',{cx:x(p.x),cy:yc(p.cum),r:last?6:4,class:last?'dot-last':'dot'}));});
+
+  // hover
+  const tip=$('#tip');
+  function at(cx){const r=svg.getBoundingClientRect();const sx=(cx-r.left)/r.width*W;const dq=(sx-padL)/(W-padL-padR)*dayMax;
+    let b=pts[0],bd=1e9;for(const p of pts){const dd=Math.abs(p.x-dq);if(dd<bd){bd=dd;b=p;}}return b;}
+  function show(ev){const cx=ev.clientX ?? ev.touches[0].clientX, cy=ev.clientY ?? ev.touches[0].clientY;
+    const b=at(cx);cross.setAttribute('x1',x(b.x));cross.setAttribute('x2',x(b.x));cross.classList.add('on');
+    tip.innerHTML=`<div class="td">${b.now?'現在（未提交）':'2026-'+b.date.slice(5)}</div>`+
+      `<div class="row"><span class="lab"><i style="background:var(--accent)"></i>累計</span><span class="val">${b.cum.toLocaleString()}</span></div>`+
+      `<div class="row"><span class="lab"><i style="background:var(--bar)"></i>${b.now?'尚未提交':'當天新增'}</span><span class="val">${b.add>=0?'+':''}${b.add}</span></div>`;
+    tip.classList.add('on');const tw=tip.offsetWidth,th=tip.offsetHeight;let l=cx+16,t=cy-th-10;
+    if(l+tw>innerWidth-8)l=cx-tw-16; if(t<8)t=cy+18; tip.style.left=l+'px';tip.style.top=t+'px';}
+  function hide(){cross.classList.remove('on');tip.classList.remove('on');}
+  svg.addEventListener('pointermove',show);svg.addEventListener('pointerdown',show);svg.addEventListener('pointerleave',hide);
+
+  // tiles
+  const tiles=[
+    {k:'目前已取碼',v:total.toLocaleString(),s:'/ 9,574',hl:true},
+    {k:'起跑日',v:first.slice(5),s:'2026'},
+    {k:'最高單日',v:'+'+best.add,s:best.date.slice(5),hl:true},
+    {k:'活躍天數',v:days_active,s:'天有提交'},
+  ];
+  const sc=$('#stats');sc.innerHTML='';
+  tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'');
+    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;sc.appendChild(d);});
+}
+</script>
+</body>
+</html>

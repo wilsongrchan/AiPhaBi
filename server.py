@@ -24,6 +24,7 @@
 import json
 import os
 import shutil
+import subprocess
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -49,6 +50,7 @@ GRAPHICS = SHARED / "graphics.txt"
 DICT = SHARED / "dictionary.txt"        # makemeahanzi：部件拆分（IDS，例 訴 = ⿰言斥）
 TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
+OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -101,6 +103,62 @@ def tw_strokes():
 # 阜/邑(阝) 是整批系統性差異，另外標出來，好讓一覽表把它們摺起來、突出真正一字一形的。
 _WALK = set("辶辵⻍⻌")            # 走之底：這、過、道…（大陸一點、台灣兩點，筆數差 1）
 _MOUND = set("阝⻏⻖")             # 阜/邑旁：都、部、防、阿…
+
+
+# 取碼進度：從 git 提交歷史重建「每天累計取碼多少字」。歷史只有新提交才變，
+# 所以用 HEAD 當快取鍵，只在有新 commit 時重跑那串 git（一次幾十個 git show，~1–2 秒）。
+_prog_cache = {"head": None, "days": None}
+
+
+def _git(*args):
+    return subprocess.run(["git", "-C", str(ROOT), *args],
+                          capture_output=True, text=True, timeout=30)
+
+
+def _coded_count(text):
+    try:
+        d = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return sum(1 for v in d.values() if isinstance(v, dict) and v.get("code"))
+
+
+def progress_data():
+    try:
+        head = _git("rev-parse", "HEAD")
+        if head.returncode != 0:
+            raise RuntimeError("not a git repo")
+        head = head.stdout.strip()
+    except Exception:
+        head = None
+
+    if head and _prog_cache["head"] == head and _prog_cache["days"] is not None:
+        days = _prog_cache["days"]
+    elif head is None:
+        days = []
+    else:
+        log = _git("log", "--reverse", "--format=%H %ad", "--date=short", "--", "data/codes.json")
+        day_last, order = {}, []
+        for line in log.stdout.splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            h, date = parts[0], parts[1]
+            n = _coded_count(_git("show", f"{h}:data/codes.json").stdout)
+            if n is None:
+                continue
+            if date not in day_last:
+                order.append(date)
+            day_last[date] = n
+        days, prev = [], 0
+        for date in order:
+            days.append({"date": date, "cum": day_last[date], "add": day_last[date] - prev})
+            prev = day_last[date]
+        _prog_cache["head"], _prog_cache["days"] = head, days
+
+    # 目前（含還沒提交的）取碼字數：直接讀工作區的 codes.json
+    cur = _coded_count(CODES.read_text("utf-8")) if CODES.exists() else 0
+    return {"days": days, "total": cur or (days[-1]["cum"] if days else 0)}
 
 
 def variants_data():
@@ -164,6 +222,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._page("type.html")      # 試打：真的用愛發筆打字
         if u.path == "/variants":
             return self._page("variants.html")   # 兼容字型一覽：地區字形與大陸不同的字
+        if u.path == "/progress":
+            return self._page("progress.html")    # 取碼進度：逐日累計曲線
 
         if u.path.startswith("/assets/") and u.path.endswith(".js"):
             f = (ROOT / u.path.lstrip("/")).resolve()
@@ -184,10 +244,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, FREQ.read_text("utf-8"), cache=True)
         if u.path == "/api/cangjie":
             return self._send(200, CANGJIE.read_text("utf-8"), cache=True)
+        if u.path == "/api/opencc":
+            return self._send(200, OPENCC.read_text("utf-8") if OPENCC.exists() else '{"t2s":{},"s2t":{}}',
+                              cache=True)
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
         if u.path == "/api/variants":
             return self._send(200, json.dumps(variants_data(), ensure_ascii=False), cache=True)
+        if u.path == "/api/progress":
+            return self._send(200, json.dumps(progress_data(), ensure_ascii=False))
         if u.path == "/api/state":
             # 一律用字串：mtime_ns 是 19 位數，超過 JavaScript 的安全整數範圍，
             # 當成 JSON 數字送出去會被瀏覽器悄悄四捨五入，版本就永遠對不上，
