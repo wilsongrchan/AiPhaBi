@@ -446,7 +446,9 @@ function withSimpCompat(list) {
     for (const cp of counterpartsOf(x.ch)) {
       if (seen.has(cp.ch)) continue;
       seen.add(cp.ch);
-      out.push({ ch: cp.ch, exact: x.exact, conv: cp.conv, code: x.code });
+      /* 對應字若自己也取過碼，順便把它的碼帶上——讓人在試打時學到另一體的碼 */
+      const own = codes[cp.ch] && codes[cp.ch].code ? finalOf(codes[cp.ch].code) : null;
+      out.push({ ch: cp.ch, exact: x.exact, conv: cp.conv, code: x.code, convCode: own });
     }
   }
   return out;
@@ -483,7 +485,8 @@ function render() {
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 簡繁兼容轉出來的標「簡／繁」；萬用鍵找到的把真正的碼列出來 */
-    d.append(el('em', '', x.conv ? x.conv : (x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code))));
+    d.append(el('em', '', x.conv ? (x.convCode ? x.conv + ' ' + x.convCode : x.conv)
+      : (x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code))));
     d.onclick = () => commit(gi);
     /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
     if (x.pred) {
