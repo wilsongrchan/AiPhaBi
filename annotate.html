@@ -2960,10 +2960,11 @@ async function load(c) {
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
   renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
-  drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
-  /* 兼容字型欄預設收起；已設過主字形輸出或已有變體的字才自動展開 */
+  /* 收合預設要在 renderSegs（會觸發 renderAlts→applyAwrap）之前設好，不然套到的是上一個字的值：
+     有手動兼容碼就自動展開兼容碼欄；有兼容字型／改過主字形輸出就自動展開兼容字型欄。 */
+  aExpanded = !!(rec && rec.alts && rec.alts.length);
   vExpanded = !!(rec && ((rec.variants && rec.variants.length) || rec.display));
-  aExpanded = !!(rec && rec.alts && rec.alts.length);   /* 有手動兼容碼才自動展開 */
+  drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
   renderRelated(c); renderBack(); renderVariants();
   if (vfOpenNow()) vfClose();      /* 換了字就別讓上一個字的兼容字型編輯器開著 */
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
