@@ -115,15 +115,27 @@ def _git(*args):
                           capture_output=True, text=True, timeout=30)
 
 
-def _coded_count(text):
+def _load_s2t():
+    try:
+        return json.loads(OPENCC.read_text("utf-8")).get("s2t", {})
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _counts(text, s2t):
+    """回傳 (另計, 不另計)：不另計＝把「繁體已取碼」的那個簡體 twin 不重複算。"""
     try:
         d = json.loads(text)
     except (json.JSONDecodeError, TypeError):
         return None
-    return sum(1 for v in d.values() if isinstance(v, dict) and v.get("code"))
+    coded = {ch for ch, r in d.items() if isinstance(r, dict) and r.get("code")}
+    # 簡體字，而且它的繁體對應也取過碼 → 那是同一個字，不另計
+    dup = sum(1 for s in coded if s in s2t and any(t in coded for t in s2t[s]))
+    return len(coded), len(coded) - dup
 
 
 def progress_data():
+    s2t = _load_s2t()
     try:
         head = _git("rev-parse", "HEAD")
         if head.returncode != 0:
@@ -144,21 +156,24 @@ def progress_data():
             if len(parts) < 2:
                 continue
             h, date = parts[0], parts[1]
-            n = _coded_count(_git("show", f"{h}:data/codes.json").stdout)
-            if n is None:
+            c = _counts(_git("show", f"{h}:data/codes.json").stdout, s2t)
+            if c is None:
                 continue
             if date not in day_last:
                 order.append(date)
-            day_last[date] = n
-        days, prev = [], 0
+            day_last[date] = c
+        days, prev, prevU = [], 0, 0
         for date in order:
-            days.append({"date": date, "cum": day_last[date], "add": day_last[date] - prev})
-            prev = day_last[date]
+            raw, uniq = day_last[date]
+            days.append({"date": date, "cum": raw, "cumUniq": uniq,
+                         "add": raw - prev, "addUniq": uniq - prevU})
+            prev, prevU = raw, uniq
         _prog_cache["head"], _prog_cache["days"] = head, days
 
     # 目前（含還沒提交的）取碼字數：直接讀工作區的 codes.json
-    cur = _coded_count(CODES.read_text("utf-8")) if CODES.exists() else 0
-    return {"days": days, "total": cur or (days[-1]["cum"] if days else 0)}
+    cur = _counts(CODES.read_text("utf-8"), s2t) if CODES.exists() else None
+    raw, uniq = cur or (days[-1]["cum"] if days else 0, days[-1]["cumUniq"] if days else 0)
+    return {"days": days, "total": raw, "totalUniq": uniq}
 
 
 def variants_data():

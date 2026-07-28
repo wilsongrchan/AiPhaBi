@@ -7,21 +7,21 @@
 <style>
   :root{
     --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a; --line:#e3ded4;
-    --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12);
+    --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb;
     --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26);
   }
   @media (prefers-color-scheme:dark){
     :root{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455; --line:#33312a;
-      --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15);
+      --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
       --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
   }
   :root[data-theme="light"]{ --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a;
-    --line:#e3ded4; --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12);
+    --line:#e3ded4; --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb; --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26); }
   :root[data-theme="dark"]{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455;
-    --line:#33312a; --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15);
+    --line:#33312a; --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
     --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c; --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
 
   *{box-sizing:border-box}
@@ -40,6 +40,13 @@
   h1 .unit{font-size:clamp(22px,5vw,36px);color:var(--accent);font-family:"Songti TC","Songti SC",serif;}
   .lede{margin:4px 0 0;color:var(--muted);max-width:52ch;font-size:14px;}
   .lede b{color:var(--ink);font-weight:600;}
+  .lede .raw{color:var(--s2);font-weight:600;}
+  .legend{display:inline-flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .legend button{font:inherit;font-size:13px;padding:5px 11px;border:1px solid var(--line);border-radius:9px;
+    background:var(--card);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:7px;}
+  .legend button .sw{width:11px;height:11px;border-radius:3px;display:inline-block;opacity:.3;transition:opacity .12s;}
+  .legend button.on{color:var(--ink);border-color:currentColor;}
+  .legend button.on .sw{opacity:1;}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
     padding:clamp(14px,3vw,24px);}
@@ -97,6 +104,12 @@
     <div class="eyebrow">愛發筆 AiPhaBi · 取碼進度</div>
     <h1><span class="big num" id="total">—</span><span class="unit">字</span></h1>
     <p class="lede" id="lede">讀取中…</p>
+    <div class="legend" id="modeseg" aria-label="簡繁計法（點一下顯示／隱藏該曲線）">
+      <button data-mode="uniq" class="on" style="color:var(--accent)"
+        title="繁體與它的簡體 twin 視為同一個字（衡量真正進度）"><i class="sw" style="background:var(--accent)"></i>簡繁不另計</button>
+      <button data-mode="raw" class="on" style="color:var(--s2)"
+        title="繁體、簡體各算一個字（碼表原始字數）"><i class="sw" style="background:var(--s2)"></i>簡繁另計</button>
+    </div>
   </header>
 
   <div class="card" id="chartcard">
@@ -120,96 +133,118 @@ const SVGNS='http://www.w3.org/2000/svg';
 const mk=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
 const W=820,H=470,padL=48,padR=30,cumTop=54,cumBot=250,dTop=306,dZero=430;
 
-fetch('/api/progress').then(r=>r.json()).then(draw).catch(e=>{
+let PROG=null;
+const SHOW={uniq:true, raw:true};
+const SERIES=[
+  {key:'uniq', name:'不另計', col:'var(--accent)', c:'cumUniq', a:'addUniq', tot:'totalUniq'},
+  {key:'raw',  name:'另計',   col:'var(--s2)',     c:'cum',     a:'add',    tot:'total'},
+];
+fetch('/api/progress').then(r=>r.json()).then(d=>{PROG=d; render();}).catch(e=>{
   $('#chartcard').innerHTML='<div class="msg">讀取進度失敗：'+e+'</div>';
   $('#lede').textContent='';
 });
+document.querySelectorAll('#modeseg button').forEach(b=>b.onclick=()=>{
+  const k=b.dataset.mode;
+  if(SHOW[k] && Object.values(SHOW).filter(Boolean).length===1) return;  // 至少留一條曲線
+  SHOW[k]=!SHOW[k]; b.classList.toggle('on',SHOW[k]); render();
+});
+function render(){ if(PROG) draw(PROG); }
 
 function draw(data){
-  const total=data.total;
-  $('#total').textContent=total.toLocaleString();
-  const days=(data.days||[]).slice();
+  const days=data.days||[];
+  $('#total').textContent=data.totalUniq.toLocaleString();
   if(!days.length){
     $('#chartcard').innerHTML='<div class="msg">還沒有取碼提交紀錄。</div>';
-    $('#lede').textContent='目前已取碼 '+total.toLocaleString()+' 字。';
-    return;
+    $('#lede').textContent='目前已取碼 '+data.totalUniq.toLocaleString()+' 字。'; return;
   }
-  const first=days[0].date, lastCum=days[days.length-1].cum;
-  const d0=new Date(first);
+  const first=days[0].date, d0=new Date(first);
   const off=ds=>Math.round((new Date(ds)-d0)/864e5);
-  const pts=days.map(p=>({date:p.date,cum:p.cum,add:p.add,x:off(p.date),label:p.date.slice(5)}));
-  const uncommitted=total-lastCum;
-  if(uncommitted>0) pts.push({date:'現在',cum:total,add:uncommitted,x:pts[pts.length-1].x+1,label:'現在',now:true});
-
-  const dayMax=Math.max(1,pts[pts.length-1].x);
-  const cumMax=Math.max(200,Math.ceil(Math.max(...pts.map(p=>p.cum))/300)*300);
-  const addMax=Math.max(100,Math.ceil(Math.max(...pts.map(p=>p.add),1)/100)*100);
+  const vis=SERIES.filter(s=>SHOW[s.key]);
+  const built=vis.map(s=>{
+    const pts=days.map(p=>({x:off(p.date),date:p.date,label:p.date.slice(5),cum:p[s.c],add:p[s.a]}));
+    const unc=data[s.tot]-pts[pts.length-1].cum;
+    if(unc>0) pts.push({x:pts[pts.length-1].x+1,date:'現在',label:'現在',cum:data[s.tot],add:unc,now:true});
+    return {...s, pts};
+  });
+  const allpts=built.flatMap(b=>b.pts);
+  const dayMax=Math.max(1,...allpts.map(p=>p.x));
+  const cumMax=Math.max(200,Math.ceil(Math.max(...allpts.map(p=>p.cum))/300)*300);
+  const addMax=Math.max(100,Math.ceil(Math.max(...allpts.map(p=>p.add),1)/100)*100);
   const x=v=>padL+v/dayMax*(W-padL-padR);
   const yc=v=>cumBot-v/cumMax*(cumBot-cumTop);
   const yd=v=>dZero-v/addMax*(dZero-dTop);
 
-  const days_active=days.length;
-  const best=days.reduce((m,p)=>p.add>m.add?p:m,days[0]);
-  $('#cumr').textContent='0 → '+total.toLocaleString()+' 字';
-  $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${total.toLocaleString()} 字</b>`+
-    `（佔 makemeahanzi 全字集 9,574 的 <b>${(total/9574*100).toFixed(0)}%</b>）。`+
-    (uncommitted>0?` 其中 <b>${uncommitted}</b> 字還沒提交。`:'');
+  const best=days.reduce((m,p)=>p.addUniq>m.addUniq?p:m,days[0]);
+  const unc=data.totalUniq-days[days.length-1].cumUniq;
+  $('#cumr').textContent='0 → '+data.totalUniq.toLocaleString()+' 字（不另計）';
+  $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${data.totalUniq.toLocaleString()} 字</b>`+
+    `（繁簡同字只算一個）；<span class="raw">另計 ${data.total.toLocaleString()} 條碼</span>。`+
+    (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'');
 
   const svg=$('#chart'); svg.innerHTML='';
-  // 田字格 watermark
-  const bx={x:padL,y:cumTop,w:W-padL-padR,h:cumBot-cumTop};
-  svg.appendChild(mk('rect',{x:bx.x,y:bx.y,width:bx.w,height:bx.h,rx:12,class:'tianzi'}));
-  svg.appendChild(mk('line',{x1:bx.x+bx.w/2,y1:bx.y,x2:bx.x+bx.w/2,y2:bx.y+bx.h,class:'tianzi'}));
-  svg.appendChild(mk('line',{x1:bx.x,y1:bx.y+bx.h/2,x2:bx.x+bx.w,y2:bx.y+bx.h/2,class:'tianzi'}));
-  // cum gridlines
+  const bxx={x:padL,y:cumTop,w:W-padL-padR,h:cumBot-cumTop};
+  svg.appendChild(mk('rect',{x:bxx.x,y:bxx.y,width:bxx.w,height:bxx.h,rx:12,class:'tianzi'}));
+  svg.appendChild(mk('line',{x1:bxx.x+bxx.w/2,y1:bxx.y,x2:bxx.x+bxx.w/2,y2:bxx.y+bxx.h,class:'tianzi'}));
+  svg.appendChild(mk('line',{x1:bxx.x,y1:bxx.y+bxx.h/2,x2:bxx.x+bxx.w,y2:bxx.y+bxx.h/2,class:'tianzi'}));
   for(let i=0;i<=3;i++){const v=Math.round(cumMax*i/3);
     svg.appendChild(mk('line',{x1:padL,y1:yc(v),x2:W-padR,y2:yc(v),class:'grid-line'}));
     const t=mk('text',{x:padL-8,y:yc(v)+4,'text-anchor':'end',class:'tick'});t.textContent=v;svg.appendChild(t);}
-  // area
-  let aD=`M ${x(pts[0].x)} ${cumBot} `; pts.forEach(p=>aD+=`L ${x(p.x)} ${yc(p.cum)} `);
-  aD+=`L ${x(pts[pts.length-1].x)} ${cumBot} Z`;
-  svg.appendChild(mk('path',{d:aD,class:'cum-area'}));
-  // line: solid over committed, dashed to the 現在 point
-  const solid=pts.filter(p=>!p.now); const nowP=pts.find(p=>p.now);
-  svg.appendChild(mk('path',{d:'M '+solid.map(p=>`${x(p.x)} ${yc(p.cum)}`).join(' L '),class:'cum-line'}));
-  if(nowP){const a=solid[solid.length-1];
-    svg.appendChild(mk('path',{d:`M ${x(a.x)} ${yc(a.cum)} L ${x(nowP.x)} ${yc(nowP.cum)}`,class:'cum-line dash'}));}
-  // daily
+  // 累計：每條系列一條線（只有一條時才加面積）
+  const single=built.length===1;
+  built.forEach(b=>{
+    const solid=b.pts.filter(p=>!p.now), nowP=b.pts.find(p=>p.now);
+    if(single){
+      let aD=`M ${x(solid[0].x)} ${cumBot} `; solid.forEach(p=>aD+=`L ${x(p.x)} ${yc(p.cum)} `);
+      if(nowP)aD+=`L ${x(nowP.x)} ${yc(nowP.cum)} `;
+      aD+=`L ${x(b.pts[b.pts.length-1].x)} ${cumBot} Z`;
+      svg.appendChild(mk('path',{d:aD,fill:b.col,'fill-opacity':.11}));
+    }
+    svg.appendChild(mk('path',{d:'M '+solid.map(p=>`${x(p.x)} ${yc(p.cum)}`).join(' L '),
+      fill:'none',stroke:b.col,'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'}));
+    if(nowP){const a=solid[solid.length-1];
+      svg.appendChild(mk('path',{d:`M ${x(a.x)} ${yc(a.cum)} L ${x(nowP.x)} ${yc(nowP.cum)}`,
+        fill:'none',stroke:b.col,'stroke-width':2.5,'stroke-dasharray':'5 4','stroke-opacity':.8}));}
+  });
+  // 每日新增：分組長條
   svg.appendChild(mk('line',{x1:padL,y1:dZero,x2:W-padR,y2:dZero,class:'zero-line'}));
-  const bw=Math.min(18,(W-padL-padR)/(dayMax+2));
-  pts.forEach(p=>{const cx=x(p.x);const top=p.add>=0?yd(p.add):dZero;const h=Math.max(2,Math.abs(yd(p.add)-dZero));
-    svg.appendChild(mk('rect',{x:cx-bw/2,y:top,width:bw,height:h,rx:4,class:p.now?'bar-now':p.add<0?'bar-neg':'bar'}));});
-  // x labels
-  pts.forEach(p=>{const t=mk('text',{x:x(p.x),y:dZero+22,'text-anchor':'middle',class:'xtick'});t.textContent=p.label;svg.appendChild(t);});
-  // crosshair + dots
+  const n=built.length, slot=Math.min(20,(W-padL-padR)/(dayMax+2)), bw=Math.max(3,(slot-2)/n);
+  built.forEach((b,si)=>b.pts.forEach(p=>{
+    const cx=x(p.x)+(si-(n-1)/2)*bw, top=p.add>=0?yd(p.add):dZero, h=Math.max(2,Math.abs(yd(p.add)-dZero));
+    svg.appendChild(mk('rect',{x:cx-bw/2,y:top,width:bw,height:h,rx:Math.min(3,bw/2),
+      fill:b.col,'fill-opacity':p.now?.5:(p.add<0?.4:.9)}));
+  }));
+  built[0].pts.forEach(p=>{const t=mk('text',{x:x(p.x),y:dZero+22,'text-anchor':'middle',class:'xtick'});t.textContent=p.label;svg.appendChild(t);});
   const cross=mk('line',{y1:cumTop,y2:dZero,class:'cross'});svg.appendChild(cross);
-  pts.forEach((p,i)=>{const last=i===pts.length-1;
-    svg.appendChild(mk('circle',{cx:x(p.x),cy:yc(p.cum),r:last?6:4,class:last?'dot-last':'dot'}));});
+  built.forEach(b=>b.pts.forEach((p,i)=>{const last=i===b.pts.length-1;
+    svg.appendChild(mk('circle',{cx:x(p.x),cy:yc(p.cum),r:last?5:3.5,
+      fill:last?b.col:'var(--card)',stroke:b.col,'stroke-width':2}));}));
 
-  // hover
-  const tip=$('#tip');
-  function at(cx){const r=svg.getBoundingClientRect();const sx=(cx-r.left)/r.width*W;const dq=(sx-padL)/(W-padL-padR)*dayMax;
-    let b=pts[0],bd=1e9;for(const p of pts){const dd=Math.abs(p.x-dq);if(dd<bd){bd=dd;b=p;}}return b;}
+  // hover：一次顯示所有可見系列
+  const tip=$('#tip'), xs=built[0].pts.map(p=>p.x);
   function show(ev){const cx=ev.clientX ?? ev.touches[0].clientX, cy=ev.clientY ?? ev.touches[0].clientY;
-    const b=at(cx);cross.setAttribute('x1',x(b.x));cross.setAttribute('x2',x(b.x));cross.classList.add('on');
-    tip.innerHTML=`<div class="td">${b.now?'現在（未提交）':'2026-'+b.date.slice(5)}</div>`+
-      `<div class="row"><span class="lab"><i style="background:var(--accent)"></i>累計</span><span class="val">${b.cum.toLocaleString()}</span></div>`+
-      `<div class="row"><span class="lab"><i style="background:var(--bar)"></i>${b.now?'尚未提交':'當天新增'}</span><span class="val">${b.add>=0?'+':''}${b.add}</span></div>`;
-    tip.classList.add('on');const tw=tip.offsetWidth,th=tip.offsetHeight;let l=cx+16,t=cy-th-10;
+    const r=svg.getBoundingClientRect(), sx=(cx-r.left)/r.width*W, dq=(sx-padL)/(W-padL-padR)*dayMax;
+    let xx=xs[0],bd=1e9;for(const q of xs){const dd=Math.abs(q-dq);if(dd<bd){bd=dd;xx=q;}}
+    cross.setAttribute('x1',x(xx));cross.setAttribute('x2',x(xx));cross.classList.add('on');
+    const ref=built[0].pts.find(p=>p.x===xx);
+    let html=`<div class="td">${ref&&ref.now?'現在（未提交）':'2026-'+(ref?ref.date.slice(5):'')}</div>`;
+    for(const b of built){const p=b.pts.find(q=>q.x===xx); if(!p)continue;
+      html+=`<div class="row"><span class="lab"><i style="background:${b.col}"></i>${b.name}</span>`+
+        `<span class="val">${p.cum.toLocaleString()} <small style="color:var(--muted)">${p.add>=0?'+':''}${p.add}</small></span></div>`;}
+    tip.innerHTML=html; tip.classList.add('on');
+    const tw=tip.offsetWidth,th=tip.offsetHeight;let l=cx+16,t=cy-th-10;
     if(l+tw>innerWidth-8)l=cx-tw-16; if(t<8)t=cy+18; tip.style.left=l+'px';tip.style.top=t+'px';}
   function hide(){cross.classList.remove('on');tip.classList.remove('on');}
   svg.addEventListener('pointermove',show);svg.addEventListener('pointerdown',show);svg.addEventListener('pointerleave',hide);
 
-  // tiles
   const tiles=[
-    {k:'目前已取碼',v:total.toLocaleString(),s:'/ 9,574',hl:true},
-    {k:'起跑日',v:first.slice(5),s:'2026'},
-    {k:'最高單日',v:'+'+best.add,s:best.date.slice(5),hl:true},
-    {k:'活躍天數',v:days_active,s:'天有提交'},
+    {k:'不重複字',v:data.totalUniq.toLocaleString(),s:'繁簡算一個',hl:true},
+    {k:'碼表條數',v:data.total.toLocaleString(),s:'繁簡各算'},
+    {k:'最高單日',v:'+'+best.addUniq,s:best.date.slice(5),hl:true},
+    {k:'活躍天數',v:days.length,s:'天有提交'},
   ];
-  const sc=$('#stats');sc.innerHTML='';
+  const scb=$('#stats');scb.innerHTML='';
   tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'');
-    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;sc.appendChild(d);});
+    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;scb.appendChild(d);});
 }
 </script>
 </body>
