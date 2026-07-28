@@ -2642,10 +2642,15 @@ async function componentWarnings(ctx) {
         const tail = c.segs[c.segs.length - 1];
         const tn = Math.max(...c.segs.flatMap(s => s.strokes),
                             ...(c.skipped || [])) + 1;      /* 樣板字的筆數 */
-        /* 樣板的最後一碼，是不是「單獨一筆、而且就是末筆、而且靠末筆規則才取到」？ */
+        /* 樣板的最後一碼，是不是「單獨一筆、而且就是末筆、而且靠末筆規則才取到」？
+           要看那一筆的「筆型」是不是真的是可略過的橫／豎 —— 不能只看字母：
+           J 既是「豎的末筆孤筆」也是「撇」這個字根（少 的末筆丿就取 J），
+           只比字母會把「少 的丿」誤當成可略過的豎末筆，於是誤報 少→M。 */
+        const tailMed = glyphCacheMedians(c.ch, tn - 1);
+        const tailKind = tailMed ? kindOf(tailMed) : null;
         const isLastStrokeRule = tail.strokes.length === 1 &&
           tail.strokes[0] === tn - 1 &&
-          Object.values(lastLetters).includes(tail.letter);
+          tailKind != null && lastLetters[tailKind] === tail.letter;
         return isLastStrokeRule ? c.code.slice(0, -1) : c.code;
       };
 
