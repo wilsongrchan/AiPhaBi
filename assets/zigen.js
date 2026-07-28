@@ -208,6 +208,12 @@
     if (path / straight > 1.35) return '折';
     if (straight < 90) return '點';                       /* 很短的一筆 */
 
+    /* 末端回勾（豎鉤 亅、橫鉤 乛、彎鉤 乚…）：最後一小段方向和主幹相反（點積為負）＝折筆，
+       不是能略過的孤立橫／豎。大轉折（如 𠃍）上面 path/straight 已抓走；這裡專抓「小鉤」。 */
+    const hlx = m[m.length - 1][0] - m[m.length - 2][0];
+    const hly = m[m.length - 1][1] - m[m.length - 2][1];
+    if (Math.hypot(hlx, hly) > 15 && hlx * dx + hly * dy < 0) return '折';
+
     if (dx > 0 && ay <= ax * 0.35) return '橫';           /* 由左往右、平 */
     /* 提：由左下往右上。傳統筆畫分類本來就把提歸在橫的一類（提是橫的變體），
        所以這裡直接判成「橫」，不另外開一種筆型 —— 孤筆略過原則才吃得到它。
