@@ -243,7 +243,7 @@
     for (const c of cand) byLowest[c.idx[0]].push(c);
 
     /* 孤筆略過原則。原則說的是：一橫或一豎「無法與其他筆畫組成字根」時就略過，
-       末筆例外（橫→I、豎→J）。所以落單的橫／豎不可以自己去配一個單筆字根
+       首筆、末筆例外（橫→I、豎→J）。所以落單的橫／豎不可以自己去配一個單筆字根
        —— 否則字根表裡只要有「一」＝I，中途的每一個孤立橫都會取成 I，永遠不會略過。
        多筆的字根仍然可以包含這一筆（那就是「能與其他筆畫組成字根」，不算孤筆）。 */
     if (skip) medians.forEach((m, i) => {
@@ -254,10 +254,11 @@
       byLowest[i] = byLowest[i].filter(c => c.idx.length > 1);
 
       const L = skip.lastLetters && skip.lastLetters[kind];
-      if (L && i === n - 1) {
+      if (L && (i === n - 1 || i === 0)) {
+        const pos = i === n - 1 ? '末筆' : '首筆';
         byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty,
                            letter: L.toUpperCase(),
-                           label: `末筆${kind} → ${L.toUpperCase()}` });
+                           label: `${pos}${kind} → ${L.toUpperCase()}` });
         return;
       }
       byLowest[i].push({ idx: [i], mask: 1 << i, d: skip.penalty, skip: true,
