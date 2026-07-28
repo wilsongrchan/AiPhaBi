@@ -537,6 +537,7 @@
         <button id="clearAll">全部清除</button>
         <button id="nums">顯示筆順 /</button>
         <button id="splitBtn" title="makemeahanzi 把兩筆畫成一筆時，在這裡切開它">✂ 切開筆畫</button>
+        <button id="unsplitBtn" class="hide" title="還原被切開的筆畫（切回一筆）">↩ 還原切開</button>
         <button id="saveOnly" title="只儲存這個字，不跳下一字">儲存 ⌘S</button>
         <button class="primary" id="saveNext">儲存並下一字 ⏎</button>
       </div>
@@ -884,6 +885,33 @@ function doSplit(ev) {
   applySplits(rec.splits || []);
   sel = []; touch();
   renderCurHeader(); drawGlyph(); renderSegs(); renderCode(); suggest(); predict();
+  updateSplitButtons();
+}
+
+/* 還原切開：把最後一刀切回去。切開時被清掉的取碼，若存過的拆解對得上還原後的筆數就一併還原。 */
+function undoLastSplit() {
+  const rec = codes[cur];
+  if (!rec || !rec.splits || !rec.splits.length) return;
+  rec.splits.pop();
+  if (!rec.splits.length) delete rec.splits;
+  applySplits(rec.splits || []);
+  const seg = rec.segments || [];
+  const maxI = Math.max(-1, ...seg.flatMap(s => s.strokes), ...(rec.skipped || []));
+  if (seg.length && maxI < strokes.length) {          /* 存過的取碼還對得上 → 還原 */
+    segs = seg.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+    skipped = [...(rec.skipped || [])];
+  } else { segs = []; skipped = []; }
+  sel = []; splitMode = false; document.body.classList.remove('splitmode');
+  touch();
+  $('#status').textContent = '已還原切開';
+  renderCurHeader(); drawGlyph(); renderSegs(); renderCode(); suggest(); predict();
+  updateSplitButtons();
+}
+
+/* 這個字有沒有切過 → 決定「還原切開」鈕露不露臉 */
+function updateSplitButtons() {
+  const has = !!(codes[cur] && codes[cur].splits && codes[cur].splits.length);
+  $('#unsplitBtn').classList.toggle('hide', !has);
 }
 
 const HUES = [18, 200, 140, 280, 45, 330, 95, 250];
@@ -2962,6 +2990,7 @@ async function load(c) {
   if (rec && rec.skipped) skipped = [...rec.skipped];
   renderCurHeader();
   renderSimp(c);
+  updateSplitButtons();          /* 這個字切過就露出「還原切開」鈕 */
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
   renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
@@ -3693,6 +3722,7 @@ $('#nums').onclick = toggleNums;
 $('#saveOnly').onclick = () => save();      /* 只存，不跳下一字（同 ⌘/Ctrl+S） */
 $('#skipSel').onclick = skipSelected;
 $('#clearAll').onclick = clearAll;
+$('#unsplitBtn').onclick = undoLastSplit;
 $('#splitBtn').onclick = () => {
   if (!strokes.length) return;
   splitMode = !splitMode;
