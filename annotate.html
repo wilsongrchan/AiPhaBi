@@ -2005,11 +2005,11 @@ function checks(ctx) {
     const st = sg.strokes[0];
     const kind = kindOf(medians[st]);
     if (!sk0.params.allow.includes(kind)) return;
-    if (st === nStrokes - 1) return;                 /* 末筆有例外，另一條檢查管 */
+    if (st === nStrokes - 1 || st === 0) return;     /* 首筆、末筆有例外，另一條檢查管 */
     out.push({ key: `lone:${i}`, lvl: 'warn', rule: '孤筆略過原則', refs: [i],
       teach: { stroke: st, kind },
       fix: { type: 'skip', i, stroke: st, label: '略過這一筆' },
-      msg: `第 ${i + 1} 個字根只有一筆（${SN([st])}，${kind}），而且不是末筆。` +
+      msg: `第 ${i + 1} 個字根只有一筆（${SN([st])}，${kind}），既不是首筆也不是末筆。` +
            `依原則，無法與其他筆畫組成字根的孤立${kind}應該<b>略過</b>，不取碼。` });
   });
 
@@ -2024,10 +2024,12 @@ function checks(ctx) {
       const map = sk.params.last_stroke_letters ||
         (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {});
       const L = map[kind];
-      if (L && i === nStrokes - 1)
+      if (L && (i === nStrokes - 1 || i === 0)) {
+        const pos = i === 0 ? '首筆' : '末筆';
         out.push({ key: `skiplast:${i}`, lvl: 'warn', rule: '孤筆略過原則', strokeRefs: [i],
           fix: { type: 'unskip', stroke: i, to: L, label: `改取 ${L}` },
-          msg: `末筆是孤立的${kind}，依原則應取 <b>${L}</b>，不是略過。` });
+          msg: `${pos}是孤立的${kind}，依原則應取 <b>${L}</b>，不是略過。` });
+      }
     }
   }
 
