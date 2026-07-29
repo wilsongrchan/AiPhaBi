@@ -2861,6 +2861,69 @@ const restStrokes = () => strokes.map((_, i) => i)
 
 let partial = false;
 
+/* 部件套用：靖 = 立(QV) ＋ 青(FD) → QVFD。
+   幾何預測器只認「這幾筆像哪個字根」，不認「這幾筆就是立」，於是把 立 拆成 QQT。
+   這裡先照 IDS 結構（partsOf）把字拆成「你已經取過碼的部件」，直接沿用那個部件
+   當初的取碼（照位置重算末筆孤筆，跟偏旁一致性同一套邏輯），缺口才交回幾何預測。
+   只在「形狀像、而且結構上真有這個部件」（struct）時才套用，跟審查用同一把尺。 */
+function componentPredict(CH, MED, restSet) {
+  if (!ids[CH] || !MED || !MED.length || !compIndex) return null;
+  const struct = new Set(partsOf(CH, 4));
+  if (!struct.size) return null;
+  const n = MED.length;
+  const excluded = new Set((codes[CH] && codes[CH].excludeComp) || []);
+  const sk = rule('skip_isolated_hv');
+  const lastLetters = sk ? (sk.params.last_stroke_letters ||
+    (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {})) : {};
+  /* 部件的碼隨位置變（畫 末筆取 I → EFOTI；劃 裡的畫不在字尾 → 那一橫略過 → EFOT）*/
+  const expected = (c, atEnd) => {
+    if (atEnd || c.convComp || !c.segs || !c.segs.length || !sk) return c.code;
+    const tail = c.segs[c.segs.length - 1];
+    const tn = Math.max(...c.segs.flatMap(s => s.strokes), ...(c.skipped || [])) + 1;
+    const tailMed = glyphCacheMedians(c.ch, tn - 1);
+    const tailKind = tailMed ? kindOf(tailMed) : null;
+    const isLastStrokeRule = tail.strokes.length === 1 && tail.strokes[0] === tn - 1 &&
+      tailKind != null && lastLetters[tailKind] === tail.letter;
+    return isLastStrokeRule ? c.code.slice(0, -1) : c.code;
+  };
+  const usedRanges = [], chosen = [];
+  const sizes = [...compIndex.keys()].filter(k => k <= n).sort((a, b) => b - a);
+  for (const k of sizes) {                        /* 由大到小：先配整塊部件 */
+    const list = compIndex.get(k);
+    for (let i = 0; i + k <= n; i++) {
+      const idx = [...Array(k)].map((_, j) => i + j);
+      if (usedRanges.some(r => idx.some(x => r.includes(x)))) continue;
+      if (restSet && idx.some(x => !restSet.has(x))) continue;   /* 只拼還沒取碼的筆畫 */
+      const v = Shape.strokeVec(idx.map(x => MED[x]));
+      if (!v) continue;
+      const hit = list
+        .filter(c => c.ch !== CH && !excluded.has(c.ch) && struct.has(c.ch))
+        .map(c => ({ c, d: Shape.dist(v, c.vec) }))
+        .filter(x => x.d < 0.15)
+        .sort((a, b) => a.d - b.d)[0];
+      if (!hit) continue;
+      const atEnd = idx[idx.length - 1] === n - 1;
+      chosen.push({ i, c: hit.c, want: expected(hit.c, atEnd) });
+      usedRanges.push(idx);
+    }
+  }
+  if (!chosen.length) return null;
+  const segments = [], skippedOut = [];
+  for (const { i, c, want } of chosen) {
+    const dropTail = want !== c.code;      /* 末筆孤筆在中途 → 略過，不照抄 */
+    c.segs.forEach((sg, si) => {
+      if (dropTail && si === c.segs.length - 1) {
+        skippedOut.push(...sg.strokes.map(x => i + x)); return;
+      }
+      segments.push({ letter: sg.letter, strokes: sg.strokes.map(x => i + x) });
+    });
+    skippedOut.push(...(c.skipped || []).map(x => i + x));
+  }
+  segments.sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+  return { segments, skipped: [...new Set(skippedOut)].sort((a, b) => a - b),
+           parts: chosen.map(x => x.c.ch) };
+}
+
 async function predict() {
   const box = $('#predopts');
   if (!lib.length) {
@@ -2886,8 +2949,7 @@ async function predict() {
   const thr = zigen.meta.merge_threshold || Zigen.SAME_SHAPE;
   const merge = rule('merge_over_split'), sk = rule('skip_isolated_hv'),
         tp = rule('tier_priority');
-  /* 只拿剩下的筆畫去預測；索引壓縮後再映射回原本的筆序 */
-  const raw = Zigen.predict(rest.map(i => medians[i]), lib, {
+  const popts = {
     thr,
     segPenalty: merge ? merge.params.seg_penalty : 0.05,
     skip: sk ? { penalty: sk.params.penalty, allow: sk.params.allow,
@@ -2895,12 +2957,45 @@ async function predict() {
                  lastLetters: sk.params.last_stroke_letters ||
                    (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {}) } : null,
     tierPenalty: tp ? (tp.params?.penalty ?? 0.05) : 0,
-  });
+  };
+  /* 只拿剩下的筆畫去預測；索引壓縮後再映射回原本的筆序 */
+  const raw = Zigen.predict(rest.map(i => medians[i]), lib, popts);
   const out = raw.map(r => ({
     ...r,
     segments: r.segments.map(sg => ({ ...sg, strokes: sg.strokes.map(k => rest[k]) })),
     skipped: (r.skipped || []).map(k => rest[k]),
   }));
+
+  /* 部件套用當首選：沿用已取碼的部件（靖 → 立 QV ＋ 青 FD ＝ QVFD），
+     部件蓋不到的缺口才交給幾何預測補上。 */
+  try {
+    const need = Object.keys(codes).filter(c => c !== cur && codes[c].segments);
+    if (!compIndex || compStamp !== (window.__baseStamp && window.__baseStamp.codes)) {
+      await primeMedians(need); buildComponentIndex();
+    }
+    const cp = componentPredict(cur, medians, new Set(rest));
+    if (cp && cp.segments.length) {
+      const covd = new Set([...cp.segments.flatMap(s => s.strokes), ...cp.skipped]);
+      const gap = rest.filter(i => !covd.has(i));
+      let gapSegs = [], gapSkip = [];
+      if (gap.length) {
+        const graw = Zigen.predict(gap.map(i => medians[i]), lib, popts);
+        if (graw.length) {
+          gapSegs = graw[0].segments.map(sg => ({ letter: sg.letter, strokes: sg.strokes.map(k => gap[k]) }));
+          gapSkip = (graw[0].skipped || []).map(k => gap[k]);
+        }
+      }
+      const segments = [...cp.segments, ...gapSegs]
+        .sort((a, b) => Math.min(...a.strokes) - Math.min(...b.strokes));
+      const skippedC = [...new Set([...cp.skipped, ...gapSkip])].sort((a, b) => a - b);
+      const coveredC = segments.reduce((s, sg) => s + sg.strokes.length, 0) + skippedC.length;
+      const pcode = segments.map(s => s.letter).join('');
+      /* 跟幾何首選一模一樣就不重複放一列 */
+      if (!out.length || out[0].segments.map(s => s.letter).join('') !== pcode)
+        out.unshift({ segments, skipped: skippedC, covered: coveredC,
+                      total: rest.length, viaComp: cp.parts });
+    }
+  } catch (e) { /* 部件套用失敗就照舊只給幾何預測 */ }
 
   predBusy = false;
   box.innerHTML = '';
@@ -2916,7 +3011,8 @@ async function predict() {
     /* 整組套用 */
     const b = el('div', 'po');
     b.append(el('span', 'c', p.segments.map(s => s.letter).join('')));
-    b.append(el('span', 'm', (full ? '整組套用'
+    const viaTxt = p.viaComp && p.viaComp.length ? `部件套用（${p.viaComp.join('＋')}）　` : '';
+    b.append(el('span', 'm', viaTxt + (full ? '整組套用'
       : `部分拆解 ${p.covered}/${p.total} 筆`) +
       (p.skipped && p.skipped.length ? `　略過 ${p.skipped.length} 筆` : '')));
     b.title = '套用整組拆解';
