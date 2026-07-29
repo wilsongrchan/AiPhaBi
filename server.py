@@ -51,6 +51,8 @@ DICT = SHARED / "dictionary.txt"        # makemeahanzi：部件拆分（IDS，�
 TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
 OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
+PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
+VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -229,6 +231,20 @@ def variants_data():
     return out
 
 
+def variant_gaps_data():
+    """兼容變體缺口，濾掉已補取的（missing 現在已取碼就不再列）。"""
+    if not VARIANT_GAPS.exists():
+        return {"pairs": []}
+    data = json.loads(VARIANT_GAPS.read_text("utf-8"))
+    try:
+        codes = json.loads(CODES.read_text("utf-8")) if CODES.exists() else {}
+    except json.JSONDecodeError:
+        codes = {}
+    coded = {c for c, v in codes.items() if v.get("code") or v.get("segments")}
+    data["pairs"] = [p for p in data.get("pairs", []) if p.get("missing") not in coded]
+    return data
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"      # keep-alive：頁面切換時省下重複握手
 
@@ -291,6 +307,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
         if u.path == "/api/variants":
             return self._send(200, json.dumps(variants_data(), ensure_ascii=False), cache=True)
+        if u.path == "/api/variant-gaps":
+            return self._send(200, json.dumps(variant_gaps_data(), ensure_ascii=False))
+        if u.path == "/api/priority":
+            return self._send(200, PRIORITY.read_text("utf-8") if PRIORITY.exists()
+                              else '{"order":[]}')
         if u.path == "/api/progress":
             return self._send(200, json.dumps(progress_data(), ensure_ascii=False))
         if u.path == "/api/state":

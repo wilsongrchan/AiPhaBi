@@ -122,9 +122,52 @@ fetch('/api/variants').then(r => r.json()).then(list => {
     '大陸「辶」一點、台灣兩點，凡走之底的字筆數都差 1（這、過、道、進…）——同一條差異，不必逐個看。');
   collapse('阜／邑旁「阝」系統性差異', mound,
     '「阝」旁的字（都、部、防、阿…）也是整批同型的筆數差異。');
+
+  renderGaps();      /* 兼容變體缺口：置於最前，最值得動手 */
 }).catch(e => {
   $('#body').innerHTML = '<p class="status">讀取失敗：' + e + '</p>';
 });
+
+/* ---------- 兼容變體缺口：新聞常用、但你取的是另一種寫法 ---------- */
+function gapCard(p) {
+  const a = el('a', 'card');
+  a.href = '/annotate?c=' + encodeURIComponent(p.missing);
+  a.title = `新聞用「${p.missing}」，你取碼的是「${p.coded}」——點去補取「${p.missing}」`;
+  a.append(el('span', 'c', p.missing));
+  const m = el('span', 'meta');
+  m.innerHTML = `已取 <b>${p.coded}</b><br>新聞 ${p.n}`;
+  a.append(m);
+  return a;
+}
+function gapGrid(items) {
+  const g = el('div', 'grid');
+  for (const p of items) g.append(gapCard(p));
+  return g;
+}
+function renderGaps() {
+  fetch('/api/variant-gaps').then(r => r.json()).then(data => {
+    const pairs = (data && data.pairs) || [];
+    if (!pairs.length) return;
+    const trad = pairs.filter(p => !p.simp);
+    const simp = pairs.filter(p => p.simp);
+    const sec = el('div', 'sec');
+    const h = el('h2');
+    h.innerHTML = `兼容變體缺口　<span class="n">${trad.length} 字</span>`;
+    sec.append(h);
+    sec.append(Object.assign(el('p', 'note'),
+      { textContent: '台港今日新聞出現這些寫法，但你取碼的是同一個字的另一種形。補取它們，兩種寫法就都打得出。' }));
+    if (trad.length) sec.append(gapGrid(trad));
+    if (simp.length) {
+      const d = document.createElement('details');
+      const sm = document.createElement('summary');
+      sm.innerHTML = `大陸簡化字寫法（台港通常不必取）　<span class="tw">${simp.length} 字</span>　▾`;
+      d.append(sm);
+      d.append(gapGrid(simp));
+      sec.append(d);
+    }
+    $('#body').insertBefore(sec, $('#body').firstChild);   /* 放到最前面 */
+  }).catch(() => {});
+}
 </script>
 </body>
 </html>

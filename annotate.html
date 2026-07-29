@@ -484,7 +484,7 @@
     <div class="qhead">
     <input id="search" placeholder="搜尋／跳到某字">
     <div class="filters">
-      <button data-f="todo" class="on">未取碼</button>
+      <button data-f="todo" class="on" title="依台港新聞字頻優先排序：最能提升實際覆蓋率的缺字排最前">未取碼 ↑</button>
       <button data-f="done">已取碼</button>
       <button data-f="all">全部</button>
     </div>
@@ -714,6 +714,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
+let priority = [];   /* 未取碼佇列的優先序（依台港新聞字頻推導，蓋過預設字頻排序） */
 let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
 let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
 let opencc = { t2s: {}, s2t: {} };      /* 繁簡對照（右上小面板用） */
@@ -3365,7 +3366,14 @@ const isDone = c => !!(codes[c] && codes[c].segments && codes[c].segments.length
 function pool() {
   const q = $('#search').value.trim();
   if (q) return [...q].filter(c => order.includes(c));
-  return order.filter(c => filter === 'all' ? true : filter === 'done' ? isDone(c) : !isDone(c));
+  if (filter === 'all') return order.slice();
+  if (filter === 'done') return order.filter(isDone);
+  /* 未取碼：先照「優先序」（台港新聞字頻），其餘再照預設字頻 —— 讓真正常用的缺字排到最前 */
+  const inOrder = new Set(order);
+  const head = priority.filter(c => inOrder.has(c) && !isDone(c));
+  const seen = new Set(head);
+  const rest = order.filter(c => !isDone(c) && !seen.has(c));
+  return [...head, ...rest];
 }
 function renderQueue() {
   const box = $('#qlist'); box.innerHTML = '';
@@ -3899,9 +3907,11 @@ Promise.all([
   fetchStamp(),
   fetch('/api/ids').then(r => r.json()).catch(() => ({})),   /* 部件拆分（相關字用） */
   fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
-]).then(async ([f, c, z, rl, cj, ln, s, id, oc]) => {
+  fetch('/api/priority').then(r => r.json()).catch(() => ({ order: [] })),
+]).then(async ([f, c, z, rl, cj, ln, s, id, oc, pr]) => {
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
+  priority = (pr && pr.order) || [];
   opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
