@@ -38,6 +38,8 @@
     vertical-align:-4px; animation:blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity:0; } }
   .paper:not(:focus) .caret { animation:none; opacity:.3; }
+  .paper .selrange { background:var(--accent); color:#fff; border-radius:2px; }
+  .paper:not(:focus) .selrange { background:var(--line); color:var(--ink); }
 
   /* 候選列 */
   .ime { position:sticky; bottom:0; margin-top:12px; min-height:52px; }
@@ -114,7 +116,7 @@
 
   <div class="toolbar">
     <label class="tog">
-      <input type="checkbox" id="usePred">
+      <input type="checkbox" id="usePred" checked>
       <span>把<b>還沒取碼</b>的字也算進來（用字根表現場推它的碼）</span>
     </label>
     <span class="prog" id="predprog"></span>
@@ -168,6 +170,22 @@ let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常�
 let opencc = { t2s: {}, s2t: {} };   /* 繁簡對照（簡繁兼容用） */
 let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
 let text = '', code = '', pick = 0, pos = 0;   /* pos：游標在 text 裡的字元位置 */
+let sel = null;   /* 選取範圍的錨點；null＝沒有選取，游標就是 pos。選取範圍＝sorted[sel,pos] */
+
+/* 有沒有選到一段文字（拖曳選取／shift＋方向鍵／全選） */
+function selBounds() {
+  if (sel === null || sel === pos) return null;
+  return [Math.min(sel, pos), Math.max(sel, pos)];
+}
+/* 刪掉目前選取的那段；有刪到回傳 true。打字、貼上、刪除前都先清掉選取。 */
+function delSelection() {
+  const b = selBounds();
+  sel = null;
+  if (!b) return false;
+  text = text.slice(0, b[0]) + text.slice(b[1]);
+  pos = b[0];
+  return true;
+}
 
 /* ---------- 存檔：換頁／切分頁再回來，紙面跟練習文字都還在 ----------
    這頁本來就沒有存檔按鈕、也不進碼表，純粹是「打字練習」的暫存狀態，
@@ -181,6 +199,7 @@ function saveState() {
       sampleText: $('#sampleText').textContent,
       sampleOn: $('#sampleBox').style.display !== 'none',
       simpCompat: $('#simpCompat').checked,
+      usePred: $('#usePred').checked,
     }));
   } catch {}
 }
@@ -193,6 +212,7 @@ function loadState() {
     if (s.sampleText) { $('#sampleText').textContent = s.sampleText; }
     if (s.sampleOn) $('#sampleBox').style.display = 'block';
     if (s.simpCompat) $('#simpCompat').checked = true;
+    if (typeof s.usePred === 'boolean') $('#usePred').checked = s.usePred;
   } catch {}
 }
 
@@ -269,9 +289,9 @@ function buildTable() {
    打得出來，就表示這套字根表 + 原則自己接得住這個字；打出來的碼跟你心裡的拆法
    不一樣，那就是規則還沒說清楚的地方 —— 這正是最值得看的東西。
    只推最常用的那幾千字（照字頻），不然要把 9574 個字全跑一遍。 */
-/* 只推最常用的 3500 個未取碼字：實測約 4 秒推完、覆蓋 99.8%。
-   再往下是罕用字，筆畫多，搜尋成本陡增，不划算。 */
-const PRED_LIMIT = 3500;
+/* 只推最常用的 4200 個未取碼字（照字頻）：再往下是罕用字，筆畫多，
+   搜尋成本陡增，覆蓋率的邊際回報也低。 */
+const PRED_LIMIT = 4200;
 let zigen = null, lib = null, learned = { stroke_kinds: [] };
 let predTable = new Map();      /* 碼 → [{ch, code}]，預測出來的 */
 let predicting = false, predDone = 0;
@@ -334,6 +354,7 @@ $('#usePred').onchange = () => {
     if (!predTable.size && !predicting) buildPredictions();
     else render();
   } else { $('#predprog').textContent = ''; render(); }
+  saveState();
 };
 
 /* ---------- 貼連結 → 抓那頁的文字，當練習文字用 ----------
@@ -457,9 +478,19 @@ function withSimpCompat(list) {
 function render() {
   const paper = $('#paper');
   paper.innerHTML = '';
-  paper.append(document.createTextNode(text.slice(0, pos)));
-  paper.append(el('span', 'caret'));
-  paper.append(document.createTextNode(text.slice(pos)));
+  const b = selBounds();
+  if (b) {
+    /* 有選取：before ┃ [反白段] ┃ after，游標畫在焦點（pos）那一端 */
+    paper.append(document.createTextNode(text.slice(0, b[0])));
+    if (pos === b[0]) paper.append(el('span', 'caret'));
+    paper.append(el('span', 'selrange', text.slice(b[0], b[1])));
+    if (pos === b[1]) paper.append(el('span', 'caret'));
+    paper.append(document.createTextNode(text.slice(b[1])));
+  } else {
+    paper.append(document.createTextNode(text.slice(0, pos)));
+    paper.append(el('span', 'caret'));
+    paper.append(document.createTextNode(text.slice(pos)));
+  }
   saveState();
 
   const box = $('#imebox');
@@ -505,6 +536,7 @@ function render() {
 
 /* 在游標處插入，而不是永遠加在最後 —— 這樣游標移過去之後打字才會插對地方 */
 function insertAtPos(s) {
+  delSelection();                 /* 有選取就先取代掉，跟一般輸入框一樣 */
   text = text.slice(0, pos) + s + text.slice(pos);
   pos += s.length;
 }
@@ -531,7 +563,28 @@ const PAIRS = { '"': ['「', '」'], "'": ['『', '』'] };
 const pairOpen = {};          /* 這個引號現在該出左邊還是右邊 */
 
 $('#paper').onkeydown = e => {
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  /* 系統快捷鍵：全選／複製／剪下／貼上，跟一般輸入框一樣（cmd 或 ctrl） */
+  if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+    const key = e.key.toLowerCase();
+    if (key === 'a') {
+      e.preventDefault();
+      sel = 0; pos = text.length; code = ''; pick = 0; render();
+    } else if (key === 'c' || key === 'x') {
+      const b = selBounds();
+      if (b) {
+        e.preventDefault();
+        navigator.clipboard?.writeText(text.slice(b[0], b[1]));
+        if (key === 'x') { delSelection(); code = ''; pick = 0; render(); }
+      }
+    } else if (key === 'v') {
+      e.preventDefault();
+      navigator.clipboard?.readText?.().then(t => {
+        if (t) { code = ''; pick = 0; insertAtPos(t); render(); }
+      }).catch(() => {});
+    }
+    return;                       /* 其他 cmd/ctrl 組合（重新整理等）照常放行 */
+  }
+  if (e.altKey) return;
   const k = e.key;
   /* 萬用鍵：用「實體按鍵」判斷（`），不看 e.key —— 有些鍵盤佈局 ` 是死鍵（打重音 à è），
      那時 e.key 會是 "Dead"、根本收不到反引號。攔下來就不會觸發死鍵合成。Shift+` 是 ~，留給標點。 */
@@ -553,6 +606,7 @@ $('#paper').onkeydown = e => {
   }
   if (/^[a-zA-Z]$/.test(k)) {
     e.preventDefault();
+    if (!code) delSelection();      /* 選著一段又開始打碼 → 先取代掉選取 */
     code += k.toUpperCase(); pick = 0; render();
   } else if (k === ' ') {
     e.preventDefault();
@@ -567,11 +621,19 @@ $('#paper').onkeydown = e => {
   } else if (k === 'Backspace') {
     e.preventDefault();
     if (code) code = code.slice(0, -1);
+    else if (delSelection()) { /* 刪掉整段選取 */ }
     else if (pos > 0) { text = text.slice(0, pos - 1) + text.slice(pos); pos--; }
+    pick = 0; render();
+  } else if (k === 'Delete') {
+    /* 向前刪：有選取就刪整段，否則刪游標右邊那個字 */
+    e.preventDefault();
+    if (!code) {
+      if (!delSelection() && pos < text.length) text = text.slice(0, pos) + text.slice(pos + 1);
+    }
     pick = 0; render();
   } else if (k === 'Escape') {
     e.preventDefault();
-    code = ''; pick = 0; render();
+    code = ''; pick = 0; sel = null; render();
   } else if (k === 'Enter') {
     e.preventDefault();
     if (code) { code = ''; pick = 0; } else insertAtPos('\n');
@@ -587,10 +649,16 @@ $('#paper').onkeydown = e => {
     if (pick >= 9) pick = (Math.floor(pick / 9) - 1) * 9;
     render();
   } else if (k === 'ArrowRight' && !code) {
-    /* 沒在打碼時，左右鍵才是移動游標（打碼時留給切候選） */
-    e.preventDefault(); pos = Math.min(text.length, pos + 1); render();
+    /* 沒在打碼時，左右鍵才是移動游標（打碼時留給切候選）；shift＝選取 */
+    e.preventDefault();
+    if (e.shiftKey) { if (sel === null) sel = pos; pos = Math.min(text.length, pos + 1); }
+    else { const b = selBounds(); if (b) { pos = b[1]; sel = null; } else pos = Math.min(text.length, pos + 1); }
+    render();
   } else if (k === 'ArrowLeft' && !code) {
-    e.preventDefault(); pos = Math.max(0, pos - 1); render();
+    e.preventDefault();
+    if (e.shiftKey) { if (sel === null) sel = pos; pos = Math.max(0, pos - 1); }
+    else { const b = selBounds(); if (b) { pos = b[0]; sel = null; } else pos = Math.max(0, pos - 1); }
+    render();
   }
 };
 
@@ -614,10 +682,39 @@ function offsetFromPoint(clientX, clientY) {
   }
   return idx;
 }
-$('#paper').onclick = e => {
+/* 拖曳選取：按下＝放游標＋設錨點，拖曳＝移動另一端，放開＝定案（沒拖動就當一次點按） */
+let dragging = false;
+const clampIdx = i => Math.max(0, Math.min(text.length, i));
+$('#paper').onmousedown = e => {
+  if (e.button !== 0) return;     /* 只管左鍵 */
   $('#paper').focus();
   const idx = offsetFromPoint(e.clientX, e.clientY);
-  if (idx != null) { pos = Math.max(0, Math.min(text.length, idx)); code = ''; pick = 0; render(); }
+  if (idx == null) return;
+  e.preventDefault();             /* 用自己的選取，不要瀏覽器原生反白疊上來 */
+  dragging = true;
+  pos = clampIdx(idx); sel = pos; code = ''; pick = 0; render();
+};
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const idx = offsetFromPoint(e.clientX, e.clientY);
+  if (idx == null) return;
+  pos = clampIdx(idx); render();
+});
+document.addEventListener('mouseup', () => {
+  if (!dragging) return;
+  dragging = false;
+  if (sel === pos) sel = null;    /* 只是點一下、沒拖到 → 沒有選取 */
+  render();
+});
+/* 連點兩下：選取游標所在的那個字（跟一般輸入框一樣） */
+$('#paper').ondblclick = e => {
+  const idx = offsetFromPoint(e.clientX, e.clientY);
+  if (idx == null || !text.length) return;
+  e.preventDefault();
+  const at = clampIdx(idx);
+  sel = Math.max(0, at === text.length ? at - 1 : at);
+  pos = Math.min(text.length, sel + 1);
+  code = ''; pick = 0; render();
 };
 
 Promise.all([
@@ -636,6 +733,7 @@ Promise.all([
   loadState();                                /* 換頁／切分頁再回來，接著打 */
   render();
   $('#paper').focus();
+  if ($('#usePred').checked && !predTable.size && !predicting) buildPredictions();
 });
 
 /* 碼表改了就跟著更新（跟其他頁一樣） */
