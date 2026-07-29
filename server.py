@@ -58,6 +58,31 @@ TW_STROKES: dict[str, list] = {}  # 台灣教育部筆順：輪廓
 _tw_lock = threading.Lock()
 
 
+def _shorten(code, params):
+    """實際要按的碼：超過上限就取前 head 碼 + 末 tail 碼。與 build_rime.shorten、前端 Zigen.shorten 一致。"""
+    mx, head, tail = params.get("max", 5), params.get("head", 4), params.get("tail", 1)
+    if len(code) <= mx:
+        return code
+    return code[:head] + (code[-tail:] if tail else "")
+
+
+def _normalize_finals(data):
+    """存檔前把每個字的 final 一律重算成 shorten(code)。
+    避免程式化填碼（偏旁批量、git 匯入）留下 null 或舊 max 規則的過時 final。"""
+    if not isinstance(data, dict):
+        return
+    try:
+        rules = json.loads(RULES.read_text("utf-8"))
+        rule = next((r for r in rules.get("rules", [])
+                     if r.get("id") == "max_code_length" and r.get("enabled")), None)
+        params = (rule or {}).get("params", {})
+    except Exception:
+        params = {}
+    for v in data.values():
+        if isinstance(v, dict) and v.get("code"):
+            v["final"] = _shorten(v["code"], params)
+
+
 def load_glyphs():
     if not GRAPHICS.exists():
         print("!! 缺少 data/graphics.txt")
@@ -366,6 +391,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(409, json.dumps({
                 "error": "stale", "current": now,
                 "message": "檔案已被別的分頁或程式改過"}))
+
+        # codes.json：存檔前一律讓 final == shorten(code)，程式化填碼也擋得住
+        if stem == "codes":
+            _normalize_finals(data)
 
         BACKUPS.mkdir(parents=True, exist_ok=True)
         if dest.exists():
