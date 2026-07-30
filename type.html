@@ -166,6 +166,8 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let codes = {}, rules = null, rank = new Map();
+let charfreq = new Map();   /* 現代（台港新聞）字頻，候選字排序優先看它 —— rime-essay 常把冷字排前 */
+const usageOf = ch => (charfreq.get(ch) || 0);   /* 越大越常用，排越前 */
 let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
 let opencc = { t2s: {}, s2t: {} };   /* 繁簡對照（簡繁兼容用） */
 let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
@@ -270,9 +272,11 @@ function buildTable() {
       for (const mc of mainCodes) add(mc, v.display, '字型', false);  /* 主碼 → 也出變體字形 */
     }
   }
-  /* 排序：自己的碼（native）在前；同類時常用字在前 —— 少按一次選字鍵 */
+  /* 排序：自己的碼（native）在前；同類時「實際最常用」的字在前 —— 少按一次選字鍵。
+     常用度先看現代字頻（charfreq），再用 rime-essay 次序打平手（rime-essay 會把 己 排在 已 前）。 */
   for (const list of table.values())
     list.sort((a, b) => (b.native - a.native) ||
+      (usageOf(b.ch) - usageOf(a.ch)) ||
       ((rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9)));
 
   const chars = new Set();
@@ -391,6 +395,8 @@ function candidates() {
   if (!code) return [];
   const usePred = $('#usePred').checked;
   const rk = ch => (rank.get(ch) ?? 1e9);
+  /* 候選排序：現代字頻優先，rime-essay 次序打平手 */
+  const byUsage = (a, b) => (usageOf(b.ch) - usageOf(a.ch)) || (rk(a.ch) - rk(b.ch));
   const wild = code.includes('`');
   const rxE = wild ? new RegExp('^' + code.replace(/`/g, '.') + '$') : null;   /* 整段相符 */
   const rxP = wild ? new RegExp('^' + code.replace(/`/g, '.')) : null;          /* 補全（更長） */
@@ -415,7 +421,7 @@ function candidates() {
       for (const x of list)
         if (!exact.some(e => e.ch === x.ch)) exact.push({ ...x, exact: true, wild: true, code: c });
     }
-    exact.sort((a, b) => (b.native - a.native) || (rk(a.ch) - rk(b.ch)));
+    exact.sort((a, b) => (b.native - a.native) || byUsage(a, b));
     if (exact.length < 9) {
       for (const [c, list] of table) {
         if (rxE.test(c) || !rxP.test(c)) continue;
@@ -425,7 +431,7 @@ function candidates() {
         }
         if (exact.length + pre.length >= MAX_CAND) break;
       }
-      pre.sort((a, b) => rk(a.ch) - rk(b.ch));
+      pre.sort(byUsage);
     }
   }
 
@@ -443,7 +449,7 @@ function candidates() {
           if (!seen(x.ch)) pd.push({ ...x, exact: true, pred: true, wild: true, kind: '預測', code: c });
       }
     }
-    pd.sort((a, b) => rk(a.ch) - rk(b.ch));
+    pd.sort(byUsage);
   }
   let all = [...exact, ...pd, ...pre];
   if ($('#simpCompat').checked) all = withSimpCompat(all);
@@ -724,9 +730,11 @@ Promise.all([
   fetch('/api/zigen').then(r => r.json()),
   fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
   fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
-]).then(async ([c, rl, f, z, ln, oc]) => {
+  fetch('/api/charfreq').then(r => r.json()).catch(() => ({})),
+]).then(async ([c, rl, f, z, ln, oc, cf]) => {
   codes = c; rules = rl; zigen = z; opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
+  charfreq = new Map(Object.entries(cf || {}));
   f.order.forEach((ch, i) => rank.set(ch, i));
   lib = await Zigen.buildLibrary(zigen);      /* 推未取碼的字要用 */
   buildTable();

@@ -117,9 +117,7 @@
             },
             {
               "c": "五",
-              "code": "ID",
-              "compCode": "D",
-              "standaloneOnly": true
+              "code": "ID"
             },
             {
               "c": "六",
@@ -178,7 +176,9 @@
             },
             {
               "c": "末",
-              "code": "ITJL"
+              "code": "ITJL",
+              "compCode": "T",
+              "standaloneOnly": true
             },
             {
               "c": "未",
@@ -197,21 +197,6 @@
               "standaloneOnly": true
             },
             {
-              "c": "才",
-              "code": "TJ"
-            },
-            {
-              "c": "牙",
-              "code": "ILJJ",
-              "standaloneOnly": true,
-              "compCode": "FJ"
-            },
-            {
-              "c": "味",
-              "code": "OHJL",
-              "compCode": "OHJL"
-            },
-            {
               "c": "杏",
               "code": "TJLO"
             }
@@ -223,13 +208,15 @@
           "chars": [
             {
               "c": "大",
-              "code": "XL",
+              "code": "IY",
               "compCode": "K",
               "standaloneOnly": true
             },
             {
               "c": "太",
-              "code": "KQ"
+              "code": "IA",
+              "compCode": "KQ",
+              "standaloneOnly": true
             },
             {
               "c": "天",
@@ -245,13 +232,9 @@
             },
             {
               "c": "犬",
-              "code": "XLQ",
+              "code": "KQ",
               "compCode": "KQ",
               "standaloneOnly": true
-            },
-            {
-              "c": "丫",
-              "code": "VJ"
             }
           ]
         },
@@ -302,18 +285,6 @@
           ]
         },
         {
-          "name": "其他類",
-          "note": "",
-          "chars": [
-            {
-              "c": "片",
-              "code": "JH",
-              "compCode": "K",
-              "standaloneOnly": true
-            }
-          ]
-        },
-        {
           "name": "偏旁另有取法",
           "note": "單獨成字與作為偏旁時取法不同",
           "chars": [
@@ -346,18 +317,6 @@
             {
               "c": "刀",
               "code": "CJ"
-            },
-            {
-              "c": "辛",
-              "code": "QVF",
-              "compCode": "QVX",
-              "standaloneOnly": true
-            },
-            {
-              "c": "半",
-              "code": "VH",
-              "compCode": "VIJ",
-              "standaloneOnly": true
             },
             {
               "c": "乃",
@@ -438,6 +397,10 @@
               "standaloneOnly": true
             },
             {
+              "c": "申",
+              "code": "BJ"
+            },
+            {
               "c": "中",
               "code": "UT",
               "compCode": "UT"
@@ -447,6 +410,10 @@
               "code": "UJ",
               "compCode": "M",
               "standaloneOnly": true
+            },
+            {
+              "c": "丫",
+              "code": "VJ"
             }
           ]
         }

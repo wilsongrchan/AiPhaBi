@@ -53,6 +53,8 @@ CANGJIE = SHARED / "cangjie.json"
 OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
+ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
+CHARFREQ = SHARED / "charfreq.json"     # 現代（台港新聞）字頻：候選字排序用，比 rime-essay 更貼近實際
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -312,6 +314,12 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/priority":
             return self._send(200, PRIORITY.read_text("utf-8") if PRIORITY.exists()
                               else '{"order":[]}')
+        if u.path == "/api/orderings":
+            return self._send(200, ORDERINGS.read_text("utf-8") if ORDERINGS.exists()
+                              else '{"news":[],"surname":[],"given":[]}')
+        if u.path == "/api/charfreq":
+            return self._send(200, CHARFREQ.read_text("utf-8") if CHARFREQ.exists()
+                              else '{}', cache=True)
         if u.path == "/api/progress":
             return self._send(200, json.dumps(progress_data(), ensure_ascii=False))
         if u.path == "/api/state":
