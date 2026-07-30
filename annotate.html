@@ -2664,32 +2664,48 @@ async function componentWarnings(ctx) {
          害這裡誤判成「不一致」，明明兩邊都是 I）。約定表填的偏旁碼本來就
          已經涵蓋「站在哪裡都適用」，不必再猜。 */
       const atEnd = idx[idx.length - 1] === n - 1;
-      const expected = c => {
-        if (atEnd || c.convComp || !c.segs || !c.segs.length) return c.code;
+      const atStart = idx[0] === 0;
+      /* 部件的碼會隨它「站在字的哪個位置」而變：孤筆略過原則說孤立的橫／豎要略過，
+         但首筆、末筆例外（孤立首／末橫取 I，孤立首／末豎取 J）。所以同一個部件——
+           豆 單獨成字，開頭那一橫是首筆 → 取 I → IOV；
+           豎 裡的豆不在字首（前面還有臤）→ 那一橫變成中途孤筆 → 略過 → OV。
+           畫 末橫是末筆 → 取 I → EFOTI；劃 裡的畫不在字尾（後面還有刂）→ 略過 → EFOT。
+         比對前要按位置把樣板的碼重算：不在字首就砍掉首碼、不在字尾就砍掉末碼——
+         但只砍「真的靠首／末筆例外才取到的那一筆孤立橫豎」。約定表填了偏旁碼的字
+         （convComp）不適用：它的 code 是另外填的最終答案，跟自己的筆畫分組早就對不上，
+         砍它只會砍出亂碼（見 工＝I 的舊誤報）。 */
+      const adjust = c => {
+        if (c.convComp || !c.segs || !c.segs.length) return { code: c.code, head: false, tail: false };
         const sk = rule('skip_isolated_hv');
-        if (!sk) return c.code;
+        if (!sk) return { code: c.code, head: false, tail: false };
         const lastLetters = sk.params.last_stroke_letters ||
           (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {});
-        const tail = c.segs[c.segs.length - 1];
         const tn = Math.max(...c.segs.flatMap(s => s.strokes),
                             ...(c.skipped || [])) + 1;      /* 樣板字的筆數 */
-        /* 樣板的最後一碼，是不是「單獨一筆、而且就是末筆、而且靠末筆規則才取到」？
-           要看那一筆的「筆型」是不是真的是可略過的橫／豎 —— 不能只看字母：
-           J 既是「豎的末筆孤筆」也是「撇」這個字根（少 的末筆丿就取 J），
-           只比字母會把「少 的丿」誤當成可略過的豎末筆，於是誤報 少→M。 */
-        const tailMed = glyphCacheMedians(c.ch, tn - 1);
-        const tailKind = tailMed ? kindOf(tailMed) : null;
-        const isLastStrokeRule = tail.strokes.length === 1 &&
-          tail.strokes[0] === tn - 1 &&
-          tailKind != null && lastLetters[tailKind] === tail.letter;
-        return isLastStrokeRule ? c.code.slice(0, -1) : c.code;
+        /* 這一段是不是「單獨一筆、就在位置 p、而且靠首／末筆例外才取到」？
+           要看筆型是不是真的可略過的橫／豎 —— 不能只看字母：J 既是「豎的孤筆」也是
+           「撇」這個字根（少 的末筆丿取 J），只比字母會誤報 少→M。 */
+        const ruleSeg = (seg, p) => {
+          if (!seg || seg.strokes.length !== 1 || seg.strokes[0] !== p) return false;
+          const med = glyphCacheMedians(c.ch, p);
+          const kind = med ? kindOf(med) : null;
+          return kind != null && lastLetters[kind] === seg.letter;
+        };
+        const tailSeg = c.segs[c.segs.length - 1];
+        const headSeg = c.segs.find(s => s.strokes.includes(0));
+        const tail = !atEnd && ruleSeg(tailSeg, tn - 1);
+        const head = !atStart && !!headSeg && headSeg !== tailSeg && ruleSeg(headSeg, 0);
+        return { code: c.code.slice(head ? 1 : 0, tail ? c.code.length - 1 : c.code.length),
+                 head, tail, headSeg, tailSeg };
       };
+      const expected = c => adjust(c).code;
 
       /* 只要跟其中任何一個「長得像」的字取法一致，就算一致 —— 不必都一樣 */
       if (cands.some(x => expected(x.c) === mineCode)) { usedRanges.push(idx); continue; }
 
       const best = cands[0].c;
-      const want = expected(best);
+      const adj = adjust(best);
+      const want = adj.code;
       out.push({
         key: `comp:${best.ch}:${i}`, lvl: 'warn', rule: '偏旁一致性',
         refs: mineSegs.map(sg => SG.indexOf(sg)),
@@ -2698,13 +2714,13 @@ async function componentWarnings(ctx) {
            拿它去「照著拆」只會拆出錯的碼，所以這種情況不給自動修正 */
         fix: best.convComp ? null : {
           type: 'component', strokes: idx, from: best.ch,
-          /* 樣板的末筆規則在這裡不成立時，那一筆要改成「略過」，不能照抄 */
+          /* 樣板的首／末筆例外在這裡不成立時，那一筆要改成「略過」，不能照抄 */
           segs: best.segs
-            .filter(sg => want === best.code || sg !== best.segs[best.segs.length - 1])
+            .filter(sg => !(adj.tail && sg === adj.tailSeg) && !(adj.head && sg === adj.headSeg))
             .map(sg => ({ letter: sg.letter, strokes: sg.strokes.map(x => i + x) })),
           skipped: [...best.skipped.map(x => i + x),
-                    ...(want === best.code ? []
-                        : best.segs[best.segs.length - 1].strokes.map(x => i + x))],
+                    ...(adj.tail ? adj.tailSeg.strokes.map(x => i + x) : []),
+                    ...(adj.head ? adj.headSeg.strokes.map(x => i + x) : [])],
           label: `照「${best.ch}」的拆法（${want}）`,
         },
         /* 「金」單獨成字是 AFV，作為偏旁才是 YFV —— 一鍵把這件事寫進約定表 */
@@ -2715,8 +2731,8 @@ async function componentWarnings(ctx) {
              (best.convComp
                ? `約定表說它<b>作為偏旁時取 ${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`
                : want !== best.code
-                 ? `「${best.ch}」單獨成字取 <b>${best.code}</b>，但它不在這個字的字尾，` +
-                   `末筆的孤立筆畫要略過 → 這裡應該取 <b>${want}</b>，你卻取成 <b>${mineCode}</b>。`
+                 ? `「${best.ch}」單獨成字取 <b>${best.code}</b>，但它${adj.head && adj.tail ? '首末' : adj.head ? '首' : '末'}筆的孤立橫／豎在這裡不在字${adj.head && adj.tail ? '首尾' : adj.head ? '首' : '尾'}，` +
+                   `依孤筆略過原則要略過 → 這裡應該取 <b>${want}</b>，你卻取成 <b>${mineCode}</b>。`
                  : `但你在「${best.ch}」裡取的是 <b>${best.code}</b>，這裡卻取成 <b>${mineCode}</b> —— 不一致。`),
       });
       usedRanges.push(idx);
