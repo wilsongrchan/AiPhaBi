@@ -2885,6 +2885,23 @@
               ],
               "learned": true,
               "thr": 0.0693
+            },
+            {
+              "glyph": {
+                "src": "甩",
+                "strokes": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "ex": "甩",
+              "count": 3,
+              "seen": [
+                "甩"
+              ],
+              "learned": true
             }
           ],
           "tier": "primary"
@@ -2950,25 +2967,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "甩",
-                "strokes": [
-                  0,
-                  1,
-                  2,
-                  3
-                ]
-              },
-              "ex": "甩",
-              "count": 3,
-              "seen": [
-                "甩"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -5263,7 +5262,7 @@
           ]
         },
         {
-          "desc": "兩橫，上橫不能比下橫長，有時候寫成一點一提、一點一橫、或者兩點",
+          "desc": "兩橫，上橫不能比下橫長，有些時候寫成一點一提、一點一橫、或者兩點",
           "tier": "primary",
           "shapes": [
             {
@@ -10873,12 +10872,6 @@
               "thr": 0.139
             }
           ]
-        },
-        {
-          "desc": "",
-          "auto": true,
-          "tier": "primary",
-          "shapes": []
         }
       ]
     },
@@ -11118,6 +11111,51 @@
               ],
               "learned": true,
               "thr": 0.184
+            },
+            {
+              "glyph": {
+                "src": "撈",
+                "strokes": [
+                  3,
+                  4
+                ]
+              },
+              "ex": "撈",
+              "count": 3,
+              "seen": [
+                "撈"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "毅",
+                "strokes": [
+                  2,
+                  3
+                ]
+              },
+              "ex": "毅",
+              "count": 2,
+              "seen": [
+                "毅"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "鑿",
+                "strokes": [
+                  5,
+                  6
+                ]
+              },
+              "ex": "鑿",
+              "count": 2,
+              "seen": [
+                "鑿"
+              ],
+              "learned": true
             }
           ]
         },
@@ -11435,58 +11473,6 @@
               "seen": [
                 "嬰",
                 "販"
-              ],
-              "learned": true
-            }
-          ]
-        },
-        {
-          "desc": "",
-          "auto": true,
-          "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "撈",
-                "strokes": [
-                  3,
-                  4
-                ]
-              },
-              "ex": "撈",
-              "count": 3,
-              "seen": [
-                "撈"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "毅",
-                "strokes": [
-                  2,
-                  3
-                ]
-              },
-              "ex": "毅",
-              "count": 2,
-              "seen": [
-                "毅"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "鑿",
-                "strokes": [
-                  5,
-                  6
-                ]
-              },
-              "ex": "鑿",
-              "count": 2,
-              "seen": [
-                "鑿"
               ],
               "learned": true
             }
