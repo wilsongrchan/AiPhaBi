@@ -1846,9 +1846,30 @@
     "final": "M"
   },
   "天": {
-    "code": "IXL",
-    "final": "IXL",
-    "notComponent": true
+    "code": "IXR",
+    "final": "IXR",
+    "notComponent": true,
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          1,
+          2
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          3
+        ],
+        "letter": "R"
+      }
+    ]
   },
   "本": {
     "segments": [
@@ -3029,7 +3050,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -3047,8 +3068,8 @@
         "letter": "F"
       }
     ],
-    "code": "WJF",
-    "final": "WJF"
+    "code": "MJF",
+    "final": "MJF"
   },
   "種": {
     "segments": [
@@ -4057,7 +4078,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -4078,8 +4099,8 @@
         "letter": "D"
       }
     ],
-    "code": "WFD",
-    "final": "WFD"
+    "code": "MFD",
+    "final": "MFD"
   },
   "意": {
     "segments": [
@@ -6713,11 +6734,11 @@
           8,
           9
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "EYOW",
-    "final": "EYOW"
+    "code": "EYOE",
+    "final": "EYOE"
   },
   "東": {
     "segments": [
@@ -6803,9 +6824,10 @@
       },
       {
         "strokes": [
-          7
+          7,
+          8
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -6814,11 +6836,8 @@
         "letter": "L"
       }
     ],
-    "code": "EIGJL",
-    "skipped": [
-      8
-    ],
-    "final": "EIGJL"
+    "code": "EIGNL",
+    "final": "EIGNL"
   },
   "式": {
     "segments": [
@@ -9552,11 +9571,11 @@
           5,
           6
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "YOW",
-    "final": "YOW"
+    "code": "YOE",
+    "final": "YOE"
   },
   "見": {
     "segments": [
@@ -11654,7 +11673,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -11671,8 +11690,8 @@
         "letter": "Y"
       }
     ],
-    "code": "WCY",
-    "final": "WCY"
+    "code": "MCY",
+    "final": "MCY"
   },
   "導": {
     "segments": [
@@ -19378,19 +19397,17 @@
     "segments": [
       {
         "strokes": [
-          0
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          0,
           1
         ],
-        "letter": "R"
+        "letter": "V"
       }
     ],
-    "code": "JR",
-    "final": "JR"
+    "code": "V",
+    "final": "V",
+    "conventional": [
+      "conv"
+    ]
   },
   "微": {
     "segments": [
@@ -22188,7 +22205,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -22205,8 +22222,8 @@
         "letter": "X"
       }
     ],
-    "code": "JUWNX",
-    "final": "JUWNX"
+    "code": "JUENX",
+    "final": "JUENX"
   },
   "爭": {
     "segments": [
@@ -23093,7 +23110,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -23125,8 +23142,8 @@
         "letter": "I"
       }
     ],
-    "code": "JUWNXMI",
-    "final": "JUWNI"
+    "code": "JUENXMI",
+    "final": "JUENI"
   },
   "假": {
     "segments": [
@@ -24127,11 +24144,11 @@
           3,
           4
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "OW",
-    "final": "OW"
+    "code": "OE",
+    "final": "OE"
   },
   "鐵": {
     "segments": [
@@ -27425,7 +27442,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -27453,11 +27470,11 @@
         "letter": "X"
       }
     ],
-    "code": "WBMX",
-    "final": "WBMX",
+    "code": "MBMX",
     "skipped": [
       11
-    ]
+    ],
+    "final": "MBMX"
   },
   "操": {
     "segments": [
@@ -27573,11 +27590,11 @@
           7,
           8
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "FOW",
-    "final": "FOW"
+    "code": "FOE",
+    "final": "FOE"
   },
   "鄉": {
     "segments": [
@@ -28435,7 +28452,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -28453,8 +28470,8 @@
         "letter": "B"
       }
     ],
-    "code": "WJB",
-    "final": "WJB"
+    "code": "MJB",
+    "final": "MJB"
   },
   "朝": {
     "segments": [
@@ -31890,7 +31907,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -31907,8 +31924,8 @@
         "letter": "N"
       }
     ],
-    "code": "JUWIN",
-    "final": "JUWIN"
+    "code": "JUEIN",
+    "final": "JUEIN"
   },
   "攻": {
     "segments": [
@@ -33087,7 +33104,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -33105,8 +33122,8 @@
         "letter": "O"
       }
     ],
-    "code": "JUWNO",
-    "final": "JUWNO"
+    "code": "JUENO",
+    "final": "JUENO"
   },
   "甲": {
     "notComponent": true,
@@ -34260,7 +34277,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -34278,8 +34295,8 @@
         "letter": "F"
       }
     ],
-    "code": "WXF",
-    "final": "WXF"
+    "code": "MXF",
+    "final": "MXF"
   },
   "登": {
     "segments": [
@@ -35955,7 +35972,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -35998,11 +36015,11 @@
         "letter": "K"
       }
     ],
-    "code": "WIMKJK",
+    "code": "MIMKJK",
     "skipped": [
       9
     ],
-    "final": "WIMKK"
+    "final": "MIMKK"
   },
   "夢": {
     "segments": [
@@ -38176,7 +38193,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -38210,11 +38227,11 @@
         "letter": "F"
       }
     ],
-    "code": "WHJBF",
-    "final": "WHJBF",
+    "code": "MHJBF",
     "skipped": [
       7
-    ]
+    ],
+    "final": "MHJBF"
   },
   "釋": {
     "segments": [
@@ -40068,7 +40085,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -40084,8 +40101,8 @@
         "letter": "L"
       }
     ],
-    "code": "WIL",
-    "final": "WIL"
+    "code": "MIL",
+    "final": "MIL"
   },
   "匯": {
     "segments": [
@@ -45939,7 +45956,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -45973,8 +45990,8 @@
         "letter": "V"
       }
     ],
-    "code": "WOTDV",
-    "final": "WOTDV"
+    "code": "MOTDV",
+    "final": "MOTDV"
   },
   "屏": {
     "segments": [
@@ -47444,11 +47461,11 @@
           9,
           10
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "TYOW",
-    "final": "TYOW"
+    "code": "TYOE",
+    "final": "TYOE"
   },
   "抓": {
     "segments": [
@@ -48015,7 +48032,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -48051,8 +48068,8 @@
         "letter": "W"
       }
     ],
-    "code": "WIVBW",
-    "final": "WIVBW"
+    "code": "MIVBW",
+    "final": "MIVBW"
   },
   "描": {
     "segments": [
@@ -53493,7 +53510,7 @@
           5,
           6
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -53521,8 +53538,8 @@
         "letter": "M"
       }
     ],
-    "code": "YOWXGM",
-    "final": "YOWXM"
+    "code": "YOEXGM",
+    "final": "YOEXM"
   },
   "涉": {
     "segments": [
@@ -56362,7 +56379,7 @@
           5,
           6
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -56374,8 +56391,8 @@
         "letter": "X"
       }
     ],
-    "code": "YOWX",
-    "final": "YOWX"
+    "code": "YOEX",
+    "final": "YOEX"
   },
   "祕": {
     "segments": [
@@ -57491,7 +57508,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -57510,8 +57527,8 @@
         "letter": "K"
       }
     ],
-    "code": "WEK",
-    "final": "WEK"
+    "code": "MEK",
+    "final": "MEK"
   },
   "桃": {
     "segments": [
@@ -57672,15 +57689,10 @@
       },
       {
         "strokes": [
-          9
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          9,
           10
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -57690,7 +57702,7 @@
         "letter": "V"
       }
     ],
-    "code": "OTLIJJV",
+    "code": "OTLINV",
     "final": "OTLIV"
   },
   "陪": {
@@ -61373,11 +61385,11 @@
           6,
           7
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "LJOW",
-    "final": "LJOW"
+    "code": "LJOE",
+    "final": "LJOE"
   },
   "舌": {
     "segments": [
@@ -61418,15 +61430,10 @@
       },
       {
         "strokes": [
-          3
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          3,
           4
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -61436,8 +61443,8 @@
         "letter": "V"
       }
     ],
-    "code": "FJJV",
-    "final": "FJJV"
+    "code": "FNV",
+    "final": "FNV"
   },
   "膚": {
     "segments": [
@@ -63097,7 +63104,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -63118,8 +63125,8 @@
         "letter": "B"
       }
     ],
-    "code": "WHB",
-    "final": "WHB"
+    "code": "MHB",
+    "final": "MHB"
   },
   "帖": {
     "segments": [
@@ -65198,7 +65205,7 @@
           7,
           8
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -65215,8 +65222,8 @@
         "letter": "X"
       }
     ],
-    "code": "HJUWNX",
-    "final": "HJUWX"
+    "code": "HJUENX",
+    "final": "HJUEX"
   },
   "臥": {
     "segments": [
@@ -66567,7 +66574,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -66606,8 +66613,8 @@
         "letter": "E"
       }
     ],
-    "code": "WGGGYE",
-    "final": "WGGGE"
+    "code": "MGGGYE",
+    "final": "MGGGE"
   },
   "邀": {
     "segments": [
@@ -68523,7 +68530,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -68542,8 +68549,8 @@
         "letter": "O"
       }
     ],
-    "code": "WAO",
-    "final": "WAO"
+    "code": "MAO",
+    "final": "MAO"
   },
   "斑": {
     "segments": [
@@ -69275,7 +69282,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -69293,11 +69300,11 @@
         "letter": "I"
       }
     ],
-    "code": "WDI",
-    "final": "WDI",
+    "code": "MDI",
     "skipped": [
       3
-    ]
+    ],
+    "final": "MDI"
   },
   "斜": {
     "segments": [
@@ -70190,7 +70197,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -70209,11 +70216,11 @@
         "letter": "O"
       }
     ],
-    "code": "WDO",
-    "final": "WDO",
+    "code": "MDO",
     "skipped": [
       3
-    ]
+    ],
+    "final": "MDO"
   },
   "帽": {
     "segments": [
@@ -70796,15 +70803,10 @@
       },
       {
         "strokes": [
-          3
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          3,
           4
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -70823,15 +70825,10 @@
       },
       {
         "strokes": [
-          10
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          10,
           11
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -70841,8 +70838,8 @@
         "letter": "V"
       }
     ],
-    "code": "FJJVFJJV",
-    "final": "FJJVV"
+    "code": "FNVFNV",
+    "final": "FNVFV"
   },
   "艦": {
     "segments": [
@@ -70865,7 +70862,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -70907,8 +70904,8 @@
         "letter": "I"
       }
     ],
-    "code": "JUWCKAMI",
-    "final": "JUWCI"
+    "code": "JUECKAMI",
+    "final": "JUECI"
   },
   "玻": {
     "segments": [
@@ -71024,9 +71021,10 @@
       },
       {
         "strokes": [
-          9
+          9,
+          10
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -71035,10 +71033,7 @@
         "letter": "L"
       }
     ],
-    "code": "JTLIGJL",
-    "skipped": [
-      10
-    ],
+    "code": "JTLIGNL",
     "final": "JTLIL"
   },
   "諮": {
@@ -71677,7 +71672,10 @@
       }
     ],
     "code": "PP",
-    "final": "PP"
+    "final": "PP",
+    "excludeComp": [
+      "丁"
+    ]
   },
   "堡": {
     "segments": [
@@ -77484,7 +77482,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -77528,8 +77526,8 @@
         "letter": "V"
       }
     ],
-    "code": "WTOPDV",
-    "final": "WTOPV"
+    "code": "MTOPDV",
+    "final": "MTOPV"
   },
   "臟": {
     "segments": [
@@ -77848,7 +77846,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -77870,11 +77868,11 @@
           8,
           9
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "WYOW",
-    "final": "WYOW"
+    "code": "MYOE",
+    "final": "MYOE"
   },
   "遙": {
     "segments": [
@@ -79178,15 +79176,10 @@
       },
       {
         "strokes": [
-          6
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          6,
           7
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -79205,15 +79198,10 @@
       },
       {
         "strokes": [
-          13
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          13,
           14
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -79223,8 +79211,8 @@
         "letter": "V"
       }
     ],
-    "code": "OFJJVFJJV",
-    "final": "OFJJV"
+    "code": "OFNVFNV",
+    "final": "OFNVV"
   },
   "玄": {
     "segments": [
@@ -79619,7 +79607,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -79643,8 +79631,8 @@
         "letter": "Y"
       }
     ],
-    "code": "WXVY",
-    "final": "WXVY"
+    "code": "MXVY",
+    "final": "MXVY"
   },
   "鄭": {
     "segments": [
@@ -79996,7 +79984,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -80031,8 +80019,8 @@
         "letter": "V"
       }
     ],
-    "code": "WTHDV",
-    "final": "WTHDV"
+    "code": "MTHDV",
+    "final": "MTHDV"
   },
   "綱": {
     "segments": [
@@ -81793,15 +81781,10 @@
       },
       {
         "strokes": [
-          2
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          2,
           3
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -81811,8 +81794,8 @@
         "letter": "V"
       }
     ],
-    "code": "IJJV",
-    "final": "IJJV"
+    "code": "INV",
+    "final": "INV"
   },
   "泄": {
     "segments": [
@@ -83320,11 +83303,11 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       }
     ],
-    "code": "JUW",
-    "final": "JUW"
+    "code": "JUE",
+    "final": "JUE"
   },
   "浴": {
     "segments": [
@@ -84973,7 +84956,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -85006,8 +84989,8 @@
         "letter": "V"
       }
     ],
-    "code": "WTUEV",
-    "final": "WTUEV"
+    "code": "MTUEV",
+    "final": "MTUEV"
   },
   "撤": {
     "segments": [
@@ -86006,7 +85989,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -86050,12 +86033,12 @@
         "letter": "F"
       }
     ],
-    "code": "WDDYIF",
+    "code": "MDDYIF",
     "skipped": [
       7,
       12
     ],
-    "final": "WDDYF"
+    "final": "MDDYF"
   },
   "茅": {
     "segments": [
@@ -92639,7 +92622,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -92675,11 +92658,11 @@
         "letter": "L"
       }
     ],
-    "code": "WHILJL",
+    "code": "MHILJL",
     "skipped": [
       10
     ],
-    "final": "WHILL"
+    "final": "MHILL"
   },
   "儿": {
     "segments": [
@@ -93506,7 +93489,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -93541,8 +93524,8 @@
         "letter": "H"
       }
     ],
-    "code": "WVTAH",
-    "final": "WVTAH"
+    "code": "MVTAH",
+    "final": "MVTAH"
   },
   "逛": {
     "segments": [
@@ -94814,7 +94797,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -94851,8 +94834,7 @@
         "letter": "G"
       }
     ],
-    "code": "WJBJLG",
-    "final": "WJBJG",
+    "code": "MJBJLG",
     "variants": [
       {
         "display": "愧",
@@ -94909,7 +94891,8 @@
           }
         ]
       }
-    ]
+    ],
+    "final": "MJBJG"
   },
   "浙": {
     "segments": [
@@ -95000,7 +94983,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -95030,8 +95013,8 @@
         "letter": "L"
       }
     ],
-    "code": "WVOJL",
-    "final": "WVOJL"
+    "code": "MVOJL",
+    "final": "MVOJL"
   },
   "姨": {
     "segments": [
@@ -96418,7 +96401,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -96436,8 +96419,8 @@
         "letter": "M"
       }
     ],
-    "code": "WXM",
-    "final": "WXM"
+    "code": "MXM",
+    "final": "MXM"
   },
   "匪": {
     "segments": [
@@ -97276,7 +97259,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -97304,8 +97287,8 @@
         "letter": "O"
       }
     ],
-    "code": "JUWARO",
-    "final": "JUWAO"
+    "code": "JUEARO",
+    "final": "JUEAO"
   },
   "疆": {
     "segments": [
@@ -97769,7 +97752,7 @@
           4,
           5
         ],
-        "letter": "W"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -97793,8 +97776,8 @@
         "letter": "Z"
       }
     ],
-    "code": "JUWJFZ",
-    "final": "JUWJZ"
+    "code": "JUEJFZ",
+    "final": "JUEJZ"
   },
   "仲": {
     "segments": [
@@ -100007,9 +99990,10 @@
       },
       {
         "strokes": [
-          8
+          8,
+          9
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -100018,11 +100002,8 @@
         "letter": "L"
       }
     ],
-    "code": "TIGJL",
-    "skipped": [
-      9
-    ],
-    "final": "TIGJL"
+    "code": "TIGNL",
+    "final": "TIGNL"
   },
   "畜": {
     "segments": [
@@ -100677,7 +100658,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -100717,11 +100698,11 @@
         "letter": "W"
       }
     ],
-    "code": "WROXQW",
-    "final": "WROXW",
+    "code": "MROXQW",
     "skipped": [
       5
-    ]
+    ],
+    "final": "MROXW"
   },
   "昆": {
     "segments": [
@@ -107049,7 +107030,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -107073,12 +107054,12 @@
         "letter": "J"
       }
     ],
-    "code": "WELJ",
-    "final": "WELJ",
+    "code": "MELJ",
     "skipped": [
       3,
       7
-    ]
+    ],
+    "final": "MELJ"
   },
   "豎": {
     "segments": [
@@ -107268,7 +107249,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -107288,8 +107269,8 @@
         "letter": "D"
       }
     ],
-    "code": "WWD",
-    "final": "WWD"
+    "code": "MWD",
+    "final": "MWD"
   },
   "俯": {
     "segments": [
@@ -108611,7 +108592,7 @@
           1,
           2
         ],
-        "letter": "W"
+        "letter": "M"
       },
       {
         "strokes": [
@@ -108631,8 +108612,8 @@
         "letter": "F"
       }
     ],
-    "code": "WBF",
-    "final": "WBF"
+    "code": "MBF",
+    "final": "MBF"
   },
   "鑿": {
     "segments": [
@@ -109451,15 +109432,10 @@
       },
       {
         "strokes": [
-          3
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          3,
           4
         ],
-        "letter": "J"
+        "letter": "N"
       },
       {
         "strokes": [
@@ -109476,8 +109452,8 @@
         "letter": "P"
       }
     ],
-    "code": "FJJVP",
-    "final": "FJJVP"
+    "code": "FNVP",
+    "final": "FNVP"
   },
   "淒": {
     "segments": [

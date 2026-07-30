@@ -1135,6 +1135,7 @@ async function deleteShape(arr, i, s, L) {
 async function renderSuggestions(box, L, auto) {
   box.innerHTML = '';
   for (const sh of [...auto.shapes]) {
+    if (sh.noSuggest) continue;                    /* 你按過「✕」關掉的建議，不再提示 */
     const sug = await suggestIntention(L, sh);
     if (!sug || sug.d > 0.4) continue;             /* 差太遠就別亂建議 */
     const row = el('div', 'sug');
@@ -1157,6 +1158,10 @@ async function renderSuggestions(box, L, auto) {
       touch(); render();
     };
     row.append(yes);
+    const no = el('button', 'mini', '✕');
+    no.title = '不採用這個建議，以後不再提示（字根仍留在「未分類」，可稍後手動歸類）';
+    no.onclick = () => { sh.noSuggest = true; touch(); render(); };
+    row.append(no);
     box.append(row);
   }
 }
