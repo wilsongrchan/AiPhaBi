@@ -201,7 +201,13 @@
   </section>
 
   <section>
-    <h2>重碼</h2>
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <h2>重碼</h2>
+      <div class="grow"></div>
+      <button id="dupCutAll" class="on">全部</button>
+      <button id="dupCut1000">不計 1000 字之後重碼</button>
+      <button id="dupCut2000">不計 2000 字之後重碼</button>
+    </div>
     <div class="sub" id="dupsub"></div>
     <div id="bylen" style="margin-bottom:14px"></div>
     <div id="dups"></div>
@@ -409,7 +415,18 @@ function render() {
   for (const L of zigen.letters)
     zigenCount[L.letter] = L.intentions.reduce((n, i) => n + i.shapes.length, 0);
 
-  const dups = [...byCode.entries()].filter(([, cs]) => cs.length > 1)
+  /* 重碼可以只算「常用字範圍內」的：排 1000／2000 名之後才會撞上的字，
+     實際打字幾乎碰不到，混在一起看不出真正該優先處理的是哪些。
+     只影響重碼本身的分子分母，字母頻率、碼長分布等其他統計仍用全體。 */
+  const dupEntries = dupCutoff === Infinity ? entries
+    : entries.filter(([ch]) => (rank.get(ch) ?? Infinity) < dupCutoff);
+  const byCodeDup = new Map();
+  for (const [ch, r] of dupEntries) {
+    const code = finalOf(r);
+    if (!byCodeDup.has(code)) byCodeDup.set(code, []);
+    byCodeDup.get(code).push(ch);
+  }
+  const dups = [...byCodeDup.entries()].filter(([, cs]) => cs.length > 1)
     .map(([code, cs]) => ({ code, chars: cs,
       ranks: cs.map(c => rank.get(c) ?? 99999),
       best: Math.min(...cs.map(c => rank.get(c) ?? 99999)) }))
@@ -445,8 +462,8 @@ function render() {
   $('#kpis').innerHTML =
     kpi(entries.length, '已取碼字數') +
     kpi(entries.length ? (codeLen / entries.length).toFixed(2) : '—', '平均碼長') +
-    kpi(dups.length, '重碼組', dups.length > 0) +
-    kpi(entries.length ? (dupChars / entries.length * 100).toFixed(1) + '%' : '0%',
+    kpi(dups.length, dupCutoff === Infinity ? '重碼組' : `重碼組（前 ${dupCutoff} 字）`, dups.length > 0) +
+    kpi(dupEntries.length ? (dupChars / dupEntries.length * 100).toFixed(1) + '%' : '0%',
         '重碼率（重碼字 ÷ 已取碼字）', dupChars > 0) +
     kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數') +
     kpi(`${cut}+${altN}`, `兼容碼（${cut} 個完整碼自動兼容＋${altN} 個手動收）`) +
@@ -506,7 +523,8 @@ function render() {
       '短碼的重碼率若明顯偏高，代表取的碼太少 —— 那是「加末筆識別碼」或「少合多分」能解決的問題。</div>' : '');
 
   /* 重碼 */
-  $('#dupsub').innerHTML = entries.length
+  $('#dupsub').innerHTML = !entries.length ? '還沒有取碼資料。'
+    : dupCutoff === Infinity
     ? `同一組碼對應多於一個字，打字時就要再選一次。以<b>實際要按的碼</b>（縮短後）計算。
        目前 <b>${dups.length}</b> 組重碼、涉及 <b>${dupChars}</b> 個字。
        依最常用的成員排序 —— 排在前面的最值得處理。` +
@@ -514,7 +532,13 @@ function render() {
       `一起算進碼空間，重碼字是 <b>${dupAll}</b> 個` +
       `（${(dupAll / entries.length * 100).toFixed(1)}%，只算主碼是 ${(dupChars / entries.length * 100).toFixed(1)}%）` +
       ` —— 這就是「打得出來的路多一條」的代價。`
-    : '還沒有取碼資料。';
+    : `同一組碼對應多於一個字，打字時就要再選一次。以<b>實際要按的碼</b>（縮短後）計算，
+       <b>只計最常用前 ${dupCutoff} 字內</b>的重碼——排在 ${dupCutoff} 名之後才會撞上的，
+       實際打字幾乎碰不到，先不看。
+       目前 <b>${dups.length}</b> 組重碼、涉及 <b>${dupChars}</b> 個字
+       （佔前 ${dupCutoff} 字中已取碼的 ${dupEntries.length} 個 ——
+       ${(dupChars / dupEntries.length * 100).toFixed(1)}%）。
+       依最常用的成員排序 —— 排在前面的最值得處理。`;
   const box = $('#dups');
   if (!dups.length) {
     box.innerHTML = entries.length
@@ -781,6 +805,19 @@ for (const [btn, tbl, chart, axis] of [
     $(btn).classList.toggle('on', !on);
     $(chart).classList.toggle('hide', !on);
     $(axis).classList.toggle('hide', !on);
+  };
+}
+
+/* 重碼的「常用度上限」：忽略排 1000／2000 名之後才會撞上的重碼——
+   那種重碼幾乎打不到，混在一起看不出真正該優先處理的是哪些。 */
+let dupCutoff = Infinity;
+const dupCutBtns = { [Infinity]: '#dupCutAll', 1000: '#dupCut1000', 2000: '#dupCut2000' };
+for (const [v, btn] of Object.entries(dupCutBtns)) {
+  $(btn).onclick = () => {
+    dupCutoff = v === 'Infinity' ? Infinity : +v;
+    for (const b of Object.values(dupCutBtns)) $(b).classList.remove('on');
+    $(btn).classList.add('on');
+    render();
   };
 }
 
