@@ -235,6 +235,12 @@
     const maxNodes = opts.maxNodes || 60000;
     const n = medians.length;
     if (!lib.length || !n) return [];
+    /* 覆蓋筆畫用 32 位元整數當 bitmask，n===31 已經要特判成 0x7fffffff
+       才不會被當成負數；n>31（罕見字，例：鱻 33 筆）JS 的位移會直接繞回去
+       （1<<33 等於 1<<1），FULL 算出一個永遠湊不到的值，搜尋就會耗光
+       maxNodes 才停——每次都要排序上千筆的 heap，整個分頁因此卡死。
+       這種字本來就超出這套 bitmask 表示法的範圍，乾脆不猜。 */
+    if (n > 31) return [];
     const cand = candidates(medians, lib, thr, tierPenalty);
     if (!cand.length) return [];
     const FULL = n === 31 ? 0x7fffffff : (1 << n) - 1;
