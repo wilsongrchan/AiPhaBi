@@ -223,7 +223,11 @@
   </section>
 
   <section>
-    <h2>重碼率隨常用度變化</h2>
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <h2>重碼率隨常用度變化</h2>
+      <div class="grow"></div>
+      <button id="curveToggle">收起</button>
+    </div>
     <div class="sub">橫軸：把已取碼的字按常用度由高到低累計到第幾個字；縱軸：那個範圍內的重碼率。
       看重碼是集中在常用字，還是愈到冷僻字愈嚴重。</div>
     <div class="curvewrap" id="dupCurve"></div>
@@ -432,8 +436,13 @@ function dupCurveData() {
   });
 }
 
+let curveCollapsed = localStorage.getItem('aiphabi_stats_curve_collapsed') === '1';
 function renderDupCurve() {
   const box = $('#dupCurve');
+  box.classList.toggle('hide', curveCollapsed);
+  $('#curveToggle').textContent = curveCollapsed ? '展開' : '收起';
+  if (curveCollapsed) return;   /* 收起時連算都不用算——2900+ 個點的曲線不便宜 */
+
   const points = dupCurveData();
   if (points.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
 
@@ -914,6 +923,12 @@ for (const [v, btn] of Object.entries(cutBtns)) {
     render();
   };
 }
+
+$('#curveToggle').onclick = () => {
+  curveCollapsed = !curveCollapsed;
+  localStorage.setItem('aiphabi_stats_curve_collapsed', curveCollapsed ? '1' : '0');
+  renderDupCurve();
+};
 
 let stamp = null;
 const fetchStamp = () => fetch('/api/state').then(r => r.json());
