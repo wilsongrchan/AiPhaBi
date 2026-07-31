@@ -77,7 +77,11 @@
   .cand.pred b { color:var(--muted); }
   .cand.pred { border-style:dashed; border-color:var(--line); }
   .cand.pred em { color:var(--warn,#d98324); }
-  .predlink { font-size:11px; color:var(--accent); text-decoration:none; margin-left:6px; }
+  /* 預測候選：標籤+碼一行、去取碼→另一行，兩行左對齊、疊起來當一個 flex item，
+     跟 .cand em 一樣不參與那排的 baseline 計算（見上面的說明），字才不會被頂歪。 */
+  .predwrap { display:inline-flex; flex-direction:column; align-items:flex-start;
+    align-self:flex-end; line-height:1.4; }
+  .predlink { font-size:10px; color:var(--accent); text-decoration:none; }
 
   button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
     border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
@@ -540,24 +544,30 @@ function render() {
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
        碼已經顯示在上面的輸入框了）。碼：萬用鍵／預測本來就帶著實際命中的碼；
        簡繁兼容看對應字自己的碼；其餘（兼容／完整）查它自己的碼表紀錄，
-       不是又把你剛打的碼複述一次。兩個都有就疊成兩行，標籤在上、碼在下。 */
+       不是又把你剛打的碼複述一次。 */
     const tag = x.conv || (x.kind && x.kind !== '主' ? x.kind : '');
     const codeText = x.conv ? (x.convCode || '')
       : (x.code || ((x.kind && x.kind !== '主' && codes[x.ch] && codes[x.ch].code)
           ? finalOf(codes[x.ch].code) : ''));
-    const em = el('em', '');
-    if (tag && codeText) { em.append(el('span', 'tag', tag)); em.append(document.createTextNode(codeText)); }
-    else em.textContent = tag || codeText;
-    d.append(em);
-    d.onclick = () => commit(gi);
-    /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
     if (x.pred) {
+      /* 預測還多一行「去取碼→」，標籤跟碼疊兩行會變成三行、太高——
+         合成一行「預測 OJ」就好，去取碼→放下面單獨一行、跟它左對齊。 */
+      const wrap = el('span', 'predwrap');
+      wrap.append(el('em', '', [tag, codeText].filter(Boolean).join(' ')));
       const a = el('a', 'predlink', '去取碼 →');
       a.href = '/annotate?c=' + encodeURIComponent(x.ch);
       a.target = '_blank';
       a.onclick = e => e.stopPropagation();
-      d.append(a);
+      wrap.append(a);
+      d.append(wrap);
+    } else {
+      /* 其餘情況：標籤跟碼兩個都有就疊成兩行，標籤在上、碼在下。 */
+      const em = el('em', '');
+      if (tag && codeText) { em.append(el('span', 'tag', tag)); em.append(document.createTextNode(codeText)); }
+      else em.textContent = tag || codeText;
+      d.append(em);
     }
+    d.onclick = () => commit(gi);
     cs.append(d);
   });
   $('#imehint').textContent =
