@@ -75438,46 +75438,87 @@
   "缓": {
     "segments": [
       {
-        "letter": "G",
         "strokes": [
           0,
           1
-        ]
+        ],
+        "letter": "G"
       },
       {
-        "letter": "W",
         "strokes": [
           3,
           4,
           5,
           6
-        ]
+        ],
+        "letter": "W"
       },
       {
-        "letter": "I",
         "strokes": [
           7,
           8
-        ]
+        ],
+        "letter": "I"
       },
       {
-        "letter": "J",
         "strokes": [
-          9
-        ]
-      },
-      {
-        "letter": "X",
-        "strokes": [
+          9,
           10,
           11
-        ]
+        ],
+        "letter": "X"
       }
     ],
-    "code": "GWIJX",
-    "final": "GWIJX",
+    "code": "GWIX",
+    "final": "GWIX",
     "skipped": [
       2
+    ],
+    "alts": [
+      {
+        "code": "GWIJX",
+        "segments": [
+          {
+            "strokes": [
+              0,
+              1
+            ],
+            "letter": "G"
+          },
+          {
+            "strokes": [
+              3,
+              4,
+              5,
+              6
+            ],
+            "letter": "W"
+          },
+          {
+            "strokes": [
+              7,
+              8
+            ],
+            "letter": "I"
+          },
+          {
+            "strokes": [
+              9
+            ],
+            "letter": "J"
+          },
+          {
+            "strokes": [
+              10,
+              11
+            ],
+            "letter": "X"
+          }
+        ],
+        "skipped": [
+          2
+        ]
+      }
     ]
   },
   "绪": {
@@ -75661,7 +75702,51 @@
       }
     ],
     "code": "HWIX",
-    "final": "HWIX"
+    "final": "HWIX",
+    "alts": [
+      {
+        "code": "HWIJX",
+        "segments": [
+          {
+            "strokes": [
+              0,
+              1,
+              2
+            ],
+            "letter": "H"
+          },
+          {
+            "strokes": [
+              3,
+              4,
+              5,
+              6
+            ],
+            "letter": "W"
+          },
+          {
+            "strokes": [
+              7,
+              8
+            ],
+            "letter": "I"
+          },
+          {
+            "strokes": [
+              9
+            ],
+            "letter": "J"
+          },
+          {
+            "strokes": [
+              10,
+              11
+            ],
+            "letter": "X"
+          }
+        ]
+      }
+    ]
   },
   "眠": {
     "segments": [
