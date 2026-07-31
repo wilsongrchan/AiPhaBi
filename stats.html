@@ -486,20 +486,21 @@ function render() {
         : '　目前分佈算平均。');
 
   /* 重碼發生在哪個碼長？—— 這是決定「要不要加識別碼」的關鍵診斷。
-     短碼撞得多，就表示取的碼太少，資訊被丟掉了。 */
+     短碼撞得多，就表示取的碼太少，資訊被丟掉了。跟重碼列表一樣吃常用度上限，
+     不然「該碼長的重碼率」跟上面的重碼組數對不上，會很奇怪。 */
   const lenStat = {};
-  for (const [ch, r] of entries) {
+  for (const [ch, r] of dupEntries) {
     const n = finalOf(r).length;
     lenStat[n] = lenStat[n] || { total: 0, dup: 0 };
     lenStat[n].total++;
-    if (byCode.get(finalOf(r)).length > 1) lenStat[n].dup++;
+    if (byCodeDup.get(finalOf(r)).length > 1) lenStat[n].dup++;
   }
-  /* 同一批字，官方倉頡的重碼率 —— 拿來當標準 */
+  /* 同一批字，官方倉頡的重碼率 —— 拿來當標準（一樣吃常用度上限，才是真的同一批） */
   let cjRate = null;
   if (cangjie) {
     const cjBy = new Map();
     let n = 0;
-    for (const [ch] of entries) {
+    for (const [ch] of dupEntries) {
       const code = cangjie[ch];
       if (!code) continue;
       n++;
