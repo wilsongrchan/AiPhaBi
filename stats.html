@@ -411,6 +411,7 @@ function render() {
 
   const dups = [...byCode.entries()].filter(([, cs]) => cs.length > 1)
     .map(([code, cs]) => ({ code, chars: cs,
+      ranks: cs.map(c => rank.get(c) ?? 99999),
       best: Math.min(...cs.map(c => rank.get(c) ?? 99999)) }))
     .sort((a, b) => a.best - b.best);
   const dupChars = dups.reduce((n, d) => n + d.chars.length, 0);
@@ -521,16 +522,18 @@ function render() {
       : '<div class="empty">—</div>';
     return;
   }
-  box.innerHTML = `<table><thead><tr><th>碼</th><th>字</th><th>字數</th><th>常用度</th></tr></thead>
+  /* 常用度不能只看最常用那個成員 —— 排 10 名撞排 30 名，跟排 10 名撞排 2000 名，
+     實際代價差很多：前者兩個都常打到、幾乎每次都要選字；後者選字的機會微乎其微。
+     所以每個成員各自的名次都列出來，而不是只給整組一個代表值。 */
+  box.innerHTML = `<table><thead><tr><th>碼</th><th>字</th><th>字數</th><th>各字常用度</th></tr></thead>
     <tbody>${dups.map(d => {
-      const common = d.best < 800;
+      const pill = r => `<span class="pill${r < 800 ? ' bad' : ''}">第 ${r + 1} 名</span>`;
       return `<tr>
         <td class="code">${d.code}</td>
         <td class="chars">${d.chars.map(c =>
           `<a href="/annotate?c=${encodeURIComponent(c)}" style="color:inherit">${c}</a>`).join('')}</td>
         <td>${d.chars.length}</td>
-        <td><span class="pill${common ? ' bad' : ''}">${
-          common ? `常用字（第 ${d.best + 1} 名）` : `第 ${d.best + 1} 名`}</span></td>
+        <td>${d.chars.map((c, i) => `${c} ${pill(d.ranks[i])}`).join('　')}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
 }
