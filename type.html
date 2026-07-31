@@ -49,7 +49,6 @@
     padding:8px 12px; box-shadow:0 6px 20px rgba(0,0,0,.10); }
   .imebox.on { display:flex; }
   .imecode { font:700 17px ui-monospace,monospace; color:var(--accent); letter-spacing:.12em; }
-  .candrow { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .cands { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   .cand { display:flex; align-items:baseline; gap:3px; border:1px solid transparent;
     border-radius:8px; padding:2px 7px; cursor:pointer; }
@@ -70,7 +69,9 @@
     display:inline-flex; flex-direction:column; align-items:flex-start; line-height:1.4;
     align-self:flex-end; position:relative; top:-1px; }
   .cand em .tag { color:var(--accent); font-size:9px; }
-  .imehint { font-size:11px; color:var(--muted); margin-left:auto; white-space:nowrap; }
+  /* imebox 是直排（column），align-self:flex-end 讓提示字自己佔一行、貼右邊，
+     不管候選有沒有換行都固定在候選下面自己一行，框才不會忽大忽小。 */
+  .imehint { font-size:11px; color:var(--muted); align-self:flex-end; white-space:nowrap; }
   .none { font-size:13px; color:var(--bad); }
 
   /* 「連未取碼的字也算」：現場用字根表推它的碼，打得出來就表示這套規則自己接得住 */
@@ -179,10 +180,8 @@
   <div class="ime">
     <div class="imebox" id="imebox">
       <span class="imecode" id="imecode"></span>
-      <div class="candrow">
-        <div class="cands" id="cands"></div>
-        <span class="imehint" id="imehint"></span>
-      </div>
+      <div class="cands" id="cands"></div>
+      <span class="imehint" id="imehint"></span>
     </div>
   </div>
 
