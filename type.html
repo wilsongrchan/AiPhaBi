@@ -668,8 +668,18 @@ $('#paper').onkeydown = e => {
   }
 };
 
-/* 點紙面 → 游標移到點的位置（打字才不是永遠加在最後） */
+/* 點紙面 → 游標移到點的位置（打字才不是永遠加在最後）。
+   caretRangeFromPoint／caretPositionFromPoint 只有點「精準落在字上」才給答案 ——
+   拖過字的右邊、下面的空白處就回傳 null（Safari 尤其明顯，比 Chrome 挑）。
+   那一刻 mousedown 若直接放棄，就不會 preventDefault，瀏覽器原生的藍色反白
+   會接手；原生反白我們的 sel/pos 完全不知道，刪除鍵自然刪不到。
+   所以精準落點失敗時，退而求其次：逐字元量出每個字元邊界的畫面座標，
+   挑離滑鼠最近的那一個——保證一定有答案，拖到哪都跟得上。 */
 function offsetFromPoint(clientX, clientY) {
+  const exact = caretExactOffset(clientX, clientY);
+  return exact != null ? exact : nearestOffset(clientX, clientY);
+}
+function caretExactOffset(clientX, clientY) {
   let range = null;
   if (document.caretRangeFromPoint) {
     range = document.caretRangeFromPoint(clientX, clientY);
@@ -688,15 +698,35 @@ function offsetFromPoint(clientX, clientY) {
   }
   return idx;
 }
+function nearestOffset(clientX, clientY) {
+  if (!text.length) return 0;
+  const paper = $('#paper');
+  const walker = document.createTreeWalker(paper, NodeFilter.SHOW_TEXT);
+  const r = document.createRange();
+  let node, idx = 0, best = text.length, bestDist = Infinity;
+  while ((node = walker.nextNode())) {
+    for (let i = 0; i <= node.textContent.length; i++) {
+      r.setStart(node, i); r.setEnd(node, i);
+      const rect = r.getClientRects()[0];
+      if (!rect) continue;
+      const cy = (rect.top + rect.bottom) / 2;
+      /* 先比垂直距離（挑對行），同一行內才比水平距離 */
+      const dist = Math.abs(cy - clientY) * 1000 + Math.abs(rect.left - clientX);
+      if (dist < bestDist) { bestDist = dist; best = idx + i; }
+    }
+    idx += node.textContent.length;
+  }
+  return best;
+}
 /* 拖曳選取：按下＝放游標＋設錨點，拖曳＝移動另一端，放開＝定案（沒拖動就當一次點按） */
 let dragging = false;
 const clampIdx = i => Math.max(0, Math.min(text.length, i));
 $('#paper').onmousedown = e => {
   if (e.button !== 0) return;     /* 只管左鍵 */
   $('#paper').focus();
+  e.preventDefault();             /* 用自己的選取，不要瀏覽器原生反白疊上來 */
   const idx = offsetFromPoint(e.clientX, e.clientY);
   if (idx == null) return;
-  e.preventDefault();             /* 用自己的選取，不要瀏覽器原生反白疊上來 */
   dragging = true;
   pos = clampIdx(idx); sel = pos; code = ''; pick = 0; render();
 };
