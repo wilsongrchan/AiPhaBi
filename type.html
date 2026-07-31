@@ -110,8 +110,10 @@
     標點直接按（<kbd>,</kbd>→，　<kbd>.</kbd>→。　<kbd>?</kbd>→？　<kbd>[</kbd><kbd>]</kbd>→「」　<kbd>"</kbd>→「」輪流）。
     沒有正在打碼時，數字鍵就是打數字。
     打不出來的字表示還沒取碼。
-    某一碼想不起來？按 <kbd>`</kbd> 當萬用鍵代替它（每個 <kbd>`</kbd> 配一個字母，
-    例：<code>WJ`M</code> 找出 <code>WJSM</code>），候選會把真正的碼列給你看。
+    某幾碼想不起來？按 <kbd>`</kbd> 當萬用鍵代替——單一個 <kbd>`</kbd> 代表「一碼以上」，
+    不確定少幾碼就用它（例：<code>WJ`M</code> 連 <code>WJSTM</code> 這種多碼的也找得到）；
+    連續按幾個 <kbd>`</kbd> 就是「剛好這麼多碼」，確定少幾碼時用它縮小範圍
+    （例：<code>WJ``M</code> 只找剛好多兩碼的）。候選會把真正的碼列給你看。
   </div>
 
   <div class="toolbar">
@@ -388,8 +390,11 @@ $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; save
 $('#simpCompat').onchange = () => { pick = 0; render(); saveState(); };
 
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
-   ` 是萬用鍵 —— 代表一個你不知道的碼位（每個 ` 配一個字母）。
-   例：WJ`M 找得出 WJSM；`JSM 找出任何 ?JSM 的字。整段相符的排前面，更長的當補全。 */
+   ` 是萬用鍵，代表你不知道的碼位——但不知道通常也不知道少了幾碼，
+   所以單一個 ` 是「一碼以上」（不確定幾碼就用它，最寬鬆）；連續按幾個 `
+   才是「剛好這麼多碼」（確定少了幾碼就用它，縮小範圍）。
+   例：WJ`M 找 WJSM、WJSTM…都算；WJ``M 只找剛好多兩碼的 WJSTM 一類；
+   `JSM 找任何以 JSM 結尾、前面不知道幾碼的字。整段相符的排前面，更長的當補全。 */
 const MAX_CAND = 72;          /* 最多收這麼多候選（分頁 9 個一頁，約 8 頁） */
 function candidates() {
   if (!code) return [];
@@ -398,8 +403,10 @@ function candidates() {
   /* 候選排序：現代字頻優先，rime-essay 次序打平手 */
   const byUsage = (a, b) => (usageOf(b.ch) - usageOf(a.ch)) || (rk(a.ch) - rk(b.ch));
   const wild = code.includes('`');
-  const rxE = wild ? new RegExp('^' + code.replace(/`/g, '.') + '$') : null;   /* 整段相符 */
-  const rxP = wild ? new RegExp('^' + code.replace(/`/g, '.')) : null;          /* 補全（更長） */
+  /* 單一個 ` → .+（一碼以上）；連續 N 個 ` → .{N}（剛好 N 碼） */
+  const wildPattern = code.replace(/`+/g, run => run.length === 1 ? '.+' : `.{${run.length}}`);
+  const rxE = wild ? new RegExp('^' + wildPattern + '$') : null;   /* 整段相符 */
+  const rxP = wild ? new RegExp('^' + wildPattern) : null;          /* 補全（更長） */
 
   let exact = [];
   const pre = [];
