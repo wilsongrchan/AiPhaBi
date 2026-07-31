@@ -86,6 +86,11 @@
   /* 容錯候選（可能）：字本身跟序號一樣用灰色，跟「這碼真的打得出來」的字分開看。 */
   .cand.fuzzy { border-style:dashed; border-color:var(--line); }
   .cand.fuzzy b { color:var(--muted); }
+  /* 同類候選：打中某個字形家族（土士工干上…）其一，就把整組帶出來、各附自己的碼。
+     用綠色虛框跟「可能」（灰）分開——這不是打錯，是「你要的可能是它的同類」。 */
+  .cand.family { border-style:dashed; border-color:color-mix(in srgb,var(--ok) 55%,var(--line)); }
+  .cand.family b { color:var(--muted); }
+  .cand.family em .tag { color:var(--ok); }
   /* 完全打對的字（含預測完全相符），字用主色標出來，一眼看出哪個是真打中的。 */
   .cand.exact b { color:var(--accent); }
   /* 預測候選：標籤+碼一行、去取碼→另一行，兩行左對齊、疊起來當一個 flex item，
@@ -196,6 +201,8 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let codes = {}, rules = null, rank = new Map();
+let familyMap = new Map();   /* 字形家族：字 → 同一約定表「…類」的所有同類字（土士工干上…） */
+let compMap = new Map();     /* 偏旁碼 → 字：字的「作為偏旁時」碼跟單獨成字的碼不同（本 偏旁 TI／單獨 TJRI） */
 let charfreq = new Map();   /* 現代（台港新聞）字頻，候選字排序優先看它 —— rime-essay 常把冷字排前 */
 const usageOf = ch => (charfreq.get(ch) || 0);   /* 越大越常用，排越前 */
 let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
@@ -300,6 +307,42 @@ function loadState() {
 const maxRule = () => rules && rules.rules.find(r =>
   r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
 const finalOf = c => Zigen.shorten(c, maxRule());
+
+/* 字形家族：約定表裡「容易混淆、可能猜錯彼此的碼」的那幾組（土士工干上、木本末未…）。
+   打中其中一個，就把整組一併列為候選，各附自己的碼——少走冤枉路。
+   只收「真的形近、會互相猜錯碼」的家族：數字（一二三…）你不會打「一」去找「四」，
+   馬鳥島也不是形近字，都跳過。 */
+const FAMILY_SKIP = new Set(['數字類', '馬字類']);
+function buildFamilies() {
+  familyMap = new Map();
+  const conv = rules && rules.rules && rules.rules.find(r => r.id === 'convention');
+  if (!conv) return;
+  for (const g of conv.groups || []) {
+    if (!/類$/.test(g.name || '') || FAMILY_SKIP.has(g.name)) continue;
+    const chars = (g.chars || []).map(c => c.c).filter(c => codes[c] && codes[c].code);
+    if (chars.length < 2) continue;
+    for (const c of chars) familyMap.set(c, chars);
+  }
+}
+
+/* 偏旁碼提醒：約定表裡「作為偏旁時另有取法」的字（本 偏旁 TI／單獨 TJRI）。打了它的偏旁碼，
+   就提醒你「你要的可能是這個字，但它單獨成字的碼其實是 …」——別忘了這條例外。
+   涵蓋整個約定表（不限「…類」），但數字／馬那兩組照樣跳過，免得洗版。 */
+function buildComps() {
+  compMap = new Map();
+  const conv = rules && rules.rules && rules.rules.find(r => r.id === 'convention');
+  if (!conv) return;
+  for (const g of conv.groups || []) {
+    if (FAMILY_SKIP.has(g.name)) continue;
+    for (const c of g.chars || []) {
+      if (!c.compCode || !codes[c.c] || !codes[c.c].code) continue;
+      const comp = finalOf(c.compCode), std = finalOf(codes[c.c].code);
+      if (comp === std) continue;                 /* 偏旁碼跟單獨碼一樣就不用提醒 */
+      if (!compMap.has(comp)) compMap.set(comp, []);
+      compMap.get(comp).push(c.c);
+    }
+  }
+}
 
 /* 一個字打得出來的所有碼：主碼（縮短後）＋完整碼＋手動收的兼容碼。
    跟取碼頁、匯出、Rime 碼表完全一致 —— 這裡是同一份規則的第四個消費者，
@@ -565,7 +608,32 @@ function candidates() {
     fz.sort(byUsage);
   }
 
-  let all = [...exact, ...pd, ...pre, ...fz];
+  /* 同類候選：打中某個字形家族（土士工干上…）的其一，就把整組同類字一併列出，
+     各附自己的碼。這樣就算你猜錯了家族裡哪個字的碼，也能直接看到全家、當場學到對的碼。
+     排在真正命中的字後面、容錯之前——它不是猜錯，是「你要的可能是它的同類」。 */
+  const fam = [];
+  if (!wild) {
+    const shown = new Set([...exact, ...pd, ...pre, ...fz].map(x => x.ch));
+    /* 同類：打中家族其一，帶出整組 */
+    for (const x of exact) {
+      const sibs = familyMap.get(x.ch);
+      if (!sibs) continue;
+      for (const s of sibs) {
+        if (s === x.ch || shown.has(s)) continue;
+        shown.add(s);
+        fam.push({ ch: s, code: finalOf(codes[s].code), kind: '同類', family: true });
+      }
+    }
+    /* 偏旁碼：你打的碼剛好是某字「作為偏旁時」的碼，提醒它單獨成字另有取法 */
+    for (const ch of compMap.get(code) || []) {
+      if (shown.has(ch)) continue;
+      shown.add(ch);
+      fam.push({ ch, code: finalOf(codes[ch].code), kind: '偏旁碼', comp: true });
+    }
+    fam.sort(byUsage);
+  }
+
+  let all = [...exact, ...fam, ...pd, ...pre, ...fz];
   if ($('#simpCompat').checked) all = withSimpCompat(all);
   candOverflow = Math.max(0, all.length - MAX_CAND);
   return all.slice(0, MAX_CAND);
@@ -591,7 +659,9 @@ function withSimpCompat(list) {
       const own = codes[cp.ch] && codes[cp.ch].code ? finalOf(codes[cp.ch].code) : null;
       /* 對應字繼承來源的可信度：來源是容錯（可能）猜出來的，對應字也只能算「可能」，
          不能因為換了個字形就變得比較確定。 */
-      out.push({ ch: cp.ch, exact: x.exact, fuzzy: x.fuzzy, conv: cp.conv, code: x.code, convCode: own });
+      /* 對應字沿用來源的分類：容錯就還是容錯、同類／偏旁碼也維持同樣的灰／綠標示。 */
+      out.push({ ch: cp.ch, exact: x.exact, fuzzy: x.fuzzy, family: x.family, comp: x.comp,
+                 conv: cp.conv, code: x.code, convCode: own });
     }
   }
   return out;
@@ -637,7 +707,8 @@ function render() {
     /* 橘色只留給「這個字自己的碼就是你打的碼」——簡繁對應字是換了個字形帶出來的，
        它自己的碼（convCode）通常跟你打的碼完全無關，就算來源是 exact 也不該橘。 */
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : '') + (x.fuzzy ? ' fuzzy' : '') +
-      (x.exact && !x.pred && !x.fuzzy && !x.conv ? ' exact' : ''));
+      (x.family || x.comp ? ' family' : '') +
+      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.conv ? ' exact' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
@@ -902,6 +973,8 @@ Promise.all([
   f.order.forEach((ch, i) => rank.set(ch, i));
   lib = await Zigen.buildLibrary(zigen);      /* 推未取碼的字要用 */
   buildTable();
+  buildFamilies();
+  buildComps();
   loadState();                                /* 換頁／切分頁再回來，接著打 */
   render();
   $('#paper').focus();
@@ -915,7 +988,7 @@ setInterval(async () => {
   if (stamp && s !== stamp) {
     codes = await fetch('/api/codes').then(r => r.json());
     rules = await fetch('/api/rules').then(r => r.json());
-    buildTable(); render();
+    buildTable(); buildFamilies(); buildComps(); render();
   }
   stamp = s;
 }, 3000);
