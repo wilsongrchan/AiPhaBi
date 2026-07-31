@@ -43,11 +43,13 @@
 
   /* 候選列 */
   .ime { position:sticky; bottom:0; margin-top:12px; min-height:52px; }
-  .imebox { display:none; align-items:center; gap:10px; flex-wrap:wrap;
+  /* 碼自己一行，候選另起一行——不然打越多碼，第一個候選就一直被往右擠。 */
+  .imebox { display:none; flex-direction:column; align-items:stretch; gap:6px;
     background:var(--card); border:1px solid var(--accent); border-radius:12px;
     padding:8px 12px; box-shadow:0 6px 20px rgba(0,0,0,.10); }
   .imebox.on { display:flex; }
   .imecode { font:700 17px ui-monospace,monospace; color:var(--accent); letter-spacing:.12em; }
+  .candrow { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .cands { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   .cand { display:flex; align-items:baseline; gap:3px; border:1px solid transparent;
     border-radius:8px; padding:2px 7px; cursor:pointer; }
@@ -177,8 +179,10 @@
   <div class="ime">
     <div class="imebox" id="imebox">
       <span class="imecode" id="imecode"></span>
-      <div class="cands" id="cands"></div>
-      <span class="imehint" id="imehint"></span>
+      <div class="candrow">
+        <div class="cands" id="cands"></div>
+        <span class="imehint" id="imehint"></span>
+      </div>
     </div>
   </div>
 
@@ -586,7 +590,9 @@ function withSimpCompat(list) {
       seen.add(cp.ch);
       /* 對應字若自己也取過碼，順便把它的碼帶上——讓人在試打時學到另一體的碼 */
       const own = codes[cp.ch] && codes[cp.ch].code ? finalOf(codes[cp.ch].code) : null;
-      out.push({ ch: cp.ch, exact: x.exact, conv: cp.conv, code: x.code, convCode: own });
+      /* 對應字繼承來源的可信度：來源是容錯（可能）猜出來的，對應字也只能算「可能」，
+         不能因為換了個字形就變得比較確定。 */
+      out.push({ ch: cp.ch, exact: x.exact, fuzzy: x.fuzzy, conv: cp.conv, code: x.code, convCode: own });
     }
   }
   return out;
