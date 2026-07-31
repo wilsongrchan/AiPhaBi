@@ -158,9 +158,17 @@
   </div>
 
   <div class="toolbar">
-    <label class="tog">
-      <input type="checkbox" id="simpCompat">
-      <span><b>簡繁兼容</b>：一個碼同時打得出繁體與簡體（繁體字排前，對應的簡體排後；反之亦然）</span>
+    <label class="tog" title="一個碼同時打得出繁體與簡體（繁體字排前、對應簡體排後，反之亦然）">
+      <input type="checkbox" id="simpCompat"><span><b>簡繁</b>兼容</span>
+    </label>
+    <label class="tog" title="打中約定表形近字家族（土士工干上…）其一，就列出整組同類字，各附自己的碼">
+      <input type="checkbox" id="famCompat" checked><span><b>同類字</b>兼容</span>
+    </label>
+    <label class="tog" title="打了某字「作為偏旁時」的碼，提醒它單獨成字另有取法（本 偏旁 TI → 單獨 TJRI）">
+      <input type="checkbox" id="compCompat" checked><span><b>偏旁碼</b>兼容</span>
+    </label>
+    <label class="tog" title="漏打／多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反也能找到字">
+      <input type="checkbox" id="fuzzyCompat" checked><span>輸入<b>容錯</b></span>
     </label>
   </div>
 
@@ -287,6 +295,9 @@ function saveState() {
       sampleText: $('#sampleText').textContent,
       sampleOn: $('#sampleBox').style.display !== 'none',
       simpCompat: $('#simpCompat').checked,
+      famCompat: $('#famCompat').checked,
+      compCompat: $('#compCompat').checked,
+      fuzzyCompat: $('#fuzzyCompat').checked,
       usePred: $('#usePred').checked,
     }));
   } catch {}
@@ -300,6 +311,9 @@ function loadState() {
     if (s.sampleText) { $('#sampleText').textContent = s.sampleText; }
     if (s.sampleOn) $('#sampleBox').style.display = 'block';
     if (s.simpCompat) $('#simpCompat').checked = true;
+    if (typeof s.famCompat === 'boolean') $('#famCompat').checked = s.famCompat;
+    if (typeof s.compCompat === 'boolean') $('#compCompat').checked = s.compCompat;
+    if (typeof s.fuzzyCompat === 'boolean') $('#fuzzyCompat').checked = s.fuzzyCompat;
     if (typeof s.usePred === 'boolean') $('#usePred').checked = s.usePred;
   } catch {}
 }
@@ -513,7 +527,8 @@ async function fetchSample() {
 $('#fetchUrl').onclick = fetchSample;
 $('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
 $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
-$('#simpCompat').onchange = () => { pick = 0; render(); saveState(); };
+for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat'])
+  $('#' + id).onchange = () => { pick = 0; render(); saveState(); };
 
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
    ` 是萬用鍵，代表你不知道的碼位——但不知道通常也不知道少了幾碼，
@@ -590,7 +605,7 @@ function candidates() {
      碼太短（1 碼）也不做——候選會多到失去意義。找到的字一樣照字頻排，
      排在前面幾層都收不到的字後面（見 memory：候選多沒關係，找得到比較重要）。 */
   const fz = [];
-  if (!wild && code.length >= 2) {
+  if (!wild && code.length >= 2 && $('#fuzzyCompat').checked) {
     const seen = ch => exact.some(e => e.ch === ch) || pd.some(e => e.ch === ch) ||
       pre.some(e => e.ch === ch) || fz.some(e => e.ch === ch);
     for (const c of byLen.get(code.length + 1) || []) {           /* 漏打一碼 */
@@ -615,7 +630,7 @@ function candidates() {
   if (!wild) {
     const shown = new Set([...exact, ...pd, ...pre, ...fz].map(x => x.ch));
     /* 同類：打中家族其一，帶出整組 */
-    for (const x of exact) {
+    if ($('#famCompat').checked) for (const x of exact) {
       const sibs = familyMap.get(x.ch);
       if (!sibs) continue;
       for (const s of sibs) {
@@ -625,7 +640,7 @@ function candidates() {
       }
     }
     /* 偏旁碼：你打的碼剛好是某字「作為偏旁時」的碼，提醒它單獨成字另有取法 */
-    for (const ch of compMap.get(code) || []) {
+    if ($('#compCompat').checked) for (const ch of compMap.get(code) || []) {
       if (shown.has(ch)) continue;
       shown.add(ch);
       fam.push({ ch, code: finalOf(codes[ch].code), kind: '偏旁碼', comp: true });
