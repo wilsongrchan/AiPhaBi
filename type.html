@@ -53,17 +53,20 @@
     border-radius:8px; padding:2px 7px; cursor:pointer; }
   .cand:hover { background:var(--bar); }
   .cand.on { border-color:var(--accent); background:var(--bar); }
-  .cand i { font:600 11px ui-monospace,monospace; color:var(--muted); font-style:normal; }
+  .cand i { font:600 11px ui-monospace,monospace; color:var(--muted); font-style:normal;
+    position:relative; top:2px; }
   .cand b { font:24px/1.2 "PingFang TC",serif; font-weight:400; }
   /* 標籤（簡／繁、兼容…）跟碼疊成兩行——標籤在上、碼在下，碼那行對齊原本的
      baseline 位置，疊起來的高度不超過候選字本身（字級 24px，兩行 10px 綽綽有餘）。
      align-self:flex-end 是關鍵：兩行的 em 當 flex item 參與 .cand 那排的
      baseline 對齊時，基準線算的是「繁」那行、不是「GPVFN」那行，會把候選字
      往上頂幾 px（跟旁邊沒有標籤的候選字對不齊）。讓 em 自己底部對齊，
-     不參與那排的 baseline 計算，字的位置就不會被它影響。 */
+     不參與那排的 baseline 計算，字的位置就不會被它影響。
+     序號（i）跟碼行（em）原本底部差了快 3px；序號往下、碼行往上各挪一點，
+     兩邊的底部就對齊了。 */
   .cand em { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal;
     display:inline-flex; flex-direction:column; align-items:flex-start; line-height:1.4;
-    align-self:flex-end; }
+    align-self:flex-end; position:relative; top:-1px; }
   .cand em .tag { color:var(--accent); font-size:9px; }
   .imehint { font-size:11px; color:var(--muted); margin-left:auto; white-space:nowrap; }
   .none { font-size:13px; color:var(--bad); }
@@ -81,6 +84,10 @@
      跟 .cand em 一樣不參與那排的 baseline 計算（見上面的說明），字才不會被頂歪。 */
   .predwrap { display:inline-flex; flex-direction:column; align-items:flex-start;
     align-self:flex-end; line-height:1.4; }
+  /* predwrap 裡的 em 也會被上面 .cand em 那條規則選到（align-self:flex-end、
+     display:inline-flex column），在直排的 predwrap 裡會把它推到右邊、跟下面
+     左對齊的 .predlink 對不齊。這裡把版面相關的屬性收回來，字級/顏色照舊。 */
+  .predwrap em { display:inline; align-self:auto; position:static; top:auto; }
   .predlink { font-size:10px; color:var(--accent); text-decoration:none; }
 
   button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
