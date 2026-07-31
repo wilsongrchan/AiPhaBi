@@ -63041,6 +63041,49 @@
     "skipped": [
       3,
       7
+    ],
+    "variants": [
+      {
+        "display": "菲",
+        "form": "tw",
+        "code": "HJEE",
+        "segments": [
+          {
+            "strokes": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "letter": "H"
+          },
+          {
+            "strokes": [
+              4
+            ],
+            "letter": "J"
+          },
+          {
+            "strokes": [
+              5,
+              6,
+              7
+            ],
+            "letter": "E"
+          },
+          {
+            "strokes": [
+              9,
+              10,
+              11
+            ],
+            "letter": "E"
+          }
+        ],
+        "skipped": [
+          8
+        ]
+      }
     ]
   },
   "遞": {
@@ -123712,5 +123755,60 @@
     ],
     "code": "SJ",
     "final": "SJ"
+  },
+  "并": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          2,
+          3
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          4,
+          5
+        ],
+        "letter": "N"
+      }
+    ],
+    "code": "VIN",
+    "final": "VIN",
+    "alts": [
+      {
+        "code": "VH",
+        "segments": [
+          {
+            "strokes": [
+              0,
+              1
+            ],
+            "letter": "V"
+          },
+          {
+            "strokes": [
+              3,
+              4,
+              5
+            ],
+            "letter": "H"
+          }
+        ],
+        "skipped": [
+          2
+        ]
+      }
+    ],
+    "overrides": [
+      "comp:开:2"
+    ]
   }
 }
