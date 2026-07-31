@@ -634,8 +634,10 @@ function render() {
   const start = page * 9;
   cands.slice(start, start + 9).forEach((x, i) => {
     const gi = start + i;
+    /* 橘色只留給「這個字自己的碼就是你打的碼」——簡繁對應字是換了個字形帶出來的，
+       它自己的碼（convCode）通常跟你打的碼完全無關，就算來源是 exact 也不該橘。 */
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : '') + (x.fuzzy ? ' fuzzy' : '') +
-      (x.exact && !x.pred && !x.fuzzy ? ' exact' : ''));
+      (x.exact && !x.pred && !x.fuzzy && !x.conv ? ' exact' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
