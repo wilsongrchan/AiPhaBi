@@ -164,6 +164,13 @@
 </header>
 
 <main>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <span style="font-size:13px;color:var(--muted)">算整頁統計時要不要只看常用字：</span>
+    <button id="cutAll" class="on">全部</button>
+    <button id="cut1000">首 1000 常用字</button>
+    <button id="cut2000">首 2000 常用字</button>
+    <span id="cutsub" style="font-size:12px;color:var(--muted)"></span>
+  </div>
   <div class="kpis" id="kpis"></div>
 
   <section>
@@ -201,13 +208,7 @@
   </section>
 
   <section>
-    <div style="display:flex;align-items:baseline;gap:10px">
-      <h2>重碼</h2>
-      <div class="grow"></div>
-      <button id="dupCutAll" class="on">全部</button>
-      <button id="dupCut1000">不計 1000 字之後重碼</button>
-      <button id="dupCut2000">不計 2000 字之後重碼</button>
-    </div>
+    <h2>重碼</h2>
     <div class="sub" id="dupsub"></div>
     <div id="bylen" style="margin-bottom:14px"></div>
     <div id="dups"></div>
@@ -389,7 +390,11 @@ function drawCharts() {
 }
 
 function render() {
-  const entries = Object.entries(codes).filter(([, r]) => r.code);
+  /* 常用度上限：只看排前 1000／2000 名的常用字，其餘先當作不存在。
+     這一刀切在最源頭（entries），下面所有統計——字母頻率、重碼、碼長分布、
+     特例率——就都自動跟著算同一批字，不必每個地方各自濾一次。 */
+  const entries = Object.entries(codes).filter(([, r]) => r.code)
+    .filter(([ch]) => cutoff === Infinity || (rank.get(ch) ?? Infinity) < cutoff);
   const all = {}, first = {}, byCode = new Map();
   let codeLen = 0, cut = 0;
   for (const [ch, r] of entries) {
@@ -415,18 +420,7 @@ function render() {
   for (const L of zigen.letters)
     zigenCount[L.letter] = L.intentions.reduce((n, i) => n + i.shapes.length, 0);
 
-  /* 重碼可以只算「常用字範圍內」的：排 1000／2000 名之後才會撞上的字，
-     實際打字幾乎碰不到，混在一起看不出真正該優先處理的是哪些。
-     只影響重碼本身的分子分母，字母頻率、碼長分布等其他統計仍用全體。 */
-  const dupEntries = dupCutoff === Infinity ? entries
-    : entries.filter(([ch]) => (rank.get(ch) ?? Infinity) < dupCutoff);
-  const byCodeDup = new Map();
-  for (const [ch, r] of dupEntries) {
-    const code = finalOf(r);
-    if (!byCodeDup.has(code)) byCodeDup.set(code, []);
-    byCodeDup.get(code).push(ch);
-  }
-  const dups = [...byCodeDup.entries()].filter(([, cs]) => cs.length > 1)
+  const dups = [...byCode.entries()].filter(([, cs]) => cs.length > 1)
     .map(([code, cs]) => ({ code, chars: cs,
       ranks: cs.map(c => rank.get(c) ?? 99999),
       best: Math.min(...cs.map(c => rank.get(c) ?? 99999)) }))
@@ -462,8 +456,8 @@ function render() {
   $('#kpis').innerHTML =
     kpi(entries.length, '已取碼字數') +
     kpi(entries.length ? (codeLen / entries.length).toFixed(2) : '—', '平均碼長') +
-    kpi(dups.length, dupCutoff === Infinity ? '重碼組' : `重碼組（前 ${dupCutoff} 字）`, dups.length > 0) +
-    kpi(dupEntries.length ? (dupChars / dupEntries.length * 100).toFixed(1) + '%' : '0%',
+    kpi(dups.length, '重碼組', dups.length > 0) +
+    kpi(entries.length ? (dupChars / entries.length * 100).toFixed(1) + '%' : '0%',
         '重碼率（重碼字 ÷ 已取碼字）', dupChars > 0) +
     kpi(Object.values(zigenCount).reduce((a, b) => a + b, 0), '字根總數') +
     kpi(`${cut}+${altN}`, `兼容碼（${cut} 個完整碼自動兼容＋${altN} 個手動收）`) +
@@ -486,21 +480,20 @@ function render() {
         : '　目前分佈算平均。');
 
   /* 重碼發生在哪個碼長？—— 這是決定「要不要加識別碼」的關鍵診斷。
-     短碼撞得多，就表示取的碼太少，資訊被丟掉了。跟重碼列表一樣吃常用度上限，
-     不然「該碼長的重碼率」跟上面的重碼組數對不上，會很奇怪。 */
+     短碼撞得多，就表示取的碼太少，資訊被丟掉了。 */
   const lenStat = {};
-  for (const [ch, r] of dupEntries) {
+  for (const [ch, r] of entries) {
     const n = finalOf(r).length;
     lenStat[n] = lenStat[n] || { total: 0, dup: 0 };
     lenStat[n].total++;
-    if (byCodeDup.get(finalOf(r)).length > 1) lenStat[n].dup++;
+    if (byCode.get(finalOf(r)).length > 1) lenStat[n].dup++;
   }
-  /* 同一批字，官方倉頡的重碼率 —— 拿來當標準（一樣吃常用度上限，才是真的同一批） */
+  /* 同一批字，官方倉頡的重碼率 —— 拿來當標準 */
   let cjRate = null;
   if (cangjie) {
     const cjBy = new Map();
     let n = 0;
-    for (const [ch] of dupEntries) {
+    for (const [ch] of entries) {
       const code = cangjie[ch];
       if (!code) continue;
       n++;
@@ -524,8 +517,7 @@ function render() {
       '短碼的重碼率若明顯偏高，代表取的碼太少 —— 那是「加末筆識別碼」或「少合多分」能解決的問題。</div>' : '');
 
   /* 重碼 */
-  $('#dupsub').innerHTML = !entries.length ? '還沒有取碼資料。'
-    : dupCutoff === Infinity
+  $('#dupsub').innerHTML = entries.length
     ? `同一組碼對應多於一個字，打字時就要再選一次。以<b>實際要按的碼</b>（縮短後）計算。
        目前 <b>${dups.length}</b> 組重碼、涉及 <b>${dupChars}</b> 個字。
        依最常用的成員排序 —— 排在前面的最值得處理。` +
@@ -533,13 +525,7 @@ function render() {
       `一起算進碼空間，重碼字是 <b>${dupAll}</b> 個` +
       `（${(dupAll / entries.length * 100).toFixed(1)}%，只算主碼是 ${(dupChars / entries.length * 100).toFixed(1)}%）` +
       ` —— 這就是「打得出來的路多一條」的代價。`
-    : `同一組碼對應多於一個字，打字時就要再選一次。以<b>實際要按的碼</b>（縮短後）計算，
-       <b>只計最常用前 ${dupCutoff} 字內</b>的重碼——排在 ${dupCutoff} 名之後才會撞上的，
-       實際打字幾乎碰不到，先不看。
-       目前 <b>${dups.length}</b> 組重碼、涉及 <b>${dupChars}</b> 個字
-       （佔前 ${dupCutoff} 字中已取碼的 ${dupEntries.length} 個 ——
-       ${(dupChars / dupEntries.length * 100).toFixed(1)}%）。
-       依最常用的成員排序 —— 排在前面的最值得處理。`;
+    : '還沒有取碼資料。';
   const box = $('#dups');
   if (!dups.length) {
     box.innerHTML = entries.length
@@ -809,15 +795,19 @@ for (const [btn, tbl, chart, axis] of [
   };
 }
 
-/* 重碼的「常用度上限」：忽略排 1000／2000 名之後才會撞上的重碼——
-   那種重碼幾乎打不到，混在一起看不出真正該優先處理的是哪些。 */
-let dupCutoff = Infinity;
-const dupCutBtns = { [Infinity]: '#dupCutAll', 1000: '#dupCut1000', 2000: '#dupCut2000' };
-for (const [v, btn] of Object.entries(dupCutBtns)) {
+/* 整頁的「常用度上限」：只看排前 1000／2000 名的常用字，其餘當作還沒取碼過
+   一樣不算——排在那之後的字，實際打字幾乎碰不到，混進全體統計裡看不出
+   真正該優先處理的是哪些。影響 render() 一開始篩的 entries，所以整頁的
+   字母頻率、重碼、碼長分布、特例率都會跟著換算，不是只有重碼表。 */
+let cutoff = Infinity;
+const cutBtns = { [Infinity]: '#cutAll', 1000: '#cut1000', 2000: '#cut2000' };
+for (const [v, btn] of Object.entries(cutBtns)) {
   $(btn).onclick = () => {
-    dupCutoff = v === 'Infinity' ? Infinity : +v;
-    for (const b of Object.values(dupCutBtns)) $(b).classList.remove('on');
+    cutoff = v === 'Infinity' ? Infinity : +v;
+    for (const b of Object.values(cutBtns)) $(b).classList.remove('on');
     $(btn).classList.add('on');
+    $('#cutsub').textContent = cutoff === Infinity ? ''
+      : `目前只計算前 ${cutoff} 常用字範圍內的統計，其餘先當作沒取碼。`;
     render();
   };
 }
