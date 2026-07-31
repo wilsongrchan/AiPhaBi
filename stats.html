@@ -231,6 +231,14 @@
   </section>
 
   <section>
+    <h2>手感分析</h2>
+    <div class="sub">照標準十指打字法的手指分配算的，不是猜的——兩手有沒有輪流打、
+      有沒有同一根手指連續打不同鍵、會不會同一隻手直接從最上排跳到最下排（不經過中排）。</div>
+    <div class="kpis" id="ergokpis" style="margin-bottom:0"></div>
+    <div id="ergoWorst"></div>
+  </section>
+
+  <section>
     <div style="display:flex;align-items:baseline;gap:10px">
       <h2>重碼率隨常用度變化</h2>
       <div class="grow"></div>
@@ -295,6 +303,74 @@ let codes = {}, zigen = null, rules = null, cangjie = null, rank = new Map();
 const maxRule = () => rules && rules.rules.find(r =>
   r.id === 'max_code_length' && r.enabled && r.kind === 'enforced');
 const finalOf = r => Zigen.shorten(r.code, maxRule());   /* 永遠現算，免得規則改了還用舊值 */
+
+/* 手感分析：標準十指打字法的手指指派 —— 用來看碼「打起來」順不順：
+   會不會一直用同一根手指硬跳、兩手有沒有輪流、會不會同一隻手從最上排直接
+   跳最下排（不經過中排）。跨手的排差不算——兩隻手本來就能各自停在不同排，
+   不會互相干擾，「跳躍」只在同一隻手要伸展時才算數。 */
+const FINGER_GROUPS = [
+  ['Q', 'A', 'Z'], ['W', 'S', 'X'], ['E', 'D', 'C'], ['R', 'F', 'V', 'T', 'G', 'B'],
+  ['Y', 'H', 'N', 'U', 'J', 'M'], ['I', 'K'], ['O', 'L'], ['P'],
+];
+const KB_ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+const FINGER = {}, HAND = {}, ROWIDX = {};
+FINGER_GROUPS.forEach((ls, fi) => ls.forEach(L => { FINGER[L] = fi; HAND[L] = fi < 4 ? 'L' : 'R'; }));
+KB_ROWS.forEach((row, r) => [...row].forEach(L => { ROWIDX[L] = r; }));
+
+/* 逐碼看相鄰兩碼的手感。疊字（同一鍵連打兩次，如 CC）不算同指硬跳——
+   那其實是最順手的一種，跟「換了鍵但用同一根手指」性質不同。 */
+function ergoStats(entries) {
+  let bigrams = 0, altHand = 0, sameFinger = 0, bigJump = 0, repeats = 0;
+  const perChar = [];
+  for (const [ch, r] of entries) {
+    const code = finalOf(r);
+    let same = 0, jump = 0;
+    for (let i = 0; i < code.length - 1; i++) {
+      const a = code[i], b = code[i + 1];
+      if (!(a in FINGER) || !(b in FINGER)) continue;
+      bigrams++;
+      if (a === b) { repeats++; continue; }
+      if (HAND[a] !== HAND[b]) { altHand++; continue; }        /* 換手：兩隻手各自安好，不算跳躍 */
+      if (FINGER[a] === FINGER[b]) { sameFinger++; same++; }
+      if (Math.abs(ROWIDX[a] - ROWIDX[b]) === 2) { bigJump++; jump++; }
+    }
+    if (same || jump) perChar.push({ ch, code, same, jump, rank: rank.get(ch) ?? 99999 });
+  }
+  perChar.sort((a, b) => a.rank - b.rank);
+  return { bigrams, altHand, sameFinger, bigJump, repeats, perChar };
+}
+
+function renderErgo(entries) {
+  const s = ergoStats(entries);
+  const pct = n => s.bigrams ? (n / s.bigrams * 100).toFixed(1) + '%' : '—';
+  const kpi = (v, l, alert) =>
+    `<div class="kpi${alert ? ' alert' : ''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  $('#ergokpis').innerHTML =
+    kpi(pct(s.altHand), '雙手交替率 —— 相鄰兩碼換手打') +
+    kpi(pct(s.sameFinger), '同指硬跳 —— 相鄰兩碼同一根手指、卻要換鍵',
+        s.bigrams && s.sameFinger / s.bigrams > 0.1) +
+    kpi(pct(s.bigJump), '同手大跳躍 —— 同一隻手從最上排直接跳最下排',
+        s.bigrams && s.bigJump / s.bigrams > 0.05) +
+    kpi(pct(s.repeats), '疊字（同一鍵連打兩次，不算問題）');
+
+  const box = $('#ergoWorst');
+  if (!s.perChar.length) {
+    box.innerHTML = entries.length
+      ? '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有同指硬跳或大跳躍的字。</div>'
+      : '<div class="empty">—</div>';
+    return;
+  }
+  box.innerHTML = `<div class="sub" style="margin:10px 0 6px">
+      <b>${s.perChar.length}</b> 個字的碼裡有同指硬跳或大跳躍，依常用度排序 —— 排在前面的最值得改。</div>
+    <table><thead><tr><th>字</th><th>碼</th><th>同指硬跳</th><th>大跳躍</th><th>常用度</th></tr></thead>
+    <tbody>${s.perChar.map(p => `<tr>
+      <td class="chars">${link(p.ch)}</td>
+      <td class="code">${p.code}</td>
+      <td>${p.same || ''}</td>
+      <td>${p.jump || ''}</td>
+      <td><span class="pill${p.rank < 800 ? ' bad' : ''}">第 ${p.rank + 1} 名</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
 
 /* ---------- 長條圖 ----------
    一個系列時：名目類別 → 單一顏色，用得多的才染強調色 + 直接標數字。
@@ -619,6 +695,7 @@ function render() {
   myAll = all; myFirst = first;
   drawCharts();
   renderDupCurve();
+  renderErgo(entries);
 
   const hot = codeLen >= 40
     ? Object.entries(all).filter(([, v]) => v > (codeLen / 26) * 1.5)
