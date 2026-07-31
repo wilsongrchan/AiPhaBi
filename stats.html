@@ -85,6 +85,21 @@
   .tip { position:fixed; z-index:20; background:var(--ink); color:var(--bg); font-size:12px;
     padding:5px 8px; border-radius:6px; pointer-events:none; display:none; white-space:nowrap; }
 
+  /* 重碼率曲線：單一系列（不需要圖例，標題已經講清楚是什麼），
+     細線＋淡淡的面積，格線跟座標都用不搶戲的顏色。 */
+  .curvewrap { position:relative; height:220px; }
+  .curvewrap svg { width:100%; height:100%; display:block; overflow:visible; }
+  .curvewrap .grid { stroke:var(--line); stroke-width:1; }
+  .curvewrap .axislabel { font:11px ui-monospace,monospace; fill:var(--muted); }
+  .curvewrap .curveline { fill:none; stroke:var(--accent); stroke-width:2;
+    stroke-linejoin:round; stroke-linecap:round; }
+  .curvewrap .curvefill { fill:var(--accent); opacity:.08; }
+  .curvewrap .crosshair { stroke:var(--muted); stroke-width:1; stroke-dasharray:3 3;
+    display:none; pointer-events:none; }
+  .curvewrap .dot { fill:var(--accent); stroke:var(--card); stroke-width:2; display:none;
+    pointer-events:none; }
+  .curvewrap .hoverlayer { fill:transparent; cursor:crosshair; }
+
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
   th { font-size:11px; color:var(--muted); font-weight:600; letter-spacing:.05em; }
@@ -205,6 +220,13 @@
     <div class="chart" id="chartFirst"></div>
     <div class="axis" id="axisFirst"></div>
     <div id="tableFirst" class="hide" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>重碼率隨常用度變化</h2>
+    <div class="sub">橫軸：把已取碼的字按常用度由高到低累計到第幾個字；縱軸：那個範圍內的重碼率。
+      看重碼是集中在常用字，還是愈到冷僻字愈嚴重。</div>
+    <div class="curvewrap" id="dupCurve"></div>
   </section>
 
   <section>
@@ -389,6 +411,86 @@ function drawCharts() {
   }
 }
 
+/* 重碼率隨常用度變化：橫軸是「取前 N 個常用字」，縱軸是那個範圍內的重碼率。
+   固定顯示全體字（不受上面「常用度上限」影響）——這張圖本來就是要看完整的
+   走勢，用切成兩三段的按鈕看不出來。
+   逐字累加 O(N)：新字加進某個碼位時，那個碼位從 1 變 2 個字，原本那個字
+   也要一起補算進重碼字數（它之前是唯一，不算重碼；現在不是了）。 */
+function dupCurveData() {
+  const list = Object.entries(codes).filter(([, r]) => r.code)
+    .map(([ch, r]) => ({ ch, code: finalOf(r), rank: rank.get(ch) }))
+    .filter(x => x.rank != null)
+    .sort((a, b) => a.rank - b.rank);
+  const groupSize = new Map();
+  let dupCount = 0;
+  return list.map((x, i) => {
+    const prev = groupSize.get(x.code) || 0;
+    if (prev === 1) dupCount += 2;
+    else if (prev >= 2) dupCount += 1;
+    groupSize.set(x.code, prev + 1);
+    return { n: i + 1, rate: dupCount / (i + 1) * 100, ch: x.ch };
+  });
+}
+
+function renderDupCurve() {
+  const box = $('#dupCurve');
+  const points = dupCurveData();
+  if (points.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
+
+  const W = 1000, H = 300, padL = 42, padR = 12, padT = 10, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxN = points[points.length - 1].n;
+  const maxRateRaw = Math.max(...points.map(p => p.rate));
+  const maxRate = Math.max(2, Math.ceil(maxRateRaw / 2) * 2);
+
+  const xOf = n => padL + (n / maxN) * plotW;
+  const yOf = r => padT + (1 - r / maxRate) * plotH;
+
+  const xStep = maxN <= 1000 ? 100 : maxN <= 3000 ? 500 : 1000;
+  const xTicks = []; for (let n = 0; n <= maxN; n += xStep) xTicks.push(n);
+  if (xTicks[xTicks.length - 1] !== maxN) xTicks.push(maxN);
+  const yTicks = [0, maxRate / 2, maxRate];
+
+  const linePath = points.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('');
+  const areaPath = `M${xOf(points[0].n).toFixed(1)},${yOf(0).toFixed(1)} ${linePath.replace('M', 'L')} L${xOf(maxN).toFixed(1)},${yOf(0).toFixed(1)} Z`;
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${yTicks.map(t => `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${yOf(t).toFixed(1)}" y2="${yOf(t).toFixed(1)}"/>
+      <text class="axislabel" x="${padL - 6}" y="${(yOf(t) + 3).toFixed(1)}" text-anchor="end">${t.toFixed(0)}%</text>`).join('')}
+    ${xTicks.map(t => `<text class="axislabel" x="${xOf(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t}</text>`).join('')}
+    <path class="curvefill" d="${areaPath}"/>
+    <path class="curveline" d="${linePath}"/>
+    <line class="crosshair" id="curveCross" x1="0" x2="0" y1="${padT}" y2="${H - padB}"/>
+    <circle class="dot" id="curveDot" r="4"/>
+    <rect class="hoverlayer" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}"/>
+  </svg>`;
+
+  const svg = box.querySelector('svg');
+  const hover = box.querySelector('.hoverlayer');
+  const cross = $('#curveCross'), dot = $('#curveDot');
+  hover.addEventListener('mousemove', e => {
+    const rect = svg.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width * W;
+    const n = Math.round(((px - padL) / plotW) * maxN);
+    const p = points[Math.max(0, Math.min(points.length - 1, n - 1))];
+    if (!p) return;
+    const x = xOf(p.n), y = yOf(p.rate);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x);
+    cross.style.display = 'block';
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    dot.style.display = 'block';
+    const t = $('#tip');
+    t.style.display = 'block';
+    t.style.left = (e.clientX + 12) + 'px';
+    t.style.top = (e.clientY - 30) + 'px';
+    t.innerHTML = `前 <b>${p.n}</b> 常用字　重碼率 <b>${p.rate.toFixed(1)}%</b>　（第 ${p.n} 字：${p.ch}）`;
+  });
+  hover.addEventListener('mouseleave', () => {
+    cross.style.display = 'none'; dot.style.display = 'none'; $('#tip').style.display = 'none';
+  });
+}
+
 function render() {
   /* 常用度上限：只看排前 1000／2000 名的常用字，其餘先當作不存在。
      這一刀切在最源頭（entries），下面所有統計——字母頻率、重碼、碼長分布、
@@ -467,6 +569,7 @@ function render() {
 
   myAll = all; myFirst = first;
   drawCharts();
+  renderDupCurve();
 
   const hot = codeLen >= 40
     ? Object.entries(all).filter(([, v]) => v > (codeLen / 26) * 1.5)
