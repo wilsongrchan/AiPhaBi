@@ -85,13 +85,17 @@
   .tip { position:fixed; z-index:20; background:var(--ink); color:var(--bg); font-size:12px;
     padding:5px 8px; border-radius:6px; pointer-events:none; display:none; white-space:nowrap; }
 
-  /* 重碼率曲線：單一系列（不需要圖例，標題已經講清楚是什麼），
-     細線＋淡淡的面積，格線跟座標都用不搶戲的顏色。 */
+  /* 重碼率曲線：單一系列時不需要圖例（標題已經講清楚是什麼）；
+     開了移動平均才是兩個系列，這時才長出圖例。細線＋淡淡的面積，
+     格線跟座標都用不搶戲的顏色。 */
   .curvewrap { position:relative; height:220px; }
   .curvewrap svg { width:100%; height:100%; display:block; overflow:visible; }
   .curvewrap .grid { stroke:var(--line); stroke-width:1; }
+  .curvewrap .grid.vgrid { stroke-dasharray:2 3; }
   .curvewrap .axislabel { font:11px ui-monospace,monospace; fill:var(--muted); }
   .curvewrap .curveline { fill:none; stroke:var(--accent); stroke-width:2;
+    stroke-linejoin:round; stroke-linecap:round; }
+  .curvewrap .curveavg { fill:none; stroke:var(--s2); stroke-width:2;
     stroke-linejoin:round; stroke-linecap:round; }
   .curvewrap .curvefill { fill:var(--accent); opacity:.08; }
   .curvewrap .crosshair { stroke:var(--muted); stroke-width:1; stroke-dasharray:3 3;
@@ -99,6 +103,10 @@
   .curvewrap .dot { fill:var(--accent); stroke:var(--card); stroke-width:2; display:none;
     pointer-events:none; }
   .curvewrap .hoverlayer { fill:transparent; cursor:crosshair; }
+  .curvelegend { display:flex; gap:14px; align-items:center; font-size:12px;
+    color:var(--muted); margin-top:6px; }
+  .curvelegend i { display:inline-block; width:11px; height:11px; border-radius:3px;
+    margin-right:5px; vertical-align:-1px; }
 
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
@@ -226,6 +234,7 @@
     <div style="display:flex;align-items:baseline;gap:10px">
       <h2>重碼率隨常用度變化</h2>
       <div class="grow"></div>
+      <button id="curveAvgToggle">移動平均</button>
       <button id="curveToggle">收起</button>
     </div>
     <div class="sub">橫軸：把已取碼的字按常用度由高到低累計到第幾個字；縱軸：那個範圍內的重碼率。
@@ -436,11 +445,25 @@ function dupCurveData() {
   });
 }
 
+/* 移動平均：原始線每加一個字就是一階，鋸齒很多，看不出走勢。
+   用置中窗格平滑；窗格大小跟著資料量走，資料愈多窗格愈寬，邊緣窗格縮小
+   （不然頭尾會被拉平或缺一截）。 */
+function movingAverage(points, win) {
+  const half = Math.floor(win / 2);
+  return points.map((p, i) => {
+    const lo = Math.max(0, i - half), hi = Math.min(points.length - 1, i + half);
+    let sum = 0; for (let k = lo; k <= hi; k++) sum += points[k].rate;
+    return { n: p.n, rate: sum / (hi - lo + 1) };
+  });
+}
+
 let curveCollapsed = localStorage.getItem('aiphabi_stats_curve_collapsed') === '1';
+let curveShowAvg = localStorage.getItem('aiphabi_stats_curve_avg') === '1';
 function renderDupCurve() {
   const box = $('#dupCurve');
   box.classList.toggle('hide', curveCollapsed);
   $('#curveToggle').textContent = curveCollapsed ? '展開' : '收起';
+  $('#curveAvgToggle').classList.toggle('on', curveShowAvg);
   if (curveCollapsed) return;   /* 收起時連算都不用算——2900+ 個點的曲線不便宜 */
 
   const points = dupCurveData();
@@ -457,23 +480,39 @@ function renderDupCurve() {
 
   const xStep = maxN <= 1000 ? 100 : maxN <= 3000 ? 500 : 1000;
   const xTicks = []; for (let n = 0; n <= maxN; n += xStep) xTicks.push(n);
-  if (xTicks[xTicks.length - 1] !== maxN) xTicks.push(maxN);
+  /* 收尾的總數要跟前一個刻度隔夠遠才另外標，不然「3000」跟「3024」擠在一起變成「30024」。 */
+  const lastTick = xTicks[xTicks.length - 1];
+  if (lastTick !== maxN) {
+    if (maxN - lastTick < xStep * 0.3) xTicks[xTicks.length - 1] = maxN;
+    else xTicks.push(maxN);
+  }
   const yTicks = [0, maxRate / 2, maxRate];
 
   const linePath = points.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('');
   const areaPath = `M${xOf(points[0].n).toFixed(1)},${yOf(0).toFixed(1)} ${linePath.replace('M', 'L')} L${xOf(maxN).toFixed(1)},${yOf(0).toFixed(1)} Z`;
 
-  const svgNS = 'http://www.w3.org/2000/svg';
+  const avgWin = Math.max(20, Math.round(maxN / 40));
+  const avgPoints = curveShowAvg ? movingAverage(points, avgWin) : null;
+  const avgPath = avgPoints
+    ? avgPoints.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('')
+    : '';
+
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     ${yTicks.map(t => `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${yOf(t).toFixed(1)}" y2="${yOf(t).toFixed(1)}"/>
       <text class="axislabel" x="${padL - 6}" y="${(yOf(t) + 3).toFixed(1)}" text-anchor="end">${t.toFixed(0)}%</text>`).join('')}
-    ${xTicks.map(t => `<text class="axislabel" x="${xOf(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t}</text>`).join('')}
+    ${xTicks.map(t => `<line class="grid vgrid" x1="${xOf(t).toFixed(1)}" x2="${xOf(t).toFixed(1)}" y1="${padT}" y2="${H - padB}"/>
+      <text class="axislabel" x="${xOf(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t}</text>`).join('')}
     <path class="curvefill" d="${areaPath}"/>
     <path class="curveline" d="${linePath}"/>
+    ${avgPath ? `<path class="curveavg" d="${avgPath}"/>` : ''}
     <line class="crosshair" id="curveCross" x1="0" x2="0" y1="${padT}" y2="${H - padB}"/>
     <circle class="dot" id="curveDot" r="4"/>
     <rect class="hoverlayer" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}"/>
-  </svg>`;
+  </svg>
+  ${curveShowAvg ? `<div class="curvelegend">
+      <span><i style="background:var(--accent)"></i>重碼率</span>
+      <span><i style="background:var(--s2)"></i>移動平均（每 ${avgWin} 字）</span>
+    </div>` : ''}`;
 
   const svg = box.querySelector('svg');
   const hover = box.querySelector('.hoverlayer');
@@ -493,7 +532,8 @@ function renderDupCurve() {
     t.style.display = 'block';
     t.style.left = (e.clientX + 12) + 'px';
     t.style.top = (e.clientY - 30) + 'px';
-    t.innerHTML = `前 <b>${p.n}</b> 常用字　重碼率 <b>${p.rate.toFixed(1)}%</b>　（第 ${p.n} 字：${p.ch}）`;
+    const avgTxt = avgPoints ? `　移動平均 <b>${avgPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
+    t.innerHTML = `前 <b>${p.n}</b> 常用字　重碼率 <b>${p.rate.toFixed(1)}%</b>${avgTxt}　（第 ${p.n} 字：${p.ch}）`;
   });
   hover.addEventListener('mouseleave', () => {
     cross.style.display = 'none'; dot.style.display = 'none'; $('#tip').style.display = 'none';
@@ -927,6 +967,11 @@ for (const [v, btn] of Object.entries(cutBtns)) {
 $('#curveToggle').onclick = () => {
   curveCollapsed = !curveCollapsed;
   localStorage.setItem('aiphabi_stats_curve_collapsed', curveCollapsed ? '1' : '0');
+  renderDupCurve();
+};
+$('#curveAvgToggle').onclick = () => {
+  curveShowAvg = !curveShowAvg;
+  localStorage.setItem('aiphabi_stats_curve_avg', curveShowAvg ? '1' : '0');
   renderDupCurve();
 };
 
