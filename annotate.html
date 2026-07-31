@@ -1467,6 +1467,108 @@ async function renderSiblingSuggestions(A, alt) {
   box.append(bar);
 }
 
+/* ---------- 反向連坐：部件本身已有兼容碼 → 套到含它的字 ----------
+   你替「刃」收過兼容碼（末筆是點／撇…都接受），那含「刃」的字（韌、忍、認…）多半也該接受。
+   載入一個字時，看它哪些部件自己有兼容碼、而且這個字正好照那部件的主碼拆，
+   就把對應的兼容碼算好，讓你一鍵收下 —— 不必每個含「刃」的字都手工再畫一次。
+   靠的是既有的偏旁一致性引擎（找整個部件在字裡的位置、確認拆法一致）。 */
+async function componentAltSuggestions(X) {
+  const rec = codes[X];
+  if (!rec || !rec.code || !rec.segments || !rec.segments.length || !ids[X]) return [];
+  const MED = medians;
+  if (!MED || !MED.length) return [];
+  const n = MED.length;
+  const parts = partsOf(X, 4).filter(c =>
+    c !== X && codes[c] && codes[c].segments && codes[c].alts && codes[c].alts.length);
+  if (!parts.length) return [];
+  await primeMedians(parts);
+  const out = [];
+  for (const C of parts) {
+    const cmed = _medCache.get(C);
+    if (!cmed || cmed.length < 2 || cmed.length > n) continue;
+    const cn = cmed.length, cvec = Shape.strokeVec(cmed);
+    if (!cvec) continue;
+    /* 整個部件 C 在 X 裡的位置：最像 C 的那段 cn 連續筆畫 */
+    let best = null;
+    for (let j = 0; j + cn <= n; j++) {
+      const v = Shape.strokeVec(Array.from({ length: cn }, (_, t) => MED[j + t]));
+      if (!v) continue;
+      const d = Shape.dist(v, cvec);
+      if (d < SIB_THR && (!best || d < best.d)) best = { j, d };
+    }
+    if (!best) continue;
+    const j = best.j;
+    /* 這個字要正好照 C 的主碼拆那一段，才是同樣情況 */
+    const mainC = subOverRange(codes[C].segments, codes[C].skipped || [], 0, cn - 1);
+    const xSub = subOverRange(rec.segments, rec.skipped || [], j, j + cn - 1);
+    if (!mainC || !xSub || xSub.code !== mainC.code) continue;
+    for (const a of codes[C].alts) {
+      const altC = subOverRange(a.segments, a.skipped || [], 0, cn - 1);
+      if (!altC || altC.code === mainC.code) continue;
+      const inRange = x => x >= j && x <= j + cn - 1;
+      const kept = rec.segments.filter(sg => !sg.strokes.some(inRange))
+        .map(sg => ({ letter: sg.letter, strokes: [...sg.strokes] }));
+      const moved = altC.segs.map(s => ({ letter: s.letter, strokes: s.local.map(x => x + j) }));
+      const segments = [...kept, ...moved].sort((p, q) => Math.min(...p.strokes) - Math.min(...q.strokes));
+      const sk = [...(rec.skipped || []).filter(x => !inRange(x)),
+                  ...altC.skipLocal.map(x => x + j)].sort((p, q) => p - q);
+      const code = segments.map(s => s.letter).join('');
+      if (code === rec.code) continue;
+      if ((rec.alts || []).some(al => al.code === code)) continue;
+      if (out.some(o => o.code === code)) continue;
+      out.push({ comp: C, compAlt: finalOf(a.code), code, segments, skipped: sk.length ? sk : undefined });
+    }
+  }
+  return out;
+}
+
+async function renderComponentAltSuggestions(X) {
+  if (altMode) return;                        /* 正在編兼容碼就別插話 */
+  const box = $('#altsib');
+  let list;
+  try { list = await componentAltSuggestions(X); } catch (e) { console.error(e); return; }
+  if (cur !== X || !list || !list.length) return;
+  box.innerHTML = '';
+  aExpanded = true; applyAwrap();             /* 有建議就把兼容碼欄打開，才看得到 */
+  const head = el('div', 'sibhead');
+  head.innerHTML = `這個字的部件本身已經收過兼容碼 —— 要不要一起套到「<b>${X}</b>」？`;
+  box.append(head);
+  const rows = [];
+  for (const it of list) {
+    const row = el('label', 'sibrow');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = true;
+    const lbl = el('span', 'ch');
+    lbl.innerHTML = `因「<b>${it.comp}</b>」的 <code>${it.compAlt}</code>`;
+    const code = el('code', '', '＋' + finalOf(it.code));
+    row.append(cb, lbl, code);
+    box.append(row);
+    rows.push({ cb, it });
+  }
+  const bar = el('div', 'sibbar');
+  const all = el('button', '', '全選／全不選');
+  all.onclick = () => { const to = rows.some(r => !r.cb.checked); rows.forEach(r => r.cb.checked = to); };
+  const add = el('button', 'primary', '收為兼容碼');
+  add.onclick = async () => {
+    const picked = rows.filter(r => r.cb.checked).map(r => r.it);
+    if (!picked.length) { box.innerHTML = ''; return; }
+    const r0 = codes[X] || (codes[X] = {});
+    r0.alts = r0.alts || [];
+    for (const it of picked)
+      if (!r0.alts.some(a => a.code === it.code))
+        r0.alts.push({ code: it.code, segments: it.segments, skipped: it.skipped });
+    const r = await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
+    if (r.reloaded) return;
+    if (!r.ok) { box.innerHTML = '<div class="newz" style="color:var(--bad)">寫入失敗，請再試一次。</div>'; return; }
+    dirty = false; $('#status').textContent = '已儲存'; $('#status').className = 'saved';
+    box.innerHTML = `<div class="newz" style="color:var(--ok)">已替「${X}」收下 ${picked.length} 條兼容碼。</div>`;
+    if (cur === X) renderAlts();
+  };
+  const skip = el('button', '', '不用');
+  skip.onclick = () => { box.innerHTML = ''; };
+  bar.append(all, add, skip);
+  box.append(bar);
+}
+
 /* ---------- 兼容字型 ----------
    有些字有兩種通行寫法（為 的大陸字形 12 筆、台灣字形 9 筆），視為同一個字。
    這裡用「另一種字形」（台灣／香港輪廓）另取一個碼：打那個碼優先出那個字形，
@@ -3117,6 +3219,7 @@ function applyOneSegment(sg) {
 /* ---------- 載入一個字 ---------- */
 async function load(c) {
   cur = c; sel = []; segs = []; skipped = [];
+  $('#altsib').innerHTML = '';                 /* 清掉上一個字的連坐／部件兼容碼建議 */
   const g = await Zigen.getGlyph(c);
   if (!g) { $('#cur').textContent = `${c}：沒有筆畫資料`; strokes = []; medians = []; drawGlyph(); return; }
   splitMode = false; document.body.classList.remove('splitmode');
@@ -3139,6 +3242,7 @@ async function load(c) {
   renderRelated(c); renderBack(); renderVariants();
   if (vfOpenNow()) vfClose();      /* 換了字就別讓上一個字的兼容字型編輯器開著 */
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
+  renderComponentAltSuggestions(c);   /* 部件已有兼容碼？提醒把它套到這個字 */
 }
 
 /* ---------- 官方倉頡對照 ----------
