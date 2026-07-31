@@ -231,14 +231,6 @@
   </section>
 
   <section>
-    <h2>手感分析</h2>
-    <div class="sub">照標準十指打字法的手指分配算的，不是猜的——兩手有沒有輪流打、
-      有沒有同一根手指連續打不同鍵、會不會同一隻手直接從最上排跳到最下排（不經過中排）。</div>
-    <div class="kpis" id="ergokpis" style="margin-bottom:0"></div>
-    <div id="ergoWorst"></div>
-  </section>
-
-  <section>
     <div style="display:flex;align-items:baseline;gap:10px">
       <h2>重碼率隨常用度變化</h2>
       <div class="grow"></div>
@@ -263,6 +255,19 @@
       —— 這一節就是讓你看得見它們在累積。
       點「逐字複審」可以在這一頁裡把整組翻完，不必來回跳頁。</div>
     <div id="exceptions"></div>
+  </section>
+
+  <section>
+    <h2>手感分析</h2>
+    <div class="sub">照標準十指打字法的手指分配算的，不是猜的——兩手有沒有輪流打、
+      有沒有同一根手指連續打不同鍵、會不會同一隻手直接從最上排跳到最下排（不經過中排）。</div>
+    <div class="kpis" id="ergokpis" style="margin-bottom:0"></div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin-top:14px">
+      <span class="sub" id="ergosub" style="margin-bottom:0"></span>
+      <div class="grow"></div>
+      <button id="ergoToggle">展開</button>
+    </div>
+    <div id="ergoWorst" class="hide"></div>
   </section>
 </main>
 
@@ -340,6 +345,7 @@ function ergoStats(entries) {
   return { bigrams, altHand, sameFinger, bigJump, repeats, perChar };
 }
 
+let ergoCollapsed = localStorage.getItem('aiphabi_stats_ergo_collapsed') !== '0';   /* 預設收起——清單太長 */
 function renderErgo(entries) {
   const s = ergoStats(entries);
   const pct = n => s.bigrams ? (n / s.bigrams * 100).toFixed(1) + '%' : '—';
@@ -353,16 +359,16 @@ function renderErgo(entries) {
         s.bigrams && s.bigJump / s.bigrams > 0.05) +
     kpi(pct(s.repeats), '疊字（同一鍵連打兩次，不算問題）');
 
+  $('#ergosub').textContent = s.perChar.length
+    ? `${s.perChar.length} 個字的碼裡有同指硬跳或大跳躍，依常用度排序。`
+    : (entries.length ? '目前沒有同指硬跳或大跳躍的字。' : '還沒有取碼資料。');
+  $('#ergoToggle').textContent = ergoCollapsed ? '展開' : '收起';
   const box = $('#ergoWorst');
-  if (!s.perChar.length) {
-    box.innerHTML = entries.length
-      ? '<div class="empty" style="color:var(--ok);font-style:normal">目前沒有同指硬跳或大跳躍的字。</div>'
-      : '<div class="empty">—</div>';
-    return;
-  }
-  box.innerHTML = `<div class="sub" style="margin:10px 0 6px">
-      <b>${s.perChar.length}</b> 個字的碼裡有同指硬跳或大跳躍，依常用度排序 —— 排在前面的最值得改。</div>
-    <table><thead><tr><th>字</th><th>碼</th><th>同指硬跳</th><th>大跳躍</th><th>常用度</th></tr></thead>
+  box.classList.toggle('hide', ergoCollapsed);
+  if (ergoCollapsed) return;   /* 收起時不必組上千行的表格 */
+
+  if (!s.perChar.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<table><thead><tr><th>字</th><th>碼</th><th>同指硬跳</th><th>大跳躍</th><th>常用度</th></tr></thead>
     <tbody>${s.perChar.map(p => `<tr>
       <td class="chars">${link(p.ch)}</td>
       <td class="code">${p.code}</td>
@@ -456,6 +462,7 @@ function bars(counts, chartId, axisId, tableId, cjCounts) {
 
 let zigenCount = {};
 let myAll = {}, myFirst = {}, cjAll = {}, cjFirst = {}, cjN = 0;
+let lastEntries = [];   /* 手感分析展開/收起要重畫，不必重新算一次 entries */
 /* 兩張圖各自可以開關「對照倉頡」—— 疊在同一張圖上反而看不出誰是誰，
    所以是並排的兩根細棒，而且比的是佔比（兩邊的碼數不一樣多）。 */
 const cmpOn = { all: false, first: false };
@@ -695,6 +702,7 @@ function render() {
   myAll = all; myFirst = first;
   drawCharts();
   renderDupCurve();
+  lastEntries = entries;
   renderErgo(entries);
 
   const hot = codeLen >= 40
@@ -1045,6 +1053,11 @@ $('#curveToggle').onclick = () => {
   curveCollapsed = !curveCollapsed;
   localStorage.setItem('aiphabi_stats_curve_collapsed', curveCollapsed ? '1' : '0');
   renderDupCurve();
+};
+$('#ergoToggle').onclick = () => {
+  ergoCollapsed = !ergoCollapsed;
+  localStorage.setItem('aiphabi_stats_ergo_collapsed', ergoCollapsed ? '1' : '0');
+  renderErgo(lastEntries);
 };
 $('#curveAvgToggle').onclick = () => {
   curveShowAvg = !curveShowAvg;
