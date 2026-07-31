@@ -80,6 +80,9 @@
   .cand.pred b { color:var(--muted); }
   .cand.pred { border-style:dashed; border-color:var(--line); }
   .cand.pred em { color:var(--warn,#d98324); }
+  /* 容錯候選（可能）：字本身是打過碼的，不用像預測那樣把字弄淡，
+     只用虛線邊框提醒「這不是你打的碼，是猜你可能漏打／打錯隔壁鍵」。 */
+  .cand.fuzzy { border-style:dashed; border-color:var(--line); }
   /* 預測候選：標籤+碼一行、去取碼→另一行，兩行左對齊、疊起來當一個 flex item，
      跟 .cand em 一樣不參與那排的 baseline 計算（見上面的說明），字才不會被頂歪。 */
   .predwrap { display:inline-flex; flex-direction:column; align-items:flex-start;
@@ -193,6 +196,45 @@ const usageOf = ch => (charfreq.get(ch) || 0);   /* 越大越常用，排越前 
 let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
 let opencc = { t2s: {}, s2t: {} };   /* 繁簡對照（簡繁兼容用） */
 let table = new Map();     /* 碼 → [{ch, kind}]，依字頻排序 */
+let byLen = new Map();     /* 碼長 → 那個長度出現過的所有碼，給下面的容錯配對用 */
+
+/* 鍵盤相鄰鍵表：三排字母照實體鍵盤的錯位（每往下一排大約右移 0.25～0.5 個鍵位）
+   算「隔壁」的鍵——同排左右鄰居，加上下一排最靠近的一兩顆。用來抓「手滑按到
+   隔壁鍵」這種打字誤差（例：M 隔壁是 N／J／K）。 */
+const ADJACENT = (() => {
+  const rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+  const offset = [0, 0.25, 0.5];
+  const pos = new Map();
+  rows.forEach((row, r) => [...row].forEach((ch, i) => pos.set(ch, { row: r, x: i + offset[r] })));
+  const adj = new Map();
+  for (const [ch, p] of pos) {
+    const near = [];
+    for (const [ch2, p2] of pos) {
+      if (ch2 === ch || Math.abs(p.row - p2.row) > 1) continue;
+      if (Math.abs(p.x - p2.x) <= 1.01) near.push(ch2);
+    }
+    adj.set(ch, near);
+  }
+  return adj;
+})();
+/* a 是不是把 b 恰好一個碼位打成鍵盤隔壁鍵的結果（同長度，剛好一處不同，且那兩個
+   字元互為隔壁鍵）*/
+function isAdjacentTypo(a, b) {
+  if (a.length !== b.length) return false;
+  let diffs = 0, at = -1;
+  for (let k = 0; k < a.length; k++) {
+    if (a[k] !== b[k]) { if (++diffs > 1) return false; at = k; }
+  }
+  return diffs === 1 && !!ADJACENT.get(a[at])?.includes(b[at]);
+}
+/* small 是不是刪掉 big 裡恰好一個字元的結果（漏打一碼，可能漏在任何位置）。
+   長度剛好差 1 時，small 是 big 的子序列 ⟺ 剛好可以刪掉 big 的某一個字元湊出 small。 */
+function isOneMissing(small, big) {
+  if (big.length !== small.length + 1) return false;
+  let i = 0;
+  for (let j = 0; j < big.length && i < small.length; j++) if (small[i] === big[j]) i++;
+  return i === small.length;
+}
 let text = '', code = '', pick = 0, pos = 0;   /* pos：游標在 text 裡的字元位置 */
 let sel = null;   /* 選取範圍的錨點；null＝沒有選取，游標就是 pos。選取範圍＝sorted[sel,pos] */
 
@@ -300,6 +342,12 @@ function buildTable() {
     list.sort((a, b) => (b.native - a.native) ||
       (usageOf(b.ch) - usageOf(a.ch)) ||
       ((rank.get(a.ch) ?? 1e9) - (rank.get(b.ch) ?? 1e9)));
+
+  byLen = new Map();
+  for (const c of table.keys()) {
+    if (!byLen.has(c.length)) byLen.set(c.length, []);
+    byLen.get(c.length).push(c);
+  }
 
   const chars = new Set();
   for (const list of table.values()) for (const x of list) chars.add(x.ch);
@@ -478,7 +526,26 @@ function candidates() {
     }
     pd.sort(byUsage);
   }
-  let all = [...exact, ...pd, ...pre];
+  /* 容錯候選（標「可能」）：漏打一碼，或某一碼位打成鍵盤上隔壁的鍵。
+     不吃萬用鍵那套（` 本身就是自己的容錯機制，兩套疊在一起只會更難懂），
+     碼太短（1 碼）也不做——候選會多到失去意義。找到的字一樣照字頻排，
+     排在前面幾層都收不到的字後面（見 memory：候選多沒關係，找得到比較重要）。 */
+  const fz = [];
+  if (!wild && code.length >= 2) {
+    const seen = ch => exact.some(e => e.ch === ch) || pd.some(e => e.ch === ch) ||
+      pre.some(e => e.ch === ch) || fz.some(e => e.ch === ch);
+    for (const c of byLen.get(code.length + 1) || []) {
+      if (!isOneMissing(code, c)) continue;
+      for (const x of table.get(c)) if (!seen(x.ch)) fz.push({ ch: x.ch, code: c, kind: '可能', fuzzy: true });
+    }
+    for (const c of byLen.get(code.length) || []) {
+      if (c === code || !isAdjacentTypo(code, c)) continue;
+      for (const x of table.get(c)) if (!seen(x.ch)) fz.push({ ch: x.ch, code: c, kind: '可能', fuzzy: true });
+    }
+    fz.sort(byUsage);
+  }
+
+  let all = [...exact, ...pd, ...pre, ...fz];
   if ($('#simpCompat').checked) all = withSimpCompat(all);
   candOverflow = Math.max(0, all.length - MAX_CAND);
   return all.slice(0, MAX_CAND);
@@ -545,7 +612,7 @@ function render() {
   const start = page * 9;
   cands.slice(start, start + 9).forEach((x, i) => {
     const gi = start + i;
-    const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
+    const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : '') + (x.fuzzy ? ' fuzzy' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
