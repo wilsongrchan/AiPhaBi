@@ -341,13 +341,13 @@ function buildFamilies() {
 
 /* 偏旁碼提醒：約定表裡「作為偏旁時另有取法」的字（本 偏旁 TI／單獨 TJRI）。打了它的偏旁碼，
    就提醒你「你要的可能是這個字，但它單獨成字的碼其實是 …」——別忘了這條例外。
-   涵蓋整個約定表（不限「…類」），但數字／馬那兩組照樣跳過，免得洗版。 */
+   涵蓋整個約定表、含數字類（二 偏旁 I／單獨 II）——這條例外正是最容易忘的。
+   （同類字家族才跳過數字／馬；偏旁碼提醒不跳，因為它只在你剛好打中那個偏旁碼時才出現。） */
 function buildComps() {
   compMap = new Map();
   const conv = rules && rules.rules && rules.rules.find(r => r.id === 'convention');
   if (!conv) return;
   for (const g of conv.groups || []) {
-    if (FAMILY_SKIP.has(g.name)) continue;
     for (const c of g.chars || []) {
       if (!c.compCode || !codes[c.c] || !codes[c.c].code) continue;
       const comp = finalOf(c.compCode), std = finalOf(codes[c.c].code);
