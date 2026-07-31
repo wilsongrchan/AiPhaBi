@@ -55,7 +55,11 @@
   .cand.on { border-color:var(--accent); background:var(--bar); }
   .cand i { font:600 11px ui-monospace,monospace; color:var(--muted); font-style:normal; }
   .cand b { font:24px/1.2 "PingFang TC",serif; font-weight:400; }
-  .cand em { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal; }
+  /* 標籤（簡／繁、兼容…）跟碼疊成兩行——標籤在上、碼在下，碼那行對齊原本的
+     baseline 位置，疊起來的高度不超過候選字本身（字級 24px，兩行 10px 綽綽有餘）。 */
+  .cand em { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal;
+    display:inline-flex; flex-direction:column; align-items:flex-start; line-height:1.15; }
+  .cand em .tag { color:var(--accent); font-size:9px; }
   .imehint { font-size:11px; color:var(--muted); margin-left:auto; white-space:nowrap; }
   .none { font-size:13px; color:var(--bad); }
 
@@ -267,11 +271,11 @@ function buildTable() {
     for (const v of r.variants) {
       if (!v.display || !v.code) continue;
       const vf = finalOf(v.code);
-      add(vf, v.display, '字型', true);                 /* 變體碼 → 變體字形（native） */
-      if (v.code !== vf) add(v.code, v.display, '字型', true);
-      add(vf, out, '字型', false);                      /* 變體碼 → 也出主字形（相容） */
-      if (v.code !== vf) add(v.code, out, '字型', false);
-      for (const mc of mainCodes) add(mc, v.display, '字型', false);  /* 主碼 → 也出變體字形 */
+      add(vf, v.display, '兼容', true);                 /* 變體碼 → 變體字形（native） */
+      if (v.code !== vf) add(v.code, v.display, '兼容', true);
+      add(vf, out, '兼容', false);                      /* 變體碼 → 也出主字形（相容） */
+      if (v.code !== vf) add(v.code, out, '兼容', false);
+      for (const mc of mainCodes) add(mc, v.display, '兼容', false);  /* 主碼 → 也出變體字形 */
     }
   }
   /* 排序：自己的碼（native）在前；同類時「實際最常用」的字在前 —— 少按一次選字鍵。
@@ -528,9 +532,18 @@ function render() {
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
-    /* 簡繁兼容轉出來的標「簡／繁」；萬用鍵找到的把真正的碼列出來 */
-    d.append(el('em', '', x.conv ? (x.convCode ? x.conv + ' ' + x.convCode : x.conv)
-      : (x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code))));
+    /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
+       碼已經顯示在上面的輸入框了）。碼：萬用鍵／預測本來就帶著實際命中的碼；
+       簡繁兼容看對應字自己的碼；其餘（兼容／完整）查它自己的碼表紀錄，
+       不是又把你剛打的碼複述一次。兩個都有就疊成兩行，標籤在上、碼在下。 */
+    const tag = x.conv || (x.kind && x.kind !== '主' ? x.kind : '');
+    const codeText = x.conv ? (x.convCode || '')
+      : (x.code || ((x.kind && x.kind !== '主' && codes[x.ch] && codes[x.ch].code)
+          ? finalOf(codes[x.ch].code) : ''));
+    const em = el('em', '');
+    if (tag && codeText) { em.append(el('span', 'tag', tag)); em.append(document.createTextNode(codeText)); }
+    else em.textContent = tag || codeText;
+    d.append(em);
     d.onclick = () => commit(gi);
     /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
     if (x.pred) {
