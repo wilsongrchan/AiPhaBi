@@ -237,6 +237,16 @@ function isOneMissing(small, big) {
   for (let j = 0; j < big.length && i < small.length; j++) if (small[i] === big[j]) i++;
   return i === small.length;
 }
+/* a 是不是把 b 相鄰兩個碼位打反了（打太快，手指順序滑掉——例：GNF 其實是 GFN）。
+   同長度，剛好兩個位置不同，而且是相鄰的兩個位置、內容剛好對調。 */
+function isTransposition(a, b) {
+  if (a.length !== b.length) return false;
+  const diffs = [];
+  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) diffs.push(k);
+  if (diffs.length !== 2 || diffs[1] !== diffs[0] + 1) return false;
+  const [i, j] = diffs;
+  return a[i] === b[j] && a[j] === b[i];
+}
 let text = '', code = '', pick = 0, pos = 0;   /* pos：游標在 text 裡的字元位置 */
 let sel = null;   /* 選取範圍的錨點；null＝沒有選取，游標就是 pos。選取範圍＝sorted[sel,pos] */
 
@@ -528,7 +538,8 @@ function candidates() {
     }
     pd.sort(byUsage);
   }
-  /* 容錯候選（標「可能」）：漏打一碼，或某一碼位打成鍵盤上隔壁的鍵。
+  /* 容錯候選（標「可能」）：漏打一碼、多打一碼、某一碼位打成鍵盤上隔壁的鍵，
+     或相鄰兩碼打反了（手指順序滑掉，例：GNF 其實是 GFN）。
      不吃萬用鍵那套（` 本身就是自己的容錯機制，兩套疊在一起只會更難懂），
      碼太短（1 碼）也不做——候選會多到失去意義。找到的字一樣照字頻排，
      排在前面幾層都收不到的字後面（見 memory：候選多沒關係，找得到比較重要）。 */
@@ -536,12 +547,16 @@ function candidates() {
   if (!wild && code.length >= 2) {
     const seen = ch => exact.some(e => e.ch === ch) || pd.some(e => e.ch === ch) ||
       pre.some(e => e.ch === ch) || fz.some(e => e.ch === ch);
-    for (const c of byLen.get(code.length + 1) || []) {
+    for (const c of byLen.get(code.length + 1) || []) {           /* 漏打一碼 */
       if (!isOneMissing(code, c)) continue;
       for (const x of table.get(c)) if (!seen(x.ch)) fz.push({ ch: x.ch, code: c, kind: '可能', fuzzy: true });
     }
-    for (const c of byLen.get(code.length) || []) {
-      if (c === code || !isAdjacentTypo(code, c)) continue;
+    for (const c of byLen.get(code.length - 1) || []) {           /* 多打一碼 */
+      if (!isOneMissing(c, code)) continue;
+      for (const x of table.get(c)) if (!seen(x.ch)) fz.push({ ch: x.ch, code: c, kind: '可能', fuzzy: true });
+    }
+    for (const c of byLen.get(code.length) || []) {               /* 打成隔壁鍵／打反相鄰兩碼 */
+      if (c === code || (!isAdjacentTypo(code, c) && !isTransposition(code, c))) continue;
       for (const x of table.get(c)) if (!seen(x.ch)) fz.push({ ch: x.ch, code: c, kind: '可能', fuzzy: true });
     }
     fz.sort(byUsage);
