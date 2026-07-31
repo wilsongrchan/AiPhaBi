@@ -48,21 +48,14 @@
     padding:8px 12px; box-shadow:0 6px 20px rgba(0,0,0,.10); }
   .imebox.on { display:flex; }
   .imecode { font:700 17px ui-monospace,monospace; color:var(--accent); letter-spacing:.12em; }
-  .cands { display:flex; gap:6px; flex-wrap:wrap; align-items:flex-start; }
-  /* 候選卡：字放中間，其餘都是角落小標——序號左上、字型/簡繁標籤右上、
-     實際的碼右下。角落用絕對定位疊在字的外面，不擠占字的空間。 */
-  .cand { position:relative; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; border:1px solid transparent; border-radius:8px;
-    padding:6px 11px 5px 8px; cursor:pointer; }
+  .cands { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .cand { display:flex; align-items:baseline; gap:3px; border:1px solid transparent;
+    border-radius:8px; padding:2px 7px; cursor:pointer; }
   .cand:hover { background:var(--bar); }
   .cand.on { border-color:var(--accent); background:var(--bar); }
-  .cand i { position:absolute; top:2px; left:4px; font:600 10px ui-monospace,monospace;
-    color:var(--muted); font-style:normal; }
-  .cand .tag { position:absolute; top:2px; right:4px; font:600 9px ui-monospace,monospace;
-    color:var(--accent); font-style:normal; }
+  .cand i { font:600 11px ui-monospace,monospace; color:var(--muted); font-style:normal; }
   .cand b { font:24px/1.2 "PingFang TC",serif; font-weight:400; }
-  .cand em { position:absolute; bottom:1px; right:4px; font:600 9px ui-monospace,monospace;
-    color:var(--muted); font-style:normal; }
+  .cand em { font:600 10px ui-monospace,monospace; color:var(--muted); font-style:normal; }
   .imehint { font-size:11px; color:var(--muted); margin-left:auto; white-space:nowrap; }
   .none { font-size:13px; color:var(--bad); }
 
@@ -75,7 +68,7 @@
   .cand.pred b { color:var(--muted); }
   .cand.pred { border-style:dashed; border-color:var(--line); }
   .cand.pred em { color:var(--warn,#d98324); }
-  .predlink { font-size:10px; color:var(--accent); text-decoration:none; margin-top:1px; }
+  .predlink { font-size:11px; color:var(--accent); text-decoration:none; margin-left:6px; }
 
   button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
     border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
@@ -274,11 +267,11 @@ function buildTable() {
     for (const v of r.variants) {
       if (!v.display || !v.code) continue;
       const vf = finalOf(v.code);
-      add(vf, v.display, '兼容', true);                 /* 變體碼 → 變體字形（native） */
-      if (v.code !== vf) add(v.code, v.display, '兼容', true);
-      add(vf, out, '兼容', false);                      /* 變體碼 → 也出主字形（相容） */
-      if (v.code !== vf) add(v.code, out, '兼容', false);
-      for (const mc of mainCodes) add(mc, v.display, '兼容', false);  /* 主碼 → 也出變體字形 */
+      add(vf, v.display, '字型', true);                 /* 變體碼 → 變體字形（native） */
+      if (v.code !== vf) add(v.code, v.display, '字型', true);
+      add(vf, out, '字型', false);                      /* 變體碼 → 也出主字形（相容） */
+      if (v.code !== vf) add(v.code, out, '字型', false);
+      for (const mc of mainCodes) add(mc, v.display, '字型', false);  /* 主碼 → 也出變體字形 */
     }
   }
   /* 排序：自己的碼（native）在前；同類時「實際最常用」的字在前 —— 少按一次選字鍵。
@@ -495,26 +488,6 @@ function withSimpCompat(list) {
   return out;
 }
 
-/* 候選卡右上角的小標：簡／繁，或字型/完整這類「這不是主碼」的提示。
-   主碼命中不用標——碼已經顯示在上面的輸入框了。 */
-function tagOf(x) {
-  if (x.conv) return x.conv;
-  if (x.kind && x.kind !== '主') return x.kind;
-  return '';
-}
-/* 候選卡右下角的碼：萬用鍵／預測已經帶著實際命中的碼，直接用；
-   簡繁兼容看對應字自己的碼；字型／完整這類則是「這個字真正該打的碼」
-   （去查它自己的碼表紀錄，不是又把你剛打的碼複述一次）。 */
-function codeTextOf(x) {
-  if (x.conv) return x.convCode || '';
-  if (x.code) return x.code;
-  if (x.kind && x.kind !== '主') {
-    const rec = codes[x.ch];
-    return rec && rec.code ? finalOf(rec.code) : '';
-  }
-  return '';
-}
-
 function render() {
   const paper = $('#paper');
   paper.innerHTML = '';
@@ -554,11 +527,10 @@ function render() {
     const gi = start + i;
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : ''));
     d.append(el('i', '', String(i + 1)));
-    const tag = tagOf(x);
-    if (tag) d.append(el('span', 'tag', tag));
     d.append(el('b', '', x.ch));
-    const codeText = codeTextOf(x);
-    if (codeText) d.append(el('em', '', codeText));
+    /* 簡繁兼容轉出來的標「簡／繁」；萬用鍵找到的把真正的碼列出來 */
+    d.append(el('em', '', x.conv ? (x.convCode ? x.conv + ' ' + x.convCode : x.conv)
+      : (x.wild ? x.code : (x.exact ? (x.kind === '主' ? '' : x.kind) : x.code))));
     d.onclick = () => commit(gi);
     /* 預測出來的字：一鍵跳去取碼頁，看它跟你心裡的拆法一不一樣 */
     if (x.pred) {
