@@ -236,6 +236,7 @@
     <div style="display:flex;align-items:baseline;gap:10px">
       <h2>重碼率隨常用度變化</h2>
       <div class="grow"></div>
+      <button id="curveCJToggle">倉頡比較</button>
       <button id="curveAvgToggle">移動平均</button>
       <button id="curveToggle">收起</button>
     </div>
@@ -555,17 +556,20 @@ function movingAverage(points, win) {
 
 let curveCollapsed = localStorage.getItem('aiphabi_stats_curve_collapsed') === '1';
 let curveShowAvg = localStorage.getItem('aiphabi_stats_curve_avg') === '1';
+let curveShowCJ = localStorage.getItem('aiphabi_stats_curve_cj') !== '0';   /* 預設開 */
 function renderDupCurve() {
   const box = $('#dupCurve');
   box.classList.toggle('hide', curveCollapsed);
   $('#curveToggle').textContent = curveCollapsed ? '展開' : '收起';
   $('#curveAvgToggle').classList.toggle('on', curveShowAvg);
+  $('#curveCJToggle').classList.toggle('on', curveShowCJ && !!cangjie);
+  $('#curveCJToggle').disabled = !cangjie;
   if (curveCollapsed) return;   /* 收起時連算都不用算——2900+ 個點的曲線不便宜 */
 
   const list = curveList();
   if (list.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
   const points = cumulativeDup(list, 'code');
-  const cjPoints = cangjie ? cumulativeDup(list, 'cj') : null;
+  const cjPoints = (cangjie && curveShowCJ) ? cumulativeDup(list, 'cj') : null;
 
   const W = 1000, H = 300, padL = 42, padR = 12, padT = 10, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -1081,6 +1085,11 @@ $('#ergoToggle').onclick = () => {
 $('#curveAvgToggle').onclick = () => {
   curveShowAvg = !curveShowAvg;
   localStorage.setItem('aiphabi_stats_curve_avg', curveShowAvg ? '1' : '0');
+  renderDupCurve();
+};
+$('#curveCJToggle').onclick = () => {
+  curveShowCJ = !curveShowCJ;
+  localStorage.setItem('aiphabi_stats_curve_cj', curveShowCJ ? '1' : '0');
   renderDupCurve();
 };
 
