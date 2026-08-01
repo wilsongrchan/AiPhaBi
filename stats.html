@@ -95,8 +95,10 @@
   .curvewrap .axislabel { font:11px ui-monospace,monospace; fill:var(--muted); }
   .curvewrap .curveline { fill:none; stroke:var(--accent); stroke-width:2;
     stroke-linejoin:round; stroke-linecap:round; }
-  .curvewrap .curveavg { fill:none; stroke:var(--s2); stroke-width:2;
-    stroke-linejoin:round; stroke-linecap:round; }
+  .curvewrap .curveline-cj { fill:none; stroke:var(--s2); stroke-width:2;
+    stroke-linejoin:round; stroke-linecap:round; }   /* 倉頡（自然碼）比較線 */
+  .curvewrap .curveavg { fill:none; stroke:var(--accent); stroke-width:1.5; opacity:.7;
+    stroke-dasharray:5 4; stroke-linejoin:round; stroke-linecap:round; }
   .curvewrap .curvefill { fill:var(--accent); opacity:.08; }
   .curvewrap .crosshair { stroke:var(--muted); stroke-width:1; stroke-dasharray:3 3;
     display:none; pointer-events:none; }
@@ -512,19 +514,30 @@ function drawCharts() {
    走勢，用切成兩三段的按鈕看不出來。
    逐字累加 O(N)：新字加進某個碼位時，那個碼位從 1 變 2 個字，原本那個字
    也要一起補算進重碼字數（它之前是唯一，不算重碼；現在不是了）。 */
-function dupCurveData() {
-  const list = Object.entries(codes).filter(([, r]) => r.code)
-    .map(([ch, r]) => ({ ch, code: finalOf(r), rank: rank.get(ch) }))
+let _cjVals = null;
+function cjNatural(ch) {          /* 倉頡自然碼：去掉消歧用的前導 X（否則假性顯示近 0%） */
+  if (!cangjie) return '';
+  if (!_cjVals) _cjVals = new Set(Object.values(cangjie));
+  const c = cangjie[ch]; if (!c) return '';
+  return (c[0] === 'X' && _cjVals.has(c.slice(1))) ? c.slice(1) : c;
+}
+function curveList() {
+  return Object.entries(codes).filter(([, r]) => r.code)
+    .map(([ch, r]) => ({ ch, code: finalOf(r), cj: cjNatural(ch), rank: rank.get(ch) }))
     .filter(x => x.rank != null)
     .sort((a, b) => a.rank - b.rank);
-  const groupSize = new Map();
-  let dupCount = 0;
+}
+/* 逐字累加某一套碼的重碼率；AiPhaBi 與倉頡用同一份 list、同一個 n，才比得準。 */
+function cumulativeDup(list, key) {
+  const size = new Map(); let dup = 0;
   return list.map((x, i) => {
-    const prev = groupSize.get(x.code) || 0;
-    if (prev === 1) dupCount += 2;
-    else if (prev >= 2) dupCount += 1;
-    groupSize.set(x.code, prev + 1);
-    return { n: i + 1, rate: dupCount / (i + 1) * 100, ch: x.ch };
+    const code = x[key];
+    if (code) {
+      const prev = size.get(code) || 0;
+      if (prev === 1) dup += 2; else if (prev >= 2) dup += 1;
+      size.set(code, prev + 1);
+    }
+    return { n: i + 1, rate: dup / (i + 1) * 100, ch: x.ch };
   });
 }
 
@@ -549,13 +562,15 @@ function renderDupCurve() {
   $('#curveAvgToggle').classList.toggle('on', curveShowAvg);
   if (curveCollapsed) return;   /* 收起時連算都不用算——2900+ 個點的曲線不便宜 */
 
-  const points = dupCurveData();
-  if (points.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
+  const list = curveList();
+  if (list.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
+  const points = cumulativeDup(list, 'code');
+  const cjPoints = cangjie ? cumulativeDup(list, 'cj') : null;
 
   const W = 1000, H = 300, padL = 42, padR = 12, padT = 10, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const maxN = points[points.length - 1].n;
-  const maxRateRaw = Math.max(...points.map(p => p.rate));
+  const maxRateRaw = Math.max(...points.map(p => p.rate), ...(cjPoints ? cjPoints.map(p => p.rate) : [0]));
   const maxRate = Math.max(2, Math.ceil(maxRateRaw / 2) * 2);
 
   const xOf = n => padL + (n / maxN) * plotW;
@@ -573,6 +588,7 @@ function renderDupCurve() {
 
   const linePath = points.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('');
   const areaPath = `M${xOf(points[0].n).toFixed(1)},${yOf(0).toFixed(1)} ${linePath.replace('M', 'L')} L${xOf(maxN).toFixed(1)},${yOf(0).toFixed(1)} Z`;
+  const cjLinePath = cjPoints ? cjPoints.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('') : '';
 
   const avgWin = Math.max(20, Math.round(maxN / 40));
   const avgPoints = curveShowAvg ? movingAverage(points, avgWin) : null;
@@ -586,16 +602,18 @@ function renderDupCurve() {
     ${xTicks.map(t => `<line class="grid vgrid" x1="${xOf(t).toFixed(1)}" x2="${xOf(t).toFixed(1)}" y1="${padT}" y2="${H - padB}"/>
       <text class="axislabel" x="${xOf(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t}</text>`).join('')}
     <path class="curvefill" d="${areaPath}"/>
+    ${cjLinePath ? `<path class="curveline-cj" d="${cjLinePath}"/>` : ''}
     <path class="curveline" d="${linePath}"/>
     ${avgPath ? `<path class="curveavg" d="${avgPath}"/>` : ''}
     <line class="crosshair" id="curveCross" x1="0" x2="0" y1="${padT}" y2="${H - padB}"/>
     <circle class="dot" id="curveDot" r="4"/>
     <rect class="hoverlayer" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}"/>
   </svg>
-  ${curveShowAvg ? `<div class="curvelegend">
-      <span><i style="background:var(--accent)"></i>重碼率</span>
-      <span><i style="background:var(--s2)"></i>移動平均（每 ${avgWin} 字）</span>
-    </div>` : ''}`;
+  <div class="curvelegend">
+      <span><i style="background:var(--accent)"></i>AiPhaBi</span>
+      ${cjPoints ? `<span><i style="background:var(--s2)"></i>倉頡（自然碼）</span>` : ''}
+      ${curveShowAvg ? `<span><i style="background:var(--accent);opacity:.55"></i>AiPhaBi 移動平均（每 ${avgWin} 字）</span>` : ''}
+    </div>`;
 
   const svg = box.querySelector('svg');
   const hover = box.querySelector('.hoverlayer');
@@ -616,7 +634,8 @@ function renderDupCurve() {
     t.style.left = (e.clientX + 12) + 'px';
     t.style.top = (e.clientY - 30) + 'px';
     const avgTxt = avgPoints ? `　移動平均 <b>${avgPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
-    t.innerHTML = `前 <b>${p.n}</b> 常用字　重碼率 <b>${p.rate.toFixed(1)}%</b>${avgTxt}　（第 ${p.n} 字：${p.ch}）`;
+    const cjTxt = cjPoints ? `　倉頡 <b>${cjPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
+    t.innerHTML = `前 <b>${p.n}</b> 常用字　AiPhaBi <b>${p.rate.toFixed(1)}%</b>${cjTxt}${avgTxt}　（第 ${p.n} 字：${p.ch}）`;
   });
   hover.addEventListener('mouseleave', () => {
     cross.style.display = 'none'; dot.style.display = 'none'; $('#tip').style.display = 'none';
