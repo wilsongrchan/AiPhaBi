@@ -172,6 +172,15 @@ def main():
     by_len = defaultdict(list)
     for code in code2chars:
         by_len[len(code)].append(code)
+    # 同類字提示要順便顯示該字的正碼：字 → 縮短後的主碼
+    char2code = {}
+    need = set()
+    for sibs in family.values():
+        need.update(sibs)
+    for c in sorted(need):
+        code = codes.get(c, {}).get("code")
+        if code:
+            char2code[c] = shorten(code, max_rule).lower()
 
     def lua_str(x):
         return '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -190,6 +199,9 @@ def main():
     dl += ["}", "M.by_len = {"]
     for n, cs in sorted(by_len.items()):
         dl.append(f'  [{n}]={lua_arr(cs)},')
+    dl += ["}", "M.char2code = {"]
+    for c, code in sorted(char2code.items()):
+        dl.append(f'  [{lua_str(c)}]={lua_str(code)},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 

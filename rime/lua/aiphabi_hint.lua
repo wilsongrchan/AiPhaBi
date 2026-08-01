@@ -25,7 +25,12 @@ return function(input, env)
   if fam_on then                       -- 同類字：這個碼的字若屬某家族 → 帶出整組
     for _, ch in ipairs(data.code2chars[code] or {}) do
       for _, sib in ipairs(data.family[ch] or {}) do
-        if not seen[sib] then seen[sib] = true; extra[#extra + 1] = { sib, "同類" } end
+        if not seen[sib] then
+          seen[sib] = true
+          local sc = data.char2code[sib]           -- 同類字也把它的正碼顯示出來
+          local tag = sc and ("同類 " .. sc:upper()) or "同類"
+          extra[#extra + 1] = { sib, tag }
+        end
       end
     end
   end
