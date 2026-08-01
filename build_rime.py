@@ -48,16 +48,23 @@ def main():
     rules = json.loads((DATA / "rules.json").read_text("utf-8"))
     freq = json.loads((DATA / "freq.json").read_text("utf-8"))["order"]
     rank = {c: i for i, c in enumerate(freq)}
+    # 現代（台港新聞）字頻：候選排序優先看它，rime-essay 只打底。
+    # 這一步就是把試打頁的 charfreq 排序搬進輸入法（己/已、名/合… 常用的排前面）。
+    try:
+        charfreq = json.loads((DATA / "charfreq.json").read_text("utf-8"))
+    except FileNotFoundError:
+        charfreq = {}
 
     max_rule = next((r for r in rules["rules"]
                      if r["id"] == "max_code_length" and r.get("enabled")), None)
 
     # 字 → 它所有打得出來的碼（去重、保持順序）
-    NATIVE = 10_000_000     # 自己的碼永遠排在「別的字形借用同一個碼」之前
+    NATIVE = 100_000_000     # 自己的碼永遠排在「別的字形借用同一個碼」之前（留足空間給字頻）
 
     def freq_w(c):
-        # 常用字權重大 —— 重碼時排前面，少按一次選字鍵
-        return max(1, 100000 - rank.get(c, 99999))
+        # 現代字頻優先（每一計次值 10000，主導排序），rime-essay 次序打平手。
+        base = max(1, 100000 - rank.get(c, 99999))
+        return charfreq.get(c, 0) * 10000 + base
 
     weight = {}             # (碼, 字) -> 權重（重複時取最大）
 
@@ -136,6 +143,56 @@ def main():
         dict_lines.append(f"{ch}\t{code}\t{w}")
     (OUT / "aiphabi.dict.yaml").write_text("\n".join(dict_lines) + "\n", encoding="utf-8")
 
+    # ---- Phase 2：智慧候選用的 Lua 資料（同類字／偏旁碼／輸入容錯／萬用鍵）----
+    # 邏輯在 rime/lua/*.lua（靜態），資料隨碼表產生，兩者一起裝進 ~/Library/Rime/lua。
+    LUA = OUT / "lua"
+    LUA.mkdir(exist_ok=True)
+    code2chars = defaultdict(list)          # 碼 → [字]（依權重）
+    for code, ch, w in sorted(entries, key=lambda e: (e[0], -e[2])):
+        if ch not in code2chars[code]:
+            code2chars[code].append(ch)
+    conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
+    FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
+    family, comp = {}, defaultdict(list)
+    if conv:
+        for g in conv.get("groups", []):
+            name = g.get("name", "")
+            fam_chars = [c["c"] for c in g.get("chars", [])
+                         if c.get("c") in codes and codes[c["c"]].get("code")]
+            if name.endswith("類") and name not in FAM_SKIP and len(fam_chars) > 1:
+                for c in fam_chars:
+                    family[c] = fam_chars
+            for row in g.get("chars", []):   # 偏旁碼提醒涵蓋整個約定表（含數字類）
+                c, cc = row.get("c"), row.get("compCode")
+                if not cc or c not in codes or not codes[c].get("code"):
+                    continue
+                cc_s = shorten(cc, max_rule).lower()      # 對齊碼表：一律小寫
+                if cc_s != shorten(codes[c]["code"], max_rule).lower():
+                    comp[cc_s].append(c)
+    by_len = defaultdict(list)
+    for code in code2chars:
+        by_len[len(code)].append(code)
+
+    def lua_str(x):
+        return '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    def lua_arr(xs):
+        return "{" + ",".join(lua_str(x) for x in xs) + "}"
+    dl = ["-- 愛發筆智慧候選資料（由 build_rime.py 產生，勿手改）", "local M = {}", ""]
+    dl.append("M.code2chars = {")
+    for code, chs in sorted(code2chars.items()):
+        dl.append(f'  [{lua_str(code)}]={lua_arr(chs)},')
+    dl += ["}", "M.family = {"]
+    for c, sibs in family.items():
+        dl.append(f'  [{lua_str(c)}]={lua_arr(sibs)},')
+    dl += ["}", "M.comp = {"]
+    for code, chs in sorted(comp.items()):
+        dl.append(f'  [{lua_str(code)}]={lua_arr(chs)},')
+    dl += ["}", "M.by_len = {"]
+    for n, cs in sorted(by_len.items()):
+        dl.append(f'  [{n}]={lua_arr(cs)},')
+    dl += ["}", "return M"]
+    (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
+
     # ---- schema ----
     # 注意：不設 speller/max_code_length —— 那會在打滿 N 碼時強制上屏，
     # 但完整碼可以長到 9 碼，設了就永遠打不出完整碼。
@@ -160,6 +217,18 @@ switches:
     states: [ 中文, 西文 ]
   - name: full_shape
     states: [ 半形, 全形 ]
+  - name: simplification          # 簡繁兼容：一鍵把輸出換成簡體（預設繁體）
+    reset: 0
+    states: [ 繁, 簡 ]
+  - name: aiphabi_family          # 同類字提示（形近字家族）
+    reset: 1
+    states: [ 同類關, 同類開 ]
+  - name: aiphabi_comp            # 偏旁碼提示
+    reset: 1
+    states: [ 偏旁關, 偏旁開 ]
+  - name: aiphabi_fuzzy           # 輸入容錯
+    reset: 1
+    states: [ 容錯關, 容錯開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -182,11 +251,15 @@ engine:
   translators:
     - punct_translator
     - table_translator
+    - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
+    - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼提示
+    - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
+    - simplifier            # 簡繁兼容：simplification 開關打開時，輸出轉簡體
     - uniquifier
 
 speller:
-  alphabet: zyxwvutsrqponmlkjihgfedcba
+  alphabet: 'zyxwvutsrqponmlkjihgfedcba`'   # 收 ` 進字母表：萬用鍵才輸入得進來
   delimiter: " '"
 
 translator:
@@ -196,6 +269,12 @@ translator:
   enable_encoder: false
   enable_completion: true      # 碼還沒打完就先給候選
   strict_spelling: false
+
+# 簡繁兼容：預設輸出繁體；把 simplification 開關打開就整段轉簡體（OpenCC t2s，Squirrel 內建）。
+simplifier:
+  option_name: simplification
+  opencc_config: t2s.json
+  tips: none
 
 # 標點：正體中文的全形標點。字母鍵全部給字根用，標點就落在原本的標點鍵上。
 punctuator:
@@ -272,13 +351,24 @@ patch:
     - schema: aiphabi
 ```
 
-4. 再〈重新部署〉一次。切到鼠鬚管，用 `F4`（或 `` ` ``）選「愛發筆」。
+4. 再〈重新部署〉一次。切到鼠鬚管，用 `F4` 選「愛發筆」。
+   （`--install` 也會一起裝好 `lua/` 與 `rime.lua`，智慧候選才會動。）
 
 ## 怎麼打
 
 * 一個字最多按 {mx} 個鍵（超過上限的碼會縮短：前 {p.get('head', 4)} 碼 + 末 {p.get('tail', 1)} 碼）。
 * 也可以把整個字拆完、每一碼都打出來（完整碼），一樣打得出來。
-* 重碼時用數字鍵或空白鍵選字；常用字排前面。
+* 重碼時用數字鍵或空白鍵選字；常用字排前面（用現代台港新聞字頻排序）。
+
+## 智慧候選（跟試打頁一樣的四個貼心功能）
+
+都靠鼠鬚管內建的 librime-lua，裝好就能用；每個都能用 `F4` 開關單獨關掉（預設全開）：
+
+* **簡繁兼容**（`simplification` 開關，預設關）— 打開就整段輸出轉簡體（OpenCC t2s）。
+* **同類字**（`aiphabi_family`）— 打中約定表某形近字家族其一，把整組帶出來（打 `f` → 土 旁邊也給你 士 工 干 上…）。標「同類」。
+* **偏旁碼**（`aiphabi_comp`）— 打了某字「作為偏旁時」的碼，提醒你那個字（例 `ii` → 二）。標「偏旁碼」。
+* **輸入容錯**（`aiphabi_fuzzy`）— 漏打一碼、多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反，也照樣找得到，標「可能 …」。
+* **萬用鍵 `` ` ``** — 某幾碼想不起來就按 `` ` ``：單一個 = 一碼以上（`` wj`m `` 也找得到 wjstm）；連按 N 個 = 剛好補 N 碼。
 
 ## 標點（正體全形）
 
@@ -302,13 +392,17 @@ patch:
 
 ## 其他平台
 
-同樣兩個檔案（`aiphabi.schema.yaml`、`aiphabi.dict.yaml`）丟進使用者目錄即可：
+把 `aiphabi.schema.yaml`、`aiphabi.dict.yaml`、`rime.lua`、以及整個 `lua/` 目錄
+丟進對應的使用者目錄，再〈重新部署〉即可（智慧候選需要該平台的 librime-lua；
+Weasel／fcitx5-rime 多半內建，Hamster 亦支援）：
 
 | 平台 | 目錄 |
 |---|---|
 | Windows（小狼毫 Weasel） | `%APPDATA%\\Rime` |
 | Linux（ibus/fcitx5-rime） | `~/.config/ibus/rime` 或 `~/.local/share/fcitx5/rime` |
 | iOS（Hamster） | App 內匯入 |
+
+> 若沒有 librime-lua，碼表照樣能打字，只是四個智慧候選（同類字／偏旁碼／輸入容錯／萬用鍵）不會出現。
 """
     (OUT / "README.md").write_text(readme, encoding="utf-8")
 
@@ -322,7 +416,20 @@ patch:
             return
         for f in ("aiphabi.schema.yaml", "aiphabi.dict.yaml"):
             shutil.copy(OUT / f, RIME_USER_DIR / f)
-        print(f"\n已複製到 {RIME_USER_DIR}")
+        (RIME_USER_DIR / "lua").mkdir(exist_ok=True)
+        for f in LUA.glob("*.lua"):           # 智慧候選：資料 + 三個邏輯檔
+            shutil.copy(f, RIME_USER_DIR / "lua" / f.name)
+        # rime.lua 放根目錄；若使用者已有，就把 require 併進去、不覆蓋
+        user_rime_lua = RIME_USER_DIR / "rime.lua"
+        block = (OUT / "rime.lua").read_text("utf-8")
+        if user_rime_lua.exists():
+            existing = user_rime_lua.read_text("utf-8")
+            if "require(\"aiphabi_hint\")" not in existing:
+                user_rime_lua.write_text(existing.rstrip() + "\n\n" + block, "utf-8")
+                print("已把愛發筆的 require 併進你原本的 rime.lua")
+        else:
+            shutil.copy(OUT / "rime.lua", user_rime_lua)
+        print(f"\n已複製到 {RIME_USER_DIR}（含 lua/ 智慧候選）")
         print("接著：鼠鬚管選單 →〈重新部署〉，再把 aiphabi 加進 schema_list。")
 
 
