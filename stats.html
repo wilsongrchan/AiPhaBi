@@ -531,18 +531,26 @@ function curveList() {
     .filter(x => x.rank != null)
     .sort((a, b) => a.rank - b.rank);
 }
-/* 逐字累加某一套碼的重碼率；AiPhaBi 與倉頡用同一份 list、同一個 n，才比得準。 */
-function cumulativeDup(list, key) {
-  const size = new Map(); let dup = 0;
-  return list.map((x, i) => {
+/* 逐字累加某一套碼的重碼率；AiPhaBi 與倉頡用同一份 list、同一個 n，才比得準。
+   coveredOnly（大易用）：分母只算「該碼表有收的字」，缺字不稀釋分母（不然缺字一多
+   線就一路往下掉，看起來像重碼變少，其實是它沒那個字）；並在最後一個有收的字截斷。 */
+function cumulativeDup(list, key, coveredOnly) {
+  const size = new Map(); let dup = 0, seen = 0, lastCovered = -1;
+  const pts = list.map((x, i) => {
     const code = x[key];
     if (code) {
+      seen++;
       const prev = size.get(code) || 0;
       if (prev === 1) dup += 2; else if (prev >= 2) dup += 1;
       size.set(code, prev + 1);
+      lastCovered = i;
+    } else if (!coveredOnly) {
+      seen++;
     }
-    return { n: i + 1, rate: dup / (i + 1) * 100, ch: x.ch };
+    const denom = coveredOnly ? seen : (i + 1);
+    return { n: i + 1, rate: denom ? dup / denom * 100 : 0, ch: x.ch };
   });
+  return (coveredOnly && lastCovered >= 0) ? pts.slice(0, lastCovered + 1) : pts;
 }
 
 /* 移動平均：原始線每加一個字就是一階，鋸齒很多，看不出走勢。
@@ -576,7 +584,7 @@ function renderDupCurve() {
   if (list.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
   const points = cumulativeDup(list, 'code');
   const cjPoints = (cangjie && curveShowCJ) ? cumulativeDup(list, 'cj') : null;
-  const dyPoints = (dayi && curveShowDY) ? cumulativeDup(list, 'dy') : null;
+  const dyPoints = (dayi && curveShowDY) ? cumulativeDup(list, 'dy', true) : null;
 
   const W = 1000, H = 300, padL = 42, padR = 12, padT = 10, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -645,13 +653,19 @@ function renderDupCurve() {
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
     dot.style.display = 'block';
     const t = $('#tip');
-    t.style.display = 'block';
-    t.style.left = (e.clientX + 12) + 'px';
-    t.style.top = (e.clientY - 30) + 'px';
     const avgTxt = avgPoints ? `　移動平均 <b>${avgPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
     const cjTxt = cjPoints ? `　倉頡 <b>${cjPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
-    const dyTxt = dyPoints ? `　大易 <b>${dyPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
+    const dp = dyPoints && dyPoints[p.n - 1];               /* 大易在其涵蓋範圍外就不顯示 */
+    const dyTxt = dp ? `　大易 <b>${dp.rate.toFixed(1)}%</b>` : '';
     t.innerHTML = `前 <b>${p.n}</b> 常用字　AiPhaBi <b>${p.rate.toFixed(1)}%</b>${cjTxt}${dyTxt}${avgTxt}　（第 ${p.n} 字：${p.ch}）`;
+    t.style.display = 'block';
+    /* 靠右邊時翻到游標左側，才不會被視窗切掉 */
+    let lx = e.clientX + 14, ty = e.clientY - 30;
+    const tw = t.offsetWidth, th = t.offsetHeight;
+    if (lx + tw > window.innerWidth - 8) lx = e.clientX - tw - 14;
+    ty = Math.max(8, Math.min(ty, window.innerHeight - th - 8));
+    t.style.left = lx + 'px';
+    t.style.top = ty + 'px';
   });
   hover.addEventListener('mouseleave', () => {
     cross.style.display = 'none'; dot.style.display = 'none'; $('#tip').style.display = 'none';
