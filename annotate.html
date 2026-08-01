@@ -497,6 +497,7 @@
       <button data-sort="news" title="台港新聞當日字頻：實際最常讀到的缺字排前">新聞</button>
       <button data-sort="surname" title="兩岸三地常見姓氏用字">姓氏</button>
       <button data-sort="given" title="常見人名（名字）用字">人名</button>
+      <button data-sort="simp" title="簡體字：中國大陸／星馬等地新聞最常用、你還沒取碼的簡體專屬字排前">簡體</button>
     </div>
     <div class="lenfilter" id="lenfilter" title="依碼長篩選已取碼的字（5＝剛好五碼，5+＝完整碼超過五碼、被縮短）" style="display:none">
       <span style="font-size:10px;color:var(--muted)">碼長</span>
@@ -735,7 +736,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
 let orderings = { news: [], surname: [], given: [] };   /* 未取碼佇列的替代排序來源 */
-let queueSort = localStorage.getItem('aiphabi-qsort') || 'freq';  /* freq｜news｜surname｜given */
+let queueSort = localStorage.getItem('aiphabi-qsort') || 'freq';  /* freq｜news｜surname｜given｜simp */
 let lenFilter = localStorage.getItem('aiphabi-lenfilter') || 'all';  /* 已取碼依碼長篩選：all｜1..5｜5+ */
 let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
 let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
@@ -4018,7 +4019,7 @@ for (const b of document.querySelectorAll('.filters button'))
     updateQueueControls();
     renderQueue();
   };
-/* 未取碼名單的排序來源：字頻／新聞／姓氏／人名 */
+/* 未取碼名單的排序來源：字頻／新聞／姓氏／人名／簡體 */
 for (const b of document.querySelectorAll('.sortby button')) {
   b.classList.toggle('on', b.dataset.sort === queueSort);
   b.onclick = () => {
