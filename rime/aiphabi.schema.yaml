@@ -75,6 +75,7 @@ translator:
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
   comment_format:              # 候選旁邊的碼提示也顯示大寫
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
+    - "xform/~/-/"             # 補碼提示的 ~ 改成 -（例 ~K → -K）
 
 menu:
   page_size: 8                 # 一次顯示 8 個候選
