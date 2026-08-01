@@ -27171,7 +27171,26 @@
       }
     ],
     "code": "JZ",
-    "final": "JZ"
+    "final": "JZ",
+    "alts": [
+      {
+        "code": "ZJ",
+        "segments": [
+          {
+            "strokes": [
+              1
+            ],
+            "letter": "Z"
+          },
+          {
+            "strokes": [
+              0
+            ],
+            "letter": "J"
+          }
+        ]
+      }
+    ]
   },
   "苦": {
     "segments": [
@@ -85557,13 +85576,13 @@
     "final": "SJ",
     "alts": [
       {
-        "code": "SS",
+        "code": "JS",
         "segments": [
           {
             "strokes": [
               1
             ],
-            "letter": "S"
+            "letter": "J"
           },
           {
             "strokes": [
@@ -112758,40 +112777,41 @@
     "segments": [
       {
         "strokes": [
-          0,
-          1
+          0
         ],
-        "letter": "I"
+        "letter": "Q"
       },
       {
         "strokes": [
+          1,
           2,
           3
         ],
-        "letter": "Q"
+        "letter": "F"
       }
     ],
-    "code": "IQ",
-    "final": "IQ",
+    "code": "QF",
+    "final": "QF",
     "alts": [
       {
-        "code": "QF",
+        "code": "IQ",
         "segments": [
           {
             "strokes": [
-              0
+              0,
+              1
             ],
-            "letter": "Q"
+            "letter": "I"
           },
           {
             "strokes": [
-              1,
               2,
               3
             ],
-            "letter": "F"
+            "letter": "Q"
           }
-        ]
+        ],
+        "skipped": []
       }
     ]
   },
@@ -121790,6 +121810,30 @@
               3
             ],
             "letter": "N"
+          }
+        ]
+      },
+      {
+        "code": "INJ",
+        "segments": [
+          {
+            "strokes": [
+              0
+            ],
+            "letter": "I"
+          },
+          {
+            "strokes": [
+              1,
+              2
+            ],
+            "letter": "N"
+          },
+          {
+            "strokes": [
+              3
+            ],
+            "letter": "J"
           }
         ]
       }

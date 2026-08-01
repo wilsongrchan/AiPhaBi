@@ -43,6 +43,21 @@
   details .grid { margin-top:2px; }
   .note { font-size:12px; color:var(--muted); margin-top:6px; }
   .status { color:var(--muted); font-size:13px; }
+
+  /* 已收錄的兼容碼／兼容字型：已經存進 codes.json 的（不是候選，是成果） */
+  details > summary .rec-ctrls { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  details > summary .rec-ctrls select { font-size:11px; color:var(--muted); background:var(--card);
+    border:1px solid var(--line); border-radius:6px; padding:2px 4px; cursor:pointer; }
+  details > summary .toggle { font-size:11px; color:var(--muted); display:flex;
+    align-items:center; gap:4px; cursor:pointer; font-weight:400; }
+  .rec-grp { margin-bottom:14px; }
+  .rec-grp-h { font-size:12px; color:var(--muted); margin:0 0 6px; display:flex; align-items:baseline; gap:6px; }
+  .rec-grp-h b { font:600 16px "PingFang TC",serif; color:var(--ink); }
+  a.card.rec .meta { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+  a.card.rec .meta .main { color:var(--ink); font-size:12px; }
+  a.card.rec .meta .alt { color:var(--accent); font-size:10px; text-align:right; }
+  /* 標籤（兼容碼：）跟碼各自不能從中間斷開；容不下一行時，只准從兩者之間斷 */
+  a.card.rec .meta .alt-tag, a.card.rec .meta .alt-code { white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -58,6 +73,7 @@
     同筆數的細部變體（中線比對才分得出）抓不到，得靠你在取碼時自行留意。
     點任何一個字，到逐字取碼頁看三地官方筆順對照。
   </p>
+  <div id="recorded"></div>
   <div id="body"><p class="status">計算中…</p></div>
 </div>
 <script>
@@ -81,6 +97,161 @@ function grid(items) {
   for (const it of items) g.append(card(it));
   return g;
 }
+
+/* ---------- 已收錄的兼容碼／兼容字型 ---------- */
+const IDS_OPS = '⿰⿱⿲⿳⿴⿵⿶⿷⿸⿹⿺⿻';
+const STROKEISH = new Set([...'丶一丨丿乀乁乚亅㇏丷丶']);
+function topParts(ch, ids) {          /* 第一層部件（同 annotate 的相關字邏輯，這裡自成一份） */
+  const d = ids[ch];
+  if (!d) return [];
+  return [...new Set([...d].filter(c =>
+    !IDS_OPS.includes(c) && c !== ch && /[㐀-鿿]/.test(c) && !STROKEISH.has(c)))];
+}
+function finalOf(code, maxRule) {     /* 跟主碼一致的縮短規則（前 head + 末 tail） */
+  if (!maxRule || !code) return code;
+  const p = maxRule.params || {};
+  const mx = p.max ?? 5, head = p.head ?? 4, tail = p.tail ?? 1;
+  if (code.length <= mx) return code;
+  return code.slice(0, head) + (tail ? code.slice(-tail) : '');
+}
+function recCard(e) {
+  const a = el('a', 'card rec');
+  a.href = '/annotate?c=' + encodeURIComponent(e.ch);
+  a.title = `${e.ch}` + (e.display && e.display !== e.ch ? `（顯示 ${e.display}）` : '') +
+    ` —— 主碼 ${e.mainCode}，${e.tag} ${e.label}，點去看`;
+  a.append(el('span', 'c', e.ch));
+  const m = el('span', 'meta');
+  m.innerHTML = `<b class="main">${e.mainCode}</b>` +
+    `<span class="alt"><span class="alt-tag">${e.tag}：</span> <span class="alt-code">${e.label}</span></span>`;
+  a.append(m);
+  return a;
+}
+function recGrid(items) {
+  const g = el('div', 'grid');
+  for (const e of items) g.append(recCard(e));
+  return g;
+}
+let recGroup = false;
+let recFilter = 'all';   /* all｜alt（只看兼容碼）｜variant（只看兼容字型） */
+function renderRecorded(codes, ids, maxRule) {
+  const box = $('#recorded');
+  const entries = [];
+  for (const [ch, rec] of Object.entries(codes)) {
+    if (!rec.code) continue;
+    const mainCode = finalOf(rec.code, maxRule);
+    /* 一個字可以收好幾條兼容碼（例：卅 IJN、INJ）——合成一張卡，逗號隔開，
+       不要每條各開一張長得一模一樣的卡片。 */
+    const altCodes = (rec.alts || []).map(a => finalOf(a.code, maxRule));
+    if (altCodes.length) {
+      entries.push({ ch, mainCode, tag: '兼容碼', type: 'alt', label: altCodes.join('、') });
+    }
+    /* 台灣、香港兩地剛好收成同一個碼時（例：啡 OJEE），合成一張卡「港台字形」，
+       不要兩張長得一模一樣的卡片並排、只差標籤。 */
+    const byLabel = new Map();
+    for (const v of rec.variants || []) {
+      const label = finalOf(v.code, maxRule);
+      if (!byLabel.has(label)) byLabel.set(label, { forms: new Set(), display: v.display });
+      byLabel.get(label).forms.add(v.form);
+    }
+    for (const [label, info] of byLabel) {
+      const tag = (info.forms.has('tw') && info.forms.has('hk')) ? '港台字形'
+        : info.forms.has('hk') ? '香港字形' : '台灣字形';
+      entries.push({ ch, mainCode, tag, type: 'variant', label, display: info.display });
+    }
+  }
+  box.innerHTML = '';
+  if (!entries.length) return;
+
+  const sec = el('div', 'sec');
+  const d = document.createElement('details');
+  const sm = document.createElement('summary');
+  sm.innerHTML = `已收錄的兼容碼／兼容字型　<span class="tw">${entries.length} 字</span>　▾`;
+  const ctrls = el('span', 'rec-ctrls');
+  ctrls.onclick = e => e.stopPropagation();   /* 別讓這兩個控制項順便把整個區塊收合了 */
+  const filterSel = document.createElement('select');
+  filterSel.id = 'recFilterSel';
+  filterSel.innerHTML = `<option value="all">全部</option><option value="alt">只看兼容碼</option>` +
+    `<option value="variant">只看兼容字型</option>`;
+  filterSel.value = recFilter;
+  const toggle = el('label', 'toggle');
+  toggle.innerHTML = `<input type="checkbox" id="recGroupBox"${recGroup ? ' checked' : ''}>依部件分組`;
+  ctrls.append(filterSel, toggle);
+  sm.append(ctrls);
+  d.append(sm);
+  d.append(Object.assign(el('p', 'note'),
+    { textContent: '你手動收的另一種拆法（兼容碼），或另一地區的通行寫法（兼容字型）——這是已經打得出來的成果，不是待辦。' }));
+  const list = el('div', 'rec-list');
+  d.append(list);
+  sec.append(d);
+  box.append(sec);
+
+  const renderList = () => {
+    list.innerHTML = '';
+    const filtered = recFilter === 'all' ? entries : entries.filter(e => e.type === recFilter);
+    if (!filtered.length) {
+      list.innerHTML = '<div class="note">這個篩選條件下沒有資料。</div>';
+      return;
+    }
+    if (!recGroup) {
+      const sorted = [...filtered].sort((a, b) => a.ch.localeCompare(b.ch, 'zh-Hant'));
+      list.append(recGrid(sorted));
+      return;
+    }
+    const charSet = new Set(filtered.map(e => e.ch));
+    const isRoot = new Set();
+    for (const ch of charSet) {
+      for (const other of charSet) {
+        if (other !== ch && topParts(other, ids).includes(ch)) { isRoot.add(ch); break; }
+      }
+    }
+    const compOf = new Map();   /* 部件 → 用到它的字（只算入列的） */
+    for (const ch of charSet) {
+      for (const p of topParts(ch, ids)) {
+        if (!compOf.has(p)) compOf.set(p, []);
+        compOf.get(p).push(ch);
+      }
+    }
+    const keyOf = ch => {
+      if (isRoot.has(ch)) return ch;
+      for (const p of topParts(ch, ids)) if (isRoot.has(p)) return p;
+      for (const p of topParts(ch, ids)) if ((compOf.get(p) || []).length >= 2) return p;
+      return null;
+    };
+    const groups = new Map();
+    const loose = [];
+    for (const e of filtered) {
+      const k = keyOf(e.ch);
+      if (k) { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+      else loose.push(e);
+    }
+    for (const k of [...groups.keys()].sort((a, b) => groups.get(b).length - groups.get(a).length)) {
+      const grp = el('div', 'rec-grp');
+      const gh = el('div', 'rec-grp-h');
+      gh.innerHTML = `<b>${k}</b><span>${groups.get(k).length} 筆</span>`;
+      grp.append(gh);
+      grp.append(recGrid(groups.get(k)));
+      list.append(grp);
+    }
+    if (loose.length) {
+      const grp = el('div', 'rec-grp');
+      grp.append(el('div', 'rec-grp-h', `其他（沒有明顯共用部件，${loose.length} 筆）`));
+      grp.append(recGrid(loose));
+      list.append(grp);
+    }
+  };
+  renderList();
+  $('#recGroupBox').onchange = e => { recGroup = e.target.checked; renderList(); };
+  $('#recFilterSel').onchange = e => { recFilter = e.target.value; renderList(); };
+}
+
+Promise.all([
+  fetch('/api/codes').then(r => r.json()),
+  fetch('/api/ids').then(r => r.json()).catch(() => ({})),
+  fetch('/api/rules').then(r => r.json()).catch(() => ({ rules: [] })),
+]).then(([codes, ids, rules]) => {
+  const maxRule = (rules.rules || []).find(r => r.id === 'max_code_length' && r.enabled);
+  renderRecorded(codes, ids, maxRule);
+}).catch(() => {});
 
 fetch('/api/variants').then(r => r.json()).then(list => {
   const body = $('#body');

@@ -95,13 +95,28 @@ local function filter(input, env)
     return not (no_simp and data.simp[cand.text])
   end
 
+  -- 兼容碼：現在打的這串碼剛好是這個字「手動收的另一種拆法」（不是主碼）。
+  -- 標的不是你剛打的碼（螢幕上已經看得到了，沒意思）——是「主碼 (正確的碼)」，
+  -- 讓你知道這條路是繞的，順便學到該打哪個才是主碼。用圓括號，不用方括號——
+  -- 方括號 [ ] 已經被輸入容錯（aiphabi_fuzzy）拿去標「可能」了，撞了會分不清。
+  -- 跟同類／偏旁碼等提示不一樣，這個只標正常候選（cands），不標 extra 那批 hint
+  -- （它們各自已有自己的標籤）。
+  local function markAltcode(cand)
+    local acs = data.altcode[cand.text]
+    local main = data.char2code[cand.text]
+    if acs and acs[code] and main then
+      cand.comment = "主碼 (" .. main:upper() .. ")"
+    end
+    return cand
+  end
+
   -- 第一個候選 → 提示 → 其餘候選
-  if cands[1] and keep(cands[1]) then yield(cands[1]) end
+  if cands[1] and keep(cands[1]) then yield(markAltcode(cands[1])) end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end
   end
   for i = 2, #cands do
-    if keep(cands[i]) then yield(cands[i]) end
+    if keep(cands[i]) then yield(markAltcode(cands[i])) end
   end
 end
 

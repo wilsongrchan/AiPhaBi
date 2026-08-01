@@ -388,12 +388,14 @@ function buildTable() {
     if (r.code !== fin) add(r.code, out, '完整', true);
     for (const a of r.alts || []) {
       const f = finalOf(a.code);
-      add(f, out, '兼容', true);
-      if (a.code !== f) add(a.code, out, '兼容', true);
+      add(f, out, '兼容碼', true);
+      if (a.code !== f) add(a.code, out, '兼容碼', true);
     }
   }
   /* 兼容字型：另一種通行字形當成另一個字，與主字形輸出互相接受對方的碼。
-     打自己的碼優先出自己（native），對方的碼也打得出來但排後面（相容）。 */
+     打自己的碼優先出自己（native），對方的碼也打得出來但排後面（相容）。
+     跟「兼容碼」（同一個字的另一種拆法，比主碼差一點）不一樣——兼容字型單純是
+     另一地區的寫法，不分優劣，所以候選列表裡碼不用加中括號。 */
   for (const [ch, r] of Object.entries(codes)) {
     if (!r.code || !r.variants) continue;
     const out = r.display || ch;
@@ -401,11 +403,11 @@ function buildTable() {
     for (const v of r.variants) {
       if (!v.display || !v.code) continue;
       const vf = finalOf(v.code);
-      add(vf, v.display, '兼容', true);                 /* 變體碼 → 變體字形（native） */
-      if (v.code !== vf) add(v.code, v.display, '兼容', true);
-      add(vf, out, '兼容', false);                      /* 變體碼 → 也出主字形（相容） */
-      if (v.code !== vf) add(v.code, out, '兼容', false);
-      for (const mc of mainCodes) add(mc, v.display, '兼容', false);  /* 主碼 → 也出變體字形 */
+      add(vf, v.display, '兼容字型', true);                 /* 變體碼 → 變體字形（native） */
+      if (v.code !== vf) add(v.code, v.display, '兼容字型', true);
+      add(vf, out, '兼容字型', false);                      /* 變體碼 → 也出主字形（相容） */
+      if (v.code !== vf) add(v.code, out, '兼容字型', false);
+      for (const mc of mainCodes) add(mc, v.display, '兼容字型', false);  /* 主碼 → 也出變體字形 */
     }
   }
   /* 排序：自己的碼（native）在前；同類時「實際最常用」的字在前 —— 少按一次選字鍵。

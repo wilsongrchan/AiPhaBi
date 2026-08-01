@@ -151,6 +151,20 @@ def main():
     for code, ch, w in sorted(entries, key=lambda e: (e[0], -e[2])):
         if ch not in code2chars[code]:
             code2chars[code].append(ch)
+    # 兼容碼提示：這個字用「兼容碼」（手動收的另一種拆法，比主碼略遜一籌）打出來時，
+    # Squirrel candidate 旁邊加個 [碼] 提醒——跟主碼路徑分清楚。兼容字型不算，
+    # 那是另一地區的正常寫法，不分優劣。
+    altcode = defaultdict(set)              # 字（實際輸出的字形）→ 它的兼容碼集合
+    for ch, rec in codes.items():
+        if not rec.get("code"):
+            continue
+        out = rec.get("display") or ch
+        for a in rec.get("alts", []):
+            ac = a.get("code")
+            if not ac:
+                continue
+            altcode[out].add(shorten(ac, max_rule).lower())
+            altcode[out].add(ac.lower())
     conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
     FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
     family, comp = {}, defaultdict(list)
@@ -197,6 +211,7 @@ def main():
         need.update(vs)
     for vs in s2t_map.values():
         need.update(vs)
+    need.update(altcode.keys())      # 兼容碼提示要顯示正確的主碼，讓人學到「該打哪個」
     for c in sorted(need):
         code = codes.get(c, {}).get("code")
         if code:
@@ -231,6 +246,10 @@ def main():
     dl += ["}", "M.simp = {"]           # 不打簡體要濾掉的字（純簡化字，歸併字不算）
     for c in simp_only:
         dl.append(f'  [{lua_str(c)}]=true,')
+    dl += ["}", "M.altcode = {"]        # 字 → {碼: true} 集合（candidate 用 [碼] 標示；查表用，不是陣列）
+    for c, acs in sorted(altcode.items()):
+        inner = "".join(f'[{lua_str(a)}]=true,' for a in sorted(acs))
+        dl.append(f'  [{lua_str(c)}]={{{inner}}},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 

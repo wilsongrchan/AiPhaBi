@@ -1274,7 +1274,7 @@ function renderAlts() {
   for (const a of alts) {
     const d = el('div', 'alt edit');
     const fin = finalOf(a.code);
-    d.innerHTML = `<b>${fin}</b>` + (fin !== a.code ? `<i>完整 ${a.code}</i>` : '') +
+    d.innerHTML = `<b>${fin}</b><span>兼容碼</span>` + (fin !== a.code ? `<i>完整 ${a.code}</i>` : '') +
       `<span>${a.segments.map(s => s.strokes.map(k => k + 1).join(',')).join(' / ')}</span>`;
     d.title = '點一下改這個兼容碼';
     /* 點整列＝進編輯模式改它（按鈕自己有 stopPropagation，不會誤觸） */
@@ -1923,6 +1923,7 @@ function renderVariants() {
 $('#newVariant').onclick = e => { e.stopPropagation(); vExpanded = true; applyVwrap(); vfOpen(); };
 $('#vhead').onclick = e => { if (e.target.closest('#newVariant')) return; vExpanded = !vExpanded; applyVwrap(); };
 $('#mainDisplay').onchange = () => { if (!setMainOut($('#mainDisplay').value)) renderMainOut(); };
+
 $('#vfclose').onclick = () => vfClose();
 $('#vfsave').onclick = () => vfSave();
 $('#vfskip').onclick = () => vfSkipSel();
