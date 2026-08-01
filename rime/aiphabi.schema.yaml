@@ -14,17 +14,19 @@ schema:
     每一碼都打出來（完整碼）一樣打得出字。
 
 switches:
-  - name: ascii_mode
-    reset: 0
-    states: [ 中文, 西文 ]
+  # ascii_mode 不放進來：不需要它出現在方案選單／狀態列選單裡——
+  # Shift 鍵本來就能切中英文（鼠鬚管內建的 ascii_composer 行為，與這份清單無關）。
   - name: full_shape
     states: [ 半形, 全形 ]
-  - name: simplification          # 簡繁兼容：一鍵把輸出換成簡體（預設繁體）
+  - name: aiphabi_t2s              # 打繁出簡：候選字順便帶出簡體版
     reset: 0
-    states: [ 繁, 簡 ]
+    states: [ 打繁出簡關, 打繁出簡開 ]
+  - name: aiphabi_s2t              # 打簡出繁：候選字順便帶出繁體版
+    reset: 0
+    states: [ 打簡出繁關, 打簡出繁開 ]
   - name: aiphabi_family          # 同類字提示（形近字家族）
     reset: 1
-    states: [ 同類關, 同類開 ]
+    states: [ 同類字關, 同類字開 ]
   - name: aiphabi_comp            # 偏旁碼提示
     reset: 1
     states: [ 偏旁關, 偏旁開 ]
@@ -55,9 +57,8 @@ engine:
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
-    - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼提示
+    - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
-    - simplifier            # 簡繁兼容：simplification 開關打開時，輸出轉簡體
     - uniquifier
 
 speller:
@@ -79,12 +80,6 @@ translator:
 
 menu:
   page_size: 8                 # 一次顯示 8 個候選
-
-# 簡繁兼容：預設輸出繁體；把 simplification 開關打開就整段轉簡體（OpenCC t2s，Squirrel 內建）。
-simplifier:
-  option_name: simplification
-  opencc_config: t2s.json
-  tips: none
 
 # 標點：正體中文的全形標點。字母鍵全部給字根用，標點就落在原本的標點鍵上。
 punctuator:

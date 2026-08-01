@@ -1,3 +1,19 @@
 patch:
   schema_list:
     - schema: aiphabi
+  # 方案選單（Control+` 或 F4 叫出來的那個小面板）：
+  # 不縮成圖示，每個開關獨立一行、字打全，滑鼠點得準。
+  switcher/fold_options: false
+  switcher/abbreviate_options: false
+  # 方案選單一頁只顯示 5 項（鼠鬚管全域預設），愛發筆有 8 項（方案 + 7 個開關）——
+  # 調成 8，一頁就放得下，不用翻頁。
+  menu/page_size: 8
+  # 記住你關/開過的開關，重開鼠鬚管不會回到預設值。
+  switcher/save_options:
+    - full_shape
+    - ascii_punct
+    - aiphabi_t2s
+    - aiphabi_s2t
+    - aiphabi_family
+    - aiphabi_comp
+    - aiphabi_fuzzy

@@ -1,9 +1,10 @@
--- 愛發筆 · 同類字 + 偏旁碼提示（filter）
+-- 愛發筆 · 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示（filter）
 -- 打中約定表某形近字家族（土士工干上…）其一，就把整組同類字帶出來；
--- 打了某字「作為偏旁時」的碼，就提醒該字（它單獨成字另有取法，例 K → 大）。各附正碼。
+-- 打了某字「作為偏旁時」的碼，就提醒該字（它單獨成字另有取法，例 K → 大）；
+-- 打繁出簡／打簡出繁：這個碼的字若有簡體／繁體對應版本，就順便帶出來。各附正碼（有的話）。
 -- 排序：最熱門的字仍是第一個，接著才排這些提示，再來才是其餘候選（含補全）——
 -- 這樣就算某個碼補全出一大票字（例 扌 搬到 K 後，打 K 有近 200 個字），提示也不會被埋在最後。
--- 由 aiphabi_family / aiphabi_comp 兩個開關控制（預設開）。
+-- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t 四個開關各自獨立控制。
 local data = require("aiphabi_data")
 
 return function(input, env)
@@ -20,18 +21,40 @@ return function(input, env)
   local ok = code and code ~= "" and not code:find("[^a-z]")
   local fam_on  = ok and ctx:get_option("aiphabi_family")
   local comp_on = ok and ctx:get_option("aiphabi_comp")
+  local t2s_on  = ok and ctx:get_option("aiphabi_t2s")
+  local s2t_on  = ok and ctx:get_option("aiphabi_s2t")
 
   local extra = {}
-  if fam_on or comp_on then
+  if fam_on or comp_on or t2s_on or s2t_on then
     local s = cands[1] and cands[1].start or 0
     local e = cands[1] and cands[1]._end or #code
-    if fam_on then                       -- 同類字：這個碼的字若屬某家族 → 帶出整組（各附正碼）
+    if fam_on or t2s_on or s2t_on then
       for _, ch in ipairs(data.code2chars[code] or {}) do
-        for _, sib in ipairs(data.family[ch] or {}) do
-          if not seen[sib] then
-            seen[sib] = true
-            local sc = data.char2code[sib]
-            extra[#extra + 1] = Candidate("aiphabi", s, e, sib, sc and ("同類 " .. sc:upper()) or "同類")
+        if fam_on then                     -- 同類字：這個碼的字若屬某家族 → 帶出整組（各附正碼）
+          for _, sib in ipairs(data.family[ch] or {}) do
+            if not seen[sib] then
+              seen[sib] = true
+              local sc = data.char2code[sib]
+              extra[#extra + 1] = Candidate("aiphabi", s, e, sib, sc and ("同類 " .. sc:upper()) or "同類")
+            end
+          end
+        end
+        if t2s_on then                     -- 打繁出簡：這個字有簡體對應 → 帶出來（附正碼）
+          for _, v in ipairs(data.t2s[ch] or {}) do
+            if not seen[v] then
+              seen[v] = true
+              local sc = data.char2code[v]
+              extra[#extra + 1] = Candidate("aiphabi", s, e, v, sc and ("簡 " .. sc:upper()) or "簡")
+            end
+          end
+        end
+        if s2t_on then                     -- 打簡出繁：這個字有繁體對應 → 帶出來（附正碼）
+          for _, v in ipairs(data.s2t[ch] or {}) do
+            if not seen[v] then
+              seen[v] = true
+              local sc = data.char2code[v]
+              extra[#extra + 1] = Candidate("aiphabi", s, e, v, sc and ("繁 " .. sc:upper()) or "繁")
+            end
           end
         end
       end

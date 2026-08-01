@@ -143,7 +143,7 @@ def main():
         dict_lines.append(f"{ch}\t{code}\t{w}")
     (OUT / "aiphabi.dict.yaml").write_text("\n".join(dict_lines) + "\n", encoding="utf-8")
 
-    # ---- Phase 2：智慧候選用的 Lua 資料（同類字／偏旁碼／輸入容錯／萬用鍵）----
+    # ---- Phase 2：智慧候選用的 Lua 資料（同類字／偏旁碼／輸入容錯／萬用鍵／打繁出簡／打簡出繁）----
     # 邏輯在 rime/lua/*.lua（靜態），資料隨碼表產生，兩者一起裝進 ~/Library/Rime/lua。
     LUA = OUT / "lua"
     LUA.mkdir(exist_ok=True)
@@ -169,16 +169,26 @@ def main():
                 cc_s = shorten(cc, max_rule).lower()      # 對齊碼表：一律小寫
                 if cc_s != shorten(codes[c]["code"], max_rule).lower():
                     comp[cc_s].append(c)
+    # 打繁出簡／打簡出繁：跟試打頁共用同一份繁簡對照（data/opencc.json）。
+    try:
+        opencc = json.loads((DATA / "opencc.json").read_text("utf-8"))
+    except FileNotFoundError:
+        opencc = {"t2s": {}, "s2t": {}}
+    t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
     by_len = defaultdict(list)
     for code in code2chars:
         by_len[len(code)].append(code)
-    # 同類字提示要順便顯示該字的正碼：字 → 縮短後的主碼
+    # 同類字／簡繁提示要順便顯示該字的正碼：字 → 縮短後的主碼
     char2code = {}
     need = set()
     for sibs in family.values():
         need.update(sibs)
     for chs in comp.values():        # 偏旁碼候選也要顯示正碼
         need.update(chs)
+    for vs in t2s_map.values():
+        need.update(vs)
+    for vs in s2t_map.values():
+        need.update(vs)
     for c in sorted(need):
         code = codes.get(c, {}).get("code")
         if code:
@@ -204,6 +214,12 @@ def main():
     dl += ["}", "M.char2code = {"]
     for c, code in sorted(char2code.items()):
         dl.append(f'  [{lua_str(c)}]={lua_str(code)},')
+    dl += ["}", "M.t2s = {"]
+    for c, vs in sorted(t2s_map.items()):
+        dl.append(f'  [{lua_str(c)}]={lua_arr(vs)},')
+    dl += ["}", "M.s2t = {"]
+    for c, vs in sorted(s2t_map.items()):
+        dl.append(f'  [{lua_str(c)}]={lua_arr(vs)},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -226,17 +242,19 @@ schema:
     每一碼都打出來（完整碼）一樣打得出字。
 
 switches:
-  - name: ascii_mode
-    reset: 0
-    states: [ 中文, 西文 ]
+  # ascii_mode 不放進來：不需要它出現在方案選單／狀態列選單裡——
+  # Shift 鍵本來就能切中英文（鼠鬚管內建的 ascii_composer 行為，與這份清單無關）。
   - name: full_shape
     states: [ 半形, 全形 ]
-  - name: simplification          # 簡繁兼容：一鍵把輸出換成簡體（預設繁體）
+  - name: aiphabi_t2s              # 打繁出簡：候選字順便帶出簡體版
     reset: 0
-    states: [ 繁, 簡 ]
+    states: [ 打繁出簡關, 打繁出簡開 ]
+  - name: aiphabi_s2t              # 打簡出繁：候選字順便帶出繁體版
+    reset: 0
+    states: [ 打簡出繁關, 打簡出繁開 ]
   - name: aiphabi_family          # 同類字提示（形近字家族）
     reset: 1
-    states: [ 同類關, 同類開 ]
+    states: [ 同類字關, 同類字開 ]
   - name: aiphabi_comp            # 偏旁碼提示
     reset: 1
     states: [ 偏旁關, 偏旁開 ]
@@ -267,9 +285,8 @@ engine:
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
-    - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼提示
+    - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
-    - simplifier            # 簡繁兼容：simplification 開關打開時，輸出轉簡體
     - uniquifier
 
 speller:
@@ -291,12 +308,6 @@ translator:
 
 menu:
   page_size: 8                 # 一次顯示 8 個候選
-
-# 簡繁兼容：預設輸出繁體；把 simplification 開關打開就整段轉簡體（OpenCC t2s，Squirrel 內建）。
-simplifier:
-  option_name: simplification
-  opencc_config: t2s.json
-  tips: none
 
 # 標點：正體中文的全形標點。字母鍵全部給字根用，標點就落在原本的標點鍵上。
 punctuator:
@@ -368,7 +379,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 1. 系統設定 → 鍵盤 → 輸入法 → 加入「鼠鬚管」（第一次裝可能要登出再登入才看得到）
 2. 開「鼠鬚管」選單 →〈重新部署〉
-3. 切到鼠鬚管，用 `F4` 選「愛發筆」；`F4` 也能開關簡繁／同類字／偏旁碼／輸入容錯。
+3. 切到鼠鬚管，點選單列的鼠鬚管圖示 → 選「愛發筆」；同一個選單下面也能直接點打繁出簡／打簡出繁／同類字／偏旁碼／輸入容錯（每項各自一個可勾選的開關，不用背 F4）。中英文切換固定用 `Shift` 鍵，不在這份選單裡。
 
 ## 怎麼打
 
@@ -376,11 +387,12 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * 也可以把整個字拆完、每一碼都打出來（完整碼），一樣打得出來。
 * 重碼時用數字鍵或空白鍵選字；常用字排前面（用現代台港新聞字頻排序）。
 
-## 智慧候選（跟試打頁一樣的四個貼心功能）
+## 智慧候選（跟試打頁一樣的貼心功能）
 
-都靠鼠鬚管內建的 librime-lua，裝好就能用；每個都能用 `F4` 開關單獨關掉（預設全開）：
+都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（打繁出簡／打簡出繁預設關，其餘預設開）：
 
-* **簡繁兼容**（`simplification` 開關，預設關）— 打開就整段輸出轉簡體（OpenCC t2s）。
+* **打繁出簡**（`aiphabi_t2s` 開關，預設關）— 候選字順便帶出它的簡體版，標「簡」。
+* **打簡出繁**（`aiphabi_s2t` 開關，預設關）— 候選字順便帶出它的繁體版，標「繁」。兩個各自獨立，要單開哪邊都行。
 * **同類字**（`aiphabi_family`）— 打中約定表某形近字家族其一，把整組帶出來（打 `f` → 土 旁邊也給你 士 工 干 上…）。標「同類」。
 * **偏旁碼**（`aiphabi_comp`）— 打了某字「作為偏旁時」的碼，提醒你那個字（例 `ii` → 二）。標「偏旁碼」。
 * **輸入容錯**（`aiphabi_fuzzy`）— 漏打一碼、多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反，也照樣找得到，標「可能 …」。
@@ -418,7 +430,7 @@ Weasel／fcitx5-rime 多半內建，Hamster 亦支援）：
 | Linux（ibus/fcitx5-rime） | `~/.config/ibus/rime` 或 `~/.local/share/fcitx5/rime` |
 | iOS（Hamster） | App 內匯入 |
 
-> 若沒有 librime-lua，碼表照樣能打字，只是四個智慧候選（同類字／偏旁碼／輸入容錯／萬用鍵）不會出現。
+> 若沒有 librime-lua，碼表照樣能打字，只是這些智慧候選（打繁出簡／打簡出繁／同類字／偏旁碼／輸入容錯／萬用鍵）不會出現。
 """
     (OUT / "README.md").write_text(readme, encoding="utf-8")
 
@@ -454,7 +466,7 @@ Weasel／fcitx5-rime 多半內建，Hamster 亦支援）：
             else:
                 shutil.copy(OUT / name, dst)
         print(f"\n已複製到 {RIME_USER_DIR}（碼表 + lua/ 智慧候選 + 啟用與外觀設定）")
-        print("接著：鼠鬚管選單 →〈重新部署〉，直接就能用愛發筆（F4 可切換各項功能）。")
+        print("接著：鼠鬚管選單 →〈重新部署〉，直接就能用愛發筆（點選單列圖示可勾選各項功能；中英文切換用 Shift）。")
 
 
 if __name__ == "__main__":
