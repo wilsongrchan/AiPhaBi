@@ -1,13 +1,32 @@
--- 愛發筆 · 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示（filter）
+-- 愛發筆 · 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 + 不打簡體 提示（filter）
 -- 打中約定表某形近字家族（土士工干上…）其一，就把整組同類字帶出來；
 -- 打了某字「作為偏旁時」的碼，就提醒該字（它單獨成字另有取法，例 K → 大）；
 -- 打繁出簡／打簡出繁：這個碼的字若有簡體／繁體對應版本，就順便帶出來。各附正碼（有的話）。
+-- 不打簡體：把簡體專屬字（純一對一簡化，如 馬→马）從候選裡整個濾掉；歸併字
+-- （后／干／咸…本身也是獨立傳承字）不算，不會被濾掉。
 -- 排序：最熱門的字仍是第一個，接著才排這些提示，再來才是其餘候選（含補全）——
 -- 這樣就算某個碼補全出一大票字（例 扌 搬到 K 後，打 K 有近 200 個字），提示也不會被埋在最後。
--- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t 四個開關各自獨立控制。
+-- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp 各自獨立控制。
 local data = require("aiphabi_data")
 
-return function(input, env)
+-- 不打簡體開了，「打簡出繁」就沒有簡體本字可用（碼表裡已經濾掉了）——順便關掉，
+-- 不然那個開關會一直是死的，使用者搞不懂為什麼打簡出繁沒反應。
+local function init(env)
+  local ctx = env.engine.context
+  env.aiphabi_notifier = ctx.option_update_notifier:connect(function(context, option_name)
+    if option_name == "aiphabi_no_simp"
+       and context:get_option("aiphabi_no_simp")
+       and context:get_option("aiphabi_s2t") then
+      context:set_option("aiphabi_s2t", false)
+    end
+  end)
+end
+
+local function fini(env)
+  if env.aiphabi_notifier then env.aiphabi_notifier:disconnect() end
+end
+
+local function filter(input, env)
   local ctx = env.engine.context
   local code = ctx.input
   -- 先收下全部候選（原順序不動），順便記下已出現的字
@@ -19,10 +38,11 @@ return function(input, env)
 
   -- 只處理純字母碼；萬用鍵那套交給 wildcard
   local ok = code and code ~= "" and not code:find("[^a-z]")
-  local fam_on  = ok and ctx:get_option("aiphabi_family")
-  local comp_on = ok and ctx:get_option("aiphabi_comp")
-  local t2s_on  = ok and ctx:get_option("aiphabi_t2s")
-  local s2t_on  = ok and ctx:get_option("aiphabi_s2t")
+  local fam_on   = ok and ctx:get_option("aiphabi_family")
+  local comp_on  = ok and ctx:get_option("aiphabi_comp")
+  local t2s_on   = ok and ctx:get_option("aiphabi_t2s")
+  local s2t_on   = ok and ctx:get_option("aiphabi_s2t")
+  local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}
   if fam_on or comp_on or t2s_on or s2t_on then
@@ -70,8 +90,19 @@ return function(input, env)
     end
   end
 
+  -- 不打簡體：簡體專屬字整個濾掉（正選、提示都一起濾）
+  local function keep(cand)
+    return not (no_simp and data.simp[cand.text])
+  end
+
   -- 第一個候選 → 提示 → 其餘候選
-  if cands[1] then yield(cands[1]) end
-  for _, c in ipairs(extra) do yield(c) end
-  for i = 2, #cands do yield(cands[i]) end
+  if cands[1] and keep(cands[1]) then yield(cands[1]) end
+  for _, c in ipairs(extra) do
+    if keep(c) then yield(c) end
+  end
+  for i = 2, #cands do
+    if keep(cands[i]) then yield(cands[i]) end
+  end
 end
+
+return { init = init, fini = fini, func = filter }

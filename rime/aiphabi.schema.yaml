@@ -33,6 +33,9 @@ switches:
   - name: aiphabi_fuzzy           # 輸入容錯
     reset: 1
     states: [ 容錯關, 容錯開 ]
+  - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
+    reset: 0
+    states: [ 不打簡體關, 不打簡體開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 

@@ -175,6 +175,15 @@ def main():
     except FileNotFoundError:
         opencc = {"t2s": {}, "s2t": {}}
     t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
+    # 不打簡體：只濾掉「一對一純簡化字」（馬→马、魚→鱼），
+    # 不動「歸併字」——這些字本身就是獨立傳承字，只是剛好也被拿來簡化別的字
+    # （后＝王后／後的簡化，干＝天干／幹乾榦的簡化，咸＝老少咸宜／鹹的簡化…）。
+    # s2t_map 光看資料分不出這兩種，只能手動列出已知的歸併字白名單。
+    DUAL_USE_MERGED = {
+        "后", "干", "里", "谷", "面", "只", "系", "几", "台", "岳", "卜", "出",
+        "表", "帘", "郁", "佣", "咸", "折", "云", "余", "松", "家", "术", "苹",
+    }
+    simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED)
     by_len = defaultdict(list)
     for code in code2chars:
         by_len[len(code)].append(code)
@@ -220,6 +229,9 @@ def main():
     dl += ["}", "M.s2t = {"]
     for c, vs in sorted(s2t_map.items()):
         dl.append(f'  [{lua_str(c)}]={lua_arr(vs)},')
+    dl += ["}", "M.simp = {"]           # 不打簡體要濾掉的字（純簡化字，歸併字不算）
+    for c in simp_only:
+        dl.append(f'  [{lua_str(c)}]=true,')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -261,6 +273,9 @@ switches:
   - name: aiphabi_fuzzy           # 輸入容錯
     reset: 1
     states: [ 容錯關, 容錯開 ]
+  - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
+    reset: 0
+    states: [ 不打簡體關, 不打簡體開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -389,10 +404,11 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 ## 智慧候選（跟試打頁一樣的貼心功能）
 
-都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（打繁出簡／打簡出繁預設關，其餘預設開）：
+都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（打繁出簡／打簡出繁／不打簡體預設關，其餘預設開）：
 
 * **打繁出簡**（`aiphabi_t2s` 開關，預設關）— 候選字順便帶出它的簡體版，標「簡」。
 * **打簡出繁**（`aiphabi_s2t` 開關，預設關）— 候選字順便帶出它的繁體版，標「繁」。兩個各自獨立，要單開哪邊都行。
+* **不打簡體**（`aiphabi_no_simp` 開關，預設關）— 候選裡的簡體專屬字（純一對一簡化，如 馬→马、魚→鱼）整個濾掉，只留繁體字／傳承字；「歸併字」不算簡體專屬（如 后／干／咸／里／谷／面 這些字本身也是獨立傳承字），不會被濾掉。開了這個會順便把「打簡出繁」關掉——碼表裡沒有簡體本字，那個提示用不到。
 * **同類字**（`aiphabi_family`）— 打中約定表某形近字家族其一，把整組帶出來（打 `f` → 土 旁邊也給你 士 工 干 上…）。標「同類」。
 * **偏旁碼**（`aiphabi_comp`）— 打了某字「作為偏旁時」的碼，提醒你那個字（例 `ii` → 二）。標「偏旁碼」。
 * **輸入容錯**（`aiphabi_fuzzy`）— 漏打一碼、多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反，也照樣找得到，標「可能 …」。
