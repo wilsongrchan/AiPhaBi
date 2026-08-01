@@ -6,6 +6,7 @@ patch:
   "style/font_point": 18
   "style/label_font_point": 12          # 1. 2. 3. 的編號
   "style/comment_font_point": 11        # 「可能 JHJR」「同類」等提示 → 縮小
+  "style/candidate_spacing": 10         # 候選之間的間距稍微寬一點
   # 套用愛發筆配色（深色 bar + 橙色高亮）
   "style/color_scheme": aiphabi
   "style/color_scheme_dark": aiphabi
@@ -20,6 +21,6 @@ patch:
     comment_text_color: 0x8A8A8A         # 提示文字：暗灰、退到後面（BGR）
     label_color: 0x8A8A8A                # 編號：暗灰
     hilited_candidate_text_color: 0xFFFFFF
-    hilited_candidate_back_color: 0x008AFF  # 選中的那顆＝橙色（BGR，實際 #FF8A00）
+    hilited_candidate_back_color: 0x0078E0  # 選中的那顆＝橙色（BGR，實際 #E07800，較不刺眼、白字更清楚）
     hilited_comment_text_color: 0xDDF0FF
     hilited_candidate_label_color: 0xFFFFFF

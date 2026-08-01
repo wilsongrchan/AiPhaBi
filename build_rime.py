@@ -274,6 +274,9 @@ translator:
   comment_format:              # 候選旁邊的碼提示也顯示大寫
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
 
+menu:
+  page_size: 8                 # 一次顯示 8 個候選
+
 # 簡繁兼容：預設輸出繁體；把 simplification 開關打開就整段轉簡體（OpenCC t2s，Squirrel 內建）。
 simplifier:
   option_name: simplification
