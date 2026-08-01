@@ -36,7 +36,12 @@ return function(input, env)
   end
   if comp_on then                      -- 偏旁碼：這個碼剛好是某字的偏旁碼 → 提醒該字
     for _, ch in ipairs(data.comp[code] or {}) do
-      if not seen[ch] then seen[ch] = true; extra[#extra + 1] = { ch, "偏旁碼" } end
+      if not seen[ch] then
+        seen[ch] = true
+        local sc = data.char2code[ch]            -- 偏旁碼候選也把它的正碼顯示出來
+        local tag = sc and ("偏旁碼 " .. sc:upper()) or "偏旁碼"
+        extra[#extra + 1] = { ch, tag }
+      end
     end
   end
   for _, x in ipairs(extra) do

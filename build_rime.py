@@ -177,6 +177,8 @@ def main():
     need = set()
     for sibs in family.values():
         need.update(sibs)
+    for chs in comp.values():        # 偏旁碼候選也要顯示正碼
+        need.update(chs)
     for c in sorted(need):
         code = codes.get(c, {}).get("code")
         if code:
