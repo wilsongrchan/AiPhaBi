@@ -78,7 +78,7 @@ translator:
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
 
 menu:
-  page_size: 8                 # 一次顯示 8 個候選
+  page_size: 9                 # 一次顯示 9 個候選
 
 # 簡繁兼容：預設輸出繁體；把 simplification 開關打開就整段轉簡體（OpenCC t2s，Squirrel 內建）。
 simplifier:
