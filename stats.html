@@ -239,6 +239,7 @@
       <h2>重碼率隨常用度變化</h2>
       <div class="grow"></div>
       <button id="curveCJToggle">倉頡比較</button>
+      <button id="curveDYToggle">大易比較</button>
       <button id="curveAvgToggle">移動平均</button>
       <button id="curveToggle">收起</button>
     </div>
@@ -649,7 +650,8 @@ function renderDupCurve() {
     t.style.top = (e.clientY - 30) + 'px';
     const avgTxt = avgPoints ? `　移動平均 <b>${avgPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
     const cjTxt = cjPoints ? `　倉頡 <b>${cjPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
-    t.innerHTML = `前 <b>${p.n}</b> 常用字　AiPhaBi <b>${p.rate.toFixed(1)}%</b>${cjTxt}${avgTxt}　（第 ${p.n} 字：${p.ch}）`;
+    const dyTxt = dyPoints ? `　大易 <b>${dyPoints[p.n - 1].rate.toFixed(1)}%</b>` : '';
+    t.innerHTML = `前 <b>${p.n}</b> 常用字　AiPhaBi <b>${p.rate.toFixed(1)}%</b>${cjTxt}${dyTxt}${avgTxt}　（第 ${p.n} 字：${p.ch}）`;
   });
   hover.addEventListener('mouseleave', () => {
     cross.style.display = 'none'; dot.style.display = 'none'; $('#tip').style.display = 'none';
@@ -1100,6 +1102,11 @@ $('#curveAvgToggle').onclick = () => {
 $('#curveCJToggle').onclick = () => {
   curveShowCJ = !curveShowCJ;
   localStorage.setItem('aiphabi_stats_curve_cj', curveShowCJ ? '1' : '0');
+  renderDupCurve();
+};
+$('#curveDYToggle').onclick = () => {
+  curveShowDY = !curveShowDY;
+  localStorage.setItem('aiphabi_stats_curve_dy', curveShowDY ? '1' : '0');
   renderDupCurve();
 };
 
