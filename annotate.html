@@ -305,6 +305,19 @@
   #variants .vrow .vx { margin-left:auto; font-size:12px; }
   #variants .newz { font-size:11px; }
 
+  /* 兼容字型：存檔後順便問「同部件的其他字也要收嗎」 */
+  #vsuggest { margin-top:6px; }
+  #vsuggest .vsg-box { border:1px dashed var(--warn); border-radius:8px; padding:6px 8px; font-size:11px; }
+  #vsuggest .vsg-head { display:flex; align-items:center; gap:6px; margin-bottom:4px; color:var(--warn); }
+  #vsuggest .vsg-head .vsg-x { margin-left:auto; cursor:pointer; color:var(--muted); }
+  #vsuggest .vsg-list { display:flex; flex-wrap:wrap; gap:4px; }
+  #vsuggest .vsg-c { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line);
+    border-radius:6px; padding:2px 6px; cursor:pointer; background:var(--card); font-size:12px; }
+  #vsuggest .vsg-c:hover { border-color:var(--warn); }
+  #vsuggest .vsg-c .g { font:600 15px "PingFang TC",serif; color:var(--ink); }
+  #vsuggest .vsg-c .n { font-size:10px; color:var(--muted); }
+  #vsuggest .vsg-checking { font-size:11px; color:var(--muted); }
+
   /* 兼容字型編輯器（彈出） */
   .vfmodal { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;
     display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -629,6 +642,7 @@
         <span class="mohint" id="moHint"></span>
       </label>
       <div id="variants"></div>
+      <div id="vsuggest"></div>
     </div>
 
     <div class="lbl">檢查</div>
@@ -1718,7 +1732,9 @@ function vfSave() {
   rec.variants = rec.variants || [];
   if (vfEditing) Object.assign(vfEditing, body);
   else {
-    const same = rec.variants.find(v => v.display === display);
+    /* 同一個顯示字形可以有台灣、香港兩份各自的兼容字型（例：靠）——
+       只有「顯示字＋地區」都一樣才算重收，不能只看顯示字，不然第二份會蓋掉第一份。 */
+    const same = rec.variants.find(v => v.display === display && v.form === vfForm);
     if (same) Object.assign(same, body); else rec.variants.push(body);
   }
   codes[cur] = rec;
@@ -1726,6 +1742,69 @@ function vfSave() {
   vfClose();
   renderVariants();
   $('#status').textContent = `已收兼容字型 ${display}（碼 ${finalOf(code)}，打它優先出 ${display}）`;
+  suggestComponentVariants(cur, vfForm);   /* 順便問：同部件的其他字是不是也差這個地區 */
+}
+
+/* ---------- 兼容字型：存了一個之後，順便找「同部件」的其他字問要不要也收 ----------
+   部件反查沿用「相關字」那套（topParts / compOf，見下方 IDS 區塊）——都是
+   makemeahanzi 的 IDS 結構拆分，不是拿形狀猜。對每個候選字實際比一次
+   大陸／該地區筆數，真的不同才列出來——避免亂猜，寧可少報，不要洗一堆假警報。
+   （這個函式定義在 topParts/compOf 前面，但只在存檔時才呼叫，那時整份 script
+   早就跑完、topParts/compOf 都已經在，不是問題。） */
+async function suggestComponentVariants(char, form) {
+  const box = $('#vsuggest');
+  box.innerHTML = '';
+  const comps = topParts(char);
+  if (!comps.length) return;
+  if (!compOf) buildCompIndex();
+  const seen = new Set();
+  const candidates = [];
+  for (const k of comps) {
+    for (const x of (compOf.get(k) || [])) {
+      if (x === char || seen.has(x)) continue;
+      seen.add(x);
+      const rec = codes[x];
+      if (!rec || !rec.code) continue;                                   /* 只問已取碼的字 */
+      if ((rec.variants || []).some(v => v.form === form)) continue;      /* 已經收過這個地區了 */
+      candidates.push(x);
+    }
+  }
+  if (!candidates.length) return;
+  box.innerHTML = '<div class="vsg-checking">同部件的字，檢查地區筆數中…</div>';
+  const capped = candidates.slice(0, 25);      /* 避免同部件字太多時一次發太多請求 */
+  const results = await Promise.all(capped.map(async x => {
+    const [g, r] = await Promise.all([
+      fetch('/api/glyph?c=' + encodeURIComponent(x)).then(res => res.ok ? res.json() : null),
+      fetch((form === 'hk' ? '/api/hk?c=' : '/api/tw?c=') + encodeURIComponent(x))
+        .then(res => res.ok ? res.json() : null).catch(() => null),
+    ]);
+    if (!g || !r || !r.strokes) return null;
+    const systematic = SYSTEMATIC_RADICAL.test((ids || {})[x] || '');
+    if (systematic || r.strokes.length === g.strokes.length) return null;
+    return { c: x, n: r.strokes.length, base: g.strokes.length };
+  }));
+  if (char !== cur) return;                    /* 這期間已經換字了，別把結果貼到別的字上 */
+  const hits = results.filter(Boolean);
+  if (!hits.length) { box.innerHTML = ''; return; }
+  const regionName = form === 'hk' ? '香港' : '台灣';
+  const wrap = el('div', 'vsg-box');
+  const head = el('div', 'vsg-head');
+  head.append(el('span', '', `⚑ 同部件、${regionName}筆數也跟大陸不同，要不要也收？`));
+  const x = el('span', 'vsg-x', '✕');
+  x.onclick = () => box.innerHTML = '';
+  head.append(x);
+  wrap.append(head);
+  const list = el('div', 'vsg-list');
+  for (const h of hits) {
+    const item = el('div', 'vsg-c');
+    item.innerHTML = `<span class="g">${h.c}</span><span class="n">${h.base}→${h.n} 筆</span>`;
+    item.title = `點一下：跳去 ${h.c}，收它的${regionName}兼容字型`;
+    item.onclick = () => goTo(h.c);
+    list.append(item);
+  }
+  wrap.append(list);
+  box.innerHTML = '';
+  box.append(wrap);
 }
 
 /* 主 田字格 這個字形實際輸出哪個字（預設本字）。makemeahanzi 把 為 畫成 爲 時，改成 爲。 */
@@ -1808,6 +1887,7 @@ function applyVwrap() {
 function renderVariants() {
   renderMainOut();
   applyVwrap();
+  $('#vsuggest').innerHTML = '';   /* 換字了，上一個字的「同部件」建議別留著 */
   const box = $('#variants'); box.innerHTML = '';
   const rec = codes[cur] || {};
   const vs = rec.variants || [];
