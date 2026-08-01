@@ -4109,7 +4109,7 @@ Promise.all([
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
   orderings = { news: (ords && ords.news) || [], surname: (ords && ords.surname) || [],
-                given: (ords && ords.given) || [] };
+                given: (ords && ords.given) || [], simp: (ords && ords.simp) || [] };
   opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
