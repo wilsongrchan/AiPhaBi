@@ -16,7 +16,7 @@ return function(input, seg, env)
       for _, ch in ipairs(chs) do
         if not seen[ch] then
           seen[ch] = true
-          yield(Candidate("aiphabi", seg.start, seg._end, ch, code))
+          yield(Candidate("aiphabi", seg.start, seg._end, ch, code:upper()))
         end
       end
     end

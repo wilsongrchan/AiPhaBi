@@ -10,21 +10,15 @@ brew install --cask squirrel        # 還沒裝的話
 python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Rime
 ```
 
+`--install` 會一次裝好：碼表、`lua/`＋`rime.lua`（智慧候選），以及
+`default.custom.yaml`（啟用愛發筆）與 `squirrel.custom.yaml`（橫排 bar＋橙色高亮）。
+後兩個若你已有，會保留你的設定、不覆蓋。
+
 然後：
 
-1. 開「鼠鬚管」選單 →〈重新部署〉（或 `~/Library/Rime` 裡跑一次部署）
-2. 系統設定 → 鍵盤 → 輸入法 → 加入「鼠鬚管」
-3. 鼠鬚管選單 →〈輸入法設定…〉，把 `aiphabi` 加進去；或直接編輯
-   `~/Library/Rime/default.custom.yaml`：
-
-```yaml
-patch:
-  schema_list:
-    - schema: aiphabi
-```
-
-4. 再〈重新部署〉一次。切到鼠鬚管，用 `F4` 選「愛發筆」。
-   （`--install` 也會一起裝好 `lua/` 與 `rime.lua`，智慧候選才會動。）
+1. 系統設定 → 鍵盤 → 輸入法 → 加入「鼠鬚管」（第一次裝可能要登出再登入才看得到）
+2. 開「鼠鬚管」選單 →〈重新部署〉
+3. 切到鼠鬚管，用 `F4` 選「愛發筆」；`F4` 也能開關簡繁／同類字／偏旁碼／輸入容錯。
 
 ## 怎麼打
 

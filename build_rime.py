@@ -269,6 +269,10 @@ translator:
   enable_encoder: false
   enable_completion: true      # 碼還沒打完就先給候選
   strict_spelling: false
+  preedit_format:              # 螢幕上顯示大寫（實際查碼仍用小寫；` 不動）
+    - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
+  comment_format:              # 候選旁邊的碼提示也顯示大寫
+    - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
 
 # 簡繁兼容：預設輸出繁體；把 simplification 開關打開就整段轉簡體（OpenCC t2s，Squirrel 內建）。
 simplifier:
@@ -338,21 +342,15 @@ brew install --cask squirrel        # 還沒裝的話
 python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Rime
 ```
 
+`--install` 會一次裝好：碼表、`lua/`＋`rime.lua`（智慧候選），以及
+`default.custom.yaml`（啟用愛發筆）與 `squirrel.custom.yaml`（橫排 bar＋橙色高亮）。
+後兩個若你已有，會保留你的設定、不覆蓋。
+
 然後：
 
-1. 開「鼠鬚管」選單 →〈重新部署〉（或 `~/Library/Rime` 裡跑一次部署）
-2. 系統設定 → 鍵盤 → 輸入法 → 加入「鼠鬚管」
-3. 鼠鬚管選單 →〈輸入法設定…〉，把 `aiphabi` 加進去；或直接編輯
-   `~/Library/Rime/default.custom.yaml`：
-
-```yaml
-patch:
-  schema_list:
-    - schema: aiphabi
-```
-
-4. 再〈重新部署〉一次。切到鼠鬚管，用 `F4` 選「愛發筆」。
-   （`--install` 也會一起裝好 `lua/` 與 `rime.lua`，智慧候選才會動。）
+1. 系統設定 → 鍵盤 → 輸入法 → 加入「鼠鬚管」（第一次裝可能要登出再登入才看得到）
+2. 開「鼠鬚管」選單 →〈重新部署〉
+3. 切到鼠鬚管，用 `F4` 選「愛發筆」；`F4` 也能開關簡繁／同類字／偏旁碼／輸入容錯。
 
 ## 怎麼打
 
@@ -429,8 +427,16 @@ Weasel／fcitx5-rime 多半內建，Hamster 亦支援）：
                 print("已把愛發筆的 require 併進你原本的 rime.lua")
         else:
             shutil.copy(OUT / "rime.lua", user_rime_lua)
-        print(f"\n已複製到 {RIME_USER_DIR}（含 lua/ 智慧候選）")
-        print("接著：鼠鬚管選單 →〈重新部署〉，再把 aiphabi 加進 schema_list。")
+        # 這兩個是使用者層設定（schema_list、外觀）：沒有才裝，有就別蓋掉他的設定
+        for name, what in (("default.custom.yaml", "schema_list（啟用愛發筆）"),
+                           ("squirrel.custom.yaml", "外觀（橫排＋橙色高亮）")):
+            dst = RIME_USER_DIR / name
+            if dst.exists():
+                print(f"已存在 {name} —— 保留你的設定，未覆蓋。要套用愛發筆的 {what} 請參考 rime/{name}")
+            else:
+                shutil.copy(OUT / name, dst)
+        print(f"\n已複製到 {RIME_USER_DIR}（碼表 + lua/ 智慧候選 + 啟用與外觀設定）")
+        print("接著：鼠鬚管選單 →〈重新部署〉，直接就能用愛發筆（F4 可切換各項功能）。")
 
 
 if __name__ == "__main__":
