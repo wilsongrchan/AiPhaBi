@@ -53,6 +53,7 @@ TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
 DAYI = SHARED / "dayi.json"             # 大易4碼表（對照用；rime-dayi 匯入）
 OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
+DUAL_USE_MERGED = SHARED / "dual_use_merged.json"  # 歸併字白名單（不打簡體／碼表分析排除簡體 共用）
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
@@ -249,6 +250,18 @@ def variant_gaps_data():
     return data
 
 
+def simp_only_data():
+    """簡體專屬字（純一對一簡化，如 馬→马）；歸併字（后／干／咸…本身也是獨立傳承字）不算。
+    跟 build_rime.py 的「不打簡體」共用同一份白名單（data/dual_use_merged.json）。"""
+    if not OPENCC.exists():
+        return {"chars": []}
+    s2t = json.loads(OPENCC.read_text("utf-8")).get("s2t", {})
+    dual_use = set()
+    if DUAL_USE_MERGED.exists():
+        dual_use = set(json.loads(DUAL_USE_MERGED.read_text("utf-8")).get("chars", []))
+    return {"chars": sorted(c for c in s2t if c not in dual_use)}
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"      # keep-alive：頁面切換時省下重複握手
 
@@ -309,6 +322,8 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/opencc":
             return self._send(200, OPENCC.read_text("utf-8") if OPENCC.exists() else '{"t2s":{},"s2t":{}}',
                               cache=True)
+        if u.path == "/api/simp-only":
+            return self._send(200, json.dumps(simp_only_data(), ensure_ascii=False), cache=True)
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
         if u.path == "/api/variants":

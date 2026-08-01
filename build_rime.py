@@ -175,14 +175,13 @@ def main():
     except FileNotFoundError:
         opencc = {"t2s": {}, "s2t": {}}
     t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
-    # 不打簡體：只濾掉「一對一純簡化字」（馬→马、魚→鱼），
-    # 不動「歸併字」——這些字本身就是獨立傳承字，只是剛好也被拿來簡化別的字
-    # （后＝王后／後的簡化，干＝天干／幹乾榦的簡化，咸＝老少咸宜／鹹的簡化…）。
-    # s2t_map 光看資料分不出這兩種，只能手動列出已知的歸併字白名單。
-    DUAL_USE_MERGED = {
-        "后", "干", "里", "谷", "面", "只", "系", "几", "台", "岳", "卜", "出",
-        "表", "帘", "郁", "佣", "咸", "折", "云", "余", "松", "家", "术", "苹",
-    }
+    # 不打簡體：只濾掉「一對一純簡化字」（馬→马、魚→鱼），不動「歸併字」——
+    # 這些字本身就是獨立傳承字，只是剛好也被拿來簡化別的字（后＝王后／後的簡化…）。
+    # s2t_map 光看資料分不出這兩種，白名單放在 data/dual_use_merged.json（跟
+    # stats.html「碼表分析」共用，避免兩邊各自維護一份、分岔）。
+    DUAL_USE_MERGED = set(
+        json.loads((DATA / "dual_use_merged.json").read_text("utf-8"))["chars"]
+    )
     simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED)
     by_len = defaultdict(list)
     for code in code2chars:

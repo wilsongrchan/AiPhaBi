@@ -240,6 +240,7 @@
       <div class="grow"></div>
       <button id="curveCJToggle">倉頡比較</button>
       <button id="curveDYToggle">大易比較</button>
+      <button id="curveNoSimpToggle" title="濾掉簡體專屬字（純一對一簡化，如 馬→马）；后／干／咸等歸併字不算，照樣算">排除簡體</button>
       <button id="curveAvgToggle">移動平均</button>
       <button id="curveToggle">收起</button>
     </div>
@@ -308,6 +309,7 @@ const CJ_KEY = { A:'日', B:'月', C:'金', D:'木', E:'水', F:'火', G:'土', 
   T:'廿', U:'山', V:'女', W:'田', X:'難', Y:'卜', Z:'' };
 
 let codes = {}, zigen = null, rules = null, cangjie = null, dayi = null, rank = new Map();
+let simpOnly = new Set();   /* 簡體專屬字（不含歸併字，見 data/dual_use_merged.json）；碼表分析排除簡體用 */
 
 /* 打字實際要按的碼（超過上限的取前 head 碼 + 末碼）。統計、重碼都以它為準，
    而不是完整碼 —— 使用者按的是縮短後那幾個鍵。 */
@@ -569,6 +571,7 @@ let curveCollapsed = localStorage.getItem('aiphabi_stats_curve_collapsed') === '
 let curveShowAvg = localStorage.getItem('aiphabi_stats_curve_avg') === '1';
 let curveShowCJ = localStorage.getItem('aiphabi_stats_curve_cj') !== '0';   /* 預設開 */
 let curveShowDY = localStorage.getItem('aiphabi_stats_curve_dy') !== '0';   /* 預設開 */
+let curveNoSimp = localStorage.getItem('aiphabi_stats_curve_nosimp') === '1';   /* 預設關 */
 function renderDupCurve() {
   const box = $('#dupCurve');
   box.classList.toggle('hide', curveCollapsed);
@@ -578,9 +581,10 @@ function renderDupCurve() {
   $('#curveCJToggle').disabled = !cangjie;
   $('#curveDYToggle').classList.toggle('on', curveShowDY && !!dayi);
   $('#curveDYToggle').disabled = !dayi;
+  $('#curveNoSimpToggle').classList.toggle('on', curveNoSimp);
   if (curveCollapsed) return;   /* 收起時連算都不用算——2900+ 個點的曲線不便宜 */
 
-  const list = curveList();
+  const list = curveNoSimp ? curveList().filter(x => !simpOnly.has(x.ch)) : curveList();
   if (list.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
   const points = cumulativeDup(list, 'code');
   const cjPoints = (cangjie && curveShowCJ) ? cumulativeDup(list, 'cj') : null;
@@ -1123,17 +1127,25 @@ $('#curveDYToggle').onclick = () => {
   localStorage.setItem('aiphabi_stats_curve_dy', curveShowDY ? '1' : '0');
   renderDupCurve();
 };
+$('#curveNoSimpToggle').onclick = () => {
+  curveNoSimp = !curveNoSimp;
+  localStorage.setItem('aiphabi_stats_curve_nosimp', curveNoSimp ? '1' : '0');
+  renderDupCurve();
+};
 
 let stamp = null;
 const fetchStamp = () => fetch('/api/state').then(r => r.json());
 async function load() {
-  [codes, zigen, rules, cangjie, dayi] = await Promise.all([
+  let simpOnlyData;
+  [codes, zigen, rules, cangjie, dayi, simpOnlyData] = await Promise.all([
     fetch('/api/codes').then(r => r.json()),
     fetch('/api/zigen').then(r => r.json()),
     fetch('/api/rules').then(r => r.json()),
     fetch('/api/cangjie').then(r => r.json()).catch(() => null),
     fetch('/api/dayi').then(r => r.json()).catch(() => null),
+    fetch('/api/simp-only').then(r => r.json()).catch(() => ({ chars: [] })),
   ]);
+  simpOnly = new Set(simpOnlyData.chars || []);
   render();
   renderStrip();      /* 複審面板開著的話：更新「已處理」標記，但不動 iframe */
   $('#meta').textContent = '隨字根表／碼表自動更新';
