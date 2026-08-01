@@ -11,13 +11,13 @@
     --bar:#c9c2b6;                 /* 一般長條：低調的灰（單一名目類別，不做深淺漸層） */
     /* 兩個系列（愛發筆 vs 倉頡）才需要第二個顏色。這一組通過了色盲分離檢查
        （最差 ΔE 74.7 protan）、亮度帶與對比檢查 —— 別隨手換色。 */
-    --s1:#b4531f; --s2:#3a6ea5;
+    --s1:#b4531f; --s2:#3a6ea5; --s3:#1a8a63;   /* s3＝大易（綠），與橙／藍色盲分離 */
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
             --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --bad:#e57373;
             --bar:#4a463c;
-            --s1:#cf7a45; --s2:#4f8ccc; }   /* 深色模式另外選過，不是把亮色反過來 */
+            --s1:#cf7a45; --s2:#4f8ccc; --s3:#3fbe8e; }   /* 深色模式另外選過，不是把亮色反過來 */
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
@@ -97,6 +97,8 @@
     stroke-linejoin:round; stroke-linecap:round; }
   .curvewrap .curveline-cj { fill:none; stroke:var(--s2); stroke-width:2;
     stroke-linejoin:round; stroke-linecap:round; }   /* 倉頡（自然碼）比較線 */
+  .curvewrap .curveline-dy { fill:none; stroke:var(--s3); stroke-width:2;
+    stroke-linejoin:round; stroke-linecap:round; }   /* 大易比較線 */
   .curvewrap .curveavg { fill:none; stroke:var(--accent); stroke-width:1.5; opacity:.7;
     stroke-dasharray:5 4; stroke-linejoin:round; stroke-linecap:round; }
   .curvewrap .curvefill { fill:var(--accent); opacity:.08; }
@@ -304,7 +306,7 @@ const CJ_KEY = { A:'日', B:'月', C:'金', D:'木', E:'水', F:'火', G:'土', 
   J:'十', K:'大', L:'中', M:'一', N:'弓', O:'人', P:'心', Q:'手', R:'口', S:'尸',
   T:'廿', U:'山', V:'女', W:'田', X:'難', Y:'卜', Z:'' };
 
-let codes = {}, zigen = null, rules = null, cangjie = null, rank = new Map();
+let codes = {}, zigen = null, rules = null, cangjie = null, dayi = null, rank = new Map();
 
 /* 打字實際要按的碼（超過上限的取前 head 碼 + 末碼）。統計、重碼都以它為準，
    而不是完整碼 —— 使用者按的是縮短後那幾個鍵。 */
@@ -524,7 +526,7 @@ function cjNatural(ch) {          /* 倉頡自然碼：去掉消歧用的前導 
 }
 function curveList() {
   return Object.entries(codes).filter(([, r]) => r.code)
-    .map(([ch, r]) => ({ ch, code: finalOf(r), cj: cjNatural(ch), rank: rank.get(ch) }))
+    .map(([ch, r]) => ({ ch, code: finalOf(r), cj: cjNatural(ch), dy: (dayi && dayi[ch]) || '', rank: rank.get(ch) }))
     .filter(x => x.rank != null)
     .sort((a, b) => a.rank - b.rank);
 }
@@ -557,6 +559,7 @@ function movingAverage(points, win) {
 let curveCollapsed = localStorage.getItem('aiphabi_stats_curve_collapsed') === '1';
 let curveShowAvg = localStorage.getItem('aiphabi_stats_curve_avg') === '1';
 let curveShowCJ = localStorage.getItem('aiphabi_stats_curve_cj') !== '0';   /* 預設開 */
+let curveShowDY = localStorage.getItem('aiphabi_stats_curve_dy') !== '0';   /* 預設開 */
 function renderDupCurve() {
   const box = $('#dupCurve');
   box.classList.toggle('hide', curveCollapsed);
@@ -564,17 +567,21 @@ function renderDupCurve() {
   $('#curveAvgToggle').classList.toggle('on', curveShowAvg);
   $('#curveCJToggle').classList.toggle('on', curveShowCJ && !!cangjie);
   $('#curveCJToggle').disabled = !cangjie;
+  $('#curveDYToggle').classList.toggle('on', curveShowDY && !!dayi);
+  $('#curveDYToggle').disabled = !dayi;
   if (curveCollapsed) return;   /* 收起時連算都不用算——2900+ 個點的曲線不便宜 */
 
   const list = curveList();
   if (list.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
   const points = cumulativeDup(list, 'code');
   const cjPoints = (cangjie && curveShowCJ) ? cumulativeDup(list, 'cj') : null;
+  const dyPoints = (dayi && curveShowDY) ? cumulativeDup(list, 'dy') : null;
 
   const W = 1000, H = 300, padL = 42, padR = 12, padT = 10, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const maxN = points[points.length - 1].n;
-  const maxRateRaw = Math.max(...points.map(p => p.rate), ...(cjPoints ? cjPoints.map(p => p.rate) : [0]));
+  const maxRateRaw = Math.max(...points.map(p => p.rate),
+    ...(cjPoints ? cjPoints.map(p => p.rate) : [0]), ...(dyPoints ? dyPoints.map(p => p.rate) : [0]));
   const maxRate = Math.max(2, Math.ceil(maxRateRaw / 2) * 2);
 
   const xOf = n => padL + (n / maxN) * plotW;
@@ -593,6 +600,7 @@ function renderDupCurve() {
   const linePath = points.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('');
   const areaPath = `M${xOf(points[0].n).toFixed(1)},${yOf(0).toFixed(1)} ${linePath.replace('M', 'L')} L${xOf(maxN).toFixed(1)},${yOf(0).toFixed(1)} Z`;
   const cjLinePath = cjPoints ? cjPoints.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('') : '';
+  const dyLinePath = dyPoints ? dyPoints.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('') : '';
 
   const avgWin = Math.max(20, Math.round(maxN / 40));
   const avgPoints = curveShowAvg ? movingAverage(points, avgWin) : null;
@@ -606,6 +614,7 @@ function renderDupCurve() {
     ${xTicks.map(t => `<line class="grid vgrid" x1="${xOf(t).toFixed(1)}" x2="${xOf(t).toFixed(1)}" y1="${padT}" y2="${H - padB}"/>
       <text class="axislabel" x="${xOf(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t}</text>`).join('')}
     <path class="curvefill" d="${areaPath}"/>
+    ${dyLinePath ? `<path class="curveline-dy" d="${dyLinePath}"/>` : ''}
     ${cjLinePath ? `<path class="curveline-cj" d="${cjLinePath}"/>` : ''}
     <path class="curveline" d="${linePath}"/>
     ${avgPath ? `<path class="curveavg" d="${avgPath}"/>` : ''}
@@ -616,6 +625,7 @@ function renderDupCurve() {
   <div class="curvelegend">
       <span><i style="background:var(--accent)"></i>AiPhaBi</span>
       ${cjPoints ? `<span><i style="background:var(--s2)"></i>倉頡（自然碼）</span>` : ''}
+      ${dyPoints ? `<span><i style="background:var(--s3)"></i>大易4碼</span>` : ''}
       ${curveShowAvg ? `<span><i style="background:var(--accent);opacity:.55"></i>AiPhaBi 移動平均（每 ${avgWin} 字）</span>` : ''}
     </div>`;
 
@@ -1096,11 +1106,12 @@ $('#curveCJToggle').onclick = () => {
 let stamp = null;
 const fetchStamp = () => fetch('/api/state').then(r => r.json());
 async function load() {
-  [codes, zigen, rules, cangjie] = await Promise.all([
+  [codes, zigen, rules, cangjie, dayi] = await Promise.all([
     fetch('/api/codes').then(r => r.json()),
     fetch('/api/zigen').then(r => r.json()),
     fetch('/api/rules').then(r => r.json()),
     fetch('/api/cangjie').then(r => r.json()).catch(() => null),
+    fetch('/api/dayi').then(r => r.json()).catch(() => null),
   ]);
   render();
   renderStrip();      /* 複審面板開著的話：更新「已處理」標記，但不動 iframe */

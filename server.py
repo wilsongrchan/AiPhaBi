@@ -16,6 +16,7 @@
   /api/tw?c=字      GET      台灣教育部標準筆順（g0v/zh-stroke-data）
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
+  /api/dayi         GET      大易4碼表（rime-dayi，對照用）
   /api/ids          GET      部件拆分（makemeahanzi，例 訴 = ⿰言斥）
   /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
   /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
@@ -50,6 +51,7 @@ GRAPHICS = SHARED / "graphics.txt"
 DICT = SHARED / "dictionary.txt"        # makemeahanzi：部件拆分（IDS，例 訴 = ⿰言斥）
 TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
+DAYI = SHARED / "dayi.json"             # 大易4碼表（對照用；rime-dayi 匯入）
 OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
@@ -302,6 +304,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, FREQ.read_text("utf-8"), cache=True)
         if u.path == "/api/cangjie":
             return self._send(200, CANGJIE.read_text("utf-8"), cache=True)
+        if u.path == "/api/dayi":
+            return self._send(200, DAYI.read_text("utf-8") if DAYI.exists() else '{}', cache=True)
         if u.path == "/api/opencc":
             return self._send(200, OPENCC.read_text("utf-8") if OPENCC.exists() else '{"t2s":{},"s2t":{}}',
                               cache=True)
