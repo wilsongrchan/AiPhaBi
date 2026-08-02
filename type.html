@@ -674,12 +674,14 @@ function candidates() {
   let shortHit = null;
   if (!wild && $('#shortCompat').checked) {
     const ch = shortMap.get(code);
-    if (ch && !exact.some(x => x.ch === ch) && !fam.some(x => x.ch === ch)) {
-      shortHit = { ch, code: finalOf(codes[ch].code), kind: '簡碼', short: true };
-    }
+    if (ch) shortHit = { ch, code: finalOf(codes[ch].code), kind: '簡碼', short: true };
   }
 
-  let all = [...(shortHit ? [shortHit] : []), ...exact, ...fam, ...pd, ...pre, ...fz];
+  /* short_hit 那個字常常本來就補全得到（只是排比較後面，例：個 在 pre 裡）——
+     這裡從所有其他陣列濾掉那個字，不然會兩個一模一樣的候選一起出現。 */
+  const dropShortHit = list => shortHit ? list.filter(x => x.ch !== shortHit.ch) : list;
+  let all = [...(shortHit ? [shortHit] : []),
+    ...dropShortHit(exact), ...dropShortHit(fam), ...dropShortHit(pd), ...dropShortHit(pre), ...dropShortHit(fz)];
   if ($('#simpCompat').checked) all = withSimpCompat(all);
   candOverflow = Math.max(0, all.length - MAX_CAND);
   return all.slice(0, MAX_CAND);

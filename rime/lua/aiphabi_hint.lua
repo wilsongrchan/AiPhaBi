@@ -95,9 +95,12 @@ local function filter(input, env)
       end
     end
     if short_on then                     -- 約定簡碼：打中某常用字「主碼首尾兩碼」→ 排到最前面（附正碼）
+      -- 注意：不能用「not seen[ch]」擋——這個碼常常本來就補全得出這個字（只是排
+      -- 在後面、沒被標「簡碼」），seen[ch] 早就是 true 了。要挑的是「排到第一個」，
+      -- 不是「加一個原本沒有的候選」，所以這裡不看 seen，下面 yield 時才把它從
+      -- 原本的位置濾掉，改成排最前面。
       local ch = (data.shortcode[code] or {})[1]
-      if ch and not seen[ch] then
-        seen[ch] = true
+      if ch then
         local sc = data.char2code[ch]
         short_hit = Candidate("aiphabi", s, e, ch, sc and ("簡碼 " .. sc:upper()) or "簡碼")
       end
@@ -125,13 +128,16 @@ local function filter(input, env)
   end
 
   -- 約定簡碼命中的字 → 第一個候選 → 其他提示 → 其餘候選
+  -- short_hit 那個字如果本來就在 cands 裡（常見：這個碼補全得到它，只是排比較後面），
+  -- 底下要把原本那個位置濾掉，不然會兩個一模一樣的候選一起出現。
+  local shortText = short_hit and short_hit.text
   if short_hit and keep(short_hit) then yield(short_hit) end
-  if cands[1] and keep(cands[1]) then yield(markAltcode(cands[1])) end
+  if cands[1] and cands[1].text ~= shortText and keep(cands[1]) then yield(markAltcode(cands[1])) end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end
   end
   for i = 2, #cands do
-    if keep(cands[i]) then yield(markAltcode(cands[i])) end
+    if cands[i].text ~= shortText and keep(cands[i]) then yield(markAltcode(cands[i])) end
   end
 end
 
