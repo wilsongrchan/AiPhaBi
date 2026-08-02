@@ -8,7 +8,8 @@
     data/dictionary.txt   makemeahanzi 的部件拆分（IDS，例 訴 = ⿰言斥；相關字欄用）
     data/tw_strokes.json  台灣教育部標準筆順（g0v/zh-stroke-data，4847 字）
     data/freq.json        字頻排序（由 rime-essay 統計而來，決定取碼佇列次序）
-    data/assoc_raw.json   字元接續次數（同一份 rime-essay 語料另外抽的 bigram，智能聯想用）
+    data/predict.db       官方 librime-predict 接續資料庫（已編譯，Squirrel 智能聯想直接用）
+    data/predict.txt      predict.db 的原始 TSV（純文字，/type 頁面智能聯想模擬用）
     data/opencc.json      繁簡對照（OpenCC；試打的「簡繁兼容」用）
 
 這些是第三方資料，各有授權，所以不放進 git；用時自行下載。
@@ -30,6 +31,8 @@ ESSAY = "https://raw.githubusercontent.com/rime/rime-essay/master/essay.txt"
 CJ = ["https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.base.dict.yaml",
       "https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.extended.dict.yaml"]
 OPENCC = "https://raw.githubusercontent.com/BYVoid/OpenCC/master/data/dictionary/"
+PREDICT_DB = "https://github.com/rime/librime-predict/releases/download/data-1.0/predict.db"
+PREDICT_TXT = "https://github.com/rime/librime-predict/releases/download/data-1.0/predict.txt"
 
 
 def fetch(url):
@@ -112,28 +115,14 @@ def main():
                                    ensure_ascii=False), "utf-8")
         print(f"  {len(ranked) + len(rest)} 字排序完成")
 
-    assoc = DATA / "assoc_raw.json"
-    if not assoc.exists():
-        print("字元接續聯想（rime-essay 同一份語料另外抽接續次數，不篩已取碼——那是 build_rime.py 的事）")
-        pair_w = collections.defaultdict(collections.Counter)   # 前一字 → Counter(下一字: 權重)
-        for line in fetch(ESSAY).decode("utf-8", "replace").splitlines():
-            parts = line.split("\t")
-            if len(parts) < 2:
-                continue
-            try:
-                w = int(parts[1])
-            except ValueError:
-                continue
-            word = parts[0]
-            for i in range(len(word) - 1):
-                a, b = word[i], word[i + 1]
-                if a in chars and b in chars:
-                    pair_w[a][b] += w
-        # 每個字最多留前 20 個接續候選（原始、未篩已取碼）——build_rime.py 再依當下的
-        # codes.json 篩「真的打得出來的」，這裡留寬一點，免得之後要重抓。
-        out = {a: [[c, w] for c, w in ctr.most_common(20)] for a, ctr in pair_w.items()}
-        assoc.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), "utf-8")
-        print(f"  {len(out)} 字有接續紀錄")
+    predict_db = DATA / "predict.db"
+    if not predict_db.exists():
+        print("智能聯想資料庫（官方 librime-predict，選完字猜下一個字／詞用）")
+        predict_db.write_bytes(fetch(PREDICT_DB))
+    predict_txt = DATA / "predict.txt"
+    if not predict_txt.exists():
+        print("智能聯想資料庫（純文字版，/type 頁面模擬用）")
+        predict_txt.write_bytes(fetch(PREDICT_TXT))
 
     cj = DATA / "cangjie.json"
     if not cj.exists():

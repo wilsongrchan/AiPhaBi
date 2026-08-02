@@ -228,39 +228,30 @@ def main():
     need.update(altcode.keys())      # 兼容碼提示要顯示正確的主碼，讓人學到「該打哪個」
     need.update(shortcode.values())  # 約定簡碼提示同理
 
-    # 智能聯想：選完一個字，猜下一個字（例：經 → 濟／驗／歷／常…），選了直接補上去，
-    # 不用再打一次碼。資料來源同一份 rime-essay 語料（data/assoc_raw.json，
-    # fetch_data.py 產生，未篩已取碼）——這裡才篩「現在真的打得出來的」，所以隨著
-    # 陸續取碼，建議會自動變好，不必重抓語料。
-    try:
-        assoc_raw = json.loads((DATA / "assoc_raw.json").read_text("utf-8"))
-    except FileNotFoundError:
-        assoc_raw = {}
-    ASSOC_N = 8   # 每個字最多留幾個接續建議（配 menu.page_size，一頁看得完）
-    assoc = {}
-    for ch, pairs in assoc_raw.items():
-        if ch not in codes or not codes[ch].get("code"):
-            continue
-        picks = [c for c, _ in pairs
-                 if c != ch and c in codes and codes[c].get("code")][:ASSOC_N]
-        if picks:
-            assoc[ch] = picks
-    for picks in assoc.values():
-        need.update(picks)   # 聯想候選也要顯示正碼
-
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     short_switch = ""
     if shortcode:
         short_switch = ("  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼\n"
                          "    reset: 1\n"
                          "    states: [ 簡碼關, 簡碼開 ]\n")
-    # 智能聯想開關：第一次上線，預設關——這是全新機制（選字後、沒打任何碼時自動彈候選），
-    # 先讓人自己開來試，覺得沒問題再考慮預設開（跟約定簡碼當初一樣的路數）。
-    assoc_switch = ""
-    if assoc:
-        assoc_switch = ("  - name: aiphabi_assoc             # 智能聯想：選完字，猜下一個字\n"
-                         "    reset: 0\n"
-                         "    states: [ 聯想關, 聯想開 ]\n")
+    # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
+    # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
+    # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
+    # data/predict.db 沒抓下來就不出現這個開關。
+    prediction_switch = ""
+    predictor_processor = ""
+    predict_translator = ""
+    predictor_config = ""
+    if (DATA / "predict.db").exists():
+        prediction_switch = ("  - name: prediction                # 智能聯想：選完字，猜下一個字／詞\n"
+                              "    reset: 0\n"
+                              "    states: [ 聯想關, 聯想開 ]\n")
+        predictor_processor = "    - predictor\n"
+        predict_translator = "    - predict_translator\n"
+        predictor_config = ("\npredictor:\n"
+                             "  db: predict.db\n"
+                             "  max_candidates: 5    # 配 menu.page_size，一頁看得完\n"
+                             "  max_iterations: 1    # 選了聯想候選後，最多再連續猜一輪，別一路猜下去\n")
     for c in sorted(need):
         code = codes.get(c, {}).get("code")
         if code:
@@ -302,9 +293,6 @@ def main():
     dl += ["}", "M.shortcode = {"]      # 簡碼 → [字]（約定簡碼；aiphabi_short100 開關控制）
     for code, ch in sorted(shortcode.items()):
         dl.append(f'  [{lua_str(code)}]={lua_arr([ch])},')
-    dl += ["}", "M.assoc = {"]          # 字 → [接續建議]（智能聯想；aiphabi_assoc 開關控制）
-    for ch, picks in sorted(assoc.items()):
-        dl.append(f'  [{lua_str(ch)}]={lua_arr(picks)},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -349,31 +337,29 @@ switches:
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{assoc_switch}  - name: ascii_punct
+{short_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
   processors:
     - ascii_composer
     - recognizer
-    - key_binder
+{predictor_processor}    - key_binder
     - speller
     - punctuator
     - selector
     - navigator
     - express_editor
   segmentors:
-    - lua_segmentor@aiphabi_assoc_seg   # 智能聯想：沒打任何碼、剛選完字時，另外開一段
     - ascii_segmentor
     - matcher
     - abc_segmentor
     - punct_segmentor
     - fallback_segmentor
   translators:
-    - punct_translator
+{predict_translator}    - punct_translator
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
-    - lua_translator@aiphabi_assoc      # 智能聯想：選完字接著猜下一個
   filters:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
@@ -395,7 +381,7 @@ translator:
   comment_format:              # 候選旁邊的碼提示也顯示大寫
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
-
+{predictor_config}
 menu:
   page_size: 8                 # 一次顯示 8 個候選
 
@@ -536,6 +522,8 @@ Weasel／fcitx5-rime 多半內建，Hamster 亦支援）：
             return
         for f in ("aiphabi.schema.yaml", "aiphabi.dict.yaml"):
             shutil.copy(OUT / f, RIME_USER_DIR / f)
+        if (DATA / "predict.db").exists():    # 智能聯想資料庫（官方 librime-predict）
+            shutil.copy(DATA / "predict.db", RIME_USER_DIR / "predict.db")
         (RIME_USER_DIR / "lua").mkdir(exist_ok=True)
         for f in LUA.glob("*.lua"):           # 智慧候選：資料 + 三個邏輯檔
             shutil.copy(f, RIME_USER_DIR / "lua" / f.name)

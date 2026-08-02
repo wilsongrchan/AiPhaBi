@@ -22,6 +22,7 @@
   /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
   /api/state        GET      各檔 mtime，兩頁靠它互通
 """
+import collections
 import json
 import os
 import shutil
@@ -58,7 +59,7 @@ PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞�
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
 CHARFREQ = SHARED / "charfreq.json"     # 現代（台港新聞）字頻：候選字排序用，比 rime-essay 更貼近實際
-ASSOC_RAW = SHARED / "assoc_raw.json"   # 字元接續次數（rime-essay bigram，未篩已取碼；智能聯想用）
+PREDICT_TXT = SHARED / "predict.txt"    # 官方 librime-predict 接續資料（predict.db 的純文字版；智能聯想用）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -263,26 +264,32 @@ def simp_only_data():
     return {"chars": sorted(c for c in s2t if c not in dual_use)}
 
 
+_predict_cache = None
+
+
 def assoc_data():
-    """智能聯想：字 → 接續建議（篩已取碼的）。跟 build_rime.py 的 M.assoc 同一套邏輯——
-    來源都是 data/assoc_raw.json（rime-essay bigram，未篩），這裡才依當下的 codes.json
-    篩「真的打得出來的」，所以隨著陸續取碼，建議會自動變好，不必重抓語料。"""
-    if not ASSOC_RAW.exists() or not CODES.exists():
-        return {}
-    try:
-        raw = json.loads(ASSOC_RAW.read_text("utf-8"))
-        codes = json.loads(CODES.read_text("utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    out = {}
-    for ch, pairs in raw.items():
-        if ch not in codes or not codes[ch].get("code"):
-            continue
-        picks = [c for c, _ in pairs
-                 if c != ch and c in codes and codes[c].get("code")][:8]
-        if picks:
-            out[ch] = picks
-    return out
+    """智能聯想：字 → 接續建議清單。跟 Squirrel 用同一份官方 librime-predict 資料
+    （data/predict.txt，predict.db 的純文字版）——選了直接上屏，不用碼，所以不像
+    以前那樣篩「現在打得出來的」；/type 頁面看到的建議跟真正輸入法一致。"""
+    global _predict_cache
+    if _predict_cache is None:
+        _predict_cache = {}
+        if PREDICT_TXT.exists():
+            pairs = collections.defaultdict(list)
+            for line in PREDICT_TXT.read_text("utf-8", "replace").splitlines():
+                parts = line.split("\t")
+                if len(parts) < 3:
+                    continue
+                head, cont = parts[0], parts[1]
+                try:
+                    w = float(parts[2])
+                except ValueError:
+                    continue
+                pairs[head].append((cont, w))
+            for head, lst in pairs.items():
+                lst.sort(key=lambda x: -x[1])
+                _predict_cache[head] = [c for c, _ in lst[:5]]   # 配 Squirrel 的 predictor/max_candidates
+    return _predict_cache
 
 
 class Handler(BaseHTTPRequestHandler):

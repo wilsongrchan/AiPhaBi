@@ -566,11 +566,11 @@ for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'short
 const MAX_CAND = 72;          /* 最多收這麼多候選（分頁 9 個一頁，約 8 頁） */
 function candidates() {
   if (!code) {
-    /* 智能聯想：沒打任何碼，看剛剛選的字有沒有接續建議（例：經 → 濟／驗／歷／常…） */
+    /* 智能聯想：沒打任何碼，看剛剛選的字有沒有接續建議（例：經 → 濟／驗／歷／常…）。
+       跟 Squirrel 的 predict_translator 一樣，選了直接上屏，不用碼，所以不篩「打得
+       出來」，也不附碼提示——建議可能是字，也可能是詞（例：不起、國家）。 */
     if ($('#assocCompat').checked && lastCommitted && assocMap.has(lastCommitted)) {
-      return assocMap.get(lastCommitted)
-        .filter(ch => codes[ch] && codes[ch].code)
-        .map(ch => ({ ch, code: finalOf(codes[ch].code), kind: '聯想', assoc: true }));
+      return assocMap.get(lastCommitted).map(ch => ({ ch, kind: '聯想', assoc: true }));
     }
     return [];
   }
