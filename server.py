@@ -58,6 +58,7 @@ PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞�
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
 CHARFREQ = SHARED / "charfreq.json"     # 現代（台港新聞）字頻：候選字排序用，比 rime-essay 更貼近實際
+ASSOC_RAW = SHARED / "assoc_raw.json"   # 字元接續次數（rime-essay bigram，未篩已取碼；智能聯想用）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -262,6 +263,28 @@ def simp_only_data():
     return {"chars": sorted(c for c in s2t if c not in dual_use)}
 
 
+def assoc_data():
+    """智能聯想：字 → 接續建議（篩已取碼的）。跟 build_rime.py 的 M.assoc 同一套邏輯——
+    來源都是 data/assoc_raw.json（rime-essay bigram，未篩），這裡才依當下的 codes.json
+    篩「真的打得出來的」，所以隨著陸續取碼，建議會自動變好，不必重抓語料。"""
+    if not ASSOC_RAW.exists() or not CODES.exists():
+        return {}
+    try:
+        raw = json.loads(ASSOC_RAW.read_text("utf-8"))
+        codes = json.loads(CODES.read_text("utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    out = {}
+    for ch, pairs in raw.items():
+        if ch not in codes or not codes[ch].get("code"):
+            continue
+        picks = [c for c, _ in pairs
+                 if c != ch and c in codes and codes[c].get("code")][:8]
+        if picks:
+            out[ch] = picks
+    return out
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"      # keep-alive：頁面切換時省下重複握手
 
@@ -324,6 +347,8 @@ class Handler(BaseHTTPRequestHandler):
                               cache=True)
         if u.path == "/api/simp-only":
             return self._send(200, json.dumps(simp_only_data(), ensure_ascii=False), cache=True)
+        if u.path == "/api/assoc":
+            return self._send(200, json.dumps(assoc_data(), ensure_ascii=False))
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
         if u.path == "/api/variants":

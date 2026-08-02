@@ -173,6 +173,9 @@
     <label class="tog" title="取碼原則頁「約定簡碼」手動挑的常用字（的、我、是…），打主碼首尾兩碼也找得到">
       <input type="checkbox" id="shortCompat" checked><span><b>約定簡碼</b></span>
     </label>
+    <label class="tog" title="選完一個字、還沒打任何碼時，猜下一個字接什麼最順（例：經 → 濟／驗／歷／常…），選了直接補上去">
+      <input type="checkbox" id="assocCompat"><span><b>智能聯想</b></span>
+    </label>
   </div>
 
   <div class="toolbar">
@@ -215,6 +218,8 @@ let codes = {}, rules = null, rank = new Map();
 let familyMap = new Map();   /* 字形家族：字 → 同一約定表「…類」的所有同類字（土士工干上…） */
 let compMap = new Map();     /* 偏旁碼 → 字：字的「作為偏旁時」碼跟單獨成字的碼不同（本 偏旁 TI／單獨 TJRI） */
 let shortMap = new Map();    /* 簡碼(小寫) → 字：取碼原則頁「約定簡碼」手動挑的常用字 */
+let assocMap = new Map();    /* 字 → [接續建議]：智能聯想，選完字猜下一個 */
+let lastCommitted = '';      /* 剛剛選字選出的最後一個字，供智能聯想查表 */
 let charfreq = new Map();   /* 現代（台港新聞）字頻，候選字排序優先看它 —— rime-essay 常把冷字排前 */
 const usageOf = ch => (charfreq.get(ch) || 0);   /* 越大越常用，排越前 */
 let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
@@ -303,6 +308,7 @@ function saveState() {
       compCompat: $('#compCompat').checked,
       fuzzyCompat: $('#fuzzyCompat').checked,
       shortCompat: $('#shortCompat').checked,
+      assocCompat: $('#assocCompat').checked,
       usePred: $('#usePred').checked,
     }));
   } catch {}
@@ -320,6 +326,7 @@ function loadState() {
     if (typeof s.compCompat === 'boolean') $('#compCompat').checked = s.compCompat;
     if (typeof s.fuzzyCompat === 'boolean') $('#fuzzyCompat').checked = s.fuzzyCompat;
     if (typeof s.shortCompat === 'boolean') $('#shortCompat').checked = s.shortCompat;
+    if (typeof s.assocCompat === 'boolean') $('#assocCompat').checked = s.assocCompat;
     if (typeof s.usePred === 'boolean') $('#usePred').checked = s.usePred;
   } catch {}
 }
@@ -547,7 +554,7 @@ async function fetchSample() {
 $('#fetchUrl').onclick = fetchSample;
 $('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
 $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
-for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'shortCompat'])
+for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'shortCompat', 'assocCompat'])
   $('#' + id).onchange = () => { pick = 0; render(); saveState(); };
 
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
@@ -558,7 +565,15 @@ for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'short
    `JSM 找任何以 JSM 結尾、前面不知道幾碼的字。整段相符的排前面，更長的當補全。 */
 const MAX_CAND = 72;          /* 最多收這麼多候選（分頁 9 個一頁，約 8 頁） */
 function candidates() {
-  if (!code) return [];
+  if (!code) {
+    /* 智能聯想：沒打任何碼，看剛剛選的字有沒有接續建議（例：經 → 濟／驗／歷／常…） */
+    if ($('#assocCompat').checked && lastCommitted && assocMap.has(lastCommitted)) {
+      return assocMap.get(lastCommitted)
+        .filter(ch => codes[ch] && codes[ch].code)
+        .map(ch => ({ ch, code: finalOf(codes[ch].code), kind: '聯想', assoc: true }));
+    }
+    return [];
+  }
   const usePred = $('#usePred').checked;
   const rk = ch => (rank.get(ch) ?? 1e9);
   /* 候選排序：現代字頻優先，rime-essay 次序打平手 */
@@ -734,11 +749,11 @@ function render() {
   saveState();
 
   const box = $('#imebox');
-  if (!code) { box.classList.remove('on'); return; }
+  const cands = candidates();     /* code 是空的時候，可能是智能聯想的候選 */
+  if (!code && !cands.length) { box.classList.remove('on'); return; }
   box.classList.add('on');
-  $('#imecode').textContent = code;
+  $('#imecode').textContent = code || '聯想';
 
-  const cands = candidates();
   const cs = $('#cands'); cs.innerHTML = '';
   if (!cands.length) {
     cs.append(el('span', 'none', '打不出字 —— 這個碼還沒有對應的字'));
@@ -755,8 +770,8 @@ function render() {
     /* 橘色只留給「這個字自己的碼就是你打的碼」——簡繁對應字是換了個字形帶出來的，
        它自己的碼（convCode）通常跟你打的碼完全無關，就算來源是 exact 也不該橘。 */
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : '') + (x.fuzzy ? ' fuzzy' : '') +
-      (x.family || x.comp || x.short ? ' family' : '') +
-      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.short && !x.conv ? ' exact' : ''));
+      (x.family || x.comp || x.short || x.assoc ? ' family' : '') +
+      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.short && !x.assoc && !x.conv ? ' exact' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
@@ -805,6 +820,7 @@ function commit(i) {
   const c = cands[i];
   if (!c) return;
   insertAtPos(c.ch);
+  lastCommitted = c.ch;      /* 智能聯想查表用：記住剛剛選出的這個字 */
   code = ''; pick = 0;
   render();
 }
@@ -1014,10 +1030,12 @@ Promise.all([
   fetch('/api/learned').then(r => r.json()).catch(() => ({ stroke_kinds: [] })),
   fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
   fetch('/api/charfreq').then(r => r.json()).catch(() => ({})),
-]).then(async ([c, rl, f, z, ln, oc, cf]) => {
+  fetch('/api/assoc').then(r => r.json()).catch(() => ({})),
+]).then(async ([c, rl, f, z, ln, oc, cf, as]) => {
   codes = c; rules = rl; zigen = z; opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   charfreq = new Map(Object.entries(cf || {}));
+  assocMap = new Map(Object.entries(as || {}));
   f.order.forEach((ch, i) => rank.set(ch, i));
   lib = await Zigen.buildLibrary(zigen);      /* 推未取碼的字要用 */
   buildTable();
@@ -1037,6 +1055,7 @@ setInterval(async () => {
   if (stamp && s !== stamp) {
     codes = await fetch('/api/codes').then(r => r.json());
     rules = await fetch('/api/rules').then(r => r.json());
+    assocMap = new Map(Object.entries(await fetch('/api/assoc').then(r => r.json()).catch(() => ({}))));
     buildTable(); buildFamilies(); buildComps(); buildShortcodes(); render();
   }
   stamp = s;

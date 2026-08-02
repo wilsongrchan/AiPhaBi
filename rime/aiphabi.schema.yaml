@@ -39,6 +39,9 @@ switches:
   - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼
     reset: 1
     states: [ 簡碼關, 簡碼開 ]
+  - name: aiphabi_assoc             # 智能聯想：選完字，猜下一個字
+    reset: 0
+    states: [ 聯想關, 聯想開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -53,6 +56,7 @@ engine:
     - navigator
     - express_editor
   segmentors:
+    - lua_segmentor@aiphabi_assoc_seg   # 智能聯想：沒打任何碼、剛選完字時，另外開一段
     - ascii_segmentor
     - matcher
     - abc_segmentor
@@ -62,6 +66,7 @@ engine:
     - punct_translator
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
+    - lua_translator@aiphabi_assoc      # 智能聯想：選完字接著猜下一個
   filters:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
