@@ -230,21 +230,12 @@ def main():
     by_len = defaultdict(list)
     for code in code2chars:
         by_len[len(code)].append(code)
-    # 同類字／簡繁提示要順便顯示該字的正碼：字 → 縮短後的主碼
-    char2code = {}
-    need = set()
-    for sibs in family.values():
-        need.update(sibs)
-    for chs in comp.values():        # 偏旁碼候選也要顯示正碼
-        need.update(chs)
-    for vs in t2s_map.values():
-        need.update(vs)
-    for vs in s2t_map.values():
-        need.update(vs)
-    need.update(altcode.keys())      # 兼容碼提示要顯示正確的主碼，讓人學到「該打哪個」
-    need.update(shortcode.values())  # 約定簡碼提示同理
-    for chs in short3.values():
-        need.update(chs)                 # 三簡碼提示同理
+    # 同類字／簡繁等提示要順便顯示該字的正碼：字 → 縮短後的主碼。乾脆全部codable
+    # 的字都收（不再只收 family/comp/altcode 等有牽扯到的），因為「打的是完整碼、
+    # 秀主碼」這個修正（見下面 markHints）任何一個字都可能用到，不好再一個個追蹤
+    # 「誰需要」。
+    char2code = {c: shorten(rec["code"], max_rule).lower()
+                 for c, rec in codes.items() if rec.get("code")}
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     short_switch = ""
@@ -277,11 +268,6 @@ def main():
                              "  db: predict.db\n"
                              "  max_candidates: 5    # 配 menu.page_size，一頁看得完\n"
                              "  max_iterations: 1    # 選了聯想候選後，最多再連續猜一輪，別一路猜下去\n")
-    for c in sorted(need):
-        code = codes.get(c, {}).get("code")
-        if code:
-            char2code[c] = shorten(code, max_rule).lower()
-
     def lua_str(x):
         return '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
     def lua_arr(xs):

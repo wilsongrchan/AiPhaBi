@@ -623,7 +623,10 @@ function candidates() {
         if (c === code || !c.startsWith(code)) continue;
         for (const x of list) {
           if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
-          pre.push({ ...x, exact: false, code: c });
+          /* 這個候選可能是靠「完整碼」補全出來的（不是主碼那條路）——完整碼可能
+             長到看不完，優先秀主碼，不要秀補全用的那個 c（可能一長串）。 */
+          const mc = codes[x.ch] && codes[x.ch].code ? finalOf(codes[x.ch].code) : null;
+          pre.push({ ...x, exact: false, code: mc || c });
         }
         if (exact.length + pre.length >= MAX_CAND) break;
       }

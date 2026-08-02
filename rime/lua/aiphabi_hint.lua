@@ -147,7 +147,16 @@ local function filter(input, env)
       local sc = data.shortcode_rev[cand.text]
       if sc and sc ~= code then
         cand.comment = "簡碼 " .. sc:upper()
+        return cand
       end
+    end
+    -- 碼還沒打完（不管是主碼的前綴、還是只能靠完整碼配到）：一律秀完整的主碼
+    -- 當參考，不要秀 Rime 自己配到的「還差幾碼」——那可能是配到完整碼那條路，
+    -- 完整碼有時長到看不完（例：打 3 碼配到一個 10 碼字，還差 7 碼一點意義都沒有）。
+    -- 跟同類／偏旁碼／簡碼等提示一致：一律秀完整主碼，不秀殘碼。
+    -- 萬用鍵（含反引號）不管，那邊自己有一套（ok 已經濾掉含反引號的情況）。
+    if ok and main and main ~= code then
+      cand.comment = main:upper()
     end
     return cand
   end
