@@ -179,6 +179,17 @@ def main():
             if short not in shortcode:
                 shortcode[short] = ch
 
+    # 三簡碼：約定簡碼的自動版——不用手動挑，4 碼以上的字全部適用。打 3 碼
+    # 當「頭兩碼＋末一碼」查（等於 AB`C），碰撞其實不多（多數簽名只對到 1～2 個
+    # 字），照專案一貫做法：候選多給，不主動幫忙濾掉，讓人自己滑。
+    short3 = defaultdict(list)   # 簽名（頭2+末1，小寫）-> [(完整碼, 字), ...]
+    for code, chs in code2chars.items():
+        if len(code) < 4:
+            continue
+        sig = code[0] + code[1] + code[-1]
+        for ch in chs:
+            short3[sig].append((code, ch))
+
     conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
     FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
     family, comp = {}, defaultdict(list)
@@ -227,6 +238,8 @@ def main():
         need.update(vs)
     need.update(altcode.keys())      # 兼容碼提示要顯示正確的主碼，讓人學到「該打哪個」
     need.update(shortcode.values())  # 約定簡碼提示同理
+    for pairs in short3.values():
+        need.update(ch for _, ch in pairs)   # 三簡碼提示同理
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     short_switch = ""
@@ -234,6 +247,13 @@ def main():
         short_switch = ("  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼\n"
                          "    reset: 1\n"
                          "    states: [ 簡碼關, 簡碼開 ]\n")
+    # 三簡碼開關：新機制，先預設關，讓人自己開來試，覺得沒問題再考慮預設開
+    # （跟約定簡碼／智能聯想上線時同一套路數）。
+    short3_switch = ""
+    if short3:
+        short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
+                          "    reset: 0\n"
+                          "    states: [ 三簡碼關, 三簡碼開 ]\n")
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
     # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
@@ -293,6 +313,11 @@ def main():
     dl += ["}", "M.shortcode = {"]      # 簡碼 → [字]（約定簡碼；aiphabi_short100 開關控制）
     for code, ch in sorted(shortcode.items()):
         dl.append(f'  [{lua_str(code)}]={lua_arr([ch])},')
+    dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → {codes=[...], chars=[...]}（三簡碼；aiphabi_short3 開關控制）
+    for sig, pairs in sorted(short3.items()):
+        codes_arr = lua_arr([c for c, _ in pairs])
+        chars_arr = lua_arr([ch for _, ch in pairs])
+        dl.append(f'  [{lua_str(sig)}]={{codes={codes_arr},chars={chars_arr}}},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -337,7 +362,7 @@ switches:
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:

@@ -39,6 +39,9 @@ switches:
   - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼
     reset: 1
     states: [ 簡碼關, 簡碼開 ]
+  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查
+    reset: 0
+    states: [ 三簡碼關, 三簡碼開 ]
   - name: prediction                # 智能聯想：選完字，猜下一個字／詞
     reset: 0
     states: [ 聯想關, 聯想開 ]
