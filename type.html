@@ -170,6 +170,9 @@
     <label class="tog" title="漏打／多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反也能找到字">
       <input type="checkbox" id="fuzzyCompat" checked><span>輸入<b>容錯</b></span>
     </label>
+    <label class="tog" title="取碼原則頁「約定簡碼」手動挑的常用字（的、我、是…），打主碼首尾兩碼也找得到">
+      <input type="checkbox" id="shortCompat"><span><b>約定簡碼</b></span>
+    </label>
   </div>
 
   <div class="toolbar">
@@ -211,6 +214,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
 let codes = {}, rules = null, rank = new Map();
 let familyMap = new Map();   /* 字形家族：字 → 同一約定表「…類」的所有同類字（土士工干上…） */
 let compMap = new Map();     /* 偏旁碼 → 字：字的「作為偏旁時」碼跟單獨成字的碼不同（本 偏旁 TI／單獨 TJRI） */
+let shortMap = new Map();    /* 簡碼(小寫) → 字：取碼原則頁「約定簡碼」手動挑的常用字 */
 let charfreq = new Map();   /* 現代（台港新聞）字頻，候選字排序優先看它 —— rime-essay 常把冷字排前 */
 const usageOf = ch => (charfreq.get(ch) || 0);   /* 越大越常用，排越前 */
 let candOverflow = 0;         /* 候選被截掉多少個（萬用鍵搜尋常常一大堆） */
@@ -298,6 +302,7 @@ function saveState() {
       famCompat: $('#famCompat').checked,
       compCompat: $('#compCompat').checked,
       fuzzyCompat: $('#fuzzyCompat').checked,
+      shortCompat: $('#shortCompat').checked,
       usePred: $('#usePred').checked,
     }));
   } catch {}
@@ -314,6 +319,7 @@ function loadState() {
     if (typeof s.famCompat === 'boolean') $('#famCompat').checked = s.famCompat;
     if (typeof s.compCompat === 'boolean') $('#compCompat').checked = s.compCompat;
     if (typeof s.fuzzyCompat === 'boolean') $('#fuzzyCompat').checked = s.fuzzyCompat;
+    if (typeof s.shortCompat === 'boolean') $('#shortCompat').checked = s.shortCompat;
     if (typeof s.usePred === 'boolean') $('#usePred').checked = s.usePred;
   } catch {}
 }
@@ -355,6 +361,18 @@ function buildComps() {
       if (!compMap.has(comp)) compMap.set(comp, []);
       compMap.get(comp).push(c.c);
     }
+  }
+}
+
+/* 約定簡碼：取碼原則頁手動挑的常用字（的、我、是…），簡碼＝主碼首尾兩碼（可自己改）。
+   跟 build_rime.py／Squirrel 讀同一份 rules.json 的 entries，三邊一致。 */
+function buildShortcodes() {
+  shortMap = new Map();
+  const sc = rules && rules.rules && rules.rules.find(r => r.id === 'short_code');
+  if (!sc || !sc.enabled) return;
+  for (const en of sc.entries || []) {
+    if (!en.c || !en.short || !codes[en.c] || !codes[en.c].code) continue;
+    shortMap.set(en.short.toLowerCase(), en.c);
   }
 }
 
@@ -529,7 +547,7 @@ async function fetchSample() {
 $('#fetchUrl').onclick = fetchSample;
 $('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
 $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
-for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat'])
+for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'shortCompat'])
   $('#' + id).onchange = () => { pick = 0; render(); saveState(); };
 
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
@@ -650,7 +668,18 @@ function candidates() {
     fam.sort(byUsage);
   }
 
-  let all = [...exact, ...fam, ...pd, ...pre, ...fz];
+  /* 約定簡碼：你打的碼剛好是某個手動挑的常用字的簡碼（主碼首尾兩碼）。
+     排到最前面、蓋過原本占那個碼的字——會被挑進約定簡碼，就是你認定它比誰占
+     那個碼都常用，理當第一，不跟 fam 一起被 byUsage 打散排序。 */
+  let shortHit = null;
+  if (!wild && $('#shortCompat').checked) {
+    const ch = shortMap.get(code);
+    if (ch && !exact.some(x => x.ch === ch) && !fam.some(x => x.ch === ch)) {
+      shortHit = { ch, code: finalOf(codes[ch].code), kind: '簡碼', short: true };
+    }
+  }
+
+  let all = [...(shortHit ? [shortHit] : []), ...exact, ...fam, ...pd, ...pre, ...fz];
   if ($('#simpCompat').checked) all = withSimpCompat(all);
   candOverflow = Math.max(0, all.length - MAX_CAND);
   return all.slice(0, MAX_CAND);
@@ -724,8 +753,8 @@ function render() {
     /* 橘色只留給「這個字自己的碼就是你打的碼」——簡繁對應字是換了個字形帶出來的，
        它自己的碼（convCode）通常跟你打的碼完全無關，就算來源是 exact 也不該橘。 */
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : '') + (x.fuzzy ? ' fuzzy' : '') +
-      (x.family || x.comp ? ' family' : '') +
-      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.conv ? ' exact' : ''));
+      (x.family || x.comp || x.short ? ' family' : '') +
+      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.short && !x.conv ? ' exact' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
@@ -992,6 +1021,7 @@ Promise.all([
   buildTable();
   buildFamilies();
   buildComps();
+  buildShortcodes();
   loadState();                                /* 換頁／切分頁再回來，接著打 */
   render();
   $('#paper').focus();
@@ -1005,7 +1035,7 @@ setInterval(async () => {
   if (stamp && s !== stamp) {
     codes = await fetch('/api/codes').then(r => r.json());
     rules = await fetch('/api/rules').then(r => r.json());
-    buildTable(); buildFamilies(); buildComps(); render();
+    buildTable(); buildFamilies(); buildComps(); buildShortcodes(); render();
   }
   stamp = s;
 }, 3000);

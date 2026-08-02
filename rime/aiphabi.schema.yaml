@@ -36,6 +36,9 @@ switches:
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
+  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼
+    reset: 0
+    states: [ 簡碼關, 簡碼開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 

@@ -489,6 +489,228 @@
           ]
         }
       ]
+    },
+    {
+      "id": "short_code",
+      "name": "約定簡碼",
+      "desc": "手動挑字，額外約定一個簡碼（預設建議主碼首尾兩碼，例：新 ivtrt → IT，可以自己改）。只是多一條路：主碼、兼容碼都不變，簡碼在鼠鬚管與試打頁都有獨立開關，預設關。",
+      "kind": "manual",
+      "enabled": true,
+      "note": "build_rime.py 讀這裡的 entries（{c, short}），生成簡碼表（M.shortcode）跟 aiphabi_short100 開關（預設關）。取碼原則頁下面可以直接加字、看即時重碼統計。",
+      "entries": [
+        {
+          "c": "的",
+          "short": "JA"
+        },
+        {
+          "c": "我",
+          "short": "JQ"
+        },
+        {
+          "c": "是",
+          "short": "BY"
+        },
+        {
+          "c": "這",
+          "short": "IZ"
+        },
+        {
+          "c": "就",
+          "short": "IQ"
+        },
+        {
+          "c": "個",
+          "short": "YO"
+        },
+        {
+          "c": "要",
+          "short": "IJ"
+        },
+        {
+          "c": "能",
+          "short": "GC"
+        },
+        {
+          "c": "學",
+          "short": "FI"
+        },
+        {
+          "c": "會",
+          "short": "AB"
+        },
+        {
+          "c": "國",
+          "short": "OQ"
+        },
+        {
+          "c": "家",
+          "short": "QK"
+        },
+        {
+          "c": "說",
+          "short": "IOL"
+        },
+        {
+          "c": "話",
+          "short": "IOO"
+        },
+        {
+          "c": "後",
+          "short": "JJ"
+        },
+        {
+          "c": "麼",
+          "short": "RG"
+        },
+        {
+          "c": "那",
+          "short": "CP"
+        },
+        {
+          "c": "看",
+          "short": "JI"
+        },
+        {
+          "c": "對",
+          "short": "NA"
+        },
+        {
+          "c": "成",
+          "short": "RQ"
+        },
+        {
+          "c": "發",
+          "short": "AX"
+        },
+        {
+          "c": "時",
+          "short": "BA"
+        },
+        {
+          "c": "很",
+          "short": "JK"
+        },
+        {
+          "c": "然",
+          "short": "DM"
+        },
+        {
+          "c": "幾",
+          "short": "GQ"
+        },
+        {
+          "c": "經",
+          "short": "GI"
+        },
+        {
+          "c": "過",
+          "short": "OZ"
+        },
+        {
+          "c": "裡",
+          "short": "QF"
+        },
+        {
+          "c": "裏",
+          "short": "IK"
+        },
+        {
+          "c": "你",
+          "short": "YM"
+        },
+        {
+          "c": "樣",
+          "short": "TK"
+        },
+        {
+          "c": "做",
+          "short": "YX"
+        },
+        {
+          "c": "實",
+          "short": "QV"
+        },
+        {
+          "c": "道",
+          "short": "VZ"
+        },
+        {
+          "c": "頭",
+          "short": "IV"
+        },
+        {
+          "c": "應",
+          "short": "RYW"
+        },
+        {
+          "c": "該",
+          "short": "IOY"
+        },
+        {
+          "c": "感",
+          "short": "RW"
+        },
+        {
+          "c": "覺",
+          "short": "FXL"
+        },
+        {
+          "c": "需",
+          "short": "MM"
+        },
+        {
+          "c": "沒",
+          "short": "WX"
+        },
+        {
+          "c": "起",
+          "short": "FZ"
+        },
+        {
+          "c": "得",
+          "short": "JYA"
+        },
+        {
+          "c": "想",
+          "short": "TW"
+        },
+        {
+          "c": "候",
+          "short": "NK"
+        },
+        {
+          "c": "嗎",
+          "short": "OM"
+        },
+        {
+          "c": "吧",
+          "short": "OL"
+        },
+        {
+          "c": "啊",
+          "short": "OJ"
+        },
+        {
+          "c": "呢",
+          "short": "OC"
+        },
+        {
+          "c": "他",
+          "short": "YL"
+        },
+        {
+          "c": "好",
+          "short": "LI"
+        },
+        {
+          "c": "喜",
+          "short": "FO"
+        },
+        {
+          "c": "歡",
+          "short": "HY"
+        }
+      ]
     }
   ]
 }

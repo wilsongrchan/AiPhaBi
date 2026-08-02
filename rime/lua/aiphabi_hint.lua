@@ -4,9 +4,13 @@
 -- 打繁出簡／打簡出繁：這個碼的字若有簡體／繁體對應版本，就順便帶出來。各附正碼（有的話）。
 -- 不打簡體：把簡體專屬字（純一對一簡化，如 馬→马）從候選裡整個濾掉；歸併字
 -- （后／干／咸…本身也是獨立傳承字）不算，不會被濾掉。
+-- 約定簡碼：打中某個常用字「主碼首尾兩碼」剛好組成的簡碼，就把那個字也帶出來（附正碼）。
+-- 這個字會排到最前面，蓋過原本占那個碼的字——會被挑進約定簡碼，就是你認定它比
+-- 誰占那個碼都常用，理當排第一，不然約定了也沒省到選字的那一下。
 -- 排序：最熱門的字仍是第一個，接著才排這些提示，再來才是其餘候選（含補全）——
 -- 這樣就算某個碼補全出一大票字（例 扌 搬到 K 後，打 K 有近 200 個字），提示也不會被埋在最後。
--- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp 各自獨立控制。
+-- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp / aiphabi_short100
+-- 各自獨立控制。
 local data = require("aiphabi_data")
 
 -- 不打簡體開了，「打簡出繁」就沒有簡體本字可用（碼表裡已經濾掉了）——順便關掉，
@@ -42,10 +46,12 @@ local function filter(input, env)
   local comp_on  = ok and ctx:get_option("aiphabi_comp")
   local t2s_on   = ok and ctx:get_option("aiphabi_t2s")
   local s2t_on   = ok and ctx:get_option("aiphabi_s2t")
+  local short_on = ok and ctx:get_option("aiphabi_short100")
   local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}
-  if fam_on or comp_on or t2s_on or s2t_on then
+  local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
+  if fam_on or comp_on or t2s_on or s2t_on or short_on then
     local s = cands[1] and cands[1].start or 0
     local e = cands[1] and cands[1]._end or #code
     if fam_on or t2s_on or s2t_on then
@@ -88,6 +94,14 @@ local function filter(input, env)
         end
       end
     end
+    if short_on then                     -- 約定簡碼：打中某常用字「主碼首尾兩碼」→ 排到最前面（附正碼）
+      local ch = (data.shortcode[code] or {})[1]
+      if ch and not seen[ch] then
+        seen[ch] = true
+        local sc = data.char2code[ch]
+        short_hit = Candidate("aiphabi", s, e, ch, sc and ("簡碼 " .. sc:upper()) or "簡碼")
+      end
+    end
   end
 
   -- 不打簡體：簡體專屬字整個濾掉（正選、提示都一起濾）
@@ -110,7 +124,8 @@ local function filter(input, env)
     return cand
   end
 
-  -- 第一個候選 → 提示 → 其餘候選
+  -- 約定簡碼命中的字 → 第一個候選 → 其他提示 → 其餘候選
+  if short_hit and keep(short_hit) then yield(short_hit) end
   if cands[1] and keep(cands[1]) then yield(markAltcode(cands[1])) end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end

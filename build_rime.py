@@ -165,6 +165,20 @@ def main():
                 continue
             altcode[out].add(shorten(ac, max_rule).lower())
             altcode[out].add(ac.lower())
+
+    # 約定簡碼：手動在取碼原則頁挑的字（試過自動抓常用度前 100 名，重碼太多，
+    # 改回手動——的、我、是、這、就這種真的常用到不介意撞碼的字才值得收）。
+    # 開關 aiphabi_short100 預設關。
+    short_rule = next((r for r in rules["rules"] if r["id"] == "short_code"), None)
+    shortcode = {}    # 簡碼(小寫) -> 字（清單裡撞碼的，先加的贏，跟取碼原則頁的預覽一致）
+    if short_rule and short_rule.get("enabled"):
+        for entry in short_rule.get("entries", []):
+            ch, short = entry.get("c"), (entry.get("short") or "").lower()
+            if not ch or not short or ch not in codes or not codes[ch].get("code"):
+                continue
+            if short not in shortcode:
+                shortcode[short] = ch
+
     conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
     FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
     family, comp = {}, defaultdict(list)
@@ -212,6 +226,13 @@ def main():
     for vs in s2t_map.values():
         need.update(vs)
     need.update(altcode.keys())      # 兼容碼提示要顯示正確的主碼，讓人學到「該打哪個」
+    need.update(shortcode.values())  # 約定簡碼提示同理
+    # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
+    short_switch = ""
+    if shortcode:
+        short_switch = ("  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼\n"
+                         "    reset: 0\n"
+                         "    states: [ 簡碼關, 簡碼開 ]\n")
     for c in sorted(need):
         code = codes.get(c, {}).get("code")
         if code:
@@ -250,6 +271,9 @@ def main():
     for c, acs in sorted(altcode.items()):
         inner = "".join(f'[{lua_str(a)}]=true,' for a in sorted(acs))
         dl.append(f'  [{lua_str(c)}]={{{inner}}},')
+    dl += ["}", "M.shortcode = {"]      # 簡碼 → [字]（約定簡碼；aiphabi_short100 開關控制）
+    for code, ch in sorted(shortcode.items()):
+        dl.append(f'  [{lua_str(code)}]={lua_arr([ch])},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -294,7 +318,7 @@ switches:
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
-  - name: ascii_punct
+{short_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
@@ -422,11 +446,12 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 ## 智慧候選（跟試打頁一樣的貼心功能）
 
-都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（打繁出簡／打簡出繁／不打簡體預設關，其餘預設開）：
+都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（打繁出簡／打簡出繁／不打簡體／約定簡碼預設關，其餘預設開）：
 
 * **打繁出簡**（`aiphabi_t2s` 開關，預設關）— 候選字順便帶出它的簡體版，標「簡」。
 * **打簡出繁**（`aiphabi_s2t` 開關，預設關）— 候選字順便帶出它的繁體版，標「繁」。兩個各自獨立，要單開哪邊都行。
 * **不打簡體**（`aiphabi_no_simp` 開關，預設關）— 候選裡的簡體專屬字（純一對一簡化，如 馬→马、魚→鱼）整個濾掉，只留繁體字／傳承字；「歸併字」不算簡體專屬（如 后／干／咸／里／谷／面 這些字本身也是獨立傳承字），不會被濾掉。開了這個會順便把「打簡出繁」關掉——碼表裡沒有簡體本字，那個提示用不到。
+* **約定簡碼**（`aiphabi_short100` 開關，預設關）— 手動在「取碼原則」頁挑的常用字（的、我、是、這、就…），打它們主碼的「首尾兩碼」也找得到，標「簡碼」。這幾個字常用到即使簡碼撞到別的字也划算，其餘沒挑的字不受影響。
 * **同類字**（`aiphabi_family`）— 打中約定表某形近字家族其一，把整組帶出來（打 `f` → 土 旁邊也給你 士 工 干 上…）。標「同類」。
 * **偏旁碼**（`aiphabi_comp`）— 打了某字「作為偏旁時」的碼，提醒你那個字（例 `ii` → 二）。標「偏旁碼」。
 * **輸入容錯**（`aiphabi_fuzzy`）— 漏打一碼、多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反，也照樣找得到，標「可能 …」。
