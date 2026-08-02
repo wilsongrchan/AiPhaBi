@@ -170,7 +170,8 @@ def main():
     # 改回手動——的、我、是、這、就這種真的常用到不介意撞碼的字才值得收）。
     # 開關 aiphabi_short100 預設開——挑進來的都是真的常用到不在乎撞碼的字。
     short_rule = next((r for r in rules["rules"] if r["id"] == "short_code"), None)
-    shortcode = {}    # 簡碼(小寫) -> 字（清單裡撞碼的，先加的贏，跟取碼原則頁的預覽一致）
+    shortcode = {}      # 簡碼(小寫) -> 字（清單裡撞碼的，先加的贏，跟取碼原則頁的預覽一致）
+    shortcode_rev = {}  # 字 -> 簡碼：打了這個字的完整碼（不是簡碼）時，提醒「其實有簡碼可以打」
     if short_rule and short_rule.get("enabled"):
         for entry in short_rule.get("entries", []):
             ch, short = entry.get("c"), (entry.get("short") or "").lower()
@@ -178,17 +179,21 @@ def main():
                 continue
             if short not in shortcode:
                 shortcode[short] = ch
+            if ch not in shortcode_rev:
+                shortcode_rev[ch] = short
 
     # 三簡碼：約定簡碼的自動版——不用手動挑，4 碼以上的字全部適用。打 3 碼
     # 當「頭兩碼＋末一碼」查（等於 AB`C），碰撞其實不多（多數簽名只對到 1～2 個
-    # 字），照專案一貫做法：候選多給，不主動幫忙濾掉，讓人自己滑。
-    short3 = defaultdict(list)   # 簽名（頭2+末1，小寫）-> [(完整碼, 字), ...]
+    # 字），照專案一貫做法：候選多給，不主動幫忙濾掉，讓人自己滑。提示一律秀
+    # 主碼（char2code），不是比對到的那個碼——那個可能是完整碼，太長。
+    short3 = defaultdict(list)   # 簽名（頭2+末1，小寫）-> [字, ...]（去重）
     for code, chs in code2chars.items():
         if len(code) < 4:
             continue
         sig = code[0] + code[1] + code[-1]
         for ch in chs:
-            short3[sig].append((code, ch))
+            if ch not in short3[sig]:
+                short3[sig].append(ch)
 
     conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
     FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
@@ -238,8 +243,8 @@ def main():
         need.update(vs)
     need.update(altcode.keys())      # 兼容碼提示要顯示正確的主碼，讓人學到「該打哪個」
     need.update(shortcode.values())  # 約定簡碼提示同理
-    for pairs in short3.values():
-        need.update(ch for _, ch in pairs)   # 三簡碼提示同理
+    for chs in short3.values():
+        need.update(chs)                 # 三簡碼提示同理
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     short_switch = ""
@@ -313,11 +318,12 @@ def main():
     dl += ["}", "M.shortcode = {"]      # 簡碼 → [字]（約定簡碼；aiphabi_short100 開關控制）
     for code, ch in sorted(shortcode.items()):
         dl.append(f'  [{lua_str(code)}]={lua_arr([ch])},')
-    dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → {codes=[...], chars=[...]}（三簡碼；aiphabi_short3 開關控制）
-    for sig, pairs in sorted(short3.items()):
-        codes_arr = lua_arr([c for c, _ in pairs])
-        chars_arr = lua_arr([ch for _, ch in pairs])
-        dl.append(f'  [{lua_str(sig)}]={{codes={codes_arr},chars={chars_arr}}},')
+    dl += ["}", "M.shortcode_rev = {"]  # 字 → 簡碼（打完整碼時提醒「其實有簡碼」；aiphabi_short100 開關控制）
+    for ch, short in sorted(shortcode_rev.items()):
+        dl.append(f'  [{lua_str(ch)}]={lua_str(short)},')
+    dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
+    for sig, chs in sorted(short3.items()):
+        dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 

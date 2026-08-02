@@ -173,6 +173,9 @@
     <label class="tog" title="取碼原則頁「約定簡碼」手動挑的常用字（的、我、是…），打主碼首尾兩碼也找得到">
       <input type="checkbox" id="shortCompat" checked><span><b>約定簡碼</b></span>
     </label>
+    <label class="tog" title="約定簡碼的自動版，不用手動挑——4 碼以上的字都適用，打頭兩碼+末一碼（等於 AB`C）">
+      <input type="checkbox" id="short3Compat"><span><b>三簡碼</b></span>
+    </label>
     <label class="tog" title="選完一個字、還沒打任何碼時，猜接下來最順的字或詞（例：經 → 濟／驗／歷／常…），選了直接補上去，不用碼">
       <input type="checkbox" id="assocCompat"><span><b>智能聯想</b></span>
     </label>
@@ -217,7 +220,9 @@ const el = (t, c, x) => { const e = document.createElement(t);
 let codes = {}, rules = null, rank = new Map();
 let familyMap = new Map();   /* 字形家族：字 → 同一約定表「…類」的所有同類字（土士工干上…） */
 let compMap = new Map();     /* 偏旁碼 → 字：字的「作為偏旁時」碼跟單獨成字的碼不同（本 偏旁 TI／單獨 TJRI） */
-let shortMap = new Map();    /* 簡碼(小寫) → 字：取碼原則頁「約定簡碼」手動挑的常用字 */
+let shortMap = new Map();    /* 簡碼(大寫) → 字：取碼原則頁「約定簡碼」手動挑的常用字 */
+let shortRevMap = new Map(); /* 字 → 簡碼(大寫)：提示「這個字其實有簡碼」用 */
+let short3Map = new Map();   /* 簽名(頭2+末1，小寫) → [{ch, code}]：三簡碼，4 碼以上的字自動適用 */
 let assocMap = new Map();    /* 字 → [接續建議]：智能聯想，選完字猜下一個 */
 let lastCommitted = '';      /* 剛剛選字選出的最後一個字，供智能聯想查表 */
 let charfreq = new Map();   /* 現代（台港新聞）字頻，候選字排序優先看它 —— rime-essay 常把冷字排前 */
@@ -308,6 +313,7 @@ function saveState() {
       compCompat: $('#compCompat').checked,
       fuzzyCompat: $('#fuzzyCompat').checked,
       shortCompat: $('#shortCompat').checked,
+      short3Compat: $('#short3Compat').checked,
       assocCompat: $('#assocCompat').checked,
       usePred: $('#usePred').checked,
     }));
@@ -326,6 +332,7 @@ function loadState() {
     if (typeof s.compCompat === 'boolean') $('#compCompat').checked = s.compCompat;
     if (typeof s.fuzzyCompat === 'boolean') $('#fuzzyCompat').checked = s.fuzzyCompat;
     if (typeof s.shortCompat === 'boolean') $('#shortCompat').checked = s.shortCompat;
+    if (typeof s.short3Compat === 'boolean') $('#short3Compat').checked = s.short3Compat;
     if (typeof s.assocCompat === 'boolean') $('#assocCompat').checked = s.assocCompat;
     if (typeof s.usePred === 'boolean') $('#usePred').checked = s.usePred;
   } catch {}
@@ -372,14 +379,37 @@ function buildComps() {
 }
 
 /* 約定簡碼：取碼原則頁手動挑的常用字（的、我、是…），簡碼＝主碼首尾兩碼（可自己改）。
-   跟 build_rime.py／Squirrel 讀同一份 rules.json 的 entries，三邊一致。 */
+   跟 build_rime.py／Squirrel 讀同一份 rules.json 的 entries，三邊一致。
+   注意大小寫：這裡的 code 變數全程是大寫（打字時 k.toUpperCase() 存進去的），
+   rules.json 的 short 欄位本來就存大寫，所以 key 不能轉小寫——之前轉了小寫，
+   跟大寫的 code 永遠對不上，這個提示等於沒作用，只是常用字本來就會排第一，
+   才沒被發現。 */
 function buildShortcodes() {
   shortMap = new Map();
+  shortRevMap = new Map();   /* 字 → 簡碼：用來提示「這個字其實有簡碼可以打」 */
   const sc = rules && rules.rules && rules.rules.find(r => r.id === 'short_code');
   if (!sc || !sc.enabled) return;
   for (const en of sc.entries || []) {
     if (!en.c || !en.short || !codes[en.c] || !codes[en.c].code) continue;
-    shortMap.set(en.short.toLowerCase(), en.c);
+    shortMap.set(en.short.toUpperCase(), en.c);
+    if (!shortRevMap.has(en.c)) shortRevMap.set(en.c, en.short.toUpperCase());
+  }
+}
+
+/* 三簡碼：約定簡碼的自動版——不用手動挑，4 碼以上的字全部適用。打 3 碼當
+   「頭兩碼＋末一碼」查（等於 AB`C），跟 build_rime.py／Squirrel 用同一份 table
+   算出來，兩邊一致。要在 buildTable() 之後跑。提示一律秀主碼（在 candidates()
+   render 時查 codes[ch].code），不是比對到的那個碼——那個可能是完整碼，太長。 */
+function buildShort3() {
+  short3Map = new Map();
+  for (const [code, list] of table) {
+    if (code.length < 4) continue;
+    const sig = code[0] + code[1] + code[code.length - 1];
+    if (!short3Map.has(sig)) short3Map.set(sig, []);
+    const bucket = short3Map.get(sig);
+    for (const x of list) {
+      if (!bucket.includes(x.ch)) bucket.push(x.ch);
+    }
   }
 }
 
@@ -554,7 +584,7 @@ async function fetchSample() {
 $('#fetchUrl').onclick = fetchSample;
 $('#srcUrl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fetchSample(); } };
 $('#sampleClose').onclick = () => { $('#sampleBox').style.display = 'none'; saveState(); };
-for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'shortCompat', 'assocCompat'])
+for (const id of ['simpCompat', 'famCompat', 'compCompat', 'fuzzyCompat', 'shortCompat', 'short3Compat', 'assocCompat'])
   $('#' + id).onchange = () => { pick = 0; render(); saveState(); };
 
 /* 候選：完全相符的排前面，其次是「還沒打完」的（前綴相符）。
@@ -618,6 +648,18 @@ function candidates() {
     }
   }
 
+  /* 打的是這個字「自己的碼」（主碼），而這個字剛好有約定簡碼可以打——順便提醒一下，
+     教打字的人下次可以少打幾碼。只在真的打完整碼（kind === '主'）時提醒；兼容碼／
+     完整碼已經有自己的「主碼 (XX)」提示，不搶著改；三簡碼那套太模糊，不比照辦理。 */
+  if (!wild && $('#shortCompat').checked) {
+    exact = exact.map(x => {
+      if (x.kind !== '主') return x;
+      const sc = shortRevMap.get(x.ch);
+      if (!sc || sc === code) return x;
+      return { ...x, kind: '簡碼', code: sc };
+    });
+  }
+
   /* 預測出來的字排在已取碼的字後面 —— 你親手取的碼永遠優先 */
   const pd = [];
   if (usePred) {
@@ -679,6 +721,13 @@ function candidates() {
       if (shown.has(ch)) continue;
       shown.add(ch);
       fam.push({ ch, code: finalOf(codes[ch].code), kind: '偏旁碼', comp: true });
+    }
+    /* 三簡碼：打了 3 碼，當「頭兩碼+末一碼」查（等於 AB`C）。約定簡碼的自動版，
+       不用手動挑，4 碼以上的字都適用。 */
+    if ($('#short3Compat').checked && code.length === 3) for (const ch of short3Map.get(code) || []) {
+      if (shown.has(ch) || !codes[ch] || !codes[ch].code) continue;
+      shown.add(ch);
+      fam.push({ ch, code: finalOf(codes[ch].code), kind: '三簡', short3: true });
     }
     fam.sort(byUsage);
   }
@@ -770,8 +819,8 @@ function render() {
     /* 橘色只留給「這個字自己的碼就是你打的碼」——簡繁對應字是換了個字形帶出來的，
        它自己的碼（convCode）通常跟你打的碼完全無關，就算來源是 exact 也不該橘。 */
     const d = el('div', 'cand' + (gi === pick ? ' on' : '') + (x.pred ? ' pred' : '') + (x.fuzzy ? ' fuzzy' : '') +
-      (x.family || x.comp || x.short || x.assoc ? ' family' : '') +
-      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.short && !x.assoc && !x.conv ? ' exact' : ''));
+      (x.family || x.comp || x.short || x.short3 || x.assoc ? ' family' : '') +
+      (x.exact && !x.pred && !x.fuzzy && !x.family && !x.comp && !x.short && !x.short3 && !x.assoc && !x.conv ? ' exact' : ''));
     d.append(el('i', '', String(i + 1)));
     d.append(el('b', '', x.ch));
     /* 標籤：簡／繁，或字型/完整這類「這不是主碼」的提示（主碼不用標，
@@ -1042,6 +1091,7 @@ Promise.all([
   buildFamilies();
   buildComps();
   buildShortcodes();
+  buildShort3();
   loadState();                                /* 換頁／切分頁再回來，接著打 */
   render();
   $('#paper').focus();
@@ -1056,7 +1106,7 @@ setInterval(async () => {
     codes = await fetch('/api/codes').then(r => r.json());
     rules = await fetch('/api/rules').then(r => r.json());
     assocMap = new Map(Object.entries(await fetch('/api/assoc').then(r => r.json()).catch(() => ({}))));
-    buildTable(); buildFamilies(); buildComps(); buildShortcodes(); render();
+    buildTable(); buildFamilies(); buildComps(); buildShortcodes(); buildShort3(); render();
   }
   stamp = s;
 }, 3000);

@@ -98,14 +98,13 @@ local function filter(input, env)
         end
       end
     end
-    if short3_on then                    -- 三簡碼：打了 3 碼，當「頭兩碼+末一碼」查（相當於 AB`C）
-      local hit = data.short3[code]
-      if hit then
-        for i, ch in ipairs(hit.chars) do
-          if not seen[ch] then
-            seen[ch] = true
-            extra[#extra + 1] = Candidate("aiphabi", s, e, ch, "三簡碼 " .. hit.codes[i]:upper())
-          end
+    if short3_on then                    -- 三簡碼：打了 3 碼，當「頭兩碼+末一碼」查（相當於 AB`C）；
+                                          -- 提示一律秀主碼，不是比對到的那個碼（可能是完整碼，太長）
+      for _, ch in ipairs(data.short3[code] or {}) do
+        if not seen[ch] then
+          seen[ch] = true
+          local sc = data.char2code[ch]
+          extra[#extra + 1] = Candidate("aiphabi", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
         end
       end
     end
@@ -131,13 +130,24 @@ local function filter(input, env)
   -- 標的不是你剛打的碼（螢幕上已經看得到了，沒意思）——是「主碼 (正確的碼)」，
   -- 讓你知道這條路是繞的，順便學到該打哪個才是主碼。用圓括號，不用方括號——
   -- 方括號 [ ] 已經被輸入容錯（aiphabi_fuzzy）拿去標「可能」了，撞了會分不清。
+  --
+  -- 反過來的情況：打的就是這個字自己的完整碼（不是兼容碼、也不是簡碼本身），
+  -- 但這個字剛好有約定簡碼可以打——附「簡碼 XX」提醒，教下次可以少打幾碼。
+  -- 兩種提示互斥、兼容碼優先（你正在繞路，比「其實有更快的路」更該先知道）。
   -- 跟同類／偏旁碼等提示不一樣，這個只標正常候選（cands），不標 extra 那批 hint
-  -- （它們各自已有自己的標籤）。
-  local function markAltcode(cand)
+  -- （它們各自已有自己的標籤）；三簡碼那套太模糊，不比照辦理。
+  local function markHints(cand)
     local acs = data.altcode[cand.text]
     local main = data.char2code[cand.text]
     if acs and acs[code] and main then
       cand.comment = "主碼 (" .. main:upper() .. ")"
+      return cand
+    end
+    if short_on then
+      local sc = data.shortcode_rev[cand.text]
+      if sc and sc ~= code then
+        cand.comment = "簡碼 " .. sc:upper()
+      end
     end
     return cand
   end
@@ -147,12 +157,12 @@ local function filter(input, env)
   -- 底下要把原本那個位置濾掉，不然會兩個一模一樣的候選一起出現。
   local shortText = short_hit and short_hit.text
   if short_hit and keep(short_hit) then yield(short_hit) end
-  if cands[1] and cands[1].text ~= shortText and keep(cands[1]) then yield(markAltcode(cands[1])) end
+  if cands[1] and cands[1].text ~= shortText and keep(cands[1]) then yield(markHints(cands[1])) end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end
   end
   for i = 2, #cands do
-    if cands[i].text ~= shortText and keep(cands[i]) then yield(markAltcode(cands[i])) end
+    if cands[i].text ~= shortText and keep(cands[i]) then yield(markHints(cands[i])) end
   end
 end
 
