@@ -705,8 +705,11 @@ function candidates() {
 
   /* 同類候選：打中某個字形家族（土士工干上…）的其一，就把整組同類字一併列出，
      各附自己的碼。這樣就算你猜錯了家族裡哪個字的碼，也能直接看到全家、當場學到對的碼。
-     排在真正命中的字後面、容錯之前——它不是猜錯，是「你要的可能是它的同類」。 */
+     排在 exact/pd/pre/fz 全部之後——它是自動配對，不像約定簡碼認定過「就這個字」，
+     不該把真正打中的候選（哪怕只是補全中）擠到後面去。 */
   const fam = [];
+  /* 三簡碼同理，排在 fam 之後（見下面 all 的組合順序）。 */
+  const fam3 = [];
   if (!wild) {
     const shown = new Set([...exact, ...pd, ...pre, ...fz].map(x => x.ch));
     /* 同類：打中家族其一，帶出整組 */
@@ -725,14 +728,15 @@ function candidates() {
       shown.add(ch);
       fam.push({ ch, code: finalOf(codes[ch].code), kind: '偏旁碼', comp: true });
     }
+    fam.sort(byUsage);
     /* 三簡碼：打了 3 碼，當「頭兩碼+末一碼」查（等於 AB`C）。約定簡碼的自動版，
        不用手動挑，4 碼以上的字都適用。 */
     if ($('#short3Compat').checked && code.length === 3) for (const ch of short3Map.get(code) || []) {
       if (shown.has(ch) || !codes[ch] || !codes[ch].code) continue;
       shown.add(ch);
-      fam.push({ ch, code: finalOf(codes[ch].code), kind: '三簡', short3: true });
+      fam3.push({ ch, code: finalOf(codes[ch].code), kind: '三簡', short3: true });
     }
-    fam.sort(byUsage);
+    fam3.sort(byUsage);
   }
 
   /* 約定簡碼：你打的碼剛好是某個手動挑的常用字的簡碼（主碼首尾兩碼）。
@@ -747,8 +751,12 @@ function candidates() {
   /* short_hit 那個字常常本來就補全得到（只是排比較後面，例：個 在 pre 裡）——
      這裡從所有其他陣列濾掉那個字，不然會兩個一模一樣的候選一起出現。 */
   const dropShortHit = list => shortHit ? list.filter(x => x.ch !== shortHit.ch) : list;
+  /* 排序：簡碼（認定過「就這個字」）> 完整的正常候選（含補全，是不是主碼都算「打中
+     了」）> 其餘提示（同類／偏旁碼／三簡碼…都是自動配對，一律墊底，不該把打中的候選
+     擠到後面去）。 */
   let all = [...(shortHit ? [shortHit] : []),
-    ...dropShortHit(exact), ...dropShortHit(fam), ...dropShortHit(pd), ...dropShortHit(pre), ...dropShortHit(fz)];
+    ...dropShortHit(exact), ...dropShortHit(pd), ...dropShortHit(pre), ...dropShortHit(fz),
+    ...dropShortHit(fam), ...dropShortHit(fam3)];
   if ($('#simpCompat').checked) all = withSimpCompat(all);
   candOverflow = Math.max(0, all.length - MAX_CAND);
   return all.slice(0, MAX_CAND);

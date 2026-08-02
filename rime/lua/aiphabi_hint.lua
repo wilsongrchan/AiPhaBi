@@ -8,10 +8,13 @@
 -- 這個字會排到最前面，蓋過原本占那個碼的字——會被挑進約定簡碼，就是你認定它比
 -- 誰占那個碼都常用，理當排第一，不然約定了也沒省到選字的那一下。
 -- 三簡碼：跟約定簡碼同個道理，但不用手動挑——4 碼以上的字都適用，打 3 碼（頭兩碼
--- +末一碼）當「AB`C」查全表，碰到的都帶出來（附正碼），不搶排最前面（碰撞可能不只
--- 一個字，不像約定簡碼是認定過「就這個字」）。
--- 排序：最熱門的字仍是第一個，接著才排這些提示，再來才是其餘候選（含補全）——
--- 這樣就算某個碼補全出一大票字（例 扌 搬到 K 後，打 K 有近 200 個字），提示也不會被埋在最後。
+-- +末一碼）當「AB`C」查全表，碰到的都帶出來（附正碼）。跟約定簡碼不一樣：約定簡碼
+-- 是認定過「就這個字」，值得排最前面、蓋過其他候選；三簡碼是自動配對、可能撞好幾個
+-- 字，沒有這種把握，所以排在所有正常候選（含補全）之後——真正打中的字（哪怕只是
+-- 補全中）永遠比三簡碼這種猜測優先，不然打對的字反而被一堆猜測擠到後面去。
+-- 排序：簡碼（認定過「就這個字」）> 完整的正常候選（含補全，是不是主碼都算「打中了」）
+-- > 其餘提示（同類／偏旁碼／三簡碼…都是自動配對、沒認定過「就這個字」，一律墊底）。
+-- 真正打中的候選，哪怕只是補全中，也不該被這些自動提示擠到後面去。
 -- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp / aiphabi_short100
 -- / aiphabi_short3 各自獨立控制。
 local data = require("aiphabi_data")
@@ -54,6 +57,7 @@ local function filter(input, env)
   local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}
+  local extra3 = {}        -- 三簡碼命中的字：排在所有正常候選之後（見下方排序理由）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
   if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on then
     local s = cands[1] and cands[1].start or 0
@@ -104,7 +108,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra[#extra + 1] = Candidate("aiphabi", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
+          extra3[#extra3 + 1] = Candidate("aiphabi", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
         end
       end
     end
@@ -161,17 +165,19 @@ local function filter(input, env)
     return cand
   end
 
-  -- 約定簡碼命中的字 → 第一個候選 → 其他提示 → 其餘候選
+  -- 約定簡碼命中的字 → 全部正常候選（含補全）→ 同類／偏旁碼等提示 → 三簡碼。
   -- short_hit 那個字如果本來就在 cands 裡（常見：這個碼補全得到它，只是排比較後面），
   -- 底下要把原本那個位置濾掉，不然會兩個一模一樣的候選一起出現。
   local shortText = short_hit and short_hit.text
   if short_hit and keep(short_hit) then yield(short_hit) end
-  if cands[1] and cands[1].text ~= shortText and keep(cands[1]) then yield(markHints(cands[1])) end
+  for i = 1, #cands do
+    if cands[i].text ~= shortText and keep(cands[i]) then yield(markHints(cands[i])) end
+  end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end
   end
-  for i = 2, #cands do
-    if cands[i].text ~= shortText and keep(cands[i]) then yield(markHints(cands[i])) end
+  for _, c in ipairs(extra3) do
+    if keep(c) then yield(c) end
   end
 end
 
