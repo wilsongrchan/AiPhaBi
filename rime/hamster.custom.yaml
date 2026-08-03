@@ -138,19 +138,28 @@ patch:
             - action: { character: { char: "]" } }
               label: "」"
         - keys:
+            # 中間 6 顆一定要標明 width: available（不能留空）——留空的話這排
+            # 會被算成「每顆都跟第一、二排一樣寬」，兩顆 0.13 的頭尾鍵一加，
+            # 整排就湊不滿 100%，刪除鍵右邊會空出一截、看起來往內縮。
             - action: { keyboardType: "AiPhaBiSymbols_more" }
               label: "#+="
               width: { percentage: 0.13 }
             - action: { symbol: { char: "°" } }
+              width: available
             - action: { character: { char: "," } }
               label: "，"
+              width: available
             - action: { symbol: { char: "`" } }
+              width: available
             - action: { character: { char: "?" } }
               label: "？"
+              width: available
             - action: { character: { char: "!" } }
               label: "！"
+              width: available
             - action: { character: { char: "." } }
               label: "。"
+              width: available
             - action: backspace
               width: { percentage: 0.13 }
         - keys:
@@ -199,20 +208,27 @@ patch:
               label: "＆"
             - action: { symbol: { char: "·" } }
         - keys:
+            # 同一頁第三排，同樣的道理：中間 6 顆都要標 width: available。
             - action: { keyboardType: "AiPhaBiSymbols" }
               label: "123"
               width: { percentage: 0.13 }
             - action: { symbol: { char: "…" } }
+              width: available
             - action: { character: { char: "^" } }
               label: "……"
+              width: available
             - action: { character: { char: "'" } }
               label: "『’"
+              width: available
             - action: { character: { char: "\"" } }
               label: "「”"
+              width: available
             - action: { character: { char: "?" } }
               label: "？"
+              width: available
             - action: { character: { char: "!" } }
               label: "！"
+              width: available
             - action: backspace
               width: { percentage: 0.13 }
         - keys:
