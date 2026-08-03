@@ -243,12 +243,12 @@ def main():
         short_switch = ("  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼\n"
                          "    reset: 1\n"
                          "    states: [ 簡碼關, 簡碼開 ]\n")
-    # 三簡碼開關：新機制，先預設關，讓人自己開來試，覺得沒問題再考慮預設開
-    # （跟約定簡碼／智能聯想上線時同一套路數）。
+    # 三簡碼開關：不設 reset——讓它跟 full_shape 一樣記住使用者上次的選擇，
+    # 不會切別的輸入法再切回來就被強制重置回關（reset 這個欄位在 librime 裡的
+    # 意思是「每次 engine 重建都強制設回這個值」，切輸入法常常就會重建 engine）。
     short3_switch = ""
     if short3:
         short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
-                          "    reset: 0\n"
                           "    states: [ 三簡碼關, 三簡碼開 ]\n")
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
@@ -259,8 +259,9 @@ def main():
     predict_translator = ""
     predictor_config = ""
     if (DATA / "predict.db").exists():
+        # 不設 reset，理由同三簡碼開關：讓使用者的選擇記得住，不會切個輸入法
+        # 回來就被重置回關。
         prediction_switch = ("  - name: prediction                # 智能聯想：選完字，猜下一個字／詞\n"
-                              "    reset: 0\n"
                               "    states: [ 聯想關, 聯想開 ]\n")
         predictor_processor = "    - predictor\n"
         predict_translator = "    - predict_translator\n"
