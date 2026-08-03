@@ -432,6 +432,7 @@ const SC_SORTERS = {
   freq: (a, b) => freqWFast(b.c) - freqWFast(a.c),
   stroke: (a, b) => (strokeCountOf(a.c) ?? 99) - (strokeCountOf(b.c) ?? 99),
   radical: (a, b) => radicalOf(a.c).localeCompare(radicalOf(b.c), 'zh-Hant'),
+  letter: (a, b) => (a.short || '').localeCompare(b.short || ''),
 };
 let scSortBy = 'add';
 
@@ -465,7 +466,8 @@ function renderShortCode(box, r) {
   sortLab.append(el('span', '', '排序：'));
   const sortSel = document.createElement('select');
   sortSel.innerHTML = '<option value="add">加入順序</option><option value="freq">字頻</option>' +
-    '<option value="stroke">筆畫</option><option value="radical">部首（部件）</option>';
+    '<option value="stroke">筆畫</option><option value="radical">部首（部件）</option>' +
+    '<option value="letter">字母（簡碼）</option>';
   sortSel.value = scSortBy;
   sortSel.onchange = () => { scSortBy = sortSel.value; render(); };
   sortLab.append(sortSel);
