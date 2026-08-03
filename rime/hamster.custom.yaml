@@ -105,9 +105,12 @@ patch:
             - action: enter
               width: { percentage: 0.19 }
 
-    # 符號鍵盤：仿 iOS 內建注音／拼音鍵盤的數字符號頁 —— 一頁排滿、不用像「仓」內建的
-    # 分類符號鍵盤那樣先選類別再找。標點都走 character，讓愛發筆自己的標點轉換
-    # （schema 裡 ascii_punct 那套）照樣生效，跟主鍵盤上的逗號句號用同一套規則。
+    # 符號鍵盤第一頁：完全比照 iOS 內建鍵盤的 123 頁——數字、常用標點各一排，
+    # 第三排是 #+=（切去第二頁）+ 幾個常用符號 + 刪除鍵，不是「仓」內建那種要
+    # 先選類別的清單。標點都走 character，讓愛發筆自己的標點轉換（schema 裡
+    # ascii_punct 那套）照樣生效；沒有對應轉換的符號（度數、反引號）走 symbol，
+    # 直接照打、不經過 Rime——反引號尤其要這樣，不然會被萬用鍵那套字母表攔截，
+    # 打不出來只會卡在候選字。
     - name: "AiPhaBiSymbols"
       rows:
         - keys:
@@ -135,17 +138,19 @@ patch:
             - action: { character: { char: "]" } }
               label: "」"
         - keys:
-            - action: { character: { char: "#" } }
-            - action: { character: { char: "%" } }
-            - action: { character: { char: "&" } }
-            - action: { character: { char: "*" } }
-            - action: { character: { char: "+" } }
-            - action: { character: { char: "=" } }
-            - action: { character: { char: "{" } }
-              label: "『"
-            - action: { character: { char: "}" } }
-              label: "』"
-            - action: { character: { char: "_" } }
+            - action: { keyboardType: "AiPhaBiSymbols_more" }
+              label: "#+="
+              width: { percentage: 0.13 }
+            - action: { symbol: { char: "°" } }
+            - action: { character: { char: "," } }
+              label: "，"
+            - action: { symbol: { char: "`" } }
+            - action: { character: { char: "?" } }
+              label: "？"
+            - action: { character: { char: "!" } }
+              label: "！"
+            - action: { character: { char: "." } }
+              label: "。"
             - action: backspace
               width: { percentage: 0.13 }
         - keys:
@@ -157,50 +162,68 @@ patch:
               label:
                 loadingText: "愛發筆"
                 text: "空格"
-            - action: { character: { char: "," } }
-              label: "，"
-              swipe:
-                - direction: up
-                  action: { character: { char: "." } }
-                  label: "。"
-                  display: true
-            - action: { keyboardType: "AiPhaBiSymbols_more" }
-              label: "更多"
-              width: { percentage: 0.13 }
             - action: enter
               width: { percentage: 0.19 }
 
-    # 第二頁符號：《》～……—— 等較少用、第一頁放不下的。
+    # 符號鍵盤第二頁：比照 iOS 的 #+= 頁——比較少用、偏「原始」符號的一批
+    # （方括號／大括號是真的 ASCII 版本，跟第一頁已經轉全形的「」『』不同，
+    # 用 symbol 繞過 Rime，才不會被標點轉換規則攔下來變回全形）。
     - name: "AiPhaBiSymbols_more"
       rows:
         - keys:
-            - action: { character: { char: "<" } }
-              label: "《"
-            - action: { character: { char: ">" } }
-              label: "》"
-            - action: { character: { char: "~" } }
-            - action: { character: { char: "^" } }
-              label: "……"
-            - action: { character: { char: "|" } }
-            - action: { character: { char: "!" } }
-              label: "！"
-            - action: { character: { char: "?" } }
-              label: "？"
-            - action: { character: { char: "." } }
-              label: "。"
-            - action: { character: { char: "\\" } }
-              label: "、"
+            - action: { symbol: { char: "[" } }
+            - action: { symbol: { char: "]" } }
+            - action: { symbol: { char: "{" } }
+            - action: { symbol: { char: "}" } }
+            - action: { character: { char: "#" } }
+              label: "＃"
+            - action: { character: { char: "%" } }
+              label: "％"
+            - action: { symbol: { char: "^" } }
+            - action: { character: { char: "*" } }
+              label: "＊"
+            - action: { character: { char: "+" } }
+              label: "＋"
+            - action: { character: { char: "=" } }
+              label: "＝"
+        - keys:
+            - action: { character: { char: "_" } }
+              label: "——"
+            - action: { symbol: { char: "—" } }
+            - action: { symbol: { char: "\\" } }
+            - action: { symbol: { char: "|" } }
+            - action: { symbol: { char: "~" } }
+            - action: { symbol: { char: "«" } }
+            - action: { symbol: { char: "»" } }
+            - action: { symbol: { char: "€" } }
+            - action: { character: { char: "&" } }
+              label: "＆"
+            - action: { symbol: { char: "·" } }
         - keys:
             - action: { keyboardType: "AiPhaBiSymbols" }
-              label: "返回"
+              label: "123"
+              width: { percentage: 0.13 }
+            - action: { symbol: { char: "…" } }
+            - action: { character: { char: "^" } }
+              label: "……"
+            - action: { character: { char: "'" } }
+              label: "『’"
+            - action: { character: { char: "\"" } }
+              label: "「”"
+            - action: { character: { char: "?" } }
+              label: "？"
+            - action: { character: { char: "!" } }
+              label: "！"
+            - action: backspace
+              width: { percentage: 0.13 }
+        - keys:
+            - action: { keyboardType: "愛發筆26鍵" }
+              label: "字母"
               width: { percentage: 0.19 }
             - action: space
               width: available
               label:
                 loadingText: "愛發筆"
                 text: "空格"
-            - action: { keyboardType: "愛發筆26鍵" }
-              label: "字母"
-              width: { percentage: 0.19 }
             - action: enter
               width: { percentage: 0.19 }
