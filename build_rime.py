@@ -237,11 +237,11 @@ def main():
     char2code = {c: shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
-    # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
+    # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼。
+    # 不設 reset，理由同三簡碼／智能聯想：記住使用者上次的選擇。
     short_switch = ""
     if shortcode:
         short_switch = ("  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼\n"
-                         "    reset: 1\n"
                          "    states: [ 簡碼關, 簡碼開 ]\n")
     # 三簡碼開關：不設 reset——讓它跟 full_shape 一樣記住使用者上次的選擇，
     # 不會切別的輸入法再切回來就被強制重置回關（reset 這個欄位在 librime 裡的
@@ -335,25 +335,22 @@ schema:
 switches:
   # ascii_mode 不放進來：不需要它出現在方案選單／狀態列選單裡——
   # Shift 鍵本來就能切中英文（鼠鬚管內建的 ascii_composer 行為，與這份清單無關）。
+  # 底下這些開關都不設 reset：讓每一個都記住使用者上次的選擇，不會切個輸入法
+  # 再切回來、或重新部署一次，就被強制打回預設值（reset 這個欄位在 librime 裡
+  # 就是「每次 engine 重建都強制設回這個值」，蓋掉剛從使用者設定檔還原的值）。
   - name: full_shape
     states: [ 半形, 全形 ]
   - name: aiphabi_t2s              # 打繁出簡：候選字順便帶出簡體版
-    reset: 0
     states: [ 打繁出簡關, 打繁出簡開 ]
   - name: aiphabi_s2t              # 打簡出繁：候選字順便帶出繁體版
-    reset: 0
     states: [ 打簡出繁關, 打簡出繁開 ]
   - name: aiphabi_family          # 同類字提示（形近字家族）
-    reset: 1
     states: [ 同類字關, 同類字開 ]
   - name: aiphabi_comp            # 偏旁碼提示
-    reset: 1
     states: [ 偏旁關, 偏旁開 ]
   - name: aiphabi_fuzzy           # 輸入容錯
-    reset: 1
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
-    reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
 {short_switch}{short3_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
