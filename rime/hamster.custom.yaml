@@ -4,29 +4,50 @@ patch:
       isPrimary: true
       rows:
         - keys:
+            # label 給大寫字母：字根的形狀是照大寫字母設計的（Q W E…），按鍵本身仍打小寫
+            # （Rime 字母表本來就是小寫，char 不能改），只是鍵面顯示改成大寫比較符合直覺。
             - action: { character: { char: q } }
+              label: "Q"
             - action: { character: { char: w } }
+              label: "W"
             - action: { character: { char: e } }
+              label: "E"
             - action: { character: { char: r } }
+              label: "R"
             - action: { character: { char: t } }
+              label: "T"
             - action: { character: { char: y } }
+              label: "Y"
             - action: { character: { char: u } }
+              label: "U"
             - action: { character: { char: i } }
+              label: "I"
             - action: { character: { char: o } }
+              label: "O"
             - action: { character: { char: p } }
+              label: "P"
         - keys:
             # 萬用鍵：放在 A 左邊、Q 正下方（原本這裡是空的縮排間距，現在填一顆真的鍵）。
             - action: { character: { char: "`" } }
               width: available
             - action: { character: { char: a } }
+              label: "A"
             - action: { character: { char: s } }
+              label: "S"
             - action: { character: { char: d } }
+              label: "D"
             - action: { character: { char: f } }
+              label: "F"
             - action: { character: { char: g } }
+              label: "G"
             - action: { character: { char: h } }
+              label: "H"
             - action: { character: { char: j } }
+              label: "J"
             - action: { character: { char: k } }
+              label: "K"
             - action: { character: { char: l } }
+              label: "L"
         - keys:
             - action: { keyboardType: "AiPhaBiSymbols" }
               label: "符"
@@ -34,12 +55,19 @@ patch:
             - action: { characterMargin: { char: z } }
               width: available
             - action: { character: { char: z } }
+              label: "Z"
             - action: { character: { char: x } }
+              label: "X"
             - action: { character: { char: c } }
+              label: "C"
             - action: { character: { char: v } }
+              label: "V"
             - action: { character: { char: b } }
+              label: "B"
             - action: { character: { char: n } }
+              label: "N"
             - action: { character: { char: m } }
+              label: "M"
             - action: { characterMargin: { char: m } }
               width: available
             - action: backspace
