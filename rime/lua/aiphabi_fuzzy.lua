@@ -63,7 +63,7 @@ return function(input, env)
         for _, ch in ipairs(data.code2chars[c] or {}) do
           if not seen[ch] then
             seen[ch] = true
-            yield(Candidate("aiphabi", s, e, ch, "[ " .. c:upper() .. " ]"))
+            yield(Candidate("ap_pool", s, e, ch, "[ " .. c:upper() .. " ]"))
           end
         end
       end

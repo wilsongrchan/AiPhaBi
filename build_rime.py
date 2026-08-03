@@ -310,6 +310,13 @@ def main():
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
+    dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排（aiphabi_order）用
+    _fseen = set()
+    for _chs in code2chars.values():
+        for _c in _chs:
+            if _c not in _fseen:
+                _fseen.add(_c)
+                dl.append(f'  [{lua_str(_c)}]={freq_w(_c)},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -380,6 +387,7 @@ engine:
   filters:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
+    - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
     - uniquifier
 
 speller:
@@ -572,14 +580,18 @@ Weasel／fcitx5-rime 多半內建）：
             shutil.copy(f, RIME_USER_DIR / "lua" / f.name)
         # rime.lua 放根目錄；若使用者已有，就把 require 併進去、不覆蓋
         user_rime_lua = RIME_USER_DIR / "rime.lua"
-        block = (OUT / "rime.lua").read_text("utf-8")
-        if user_rime_lua.exists():
-            existing = user_rime_lua.read_text("utf-8")
-            if "require(\"aiphabi_hint\")" not in existing:
-                user_rime_lua.write_text(existing.rstrip() + "\n\n" + block, "utf-8")
-                print("已把愛發筆的 require 併進你原本的 rime.lua")
-        else:
+        def _mod(line):
+            return line.split('require("')[1].split('"')[0] if 'require("' in line else None
+        if not user_rime_lua.exists():
             shutil.copy(OUT / "rime.lua", user_rime_lua)
+        else:
+            existing = user_rime_lua.read_text("utf-8")
+            have = {_mod(l) for l in existing.splitlines()}
+            add = [l for l in (OUT / "rime.lua").read_text("utf-8").splitlines()
+                   if _mod(l) and _mod(l) not in have]      # 只補缺的 require，不動使用者其他內容
+            if add:
+                user_rime_lua.write_text(existing.rstrip() + "\n" + "\n".join(add) + "\n", "utf-8")
+                print("已把愛發筆缺的 require 併進 rime.lua：" + ", ".join(_mod(l) for l in add))
         # 這兩個是使用者層設定（schema_list、外觀）：沒有才裝，有就別蓋掉他的設定
         for name, what in (("default.custom.yaml", "schema_list（啟用愛發筆）"),
                            ("squirrel.custom.yaml", "外觀（橫排＋橙色高亮）")):
