@@ -10,6 +10,27 @@
 local data = require("aiphabi_data")
 
 local USERFREQ = {}
+-- 選字次數持久化：存在 Rime 使用者目錄（macOS：~/Library/Rime）。拿不到路徑或不能寫，
+-- 就退回「只記這次開機」——照樣能用，只是重開後不記得。格式：每行「字\t次數」。
+local PATH = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/aiphabi_userfreq.tsv")) or nil
+
+local function load()
+  if not PATH then return end
+  local f = io.open(PATH, "r"); if not f then return end
+  for line in f:lines() do
+    local ch, n = line:match("^(.-)\t(%d+)$")
+    if ch and ch ~= "" then USERFREQ[ch] = tonumber(n) end
+  end
+  f:close()
+end
+
+local function save()
+  if not PATH then return end
+  local f = io.open(PATH, "w"); if not f then return end
+  for ch, n in pairs(USERFREQ) do f:write(ch, "\t", n, "\n") end
+  f:close()
+end
+
 local function bump(text)                 -- 一個 commit 可能是詞：逐 UTF-8 字加分
   local i = 1
   while i <= #text do
@@ -22,12 +43,16 @@ local function bump(text)                 -- 一個 commit 可能是詞：逐 UT
 end
 
 local function init(env)
+  pcall(load)                             -- 開機讀回上次的選字次數
   local ok, ctx = pcall(function() return env.engine.context end)
   if not ok or not ctx then return end
   pcall(function()
     env.ap_order_notifier = ctx.commit_notifier:connect(function(context)
       local got, text = pcall(function() return context:get_commit_text() end)
-      if got and text and text ~= "" then pcall(bump, text) end
+      if got and text and text ~= "" then
+        pcall(bump, text)
+        pcall(save)                       -- 每次選完就寫回，重開也記得
+      end
     end)
   end)
 end
