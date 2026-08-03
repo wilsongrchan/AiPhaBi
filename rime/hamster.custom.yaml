@@ -76,7 +76,12 @@ patch:
                 - direction: up
                   action: { shortcutCommand: "#重输" }
         - keys:
-            - action: { keyboardType: numericNineGrid }
+            # 仿 iOS 的 123 鍵：跟主鍵盤上的「符」一樣切去 AiPhaBiSymbols（一頁排滿的
+            # 數字符號表），不是「仓」內建的九宮格數字鍵（跟這個輸入法的定位不合——
+            # 這是形碼，不是拼音，用不到九宮格）。emoji 鍵沒加：翻過「仓」原始碼，
+            # emoji 鍵盤那塊目前是空的 TODO（只畫一塊紅色空白），加了也打不出表情。
+            - action: { keyboardType: "AiPhaBiSymbols" }
+              label: "123"
               width: { percentage: 0.19 }
             - action: space
               width: available
