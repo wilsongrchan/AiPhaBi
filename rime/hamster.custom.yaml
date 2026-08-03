@@ -1,0 +1,168 @@
+patch:
+  keyboards:
+    - name: "愛發筆26鍵"
+      isPrimary: true
+      rows:
+        - keys:
+            - action: { character: { char: q } }
+            - action: { character: { char: w } }
+            - action: { character: { char: e } }
+            - action: { character: { char: r } }
+            - action: { character: { char: t } }
+            - action: { character: { char: y } }
+            - action: { character: { char: u } }
+            - action: { character: { char: i } }
+            - action: { character: { char: o } }
+            - action: { character: { char: p } }
+        - keys:
+            # 萬用鍵：放在 A 左邊、Q 正下方（原本這裡是空的縮排間距，現在填一顆真的鍵）。
+            - action: { character: { char: "`" } }
+              width: available
+            - action: { character: { char: a } }
+            - action: { character: { char: s } }
+            - action: { character: { char: d } }
+            - action: { character: { char: f } }
+            - action: { character: { char: g } }
+            - action: { character: { char: h } }
+            - action: { character: { char: j } }
+            - action: { character: { char: k } }
+            - action: { character: { char: l } }
+        - keys:
+            - action: { keyboardType: "AiPhaBiSymbols" }
+              label: "符"
+              width: { percentage: 0.13 }
+            - action: { characterMargin: { char: z } }
+              width: available
+            - action: { character: { char: z } }
+            - action: { character: { char: x } }
+            - action: { character: { char: c } }
+            - action: { character: { char: v } }
+            - action: { character: { char: b } }
+            - action: { character: { char: n } }
+            - action: { character: { char: m } }
+            - action: { characterMargin: { char: m } }
+              width: available
+            - action: backspace
+              width: { percentage: 0.13 }
+              swipe:
+                - direction: up
+                  action: { shortcutCommand: "#重输" }
+        - keys:
+            - action: { keyboardType: numericNineGrid }
+              width: { percentage: 0.19 }
+            - action: space
+              width: available
+              label:
+                loadingText: "愛發筆"
+                text: "空格"
+            - action: { character: { char: "," } }
+              label: "，"
+              swipe:
+                - direction: up
+                  action: { character: { char: "." } }
+                  label: "。"
+                  display: true
+            - action: { keyboardType: alphabetic }
+              width: { percentage: 0.13 }
+            - action: enter
+              width: { percentage: 0.19 }
+
+    # 符號鍵盤：仿 iOS 內建注音／拼音鍵盤的數字符號頁 —— 一頁排滿、不用像「仓」內建的
+    # 分類符號鍵盤那樣先選類別再找。標點都走 character，讓愛發筆自己的標點轉換
+    # （schema 裡 ascii_punct 那套）照樣生效，跟主鍵盤上的逗號句號用同一套規則。
+    - name: "AiPhaBiSymbols"
+      rows:
+        - keys:
+            - action: { character: { char: "1" } }
+            - action: { character: { char: "2" } }
+            - action: { character: { char: "3" } }
+            - action: { character: { char: "4" } }
+            - action: { character: { char: "5" } }
+            - action: { character: { char: "6" } }
+            - action: { character: { char: "7" } }
+            - action: { character: { char: "8" } }
+            - action: { character: { char: "9" } }
+            - action: { character: { char: "0" } }
+        - keys:
+            - action: { character: { char: "-" } }
+            - action: { character: { char: "/" } }
+            - action: { character: { char: ":" } }
+            - action: { character: { char: ";" } }
+            - action: { character: { char: "(" } }
+            - action: { character: { char: ")" } }
+            - action: { character: { char: "$" } }
+            - action: { character: { char: "@" } }
+            - action: { character: { char: "[" } }
+              label: "「"
+            - action: { character: { char: "]" } }
+              label: "」"
+        - keys:
+            - action: { character: { char: "#" } }
+            - action: { character: { char: "%" } }
+            - action: { character: { char: "&" } }
+            - action: { character: { char: "*" } }
+            - action: { character: { char: "+" } }
+            - action: { character: { char: "=" } }
+            - action: { character: { char: "{" } }
+              label: "『"
+            - action: { character: { char: "}" } }
+              label: "』"
+            - action: { character: { char: "_" } }
+            - action: backspace
+              width: { percentage: 0.13 }
+        - keys:
+            - action: { keyboardType: "愛發筆26鍵" }
+              label: "字母"
+              width: { percentage: 0.19 }
+            - action: space
+              width: available
+              label:
+                loadingText: "愛發筆"
+                text: "空格"
+            - action: { character: { char: "," } }
+              label: "，"
+              swipe:
+                - direction: up
+                  action: { character: { char: "." } }
+                  label: "。"
+                  display: true
+            - action: { keyboardType: "AiPhaBiSymbols_more" }
+              label: "更多"
+              width: { percentage: 0.13 }
+            - action: enter
+              width: { percentage: 0.19 }
+
+    # 第二頁符號：《》～……—— 等較少用、第一頁放不下的。
+    - name: "AiPhaBiSymbols_more"
+      rows:
+        - keys:
+            - action: { character: { char: "<" } }
+              label: "《"
+            - action: { character: { char: ">" } }
+              label: "》"
+            - action: { character: { char: "~" } }
+            - action: { character: { char: "^" } }
+              label: "……"
+            - action: { character: { char: "|" } }
+            - action: { character: { char: "!" } }
+              label: "！"
+            - action: { character: { char: "?" } }
+              label: "？"
+            - action: { character: { char: "." } }
+              label: "。"
+            - action: { character: { char: "\\" } }
+              label: "、"
+        - keys:
+            - action: { keyboardType: "AiPhaBiSymbols" }
+              label: "返回"
+              width: { percentage: 0.19 }
+            - action: space
+              width: available
+              label:
+                loadingText: "愛發筆"
+                text: "空格"
+            - action: { keyboardType: "愛發筆26鍵" }
+              label: "字母"
+              width: { percentage: 0.19 }
+            - action: enter
+              width: { percentage: 0.19 }

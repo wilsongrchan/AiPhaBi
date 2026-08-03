@@ -513,17 +513,43 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 {chr(10).join(f'* `{c}` → {"".join(chs)}' for c, chs in sorted(dups.items(), key=lambda kv: -len(kv[1]))[:25])}
 
+## iOS（仓／Hamster）
+
+裝「仓輸入法」（App Store 搜「仓」，開發者 imfuxiao），librime-lua 內建，
+智慧候選跟 macOS 一樣能用。這裡另外準備了 `hamster.custom.yaml`：把主鍵盤的萬用鍵獨立成一顆
+真的鍵（Q 正下方、A 左邊，不用長按），符號鍵也換成一頁排滿的數字符號表（仿 iOS 內建鍵盤），
+不是「仓」原生那種要先選類別的清單。
+
+**要傳的檔案**：`aiphabi.schema.yaml`、`aiphabi.dict.yaml`、`rime.lua`、整個 `lua/` 目錄、
+`default.custom.yaml`、`hamster.custom.yaml`。打包成 zip 時**不要包住一層資料夾**——這幾個
+檔案本身就要是 zip 的最外層，不然「仓」的匯入功能讀不到。
+
+**匯入（手機端全部搞定，不用電腦）**：
+
+1. 把 zip 存到手機的「檔案」App。
+2. 兩種方式擇一：在「檔案」App 長按 zip →〈分享〉→「仓」（會自動解壓到 Rime 目錄）；
+   或在「仓」內「輸入方案設置」→ 右上角「+」→「導入方案」選這個 zip。
+3. 到「仓」的「RIME」頁籤，按〈重新部署〉——**這一步一定要做**，且要在「RIME」頁籤裡直接按，
+   不能只靠匯入方案那一步順便觸發，不然鍵盤佈局（`hamster.custom.yaml`）不會生效。
+4. 「輸入方案設置」裡確認「愛發筆」已勾選。
+5. 「鍵盤設置」→「鍵盤佈局」，選「自訂-愛發筆26鍵」。
+
+> 這個 `hamster.custom.yaml` 還多定義了兩顆鍵盤（`AiPhaBiSymbols`、`AiPhaBiSymbols_more`，
+> 符號鍵的兩頁）。它們也會各自出現在「鍵盤佈局」清單裡，這是「仓」的正常行為——**不要選它們、
+> 也不要刪它們**，它們是給主鍵盤上的「符」「更多」「字母」「返回」這幾顆鍵切換用的，
+> 刪掉會連帶讓整組自訂鍵盤從清單消失（親身試過），得靠「RIME」→「RIME 重置」全部重來才救得回來。
+
 ## 其他平台
 
 把 `aiphabi.schema.yaml`、`aiphabi.dict.yaml`、`rime.lua`、以及整個 `lua/` 目錄
 丟進對應的使用者目錄，再〈重新部署〉即可（智慧候選需要該平台的 librime-lua；
-Weasel／fcitx5-rime 多半內建，Hamster 亦支援）：
+Weasel／fcitx5-rime 多半內建）：
 
 | 平台 | 目錄 |
 |---|---|
 | Windows（小狼毫 Weasel） | `%APPDATA%\\Rime` |
 | Linux（ibus/fcitx5-rime） | `~/.config/ibus/rime` 或 `~/.local/share/fcitx5/rime` |
-| iOS（Hamster） | App 內匯入 |
+| iOS（仓／Hamster） | 見上方「iOS（仓／Hamster）」一節 |
 
 > 若沒有 librime-lua，碼表照樣能打字，只是這些智慧候選（打繁出簡／打簡出繁／同類字／偏旁碼／輸入容錯／萬用鍵）不會出現。
 """
