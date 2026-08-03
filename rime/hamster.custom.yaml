@@ -87,7 +87,9 @@ patch:
             # emoji 鍵盤那塊目前是空的 TODO（只畫一塊紅色空白），加了也打不出表情。
             - action: { keyboardType: "AiPhaBiSymbols" }
               label: "123"
-              width: { percentage: 0.19 }
+              width: { percentage: 0.13 }
+            - action: { keyboardType: alphabetic }
+              width: { percentage: 0.13 }
             - action: space
               width: available
               label:
@@ -100,10 +102,8 @@ patch:
                   action: { character: { char: "." } }
                   label: "。"
                   display: true
-            - action: { keyboardType: alphabetic }
-              width: { percentage: 0.13 }
             - action: enter
-              width: { percentage: 0.19 }
+              width: { percentage: 0.25 }
 
     # 符號鍵盤第一頁：完全比照 iOS 內建鍵盤的 123 頁——數字、常用標點各一排，
     # 第三排是 #+=（切去第二頁）+ 幾個常用符號 + 刪除鍵，不是「仓」內建那種要
