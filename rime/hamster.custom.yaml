@@ -27,8 +27,10 @@ patch:
             - action: { character: { char: p } }
               label: "P"
         - keys:
-            # 萬用鍵：放在 A 左邊、Q 正下方（原本這裡是空的縮排間距，現在填一顆真的鍵）。
-            - action: { character: { char: "`" } }
+            # 恢復跟 iOS 一樣的 A-L 排法：左右各留半格縮排（跟下面 Z-M 那排同一套
+            # characterMargin 手法），A 對齊在 Q 跟 W 中間，不要整排靠死左邊——
+            # 之前把萬用鍵塞在這排最左邊會害整排位置往右移，破壞肌肉記憶。
+            - action: { characterMargin: { char: a } }
               width: available
             - action: { character: { char: a } }
               label: "A"
@@ -48,9 +50,12 @@ patch:
               label: "K"
             - action: { character: { char: l } }
               label: "L"
+            - action: { characterMargin: { char: l } }
+              width: available
         - keys:
-            - action: { keyboardType: "AiPhaBiSymbols" }
-              label: "符"
+            # 萬用鍵搬來這裡（原本「符」的位置）：punctuation 現在都在 123 鍵
+            # 那頁排滿了，「符」用不到了，位置剛好讓給萬用鍵，不用再擠進 A 那排。
+            - action: { character: { char: "`" } }
               width: { percentage: 0.13 }
             - action: { characterMargin: { char: z } }
               width: available
