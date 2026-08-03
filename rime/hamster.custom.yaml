@@ -187,8 +187,7 @@ patch:
             - action: { character: { char: "=" } }
               label: "＝"
         - keys:
-            - action: { character: { char: "_" } }
-              label: "——"
+            - action: { symbol: { char: "_" } }
             - action: { symbol: { char: "—" } }
             - action: { symbol: { char: "\\" } }
             - action: { symbol: { char: "|" } }
