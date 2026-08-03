@@ -329,16 +329,16 @@
               "standaloneOnly": true
             },
             {
-              "c": "凡",
-              "code": "NQ"
-            },
-            {
               "c": "戶",
-              "code": "QR"
+              "code": "QR",
+              "compCode": "R",
+              "standaloneOnly": true
             },
             {
               "c": "刀",
-              "code": "CJ"
+              "code": "CJ",
+              "compCode": "P",
+              "standaloneOnly": true
             },
             {
               "c": "乃",
@@ -396,12 +396,26 @@
             },
             {
               "c": "飞",
-              "code": "ZK"
+              "code": "ZK",
+              "compCode": "K",
+              "standaloneOnly": true
             },
             {
               "c": "心",
               "code": "JLQQ",
               "compCode": "W",
+              "standaloneOnly": true
+            },
+            {
+              "c": "片",
+              "code": "JTJ",
+              "compCode": "K",
+              "standaloneOnly": true
+            },
+            {
+              "c": "凡",
+              "code": "NQ",
+              "compCode": "A",
               "standaloneOnly": true
             }
           ]
@@ -731,6 +745,10 @@
         {
           "c": "哪",
           "short": "OP"
+        },
+        {
+          "c": "點",
+          "short": "VO"
         }
       ]
     }
