@@ -154,13 +154,19 @@ local function filter(input, env)
         return cand
       end
     end
-    -- 碼還沒打完（不管是主碼的前綴、還是只能靠完整碼配到）：一律秀完整的主碼
-    -- 當參考，不要秀 Rime 自己配到的「還差幾碼」——那可能是配到完整碼那條路，
-    -- 完整碼有時長到看不完（例：打 3 碼配到一個 10 碼字，還差 7 碼一點意義都沒有）。
-    -- 跟同類／偏旁碼／簡碼等提示一致：一律秀完整主碼，不秀殘碼。
+    -- 碼還沒打完：如果目前打的正好是主碼的前綴（最常見的情況），秀還差幾碼就好
+    -- （例：主碼 HOIYF，打了 HO，秀 "- IYF"）——比整串主碼再念一次有用，是真的
+    -- 「還差這些」，不是用猜的。只有在打的碼不是主碼前綴、只能靠完整碼配到時，
+    -- 才退回秀完整主碼當參考：這種情況下 Rime 自己算的「還差幾碼」是配到完整碼
+    -- 那條路，完整碼有時長到看不完（例：打 3 碼配到一個 10 碼字，還差 7 碼一點
+    -- 意義都沒有），秀完整主碼至少是個有界、看得完的東西。
     -- 萬用鍵（含反引號）不管，那邊自己有一套（ok 已經濾掉含反引號的情況）。
     if ok and main and main ~= code then
-      cand.comment = main:upper()
+      if main:sub(1, #code) == code then
+        cand.comment = "- " .. main:sub(#code + 1):upper()
+      else
+        cand.comment = main:upper()
+      end
     end
     return cand
   end
