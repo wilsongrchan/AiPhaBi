@@ -100,8 +100,11 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 > 之後補上。
 
 **要傳的檔案**：`aiphabi.schema.yaml`、`aiphabi.dict.yaml`、`rime.lua`、整個 `lua/` 目錄、
-`default.custom.yaml`、`hamster.custom.yaml`。打包成 zip 時**不要包住一層資料夾**——這幾個
-檔案本身就要是 zip 的最外層，不然「仓」的匯入功能讀不到。
+`default.custom.yaml`、`hamster.custom.yaml`。想要智能聯想（選完字猜下一個字／詞）也一併
+傳 `data/predict.db`（放到跟其他檔案同一層，不用建 `data/` 子目錄）——這個是另外抓的第三方
+資料庫（跑 `python3 fetch_data.py` 產生），不隨 schema 一起產生，忘了帶這個檔案的話，
+「聯想」開關開了也不會有任何候選（predictor 找不到資料庫可查）。打包成 zip 時**不要包住
+一層資料夾**——這幾個檔案本身就要是 zip 的最外層，不然「仓」的匯入功能讀不到。
 
 **匯入（手機端全部搞定，不用電腦）**：
 
