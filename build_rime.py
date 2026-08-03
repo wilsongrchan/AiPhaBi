@@ -400,7 +400,7 @@ translator:
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
 {predictor_config}
 menu:
-  page_size: 8                 # 一次顯示 8 個候選
+  page_size: 6                 # 一次顯示 6 個候選（留多點空間給候選字放大）
 
 # 標點：正體中文的全形標點。字母鍵全部給字根用，標點就落在原本的標點鍵上。
 punctuator:
@@ -518,7 +518,10 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 裝「仓輸入法」（App Store 搜「仓」，開發者 imfuxiao），librime-lua 內建，
 智慧候選跟 macOS 一樣能用。這裡另外準備了 `hamster.custom.yaml`：把主鍵盤的萬用鍵獨立成一顆
 真的鍵（Q 正下方、A 左邊，不用長按），符號鍵也換成一頁排滿的數字符號表（仿 iOS 內建鍵盤），
-不是「仓」原生那種要先選類別的清單。
+不是「仓」原生那種要先選類別的清單；空白鍵左滑／右滑可切換單手模式（像 iOS 內建鍵盤的左手／
+右手偏移），方便單手握機打字。候選欄一次顯示 6 個字（原本 8 個），留多點空間讓候選字看起來
+大一些；候選字體大小與候選欄高度這兩項是「仓」的個人偏好設定，不在方案檔裡，可自行到
+「仓」App →「鍵盤設置」→「候選欄設置」調整，喜歡多大就設多大。
 
 **要傳的檔案**：`aiphabi.schema.yaml`、`aiphabi.dict.yaml`、`rime.lua`、整個 `lua/` 目錄、
 `default.custom.yaml`、`hamster.custom.yaml`。打包成 zip 時**不要包住一層資料夾**——這幾個
