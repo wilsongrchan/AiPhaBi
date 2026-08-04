@@ -623,19 +623,24 @@ function candidates() {
         if (c === code || !c.startsWith(code)) continue;
         for (const x of list) {
           if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
-          /* 這個候選可能是靠「完整碼」補全出來的（不是主碼那條路）——完整碼可能
-             長到看不完，優先秀主碼，不要秀補全用的那個 c（可能一長串）。 */
+          /* 自己算「還差幾碼」，不要用補全配到的那個 c——它可能是配到完整碼那條路，
+             完整碼有時長到看不完。打的這幾碼是主碼的前綴，就秀主碼還差幾碼；
+             不是主碼的前綴（只能靠完整碼配到），秀完整的主碼當參考。 */
           const mc = codes[x.ch] && codes[x.ch].code ? finalOf(codes[x.ch].code) : null;
-          pre.push({ ...x, exact: false, code: mc || c });
+          const dispCode = mc ? (mc.startsWith(code) ? '- ' + mc.slice(code.length) : mc) : c;
+          pre.push({ ...x, exact: false, code: dispCode });
         }
         if (exact.length + pre.length >= MAX_CAND) break;
       }
     }
   } else {
+    /* 萬用鍵一律秀主碼，不是比對到的那個碼——常常比對到完整碼（可能長到看不完），
+       跟正常補全（見上面 !wild 那段）同一個原則。 */
+    const mainCodeOf = ch => codes[ch] && codes[ch].code ? finalOf(codes[ch].code) : null;
     for (const [c, list] of table) {
       if (!rxE.test(c)) continue;
       for (const x of list)
-        if (!exact.some(e => e.ch === x.ch)) exact.push({ ...x, exact: true, wild: true, code: c });
+        if (!exact.some(e => e.ch === x.ch)) exact.push({ ...x, exact: true, wild: true, code: mainCodeOf(x.ch) || c });
     }
     exact.sort((a, b) => (b.native - a.native) || byUsage(a, b));
     if (exact.length < 9) {
@@ -643,7 +648,7 @@ function candidates() {
         if (rxE.test(c) || !rxP.test(c)) continue;
         for (const x of list) {
           if (exact.some(e => e.ch === x.ch) || pre.some(e => e.ch === x.ch)) continue;
-          pre.push({ ...x, exact: false, wild: true, code: c });
+          pre.push({ ...x, exact: false, wild: true, code: mainCodeOf(x.ch) || c });
         }
         if (exact.length + pre.length >= MAX_CAND) break;
       }

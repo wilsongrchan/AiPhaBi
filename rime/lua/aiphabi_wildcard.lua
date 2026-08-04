@@ -16,7 +16,10 @@ return function(input, seg, env)
       for _, ch in ipairs(chs) do
         if not seen[ch] then
           seen[ch] = true
-          yield(Candidate("aiphabi", seg.start, seg._end, ch, code:upper()))
+          -- 標一律秀主碼，不是比對到的那個碼——萬用鍵常常比對到完整碼（可能長到
+          -- 看不完），跟 aiphabi_hint 的 markHints 同一個原則。
+          local mc = data.char2code[ch]
+          yield(Candidate("aiphabi", seg.start, seg._end, ch, mc and mc:upper() or code:upper()))
         end
       end
     end
