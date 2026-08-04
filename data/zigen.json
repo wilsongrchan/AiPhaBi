@@ -6354,6 +6354,53 @@
                 "潜"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "唾",
+                "strokes": [
+                  9,
+                  10
+                ]
+              },
+              "ex": "唾",
+              "count": 1,
+              "seen": [
+                "唾"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "买",
+                "strokes": [
+                  1,
+                  2
+                ]
+              },
+              "ex": "买",
+              "count": 4,
+              "seen": [
+                "买",
+                "斡"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
+                "src": "讲",
+                "strokes": [
+                  2,
+                  3
+                ]
+              },
+              "ex": "讲",
+              "count": 2,
+              "seen": [
+                "讲",
+                "德"
+              ],
+              "learned": true
             }
           ]
         },
@@ -6614,55 +6661,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "唾",
-                "strokes": [
-                  9,
-                  10
-                ]
-              },
-              "ex": "唾",
-              "count": 1,
-              "seen": [
-                "唾"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "买",
-                "strokes": [
-                  1,
-                  2
-                ]
-              },
-              "ex": "买",
-              "count": 4,
-              "seen": [
-                "买",
-                "斡"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "讲",
-                "strokes": [
-                  2,
-                  3
-                ]
-              },
-              "ex": "讲",
-              "count": 2,
-              "seen": [
-                "讲",
-                "德"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         },
         {
           "desc": "首劃或末劃的橫劃",
@@ -8104,6 +8103,22 @@
                 "买"
               ],
               "learned": true
+            },
+            {
+              "glyph": {
+                "src": "换",
+                "strokes": [
+                  7,
+                  8,
+                  9
+                ]
+              },
+              "ex": "换",
+              "count": 1,
+              "seen": [
+                "换"
+              ],
+              "learned": true
             }
           ]
         },
@@ -8335,24 +8350,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "换",
-                "strokes": [
-                  7,
-                  8,
-                  9
-                ]
-              },
-              "ex": "换",
-              "count": 1,
-              "seen": [
-                "换"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -9277,12 +9275,6 @@
               "thr": 0.1868
             }
           ]
-        },
-        {
-          "desc": "",
-          "auto": true,
-          "tier": "primary",
-          "shapes": []
         }
       ]
     },
@@ -9319,53 +9311,6 @@
                 "菐"
               ],
               "thr": 0.0749
-            },
-            {
-              "ex": "取",
-              "glyph": {
-                "src": "州",
-                "strokes": [
-                  0,
-                  1
-                ]
-              },
-              "count": 44,
-              "seen": [
-                "州",
-                "順",
-                "訓",
-                "嚴",
-                "川",
-                "賺",
-                "巖",
-                "碰",
-                "兼",
-                "刪",
-                "廉",
-                "嫌",
-                "圳",
-                "叢",
-                "簾",
-                "謙",
-                "歉",
-                "蓝",
-                "麵",
-                "湾",
-                "面",
-                "业",
-                "监",
-                "緬"
-              ],
-              "alts": [
-                {
-                  "src": "面",
-                  "strokes": [
-                    4,
-                    5
-                  ]
-                }
-              ],
-              "thr": 0.0938
             },
             {
               "glyph": {
@@ -9470,35 +9415,6 @@
             },
             {
               "glyph": {
-                "src": "州",
-                "strokes": [
-                  0,
-                  1
-                ]
-              },
-              "ex": "州",
-              "count": 15,
-              "seen": [
-                "州",
-                "班",
-                "洲",
-                "酬",
-                "馴"
-              ],
-              "learned": true,
-              "thr": 0.111,
-              "alts": [
-                {
-                  "src": "酬",
-                  "strokes": [
-                    9,
-                    10
-                  ]
-                }
-              ]
-            },
-            {
-              "glyph": {
                 "src": "收",
                 "strokes": [
                   0,
@@ -9533,11 +9449,94 @@
                 "憨"
               ],
               "learned": true
+            },
+            {
+              "ex": "州",
+              "glyph": {
+                "src": "州",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "count": 61,
+              "seen": [
+                "州",
+                "順",
+                "訓",
+                "嚴",
+                "川",
+                "賺",
+                "巖",
+                "碰",
+                "兼",
+                "刪",
+                "廉",
+                "嫌",
+                "圳",
+                "叢",
+                "簾",
+                "謙",
+                "歉",
+                "蓝",
+                "麵",
+                "湾",
+                "面",
+                "业",
+                "监",
+                "緬"
+              ],
+              "alts": [
+                {
+                  "src": "面",
+                  "strokes": [
+                    4,
+                    5
+                  ]
+                },
+                {
+                  "src": "州",
+                  "strokes": [
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "src": "酬",
+                  "strokes": [
+                    9,
+                    10
+                  ]
+                },
+                {
+                  "src": "班",
+                  "strokes": [
+                    4,
+                    5
+                  ]
+                }
+              ],
+              "thr": 0.0938
+            },
+            {
+              "glyph": {
+                "src": "师",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "师",
+              "count": 2,
+              "seen": [
+                "师"
+              ],
+              "learned": true
             }
           ]
         },
         {
-          "desc": "一撇和一豎並立，及類似字形",
+          "desc": "一撇和一豎並立，及類似字形，通常豎劃不比撇劃短",
           "tier": "primary",
           "shapes": [
             {
@@ -9812,38 +9811,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "师",
-                "strokes": [
-                  0,
-                  1
-                ]
-              },
-              "ex": "师",
-              "count": 2,
-              "seen": [
-                "师"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "班",
-                "strokes": [
-                  4,
-                  5
-                ]
-              },
-              "ex": "班",
-              "count": 2,
-              "seen": [
-                "班"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
