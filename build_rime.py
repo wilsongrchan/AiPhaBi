@@ -43,6 +43,35 @@ def shorten(code, rule):
     return code[:head] + (code[-tail:] if tail else "")
 
 
+def seed_default_options(path):
+    """開關拿掉 reset 後才會真的記得使用者切的狀態，但這樣一來使用者從沒切過的開關
+    就會預設關（user.yaml 沒那個 key，Rime 當沒設定過）。這裡只在「使用者從沒設定
+    過」（key 不存在，不是存在且為 false）時幫忙種一個好用的初始值——種過一次、或
+    使用者自己切過一次之後，往後永遠尊重 user.yaml 裡的值，不會再蓋。"""
+    on_by_default = ["aiphabi_family", "aiphabi_comp", "aiphabi_fuzzy", "aiphabi_short100"]
+    lines = path.read_text("utf-8").splitlines() if path.exists() else []
+    var_i = next((i for i, l in enumerate(lines) if l == "var:"), None)
+    if var_i is None:
+        lines.append("var:")
+        var_i = len(lines) - 1
+    opt_i = next((i for i in range(var_i + 1, len(lines)) if lines[i] == "  option:"), None)
+    if opt_i is None:
+        insert_at = var_i + 1
+        while insert_at < len(lines) and lines[insert_at].startswith("  "):
+            insert_at += 1
+        lines[insert_at:insert_at] = ["  option:"] + [f"    {k}: true" for k in on_by_default]
+    else:
+        block_end = opt_i + 1
+        have = set()
+        while block_end < len(lines) and lines[block_end].startswith("    "):
+            have.add(lines[block_end].split(":")[0].strip())
+            block_end += 1
+        missing = [k for k in on_by_default if k not in have]
+        if missing:
+            lines[block_end:block_end] = [f"    {k}: true" for k in missing]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main():
     codes = json.loads((DATA / "codes.json").read_text("utf-8"))
     rules = json.loads((DATA / "rules.json").read_text("utf-8"))
@@ -238,17 +267,20 @@ def main():
                  for c, rec in codes.items() if rec.get("code")}
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
+    # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
+    # 蓋掉剛從 user.yaml 讀回來的狀態，等於這個開關永遠記不住使用者切過什麼
+    # （engine.cc 的 InitializeOptions 在 RestoreSavedOptions 之後執行，會覆蓋回去）。
+    # 想要的「預設開」改成在 --install 時只在使用者從沒切過（user.yaml 沒這個 key）時
+    # 幫忙種一次初始值，見下面 _seed_default_options。
     short_switch = ""
     if shortcode:
         short_switch = ("  - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼\n"
-                         "    reset: 1\n"
                          "    states: [ 簡碼關, 簡碼開 ]\n")
     # 三簡碼開關：新機制，先預設關，讓人自己開來試，覺得沒問題再考慮預設開
     # （跟約定簡碼／智能聯想上線時同一套路數）。
     short3_switch = ""
     if short3:
         short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
-                          "    reset: 0\n"
                           "    states: [ 三簡碼關, 三簡碼開 ]\n")
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
@@ -260,7 +292,6 @@ def main():
     predictor_config = ""
     if (DATA / "predict.db").exists():
         prediction_switch = ("  - name: prediction                # 智能聯想：選完字，猜下一個字／詞\n"
-                              "    reset: 0\n"
                               "    states: [ 聯想關, 聯想開 ]\n")
         predictor_processor = "    - predictor\n"
         predict_translator = "    - predict_translator\n"
@@ -344,22 +375,16 @@ switches:
   - name: full_shape
     states: [ 半形, 全形 ]
   - name: aiphabi_t2s              # 打繁出簡：候選字順便帶出簡體版
-    reset: 0
     states: [ 打繁出簡關, 打繁出簡開 ]
   - name: aiphabi_s2t              # 打簡出繁：候選字順便帶出繁體版
-    reset: 0
     states: [ 打簡出繁關, 打簡出繁開 ]
   - name: aiphabi_family          # 同類字提示（形近字家族）
-    reset: 1
     states: [ 同類字關, 同類字開 ]
   - name: aiphabi_comp            # 偏旁碼提示
-    reset: 1
     states: [ 偏旁關, 偏旁開 ]
   - name: aiphabi_fuzzy           # 輸入容錯
-    reset: 1
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
-    reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
 {short_switch}{short3_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
@@ -600,6 +625,7 @@ Weasel／fcitx5-rime 多半內建）：
                 print(f"已存在 {name} —— 保留你的設定，未覆蓋。要套用愛發筆的 {what} 請參考 rime/{name}")
             else:
                 shutil.copy(OUT / name, dst)
+        seed_default_options(RIME_USER_DIR / "user.yaml")
         print(f"\n已複製到 {RIME_USER_DIR}（碼表 + lua/ 智慧候選 + 啟用與外觀設定）")
         print("接著：鼠鬚管選單 →〈重新部署〉，直接就能用愛發筆（點選單列圖示可勾選各項功能；中英文切換用 Shift）。")
 

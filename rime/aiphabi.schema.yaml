@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.08.03"
+  version: "2026.08.04"
   author:
     - wilsongrchan
   description: |
@@ -19,29 +19,23 @@ switches:
   - name: full_shape
     states: [ 半形, 全形 ]
   - name: aiphabi_t2s              # 打繁出簡：候選字順便帶出簡體版
-    reset: 0
     states: [ 打繁出簡關, 打繁出簡開 ]
   - name: aiphabi_s2t              # 打簡出繁：候選字順便帶出繁體版
-    reset: 0
     states: [ 打簡出繁關, 打簡出繁開 ]
   - name: aiphabi_family          # 同類字提示（形近字家族）
-    reset: 1
     states: [ 同類字關, 同類字開 ]
   - name: aiphabi_comp            # 偏旁碼提示
-    reset: 1
     states: [ 偏旁關, 偏旁開 ]
   - name: aiphabi_fuzzy           # 輸入容錯
-    reset: 1
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
-    reset: 0
     states: [ 不打簡體關, 不打簡體開 ]
   - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼
-    reset: 1
     states: [ 簡碼關, 簡碼開 ]
   - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查
-    reset: 0
     states: [ 三簡碼關, 三簡碼開 ]
+  - name: prediction                # 智能聯想：選完字，猜下一個字／詞
+    states: [ 聯想關, 聯想開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -49,6 +43,7 @@ engine:
   processors:
     - ascii_composer
     - recognizer
+    - predictor
     - key_binder
     - speller
     - punctuator
@@ -62,6 +57,7 @@ engine:
     - punct_segmentor
     - fallback_segmentor
   translators:
+    - predict_translator
     - punct_translator
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
@@ -87,6 +83,11 @@ translator:
   comment_format:              # 候選旁邊的碼提示也顯示大寫
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
+
+predictor:
+  db: predict.db
+  max_candidates: 5    # 配 menu.page_size，一頁看得完
+  max_iterations: 1    # 選了聯想候選後，最多再連續猜一輪，別一路猜下去
 
 menu:
   page_size: 8                 # 一次顯示 8 個候選
