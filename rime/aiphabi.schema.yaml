@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.08.02"
+  version: "2026.08.04"
   author:
     - wilsongrchan
   description: |
@@ -67,6 +67,7 @@ engine:
   filters:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
+    - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
     - uniquifier
 
 speller:

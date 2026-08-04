@@ -69,7 +69,7 @@ local function filter(input, env)
             if not seen[sib] then
               seen[sib] = true
               local sc = data.char2code[sib]
-              extra[#extra + 1] = Candidate("aiphabi", s, e, sib, sc and ("同類 " .. sc:upper()) or "同類")
+              extra[#extra + 1] = Candidate("ap_pool", s, e, sib, sc and ("同類 " .. sc:upper()) or "同類")
             end
           end
         end
@@ -78,7 +78,7 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("aiphabi", s, e, v, sc and ("簡 " .. sc:upper()) or "簡")
+              extra[#extra + 1] = Candidate("ap_pool", s, e, v, sc and ("簡 " .. sc:upper()) or "簡")
             end
           end
         end
@@ -87,7 +87,7 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("aiphabi", s, e, v, sc and ("繁 " .. sc:upper()) or "繁")
+              extra[#extra + 1] = Candidate("ap_pool", s, e, v, sc and ("繁 " .. sc:upper()) or "繁")
             end
           end
         end
@@ -98,7 +98,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra[#extra + 1] = Candidate("aiphabi", s, e, ch, sc and ("偏旁碼 " .. sc:upper()) or "偏旁碼")
+          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, sc and ("偏旁碼 " .. sc:upper()) or "偏旁碼")
         end
       end
     end
@@ -108,7 +108,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra3[#extra3 + 1] = Candidate("aiphabi", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
+          extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
         end
       end
     end
@@ -120,7 +120,7 @@ local function filter(input, env)
       local ch = (data.shortcode[code] or {})[1]
       if ch then
         local sc = data.char2code[ch]
-        short_hit = Candidate("aiphabi", s, e, ch, sc and ("簡碼 " .. sc:upper()) or "簡碼")
+        short_hit = Candidate("ap_short", s, e, ch, sc and ("簡碼 " .. sc:upper()) or "簡碼")
       end
     end
   end
