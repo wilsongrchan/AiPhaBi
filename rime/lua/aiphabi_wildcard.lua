@@ -16,10 +16,10 @@ return function(input, seg, env)
       for _, ch in ipairs(chs) do
         if not seen[ch] then
           seen[ch] = true
-          -- 提示秀主碼（char2code，最長 5 碼），不是比對到的那個碼——那個
-          -- 是完整碼，跟同類字／偏旁碼／一般候選那套提示一致（見 aiphabi_hint.lua）。
-          local main = data.char2code[ch]
-          yield(Candidate("aiphabi", seg.start, seg._end, ch, (main or code):upper()))
+          -- 標一律秀主碼，不是比對到的那個碼——萬用鍵常常比對到完整碼（可能長到
+          -- 看不完），跟 aiphabi_hint 的 markHints 同一個原則。
+          local mc = data.char2code[ch]
+          yield(Candidate("aiphabi", seg.start, seg._end, ch, mc and mc:upper() or code:upper()))
         end
       end
     end
