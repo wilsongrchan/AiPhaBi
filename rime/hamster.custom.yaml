@@ -6,6 +6,17 @@ patch:
   # 這個開關只影響「切回自訂鍵盤」那顆鍵在空白鍵左邊還右邊，其餘鍵位不受影響。
   keyboard:
     chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: true
+    # 「仓」內建英文鍵盤空白鍵左邊那顆句號鍵，位置跟我們中文鍵盤的逗號鍵（在
+    # 空白鍵右邊）對不上，切中英文那排還是會跳一下。關掉左邊那顆，改開右邊
+    # 這顆，一樣是句號，位置改成跟中文模式的逗號鍵對齊（都在空白鍵右邊、
+    # 換行鍵左邊）。翻過「仓」原始碼（iPhoneChineseKeyboardLayoutProvider.swift
+    # 的 bottomActions）確認：這組開關雖然定義在「中文」那個 provider 裡，但
+    # 目前的方案是中文方案，即使切到內建英文鍵盤畫面，用的還是同一個
+    # provider，所以這裡照樣管得到。
+    displaySpaceLeftButton: false
+    displaySpaceRightButton: true
+    spaceRightButtonProcessByRIME: false
+    keyValueOfSpaceRightButton: "."
   keyboards:
     - name: "愛發筆26鍵"
       isPrimary: true
