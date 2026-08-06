@@ -483,6 +483,8 @@
     font:700 15px ui-monospace,monospace; letter-spacing:1px; text-transform:uppercase; }
   #mpNote { text-transform:none; font-weight:400; font-family:inherit; letter-spacing:0; }
   #mpCode:focus, #mpNote:focus, .mp-altrow input:focus { outline:none; border-color:var(--accent); }
+  .mp-final { font-size:12px; color:var(--muted); margin:-2px 0 2px 50px; min-height:16px; }
+  .mp-final b { color:var(--accent); font-family:ui-monospace,monospace; letter-spacing:1px; }
   .mp-alth { font-size:12px; color:var(--muted); margin:14px 0 5px; }
   .mp-altrow { display:flex; align-items:center; gap:8px; margin:5px 0; }
   .mp-altrow input { font-size:14px; }
@@ -606,6 +608,7 @@
       <div class="mp-hd">此字<b>沒有筆畫資料</b>（不在 makemeahanzi）——直接輸入字母碼即可，一樣算進重碼與統計。</div>
       <label class="mp-row"><span>主碼</span>
         <input id="mpCode" spellcheck="false" autocapitalize="characters" placeholder="例：ORM"></label>
+      <div id="mpFinal" class="mp-final"></div>
       <div class="mp-alth">兼容碼（可多個，選填）</div>
       <div id="mpAlts"></div>
       <button id="mpAddAlt" class="mp-add">＋ 加一個兼容碼</button>
@@ -3399,6 +3402,7 @@ function showManual(c) {
   $('#cur').innerHTML = `<b>${c}</b><span class="cplabel" title="此字無筆畫資料，手動取碼">手動取碼</span>`;
   $('#code').textContent = rec.final || rec.code || '—';
   $('#mpCode').value = ((!rec.segments && rec.code) || '').toUpperCase();
+  updateMpFinal();
   $('#mpNote').value = rec.note || '';
   const box = $('#mpAlts'); box.innerHTML = '';
   for (const a of (rec.alts || [])) box.append(mpAltRow(a.code));
@@ -3441,8 +3445,17 @@ async function manualSave(goNext) {
 }
 $('#mpAddAlt').onclick = () => { $('#mpAlts').append(mpAltRow('')); dirty = true; };
 $('#mpSave').onclick = () => manualSave(true);
-$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; dirty = true; };
-$('#mpCode').oninput = () => { dirty = true; };
+$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; updateMpFinal(); dirty = true; };
+function updateMpFinal() {
+  const raw = ($('#mpCode').value || '').trim().toUpperCase();
+  const box = $('#mpFinal');
+  if (!raw || !/^[A-Z]+$/.test(raw)) { box.innerHTML = ''; return; }
+  const f = finalOf(raw);
+  box.innerHTML = f === raw
+    ? `打 <b>${f}</b>`
+    : `主碼打 <b>${f}</b>（超過 5 碼縮短；完整碼 <b>${raw}</b> 也照樣收）`;
+}
+$('#mpCode').oninput = () => { dirty = true; updateMpFinal(); };
 $('#mpNote').oninput = () => { dirty = true; };
 for (const id of ['#mpCode', '#mpNote']) $(id).addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); manualSave(true); }
