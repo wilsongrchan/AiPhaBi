@@ -92,9 +92,12 @@ patch:
             # 數字符號表），不是「仓」內建的九宮格數字鍵（跟這個輸入法的定位不合——
             # 這是形碼，不是拼音，用不到九宮格）。emoji 鍵沒加：翻過「仓」原始碼，
             # emoji 鍵盤那塊目前是空的 TODO（只畫一塊紅色空白），加了也打不出表情。
+            # 寬度 0.19 對齊「仓」內建英文鍵盤的 123 鍵寬度（翻原始碼 smallBottomWidth
+            # 硬編碼 0.19，沒有對應的 YAML 開關可以反過來調它），不然切中英文時
+            # 123 鍵寬度不一樣，後面的鍵位置還是會跳一下。
             - action: { keyboardType: "AiPhaBiSymbols" }
               label: "123"
-              width: { percentage: 0.13 }
+              width: { percentage: 0.19 }
             - action: { keyboardType: alphabetic }
               width: { percentage: 0.13 }
             - action: space
