@@ -469,8 +469,7 @@
   #manualpanel { padding:14px 6px; max-width:540px; }
   #manualpanel.hide { display:none; }
   body.manualmode .glyphrow, body.manualmode .pred, body.manualmode .hintbar,
-  body.manualmode #ref, body.manualmode .altbar, body.manualmode .editor-only,
-  body.manualmode #relpane, body.manualmode #clash { display:none !important; }
+  body.manualmode #ref, body.manualmode .altbar { display:none !important; }
   .mp-hd { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:14px;
     background:var(--card); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
   .mp-hd b { color:var(--ink); }
@@ -641,7 +640,6 @@
     <!-- 重碼提醒放在右欄：它一出現就把中間那一欄往下推，字圖跟著上上下下 -->
     <div class="clash" id="clash" style="display:none"></div>
 
-    <div class="editor-only">
     <div class="lbl">選取中的筆畫</div>
     <div class="sugg" id="sugg"></div>
     <div class="newz" id="newz"></div>
@@ -696,7 +694,6 @@
       <span>約定特例：這個字這樣拆，但不作為其他字的偏旁範本</span>
     </label>
     <textarea id="note" placeholder="例外／約定原則…"></textarea>
-    </div><!-- /.editor-only：手動取碼時整段收起（那些都要靠筆畫） -->
 
     <div class="lbl">官方倉頡（對照）</div>
     <div id="cj"></div>
@@ -3347,10 +3344,7 @@ async function load(c) {
   if (!g) {                             /* 沒有筆畫資料（例：粵語 啲 喺 冇）：改走手動取碼 */
     strokes = []; medians = []; baseStrokes = []; baseMedians = []; drawGlyph();
     document.body.classList.add('manualmode');
-    showManual(c);
-    /* 沒 makemeahanzi ≠ 沒有參考：右欄能載的照樣載入（倉頡、台／港筆順、繁簡，都不靠筆畫） */
-    renderSimp(c); renderCangjie(c); strokeOrder(c);
-    renderQueue(); renderBack();
+    showManual(c); renderQueue(); renderBack();
     return;
   }
   document.body.classList.remove('manualmode');
@@ -3540,20 +3534,15 @@ async function strokeOrder(c) {
   /* 大陸筆順：就是取碼用的這份資料 */
   const prc = el('div', 'so-row');
   const t1 = el('div', 'so-t');
-  if (strokes.length) {
-    t1.innerHTML = `<b>大陸</b><span>PRC · ${strokes.length} 筆（本頁取碼所依據）</span>`;
-    prc.append(t1);
-    prc.append(seq(strokes.map(d => d), '0 0 1024 1024'));
-    prc.querySelectorAll('svg').forEach(sv => {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.setAttribute('transform', Shape.SVG_TF);
-      while (sv.firstChild) g.append(sv.firstChild);
-      sv.append(g);
-    });
-  } else {
-    t1.innerHTML = '<b>大陸</b><span>不在 makemeahanzi，無筆順資料（台／港若有仍會列出）</span>';
-    prc.append(t1);
-  }
+  t1.innerHTML = `<b>大陸</b><span>PRC · ${strokes.length} 筆（本頁取碼所依據）</span>`;
+  prc.append(t1);
+  prc.append(seq(strokes.map(d => d), '0 0 1024 1024'));
+  prc.querySelectorAll('svg').forEach(sv => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', Shape.SVG_TF);
+    while (sv.firstChild) g.append(sv.firstChild);
+    sv.append(g);
+  });
   box.append(prc);
 
   /* 台灣教育部筆順 */
@@ -3561,7 +3550,7 @@ async function strokeOrder(c) {
   const twRow = el('div', 'so-row');
   const t2 = el('div', 'so-t');
   if (tw) {
-    const diff = strokes.length && tw.strokes.length !== strokes.length;
+    const diff = tw.strokes.length !== strokes.length;
     if (diff && !systematic) { variants.push(`台灣 ${tw.strokes.length} 筆`); setVariantBadge(c, variants); }
     t2.innerHTML = `<b>台灣</b><span>教育部標準 · ${tw.strokes.length} 筆` +
       (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
@@ -3584,7 +3573,7 @@ async function strokeOrder(c) {
   hkRow.innerHTML = '';
   const t3 = el('div', 'so-t');
   if (hk) {
-    const diff = strokes.length && hk.strokes.length !== strokes.length;
+    const diff = hk.strokes.length !== strokes.length;
     if (diff && !systematic) { variants.push(`香港 ${hk.strokes.length} 筆`); setVariantBadge(c, variants); }
     t3.innerHTML = `<b>香港</b><span>教育局 · ${hk.strokes.length} 筆` +
       (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
