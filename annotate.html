@@ -470,7 +470,9 @@
   #manualpanel.hide { display:none; }
   body.manualmode .glyphrow, body.manualmode .pred, body.manualmode .hintbar,
   body.manualmode #ref, body.manualmode .altbar, body.manualmode .editor-only,
-  body.manualmode #relpane, body.manualmode #clash { display:none !important; }
+  body.manualmode #clash { display:none !important; }
+  /* 部件欄是 grid 的一個欄軌，不能 display:none（會把其他欄擠到錯的軌）——收成 0 寬即可 */
+  body.manualmode .cols { --colRel:0px; }
   .mp-hd { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:14px;
     background:var(--card); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
   .mp-hd b { color:var(--ink); }
@@ -3348,6 +3350,7 @@ async function load(c) {
     strokes = []; medians = []; baseStrokes = []; baseMedians = []; drawGlyph();
     document.body.classList.add('manualmode');
     showManual(c);
+    $('#related').innerHTML = '';        /* 部件欄雖已收成 0 寬，內容也清掉免得殘留 */
     /* 沒 makemeahanzi ≠ 沒有參考：右欄能載的照樣載入（倉頡、台／港筆順、繁簡，都不靠筆畫） */
     renderSimp(c); renderCangjie(c); strokeOrder(c);
     renderQueue(); renderBack();
