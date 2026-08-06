@@ -3750,7 +3750,8 @@ function renderQueue() {
     if (audit.get(c)) d.title = `${audit.get(c)} 項未處理的警告`;
     d.append(el('div', 'c', c));
     d.append(el('div', 'cd', isDone(c)
-      ? finalOf(codes[c].segments.map(s => s.letter).join('')) : '·'));
+      ? finalOf(codes[c].segments ? codes[c].segments.map(s => s.letter).join('') : (codes[c].code || ''))
+      : '·'));
     d.onclick = () => load(c);
     box.append(d);
   }
