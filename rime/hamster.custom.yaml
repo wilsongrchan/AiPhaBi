@@ -1,22 +1,4 @@
 patch:
-  # 切回中文（愛發筆）鍵的位置比照我們自訂鍵盤（123 鍵右邊、空白鍵左邊）——
-  # 不然切成「仓」內建的英文鍵盤時，這顆鍵預設是排在空白鍵右邊，跟中文模式
-  # 下第四排的鍵位對不起來，切換語言時整排看起來像跳了一下。
-  # 翻過「仓」原始碼（iPhoneKeyboardLayoutProvider.swift bottomActions）確認：
-  # 這個開關只影響「切回自訂鍵盤」那顆鍵在空白鍵左邊還右邊，其餘鍵位不受影響。
-  keyboard:
-    chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: true
-    # 「仓」內建英文鍵盤空白鍵左邊那顆句號鍵，位置跟我們中文鍵盤的逗號鍵（在
-    # 空白鍵右邊）對不上，切中英文那排還是會跳一下。關掉左邊那顆，改開右邊
-    # 這顆，一樣是句號，位置改成跟中文模式的逗號鍵對齊（都在空白鍵右邊、
-    # 換行鍵左邊）。翻過「仓」原始碼（iPhoneChineseKeyboardLayoutProvider.swift
-    # 的 bottomActions）確認：這組開關雖然定義在「中文」那個 provider 裡，但
-    # 目前的方案是中文方案，即使切到內建英文鍵盤畫面，用的還是同一個
-    # provider，所以這裡照樣管得到。
-    displaySpaceLeftButton: false
-    displaySpaceRightButton: true
-    spaceRightButtonProcessByRIME: false
-    keyValueOfSpaceRightButton: "."
   keyboards:
     - name: "愛發筆26鍵"
       isPrimary: true
@@ -109,7 +91,14 @@ patch:
             - action: { keyboardType: "AiPhaBiSymbols" }
               label: "123"
               width: { percentage: 0.19 }
-            - action: { keyboardType: alphabetic }
+            # 中/英切換改去我們自己刻的 AiPhaBiEnglish 鍵盤，不再用「仓」內建的
+            # alphabetic——內建那顆鍵盤的第四排（切回鍵位置、句號鍵位置、123
+            # 鍵寬度）好幾個地方跟這裡對不上，且找不到辦法把它每個細節都調到
+            # 跟這裡一致（翻過原始碼，123 鍵寬度是寫死的，句號鍵那個開關對到
+            # 的畫面又跟預期不符，猜測是「仓」App 版本比公開原始碼新）。自己刻
+            # 一份就能保證每個鍵位都跟中文鍵盤對齊。
+            - action: { keyboardType: "AiPhaBiEnglish" }
+              label: "英"
               width: { percentage: 0.13 }
             - action: space
               width: available
@@ -122,6 +111,106 @@ patch:
                 - direction: up
                   action: { character: { char: "." } }
                   label: "。"
+                  display: true
+            - action: enter
+              width: { percentage: 0.25 }
+
+    # 自己刻的英文鍵盤：純打英文用，不透過 AiPhaBi 的取碼邏輯（q w e r t y…
+    # 剛好也都是 AiPhaBi 的字根字母，若走 character 預設的 Rime 處理，會被當
+    # 成在打形碼，不是打英文字母）。每顆字母鍵都明講 processByRIME: false，
+    # 繞過 Rime，直接照打。大寫靠內建的 shift／KeyboardCase 機制：character
+    # 動作在自訂鍵盤這層本來就會依目前大小寫狀態自動轉換（大寫/小寫），不用
+    # 自己刻一份大寫鍵盤再切來切去，行為跟 iOS 內建鍵盤的 shift 一致（打一個
+    # 字母就變回小寫；雙擊鎖定大寫由框架處理）。第四排排法跟中文鍵盤一模一樣
+    # （123 同寬、切回中文鍵在同個位置、逗號句號同個位置、換行鍵同寬），這正是
+    # 整個自訂英文鍵盤存在的理由——保證切中英文時第四排不再跳動。
+    - name: "AiPhaBiEnglish"
+      rows:
+        - keys:
+            - action: { character: { char: q } }
+              processByRIME: false
+            - action: { character: { char: w } }
+              processByRIME: false
+            - action: { character: { char: e } }
+              processByRIME: false
+            - action: { character: { char: r } }
+              processByRIME: false
+            - action: { character: { char: t } }
+              processByRIME: false
+            - action: { character: { char: y } }
+              processByRIME: false
+            - action: { character: { char: u } }
+              processByRIME: false
+            - action: { character: { char: i } }
+              processByRIME: false
+            - action: { character: { char: o } }
+              processByRIME: false
+            - action: { character: { char: p } }
+              processByRIME: false
+        - keys:
+            # 跟中文鍵盤 A-L 那排一樣的半格縮排手法。
+            - action: { characterMargin: { char: a } }
+              width: available
+              processByRIME: false
+            - action: { character: { char: a } }
+              processByRIME: false
+            - action: { character: { char: s } }
+              processByRIME: false
+            - action: { character: { char: d } }
+              processByRIME: false
+            - action: { character: { char: f } }
+              processByRIME: false
+            - action: { character: { char: g } }
+              processByRIME: false
+            - action: { character: { char: h } }
+              processByRIME: false
+            - action: { character: { char: j } }
+              processByRIME: false
+            - action: { character: { char: k } }
+              processByRIME: false
+            - action: { character: { char: l } }
+              processByRIME: false
+            - action: { characterMargin: { char: l } }
+              width: available
+              processByRIME: false
+        - keys:
+            - action: shift
+              width: { percentage: 0.13 }
+            - action: { character: { char: z } }
+              processByRIME: false
+            - action: { character: { char: x } }
+              processByRIME: false
+            - action: { character: { char: c } }
+              processByRIME: false
+            - action: { character: { char: v } }
+              processByRIME: false
+            - action: { character: { char: b } }
+              processByRIME: false
+            - action: { character: { char: n } }
+              processByRIME: false
+            - action: { character: { char: m } }
+              processByRIME: false
+            - action: backspace
+              width: { percentage: 0.13 }
+        - keys:
+            # 第四排刻意跟中文鍵盤（愛發筆26鍵）的第四排逐鍵對齊寬度與順序。
+            - action: { keyboardType: "AiPhaBiSymbols" }
+              label: "123"
+              width: { percentage: 0.19 }
+            - action: { keyboardType: "愛發筆26鍵" }
+              label: "中"
+              width: { percentage: 0.13 }
+            - action: space
+              width: available
+              label:
+                loadingText: "愛發筆"
+                text: "空格"
+            - action: { character: { char: "," } }
+              processByRIME: false
+              swipe:
+                - direction: up
+                  action: { character: { char: "." } }
+                  processByRIME: false
                   display: true
             - action: enter
               width: { percentage: 0.25 }
