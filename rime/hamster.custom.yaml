@@ -193,8 +193,12 @@ patch:
             - action: backspace
               width: { percentage: 0.13 }
         - keys:
-            # 第四排刻意跟中文鍵盤（愛發筆26鍵）的第四排逐鍵對齊寬度與順序。
-            - action: { keyboardType: "AiPhaBiSymbols" }
+            # 第四排刻意跟中文鍵盤（愛發筆26鍵）的第四排逐鍵對齊寬度與順序。123
+            # 鍵去專門刻的英文符號頁（AiPhaBiSymbolsEN），不是中文那份
+            # AiPhaBiSymbols——共用同一份的話，符號會被標點轉換規則轉成全形
+            # 中文標點，且返回鍵寫死回中文鍵盤，從英文模式點進去再出來會
+            # 「跳回中文」，兩個都是實際發生過的問題。
+            - action: { keyboardType: "AiPhaBiSymbolsEN" }
               label: "123"
               width: { percentage: 0.19 }
             - action: { keyboardType: "愛發筆26鍵" }
@@ -214,6 +218,163 @@ patch:
                   display: true
             - action: enter
               width: { percentage: 0.25 }
+
+    # 英文符號鍵盤第一頁：逐鍵照抄 iOS 英文鍵盤的 123 頁（不是中文那份 123
+    # 頁的排法——iOS 中英文的符號頁本來就不一樣，中文版括號用「」、這裡用
+    # 原始 " ＆，第三排也完全不同，沒有度數符號、沒有反引號）。全部用
+    # character + processByRIME: false，繞過標點轉換規則，打出來就是原始
+    # ASCII，不會變成全形中文標點。
+    - name: "AiPhaBiSymbolsEN"
+      rows:
+        - keys:
+            - action: { character: { char: "1" } }
+              processByRIME: false
+            - action: { character: { char: "2" } }
+              processByRIME: false
+            - action: { character: { char: "3" } }
+              processByRIME: false
+            - action: { character: { char: "4" } }
+              processByRIME: false
+            - action: { character: { char: "5" } }
+              processByRIME: false
+            - action: { character: { char: "6" } }
+              processByRIME: false
+            - action: { character: { char: "7" } }
+              processByRIME: false
+            - action: { character: { char: "8" } }
+              processByRIME: false
+            - action: { character: { char: "9" } }
+              processByRIME: false
+            - action: { character: { char: "0" } }
+              processByRIME: false
+        - keys:
+            - action: { character: { char: "-" } }
+              processByRIME: false
+            - action: { character: { char: "/" } }
+              processByRIME: false
+            - action: { character: { char: ":" } }
+              processByRIME: false
+            - action: { character: { char: ";" } }
+              processByRIME: false
+            - action: { character: { char: "(" } }
+              processByRIME: false
+            - action: { character: { char: ")" } }
+              processByRIME: false
+            - action: { character: { char: "$" } }
+              processByRIME: false
+            - action: { character: { char: "&" } }
+              processByRIME: false
+            - action: { character: { char: "@" } }
+              processByRIME: false
+            - action: { character: { char: "\"" } }
+              processByRIME: false
+        - keys:
+            # 中間 5 顆一定要標明 width: available，理由跟中文符號頁一樣。
+            - action: { keyboardType: "AiPhaBiSymbolsEN_more" }
+              label: "#+="
+              width: { percentage: 0.13 }
+            - action: { character: { char: "." } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "," } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "?" } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "!" } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "'" } }
+              processByRIME: false
+              width: available
+            - action: backspace
+              width: { percentage: 0.13 }
+        - keys:
+            - action: { keyboardType: "AiPhaBiEnglish" }
+              label: "ABC"
+              width: { percentage: 0.19 }
+            - action: space
+              width: available
+              label:
+                loadingText: "愛發筆"
+                text: "空格"
+            - action: enter
+              width: { percentage: 0.19 }
+
+    # 英文符號鍵盤第二頁：逐鍵照抄 iOS 英文鍵盤的 #+= 頁。
+    - name: "AiPhaBiSymbolsEN_more"
+      rows:
+        - keys:
+            - action: { character: { char: "[" } }
+              processByRIME: false
+            - action: { character: { char: "]" } }
+              processByRIME: false
+            - action: { character: { char: "{" } }
+              processByRIME: false
+            - action: { character: { char: "}" } }
+              processByRIME: false
+            - action: { character: { char: "#" } }
+              processByRIME: false
+            - action: { character: { char: "%" } }
+              processByRIME: false
+            - action: { character: { char: "^" } }
+              processByRIME: false
+            - action: { character: { char: "*" } }
+              processByRIME: false
+            - action: { character: { char: "+" } }
+              processByRIME: false
+            - action: { character: { char: "=" } }
+              processByRIME: false
+        - keys:
+            - action: { character: { char: "_" } }
+              processByRIME: false
+            - action: { character: { char: "\\" } }
+              processByRIME: false
+            - action: { character: { char: "|" } }
+              processByRIME: false
+            - action: { character: { char: "~" } }
+              processByRIME: false
+            - action: { character: { char: "<" } }
+              processByRIME: false
+            - action: { character: { char: ">" } }
+              processByRIME: false
+            - action: { symbol: { char: "€" } }
+            - action: { symbol: { char: "£" } }
+            - action: { symbol: { char: "¥" } }
+            - action: { symbol: { char: "•" } }
+        - keys:
+            - action: { keyboardType: "AiPhaBiSymbolsEN" }
+              label: "123"
+              width: { percentage: 0.13 }
+            - action: { character: { char: "." } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "," } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "?" } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "!" } }
+              processByRIME: false
+              width: available
+            - action: { character: { char: "'" } }
+              processByRIME: false
+              width: available
+            - action: backspace
+              width: { percentage: 0.13 }
+        - keys:
+            - action: { keyboardType: "AiPhaBiEnglish" }
+              label: "ABC"
+              width: { percentage: 0.19 }
+            - action: space
+              width: available
+              label:
+                loadingText: "愛發筆"
+                text: "空格"
+            - action: enter
+              width: { percentage: 0.19 }
 
     # 符號鍵盤第一頁：完全比照 iOS 內建鍵盤的 123 頁——數字、常用標點各一排，
     # 第三排是 #+=（切去第二頁）+ 幾個常用符號 + 刪除鍵，不是「仓」內建那種要
