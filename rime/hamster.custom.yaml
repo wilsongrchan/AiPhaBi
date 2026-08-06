@@ -98,7 +98,7 @@ patch:
             # 的畫面又跟預期不符，猜測是「仓」App 版本比公開原始碼新）。自己刻
             # 一份就能保證每個鍵位都跟中文鍵盤對齊。
             - action: { keyboardType: "AiPhaBiEnglish" }
-              label: "英"
+              label: "Eng"
               width: { percentage: 0.13 }
             - action: space
               width: available
