@@ -1,4 +1,11 @@
 patch:
+  # 切回中文（愛發筆）鍵的位置比照我們自訂鍵盤（123 鍵右邊、空白鍵左邊）——
+  # 不然切成「仓」內建的英文鍵盤時，這顆鍵預設是排在空白鍵右邊，跟中文模式
+  # 下第四排的鍵位對不起來，切換語言時整排看起來像跳了一下。
+  # 翻過「仓」原始碼（iPhoneKeyboardLayoutProvider.swift bottomActions）確認：
+  # 這個開關只影響「切回自訂鍵盤」那顆鍵在空白鍵左邊還右邊，其餘鍵位不受影響。
+  keyboard:
+    chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: true
   keyboards:
     - name: "愛發筆26鍵"
       isPrimary: true
