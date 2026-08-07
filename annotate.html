@@ -465,6 +465,32 @@
 
   textarea { width:100%; border:1px solid var(--line); border-radius:7px; background:var(--card);
     color:var(--ink); padding:5px 8px; font:inherit; font-size:13px; min-height:40px; resize:vertical; }
+  /* 手動取碼面板（沒有筆畫資料的字） */
+  #manualpanel { padding:14px 6px; max-width:540px; }
+  #manualpanel.hide { display:none; }
+  body.manualmode .glyphrow, body.manualmode .pred, body.manualmode .hintbar,
+  body.manualmode #ref, body.manualmode .altbar, body.manualmode .editor-only,
+  body.manualmode #clash { display:none !important; }
+  /* 部件欄是 grid 的一個欄軌，不能 display:none（會把其他欄擠到錯的軌）——收成 0 寬即可 */
+  body.manualmode .cols { --colRel:0px; }
+  .mp-hd { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:14px;
+    background:var(--card); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
+  .mp-hd b { color:var(--ink); }
+  .mp-row { display:flex; align-items:center; gap:10px; margin:9px 0; }
+  .mp-row > span { width:40px; font-size:13px; color:var(--muted); }
+  .mp-row input, .mp-altrow input { flex:1; padding:8px 10px; border:1px solid var(--line);
+    border-radius:8px; background:var(--card); color:var(--ink);
+    font:700 15px ui-monospace,monospace; letter-spacing:1px; text-transform:uppercase; }
+  #mpNote { text-transform:none; font-weight:400; font-family:inherit; letter-spacing:0; }
+  #mpCode:focus, #mpNote:focus, .mp-altrow input:focus { outline:none; border-color:var(--accent); }
+  .mp-final { font-size:12px; color:var(--muted); margin:-2px 0 2px 50px; min-height:16px; }
+  .mp-final b { color:var(--accent); font-family:ui-monospace,monospace; letter-spacing:1px; }
+  .mp-alth { font-size:12px; color:var(--muted); margin:14px 0 5px; }
+  .mp-altrow { display:flex; align-items:center; gap:8px; margin:5px 0; }
+  .mp-altrow input { font-size:14px; }
+  .mp-add { font-size:12px; padding:4px 11px; margin-top:2px; }
+  .mp-bar { display:flex; align-items:center; gap:10px; margin-top:18px; flex-wrap:wrap; }
+  .mp-status { font-size:12px; color:var(--ok); }
 </style>
 </head>
 <body>
@@ -577,6 +603,24 @@
       </div>
     </div>
 
+    <!-- 手動取碼：沒有筆畫資料的字（例：粵語 啲 喺 冇），直接輸入字母碼 -->
+    <div id="manualpanel" class="hide">
+      <div class="mp-hd">此字<b>沒有筆畫資料</b>（不在 makemeahanzi）——直接輸入字母碼即可，一樣算進重碼與統計。</div>
+      <label class="mp-row"><span>主碼</span>
+        <input id="mpCode" spellcheck="false" autocapitalize="characters" placeholder="例：ORM"></label>
+      <div id="mpFinal" class="mp-final"></div>
+      <div class="mp-alth">兼容碼（可多個，選填）</div>
+      <div id="mpAlts"></div>
+      <button id="mpAddAlt" class="mp-add">＋ 加一個兼容碼</button>
+      <label class="mp-row"><span>備註</span>
+        <input id="mpNote" spellcheck="false" placeholder="選填"></label>
+      <div class="mp-bar">
+        <button class="primary" id="mpSave">儲存並下一字 ⏎</button>
+        <button id="mpClear">清掉此字的碼</button>
+        <span id="mpStatus" class="mp-status"></span>
+      </div>
+    </div>
+
     <div class="pred">
       <div class="t">
         <span id="predtitle">預測拆解（依你已建立的字根）</span>
@@ -602,6 +646,7 @@
     <!-- 重碼提醒放在右欄：它一出現就把中間那一欄往下推，字圖跟著上上下下 -->
     <div class="clash" id="clash" style="display:none"></div>
 
+    <div class="editor-only">
     <div class="lbl">選取中的筆畫</div>
     <div class="sugg" id="sugg"></div>
     <div class="newz" id="newz"></div>
@@ -656,6 +701,7 @@
       <span>約定特例：這個字這樣拆，但不作為其他字的偏旁範本</span>
     </label>
     <textarea id="note" placeholder="例外／約定原則…"></textarea>
+    </div><!-- /.editor-only：手動取碼時整段收起（那些都要靠筆畫） -->
 
     <div class="lbl">官方倉頡（對照）</div>
     <div id="cj"></div>
@@ -3303,7 +3349,18 @@ async function load(c) {
   cur = c; sel = []; segs = []; skipped = [];
   $('#altsib').innerHTML = '';                 /* 清掉上一個字的連坐／部件兼容碼建議 */
   const g = await Zigen.getGlyph(c);
-  if (!g) { $('#cur').textContent = `${c}：沒有筆畫資料`; strokes = []; medians = []; drawGlyph(); return; }
+  if (!g) {                             /* 沒有筆畫資料（例：粵語 啲 喺 冇）：改走手動取碼 */
+    strokes = []; medians = []; baseStrokes = []; baseMedians = []; drawGlyph();
+    document.body.classList.add('manualmode');
+    showManual(c);
+    $('#related').innerHTML = '';        /* 部件欄雖已收成 0 寬，內容也清掉免得殘留 */
+    /* 沒 makemeahanzi ≠ 沒有參考：右欄能載的照樣載入（倉頡、台／港筆順、繁簡，都不靠筆畫） */
+    renderSimp(c); renderCangjie(c); strokeOrder(c);
+    renderQueue(); renderBack();
+    return;
+  }
+  document.body.classList.remove('manualmode');
+  $('#manualpanel').classList.add('hide');
   splitMode = false; document.body.classList.remove('splitmode');
   baseStrokes = g.strokes; baseMedians = g.medians;
   applySplits((codes[c] && codes[c].splits) || []);    /* 切開的字每次載入重新套用 */
@@ -3326,6 +3383,83 @@ async function load(c) {
   predict();          /* 已取碼的字也要預測：還沒指派的筆畫才有「接下來」可看 */
   renderComponentAltSuggestions(c);   /* 部件已有兼容碼？提醒把它套到這個字 */
 }
+
+/* ---------- 手動取碼（沒有筆畫資料的字，例：粵語 啲 喺 冇） ----------
+   直接輸入字母碼與兼容碼，存成 codes[字] = {code, final, alts, manual}（沒有 segments）。
+   build_rime.py、統計、重碼分析都只看 code/final/alts，所以照樣算得進去。 */
+function mpAltRow(code) {
+  const row = el('div', 'mp-altrow');
+  const inp = el('input'); inp.value = (code || '').toUpperCase();
+  inp.placeholder = '兼容碼'; inp.spellcheck = false;
+  inp.oninput = () => { dirty = true; };
+  const del = el('button', '', '✕'); del.title = '刪掉這個兼容碼';
+  del.onclick = () => { row.remove(); dirty = true; };
+  row.append(inp, del);
+  return row;
+}
+function showManual(c) {
+  const rec = codes[c] || {};
+  $('#cur').innerHTML = `<b>${c}</b><span class="cplabel" title="此字無筆畫資料，手動取碼">手動取碼</span>`;
+  $('#code').textContent = rec.final || rec.code || '—';
+  $('#mpCode').value = ((!rec.segments && rec.code) || '').toUpperCase();
+  updateMpFinal();
+  $('#mpNote').value = rec.note || '';
+  const box = $('#mpAlts'); box.innerHTML = '';
+  for (const a of (rec.alts || [])) box.append(mpAltRow(a.code));
+  $('#mpStatus').textContent = '';
+  $('#manualpanel').classList.remove('hide');
+}
+async function manualSave(goNext) {
+  const st = $('#mpStatus');
+  const bad = m => { st.style.color = 'var(--bad)'; st.textContent = m; };
+  const raw = $('#mpCode').value.trim().toUpperCase();
+  if (raw && !/^[A-Z]+$/.test(raw)) return bad('主碼只能是英文字母（A–Z）');
+  const alts = [];
+  for (const inp of $('#mpAlts').querySelectorAll('input')) {
+    const v = inp.value.trim().toUpperCase();
+    if (!v) continue;
+    if (!/^[A-Z]+$/.test(v)) return bad('兼容碼只能是英文字母（A–Z）');
+    if (v !== raw && !alts.some(a => a.code === v)) alts.push({ code: v });
+  }
+  const rec = codes[cur] || (codes[cur] = {});
+  delete rec.segments; delete rec.skipped;
+  if (raw) { rec.code = raw; rec.final = finalOf(raw); rec.manual = true; }
+  else { delete rec.code; delete rec.final; delete rec.manual; }
+  if (alts.length) rec.alts = alts; else delete rec.alts;
+  const note = $('#mpNote').value.trim();
+  if (note) rec.note = note; else delete rec.note;
+  /* 全空 → 這個字乾脆整筆拿掉，不留空殼 */
+  if (!rec.code && !(rec.alts && rec.alts.length) && !rec.note && !rec.display &&
+      !(rec.variants && rec.variants.length)) delete codes[cur];
+  st.style.color = 'var(--muted)'; st.textContent = '儲存中…';
+  const r = await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
+  if (r && r.reloaded) return;
+  if (!r.ok) return bad('儲存失敗');
+  dirty = false; st.style.color = 'var(--ok)'; st.textContent = '已儲存 ✓';
+  renderQueue();
+  if (goNext) {
+    const p = pool();
+    const next = filter === 'todo' ? p.find(c => !isDone(c)) : p[(p.indexOf(cur) + 1) % p.length];
+    if (next && next !== cur) load(next);
+  }
+}
+$('#mpAddAlt').onclick = () => { $('#mpAlts').append(mpAltRow('')); dirty = true; };
+$('#mpSave').onclick = () => manualSave(true);
+$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; updateMpFinal(); dirty = true; };
+function updateMpFinal() {
+  const raw = ($('#mpCode').value || '').trim().toUpperCase();
+  const box = $('#mpFinal');
+  if (!raw || !/^[A-Z]+$/.test(raw)) { box.innerHTML = ''; return; }
+  const f = finalOf(raw);
+  box.innerHTML = f === raw
+    ? `打 <b>${f}</b>`
+    : `主碼打 <b>${f}</b>（超過 5 碼縮短；完整碼 <b>${raw}</b> 也照樣收）`;
+}
+$('#mpCode').oninput = () => { dirty = true; updateMpFinal(); };
+$('#mpNote').oninput = () => { dirty = true; };
+for (const id of ['#mpCode', '#mpNote']) $(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); manualSave(true); }
+});
 
 /* ---------- 官方倉頡對照 ----------
    只是拿來比較「別人怎麼拆」，不影響你的取碼。倉頡 24 個字母各對應一個字根，
@@ -3422,15 +3556,20 @@ async function strokeOrder(c) {
   /* 大陸筆順：就是取碼用的這份資料 */
   const prc = el('div', 'so-row');
   const t1 = el('div', 'so-t');
-  t1.innerHTML = `<b>大陸</b><span>PRC · ${strokes.length} 筆（本頁取碼所依據）</span>`;
-  prc.append(t1);
-  prc.append(seq(strokes.map(d => d), '0 0 1024 1024'));
-  prc.querySelectorAll('svg').forEach(sv => {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('transform', Shape.SVG_TF);
-    while (sv.firstChild) g.append(sv.firstChild);
-    sv.append(g);
-  });
+  if (strokes.length) {
+    t1.innerHTML = `<b>大陸</b><span>PRC · ${strokes.length} 筆（本頁取碼所依據）</span>`;
+    prc.append(t1);
+    prc.append(seq(strokes.map(d => d), '0 0 1024 1024'));
+    prc.querySelectorAll('svg').forEach(sv => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', Shape.SVG_TF);
+      while (sv.firstChild) g.append(sv.firstChild);
+      sv.append(g);
+    });
+  } else {
+    t1.innerHTML = '<b>大陸</b><span>不在 makemeahanzi，無筆順資料（台／港若有仍會列出）</span>';
+    prc.append(t1);
+  }
   box.append(prc);
 
   /* 台灣教育部筆順 */
@@ -3438,7 +3577,7 @@ async function strokeOrder(c) {
   const twRow = el('div', 'so-row');
   const t2 = el('div', 'so-t');
   if (tw) {
-    const diff = tw.strokes.length !== strokes.length;
+    const diff = strokes.length && tw.strokes.length !== strokes.length;
     if (diff && !systematic) { variants.push(`台灣 ${tw.strokes.length} 筆`); setVariantBadge(c, variants); }
     t2.innerHTML = `<b>台灣</b><span>教育部標準 · ${tw.strokes.length} 筆` +
       (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
@@ -3461,7 +3600,7 @@ async function strokeOrder(c) {
   hkRow.innerHTML = '';
   const t3 = el('div', 'so-t');
   if (hk) {
-    const diff = hk.strokes.length !== strokes.length;
+    const diff = strokes.length && hk.strokes.length !== strokes.length;
     if (diff && !systematic) { variants.push(`香港 ${hk.strokes.length} 筆`); setVariantBadge(c, variants); }
     t3.innerHTML = `<b>香港</b><span>教育局 · ${hk.strokes.length} 筆` +
       (diff ? ' <span style="color:var(--warn)">筆數與大陸不同</span>' : '') + '</span>';
@@ -3586,7 +3725,7 @@ function markQueue(ch) {
 }
 
 /* ---------- queue ---------- */
-const isDone = c => !!(codes[c] && codes[c].segments && codes[c].segments.length);
+const isDone = c => !!(codes[c] && ((codes[c].segments && codes[c].segments.length) || codes[c].code));
 /* 完整碼長度分桶：1–5，超過 5 的（會被縮短）歸「5+」 */
 function codeLenBucket(c) {
   const r = codes[c];
@@ -3596,7 +3735,8 @@ function codeLenBucket(c) {
 }
 function pool() {
   const q = $('#search').value.trim();
-  if (q) return [...q].filter(c => order.includes(c));
+  /* 搜尋／跳到某字：字頻表裡沒有的字也放行（例：粵語 啲 喺 冇），才進得去手動取碼 */
+  if (q) return [...q].filter(c => /[㐀-鿿豈-﫿]/.test(c));
   if (filter === 'all') return order.slice();
   if (filter === 'done') {
     const done = order.filter(isDone);
@@ -3623,7 +3763,8 @@ function renderQueue() {
     if (audit.get(c)) d.title = `${audit.get(c)} 項未處理的警告`;
     d.append(el('div', 'c', c));
     d.append(el('div', 'cd', isDone(c)
-      ? finalOf(codes[c].segments.map(s => s.letter).join('')) : '·'));
+      ? finalOf(codes[c].segments ? codes[c].segments.map(s => s.letter).join('') : (codes[c].code || ''))
+      : '·'));
     d.onclick = () => load(c);
     box.append(d);
   }
