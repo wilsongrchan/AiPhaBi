@@ -3,7 +3,7 @@
 # 完整碼一律接受；alts 是手動收的兼容碼。
 ---
 name: aiphabi
-version: "2026.08.06"
+version: "2026.08.07"
 sort: by_weight
 columns:
   - text
@@ -33,6 +33,7 @@ columns:
 籌	aafjioa	100098346
 筠	aafsi	100095541
 篆	aagjk	100096694
+箕	aahev	100096461
 簧	aahufv	100097206
 簧	aahuv	100097206
 築	aaiat	100118698
@@ -69,6 +70,7 @@ columns:
 笛	aauf	100097593
 筒	aauo	100098131
 箭	aavdn	100098437
+筲	aawd	100095325
 簿	aawda	100097564
 簿	aawdqa	100097564
 篷	aaxez	100097185
@@ -258,6 +260,7 @@ columns:
 暈	bubt	100098538
 暉	bubt	100096942
 晖	buft	100092127
+禺	bug	100095760
 愚	bugw	100097810
 遇	bugz	100209151
 映	buk	100108557
@@ -270,6 +273,7 @@ columns:
 曳	bx	100096356
 晦	byoi	100096983
 旨	cb	100097605
+匣	cbj	100096310
 匽	cblj	100093000
 比	cc	100239917
 巨	cc	100118899
@@ -333,6 +337,8 @@ columns:
 司	co	100379755
 頤	cojdv	100096780
 區	cooo	100359882
+鷗	cooojsem	100096343
+鷗	cooom	100096343
 毆	cooonx	100096729
 歐	cooosy	100129128
 毆	cooox	100096729
@@ -445,6 +451,7 @@ columns:
 臘	dllll	100097883
 臘	dllloxlilil	100097883
 腦	dlllx	100099403
+県	dlm	100093625
 縣	dlmjgm	100299871
 懸	dlmjgmw	100108310
 縣	dlmjm	100299871
@@ -676,6 +683,7 @@ columns:
 埔	fdq	100107174
 責	fdv	100209186
 靜	fdwej	100119102
+臼	fe	100096137
 毀	fefnx	100138272
 毁	feinx	100092698
 兒	fejl	100109734
@@ -739,6 +747,7 @@ columns:
 培	fivo	100098920
 牙	fj	100109092
 者	fjb	100329903
+埤	fjbjt	100095057
 煮	fjbm	100128029
 都	fjbp	100389960
 老	fjc	100269866
@@ -755,6 +764,7 @@ columns:
 圾	fjx	100148032
 雅	fjyif	100118966
 垮	fkis	100097164
+埼	fkoj	100092968
 正	fl	100369835
 焉	flsm	100097152
 鄢	flsmp	100094951
@@ -797,12 +807,14 @@ columns:
 塘	freo	100107868
 壢	frjtjttl	100094860
 壢	frjtl	100094860
+墟	frnv	100096239
 馨	frnxb	100096903
 聲	frnxe	100199636
 馨	frnxjtb	100096903
 聲	frnxne	100199636
 垢	fro	100097264
 坡	frx	100098260
+坂	frx	100096045
 舉	fsfjh	100209253
 譽	fsfjo	100098216
 舉	fsfjrh	100209253
@@ -824,6 +836,7 @@ columns:
 轻	ftjqi	100091196
 轨	ftjz	100091214
 址	ftl	100238415
+埗	ftlm	100094281
 辑	ftone	100091175
 软	ftsy	100091208
 填	ftuev	100098507
@@ -895,6 +908,8 @@ columns:
 態	gdccw	100239480
 卿	gegp	100097252
 至	gf	100409694
+臻	gfejrjt	100095855
+臻	gfejt	100095855
 续	gfik	100091705
 绪	gfjb	100091707
 到	gfn	100569981
@@ -908,6 +923,8 @@ columns:
 缘	ggjk	100091664
 幾	ggjqq	100209816
 幾	ggjqxq	100209816
+畿	ggotq	100095937
+畿	ggotxq	100095937
 幾	ggyxq	100209816
 纽	ghi	100091750
 红	gi	100091774
@@ -924,6 +941,7 @@ columns:
 彔	gk	100093982
 参	gke	100092444
 剝	gkn	100097678
+糸	gm	100093988
 糹	gm	100093504
 約	gma	100409395
 給	gmao	100159822
@@ -1579,6 +1597,7 @@ columns:
 亡	il	100198837
 氓	ilclx	100096955
 望	ilde	100169572
+巠	illli	100093108
 勁	illlicj	100148606
 頸	illlijdv	100107966
 勁	illlj	100148606
@@ -2068,6 +2087,7 @@ columns:
 造	jhoz	100229556
 牠	jhpl	100095913
 物	jhsj	100309845
+牯	jhto	100094755
 犧	jhvejtsxq	100097484
 犧	jhveq	100097484
 牧	jhx	100098204
@@ -2164,6 +2184,8 @@ columns:
 砌	jofp	100096919
 研	joh	100109559
 碟	johlt	100097603
+磺	johufv	100096143
+磺	johuv	100096143
 磅	joivs	100096619
 磅	joivuis	100096619
 碎	joiyt	100098585
@@ -2338,6 +2360,8 @@ columns:
 船	juino	100099112
 般	juinx	100099386
 盤	juinxmi	100489365
+艋	juipi	100094560
+艋	juipmi	100094560
 舵	juiqc	100096978
 舵	juiquc	100096978
 舰	juiujl	100091589
@@ -2872,6 +2896,7 @@ columns:
 霸	miihotd	100138493
 霽	miiid	100095094
 雲	miiig	100119463
+雯	miiix	100096235
 霽	miiiypkd	100095094
 霏	miije	100096256
 霏	miijee	100096256
@@ -2951,6 +2976,7 @@ columns:
 置	mtuei	100389402
 慎	mtuev	100097967
 署	mtxb	100448025
+尙	muo	100093347
 悅	mvojl	100097757
 悦	mvojl	100092228
 憐	mvtah	100097785
@@ -3113,6 +3139,7 @@ columns:
 蝴	ogtod	100096924
 蠅	ogute	100097127
 蠅	ogutlee	100097127
+蚋	oguy	100094093
 蟻	ogvejkxq	100097483
 蟻	ogveq	100097483
 唆	ogvx	100096407
@@ -3193,6 +3220,7 @@ columns:
 回	oo	100469907
 吕	oo	100092752
 單	oobt	100639808
+鄲	oobtp	100096139
 戰	oobtq	100409714
 戰	oobtxq	100409714
 圓	oodv	100169021
@@ -3389,6 +3417,7 @@ columns:
 史	ox	100179447
 毋	ox	100096676
 囿	oxd	100095559
+咚	oxi	100096294
 图	oxi	100092389
 咗	oxi	100000001
 咯	oxo	100098036
@@ -3500,6 +3529,7 @@ columns:
 忍	pqw	100138695
 孓	pr	100094449
 孤	prgr	100098646
+阪	prx	100095668
 陷	psfe	100138461
 陶	psyw	100098213
 陳	ptb	100299020
@@ -3666,6 +3696,8 @@ columns:
 寢	qukeux	100097316
 寢	qukex	100097316
 寄	qukoj	100118562
+寮	qukvbm	100096464
+寮	qukvm	100096464
 安	qulj	100659799
 案	quljt	100409566
 賓	qumdv	100108541
@@ -3838,6 +3870,7 @@ columns:
 屋	rgf	100198683
 瘤	rgpot	100097842
 瓜	rgr	100108654
+厝	rhb	100094902
 厲	rhbug	100098328
 勵	rhbugcj	100108219
 勵	rhbuj	100108219
@@ -4138,11 +4171,13 @@ columns:
 魚	sotm	100169337
 魯	sotmb	100098865
 鯉	sotmbf	100096559
+鰂	sotmdvn	100093076
 鮮	sotmf	100128797
 鯉	sotmf	100096559
 鱗	sotmh	100097273
 鯨	sotmiom	100097096
 鯨	sotmm	100097096
+鰂	sotmn	100093076
 魷	sotmq	100095748
 鮑	sotmsz	100096907
 鮮	sotmvf	100128797
@@ -4278,6 +4313,7 @@ columns:
 柳	tgp	100098383
 榴	tgpot	100097087
 梭	tgvx	100097340
+卉	th	100095964
 模	thbk	100369518
 賁	thdv	100095460
 標	them	100269678
@@ -4452,6 +4488,7 @@ columns:
 柬	tv	100096006
 樣	tveqk	100409887
 样	tvf	100092731
+樽	tvhia	100095719
 梯	tvsj	100098186
 楼	tvtlj	100092082
 忐	tw	100095241
@@ -4856,8 +4893,10 @@ columns:
 汗	wf	100098578
 清	wfd	100299693
 漬	wfdv	100096626
+潟	wfesm	100094935
 澆	wfffjl	100097299
 澆	wfffl	100097299
+潟	wffsm	100094935
 法	wfg	101049925
 濤	wfjia	100097725
 濤	wfjioa	100097725
@@ -4959,6 +4998,7 @@ columns:
 決	wjk	100289536
 沃	wjk	100107835
 涵	wjku	100107787
+浜	wjkv	100095554
 峨	wjkxq	100096926
 光	wjl	100249751
 耀	wjljf	100117913
@@ -4987,6 +5027,7 @@ columns:
 妥	wlj	100148073
 汝	wlj	100096870
 洳	wljo	100104108
+涇	wllli	100096446
 沛	wm	100096806
 爵	wmega	100097841
 澤	wmevf	100158504
@@ -5022,6 +5063,7 @@ columns:
 澀	wpjpl	100097363
 池	wpl	100128810
 沼	wpo	100096562
+澗	wppb	100096482
 潤	wppe	100098704
 瀾	wpptv	100107035
 澀	wpqpl	100097363
@@ -5030,6 +5072,7 @@ columns:
 亂	wpugl	100229260
 辭	wpugxivf	100098678
 亂	wpugxl	100229260
+涌	wpuh	100094282
 湧	wpuhcj	100137928
 湧	wpuhj	100137928
 梁	wpvt	100098561
@@ -5053,9 +5096,11 @@ columns:
 溶	wquvyo	100098062
 泥	wrc	100098668
 湄	wrdi	100096134
+嵋	wrdi	100095628
 岸	wrf	100338521
 涯	wrff	100138127
 崖	wrff	100097265
+渥	wrgf	100095522
 澱	wrhvnx	100097480
 澱	wrhvx	100097480
 渡	wrhx	100098335
@@ -5107,6 +5152,8 @@ columns:
 沾	wto	100097607
 沽	wto	100097017
 湖	wtod	100099153
+瀨	wtopdv	100094520
+瀨	wtopv	100094520
 漱	wtosy	100096767
 滷	wtoxq	100096979
 滷	wtoxqqqq	100096979
@@ -5151,6 +5198,7 @@ columns:
 溢	wvvmi	100097698
 溯	wvwd	100097006
 浴	wvyo	100098006
+峪	wvyo	100095645
 嶸	wvyvt	100095417
 淡	wvyvy	100098782
 嶸	wvyvyut	100095417
@@ -5322,6 +5370,7 @@ columns:
 伊	yej	100208845
 锦	yejbm	100090973
 铁	yejiy	100091065
+俸	yejrh	100096590
 钟	yeq	100091099
 针	yet	100091119
 儘	yetmi	100098900
@@ -5400,9 +5449,11 @@ columns:
 鍾	yfvjf	100097631
 鑽	yfvjfjljfjldv	100098348
 錘	yfvji	100097733
+鉄	yfvjiy	100093527
 錦	yfvjm	100098277
 錘	yfvjthi	100097733
 鑽	yfvjv	100098348
+鉄	yfvjy	100093527
 鑼	yfvmf	100097091
 鑼	yfvmgmyif	100097091
 鈔	yfvmj	100097364
@@ -5525,6 +5576,7 @@ columns:
 僚	ykvbm	100096956
 俠	ykyy	100118404
 似	ylqy	100109493
+佤	ylzq	100095621
 舞	ymah	100109073
 儒	ymiijm	100097819
 儒	ymiim	100097819
@@ -5645,6 +5697,7 @@ columns:
 乙	z	100098282
 导	za	100092318
 九	zj	100209278
+氹	zk	100094204
 飞	zk	100090763
 卂	zt	100092996
 迅	ztz	100108263
