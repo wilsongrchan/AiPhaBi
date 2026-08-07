@@ -534,9 +534,10 @@
       <span style="font-size:10px;color:var(--muted)">排序</span>
       <button data-sort="freq" class="on" title="預設字頻（makemeahanzi／rime-essay）">字頻</button>
       <button data-sort="news" title="台港新聞當日字頻：實際最常讀到的缺字排前">新聞</button>
-      <button data-sort="surname" title="兩岸三地常見姓氏用字">姓氏</button>
-      <button data-sort="given" title="常見人名（名字）用字">人名</button>
+      <button data-sort="name" title="兩岸三地常見姓氏＋人名（名字）用字">姓名</button>
       <button data-sort="simp" title="簡體字：中國大陸／星馬等地新聞最常用、你還沒取碼的簡體專屬字排前">簡體</button>
+      <button data-sort="binom" title="連綿詞用字：寂寞、葡萄這種字，通常要兩個字一起出現才有意義，單獨那一個字字頻不高、容易被排到很後面——這裡手動列出常見連綿詞，把還沒取碼的那些字排前面優先取">連綿詞</button>
+      <button data-sort="place" title="地名用字：國家與首都、香港／台北／北上廣深地鐵站名、中台日韓大城市與一級行政區、香港台北市區與主要街道、東京地鐵站名（含日漢字）">地名</button>
     </div>
     <div class="lenfilter" id="lenfilter" title="依碼長篩選已取碼的字（5＝剛好五碼，5+＝完整碼超過五碼、被縮短）" style="display:none">
       <span style="font-size:10px;color:var(--muted)">碼長</span>
@@ -795,8 +796,8 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
-let orderings = { news: [], surname: [], given: [] };   /* 未取碼佇列的替代排序來源 */
-let queueSort = localStorage.getItem('aiphabi-qsort') || 'freq';  /* freq｜news｜surname｜given｜simp */
+let orderings = { news: [], name: [], simp: [], binom: [], place: [] };   /* 未取碼佇列的替代排序來源 */
+let queueSort = localStorage.getItem('aiphabi-qsort') || 'freq';  /* freq｜news｜name｜simp｜binom｜place */
 let lenFilter = localStorage.getItem('aiphabi-lenfilter') || 'all';  /* 已取碼依碼長篩選：all｜1..5｜5+ */
 let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
 let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
@@ -3743,7 +3744,7 @@ function pool() {
     /* 依碼長篩選：完整碼長度分 1–5 與 5+（完整碼超過 5、被縮短成前 4＋末 1 的） */
     return lenFilter === 'all' ? done : done.filter(c => codeLenBucket(c) === lenFilter);
   }
-  /* 未取碼：預設照字頻；選了別的排序來源（新聞／姓氏／人名）就把那批字排到最前，
+  /* 未取碼：預設照字頻；選了別的排序來源（新聞／姓名／地名…）就把那批字排到最前，
      其餘仍照字頻 —— 名單只會重排，不會漏字。 */
   const todo = order.filter(c => !isDone(c));
   const src = orderings[queueSort];
@@ -4241,7 +4242,7 @@ for (const b of document.querySelectorAll('.filters button'))
     updateQueueControls();
     renderQueue();
   };
-/* 未取碼名單的排序來源：字頻／新聞／姓氏／人名／簡體 */
+/* 未取碼名單的排序來源：字頻／新聞／姓名／簡體／連綿詞／地名 */
 for (const b of document.querySelectorAll('.sortby button')) {
   b.classList.toggle('on', b.dataset.sort === queueSort);
   b.onclick = () => {
@@ -4326,12 +4327,13 @@ Promise.all([
   fetchStamp(),
   fetch('/api/ids').then(r => r.json()).catch(() => ({})),   /* 部件拆分（相關字用） */
   fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
-  fetch('/api/orderings').then(r => r.json()).catch(() => ({ news: [], surname: [], given: [] })),
+  fetch('/api/orderings').then(r => r.json()).catch(() => ({ news: [], name: [], simp: [], binom: [], place: [] })),
 ]).then(async ([f, c, z, rl, cj, ln, s, id, oc, ords]) => {
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
-  orderings = { news: (ords && ords.news) || [], surname: (ords && ords.surname) || [],
-                given: (ords && ords.given) || [], simp: (ords && ords.simp) || [] };
+  orderings = { news: (ords && ords.news) || [], name: (ords && ords.name) || [],
+                simp: (ords && ords.simp) || [], binom: (ords && ords.binom) || [],
+                place: (ords && ords.place) || [] };
   opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
