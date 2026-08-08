@@ -236,11 +236,15 @@ function draw(data){
   function hide(){cross.classList.remove('on');tip.classList.remove('on');}
   svg.addEventListener('pointermove',show);svg.addEventListener('pointerdown',show);svg.addEventListener('pointerleave',hide);
 
+  const simp=data.totalSimp||0, trad=data.totalTrad||0, inherited=data.total-simp-trad;
   const tiles=[
-    {k:'不重複字',v:data.totalUniq.toLocaleString(),s:'繁簡算一個',hl:true},
+    {k:'不重複字',v:data.totalUniq.toLocaleString(),s:'＝繁體字＋傳承字',hl:true},
     {k:'碼表條數',v:data.total.toLocaleString(),s:'繁簡各算'},
     {k:'最高單日',v:'+'+best.addUniq,s:best.date.slice(5),hl:true},
     {k:'活躍天數',v:days.length,s:'天有提交'},
+    {k:'繁體字',v:trad.toLocaleString(),s:'有對應簡體字，如 國魚雲'},
+    {k:'簡體字',v:simp.toLocaleString(),s:'簡體專屬，如 国鸟'},
+    {k:'傳承字',v:inherited.toLocaleString(),s:'如人天后，三者加總＝碼表條數'},
   ];
   const scb=$('#stats');scb.innerHTML='';
   tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'');

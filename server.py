@@ -156,20 +156,41 @@ def _load_s2t():
         return {}
 
 
-def _counts(text, s2t):
-    """回傳 (另計, 不另計)：不另計＝把「繁體已取碼」的那個簡體 twin 不重複算。"""
+def _load_t2s():
+    try:
+        return json.loads(OPENCC.read_text("utf-8")).get("t2s", {})
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _load_simp_only(s2t):
+    """簡體專屬字（跟 simp_only_data／build_rime.py 不打簡體同一份定義）：
+    s2t 有列、但不是歸併字（后／干／咸…本身也是獨立傳承字）的那些。"""
+    dual_use = set()
+    if DUAL_USE_MERGED.exists():
+        try:
+            dual_use = set(json.loads(DUAL_USE_MERGED.read_text("utf-8")).get("chars", []))
+        except json.JSONDecodeError:
+            pass
+    return {c for c in s2t if c not in dual_use}
+
+
+def _counts(text, simp_only):
+    """回傳 (另計, 不另計)：不另計＝繁體字＋傳承字（總數扣掉簡體專屬字）。
+    簡體專屬字才是「另外多打的」——傳承字（后／云／咸…）本身就是獨立的字，
+    不是簡體，不能扣。"""
     try:
         d = json.loads(text)
     except (json.JSONDecodeError, TypeError):
         return None
     coded = {ch for ch, r in d.items() if isinstance(r, dict) and r.get("code")}
-    # 簡體字，而且它的繁體對應也取過碼 → 那是同一個字，不另計
-    dup = sum(1 for s in coded if s in s2t and any(t in coded for t in s2t[s]))
-    return len(coded), len(coded) - dup
+    simp = sum(1 for c in coded if c in simp_only)
+    return len(coded), len(coded) - simp
 
 
 def progress_data():
     s2t = _load_s2t()
+    simp_only = _load_simp_only(s2t)
     try:
         head = _git("rev-parse", "HEAD")
         if head.returncode != 0:
@@ -190,7 +211,7 @@ def progress_data():
             if len(parts) < 2:
                 continue
             h, date = parts[0], parts[1]
-            c = _counts(_git("show", f"{h}:data/codes.json").stdout, s2t)
+            c = _counts(_git("show", f"{h}:data/codes.json").stdout, simp_only)
             if c is None:
                 continue
             if date not in day_last:
@@ -205,9 +226,29 @@ def progress_data():
         _prog_cache["head"], _prog_cache["days"] = head, days
 
     # 目前（含還沒提交的）取碼字數：直接讀工作區的 codes.json
-    cur = _counts(CODES.read_text("utf-8"), s2t) if CODES.exists() else None
+    cur = _counts(CODES.read_text("utf-8"), simp_only) if CODES.exists() else None
     raw, uniq = cur or (days[-1]["cum"] if days else 0, days[-1]["cumUniq"] if days else 0)
-    return {"days": days, "total": raw, "totalUniq": uniq}
+
+    # 繁體／簡體／傳承字各取了多少：只看現在工作區狀態（不進歷史曲線，沒必要跟著
+    # 累計圖那套快取邏輯）。三者互斥、加總＝total：
+    #   簡體字＝simp_only（純簡化字，跟「碼表分析」排除簡體同一份白名單）
+    #   繁體字＝t2s 有列的（本身有對應簡體字的傳承正字，如 國／魚／雲）
+    #   傳承字＝其餘（人／三／天／牛這種本來就沒被簡化過的字，加上 云／后／干／咸
+    #   這種本身獨立、只是剛好被拿去當簡化目標的傳承字——見 dual_use_merged.json）
+    t2s = _load_t2s()
+    total_simp = total_trad = 0
+    if CODES.exists():
+        try:
+            coded_map = json.loads(CODES.read_text("utf-8"))
+            coded_chars = {c for c, r in coded_map.items()
+                           if isinstance(r, dict) and r.get("code")}
+            total_simp = sum(1 for c in coded_chars if c in simp_only)
+            total_trad = sum(1 for c in coded_chars if c in t2s)
+        except json.JSONDecodeError:
+            pass
+
+    return {"days": days, "total": raw, "totalUniq": uniq,
+            "totalSimp": total_simp, "totalTrad": total_trad}
 
 
 def variants_data():
