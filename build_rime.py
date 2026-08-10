@@ -598,6 +598,8 @@ Weasel／fcitx5-rime 多半內建）：
             return
         for f in ("aiphabi.schema.yaml", "aiphabi.dict.yaml"):
             shutil.copy(OUT / f, RIME_USER_DIR / f)
+        if (OUT / "aiphabi_plus.schema.yaml").exists():   # 二合一（形碼＋拼音）實驗方案
+            shutil.copy(OUT / "aiphabi_plus.schema.yaml", RIME_USER_DIR / "aiphabi_plus.schema.yaml")
         if (DATA / "predict.db").exists():    # 智能聯想資料庫（官方 librime-predict）
             shutil.copy(DATA / "predict.db", RIME_USER_DIR / "predict.db")
         (RIME_USER_DIR / "lua").mkdir(exist_ok=True)
