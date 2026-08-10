@@ -1,6 +1,6 @@
 # 愛發筆 · Rime 輸入法
 
-由 `python3 build_rime.py` 產生。共 **4852 字**、**6259 條碼**
+由 `python3 build_rime.py` 產生。共 **4852 字**、**6260 條碼**
 （主碼 + 完整碼 + 手動收的兼容碼）。
 
 ## macOS（Squirrel 鼠鬚管）
@@ -53,7 +53,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 `"` 與 `'` 是成對的：連按會輪流出「」與『』的左右半邊。
 
-## 目前的重碼（270 組）
+## 目前的重碼（268 組）
 
 裝之前先知道哪些字要多按一次選字鍵：
 
@@ -61,12 +61,14 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `jk` → 夭豕夬长
 * `nx` → 收攸凤风
 * `sj` → 引弔乃勿
+* `xq` → 丈戈叉处
 * `cj` → 力刀尸
 * `cl` → 已巳乜
 * `ihi` → 西亞酉
 * `in` → 井亢亓
 * `jbm` → 師帥帛
 * `jf` → 午壬乇
+* `jq` → 不入卜
 * `jtn` → 利禿秃
 * `krto` → 哲掂据
 * `krx` → 版披扳
@@ -74,14 +76,12 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `op` → 叨叩囝
 * `ot` → 田呆叶
 * `oxi` → 咚图咗
+* `qk` → 永飞衤
 * `qr` → 戶广户
 * `tbt` → 卓桌棵
 * `tf` → 卡杆杜
 * `to` → 束占古
 * `tq` → 寸朴术
-* `tx` → 支枚权
-* `uh` → 用曲冊
-* `uy` → 內内贝
 
 ## iOS（仓／Hamster）
 
