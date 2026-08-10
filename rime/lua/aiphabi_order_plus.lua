@@ -8,11 +8,13 @@
 --   每個候選的有效分數 = max(自己的衰減選過次數, floor)；先比這個，再比常用度。
 --   所以簡碼／exact 預設在最前，但你對某字（含拼音詞，如 BD→病毒）近期猛選、
 --   衝過門檻，它就會蓋過去；停一陣子衰減掉，又自動讓回來。
--- 其餘候選（形碼補全＋容錯＋拼音）排在一起：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
---   而拼音引擎本來就用真語料把詞排好了（武俠 排 無性 前、冷讀音 於 排後），所以：
---     * 拼音候選 —— 保留拼音自己的名次（等於用真詞頻），第 k 名給位置分 1-(k-.5)/P。
---     * 形碼候選（補全／容錯，多半單字）—— 給「字頻百分位」當位置分（愛 這種常用字排前面）。
---   兩邊照位置分一起排。這樣常用形碼字插到拼音高頻詞之間，罕見形碼字沉到後面。
+-- 其餘候選（形碼補全＋容錯＋拼音）混在同一池，照「常用度分數」排，分數是同一把尺：
+--     * 單字 —— 字頻（data.freq）。
+--     * 多字詞 —— 真語料詞頻（data.wordfreq，essay 校準到單字同尺）；沒收錄的罕詞打折。
+--   字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），所以詞一律查真詞頻。
+--   唯一保險：拼音的冷讀音（於＝wū 對 wu，拼音自己排很後面）字頻雖高、要打折，免得爬到前面。
+-- 門檻：候選要「有效選過次數 ≥ 簡碼門檻(3)」才升到 top 區壓過整池；單獨選過一兩次（如剛剛手滑選了
+--   於）不算，留在池裡照常用度排。這樣才符合「簡碼>exact>頻率，userfreq 要累積過門檻才翻盤」。
 -- 選過次數存在 ~/Library/Rime/aiphabi_plus_userfreq.tsv（字\t分數\t時間戳），
 --   每次 commit 累加、寫回；拿不到檔案就退回只記本次開機，候選照樣出。
 local data = require("aiphabi_data")
@@ -51,33 +53,23 @@ local function save()
   f:close()
 end
 
-local function cf(text)            -- 字頻分數：單字用自己的；多字取「最冷那個字」（只給形碼候選用）
-  local m, i = nil, 1
-  while i <= #text do
-    local b = text:byte(i)
-    local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
-    local f = data.freq[text:sub(i, i + len - 1)] or 0
-    if m == nil or f < m then m = f end
-    i = i + len
+local RARE_WORD = 0.2              -- 詞頻表沒收的多字詞＝罕詞，用最冷字字頻打這個折
+local function clen(b) return (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4 end
+local function cf(text)            -- 常用度分數（同一把尺：單字字頻、多字真詞頻）
+  local first = clen(text:byte(1) or 0)
+  if #text > first then            -- 多字詞
+    local wf = data.wordfreq and data.wordfreq[text]
+    if wf then return wf end
+    local m, i = nil, 1            -- 罕詞：取最冷字字頻再打折
+    while i <= #text do
+      local len = clen(text:byte(i))
+      local f = data.freq[text:sub(i, i + len - 1)] or 0
+      if m == nil or f < m then m = f end
+      i = i + len
+    end
+    return (m or 0) * RARE_WORD
   end
-  return m or 0
-end
-
-local FSORT = nil                  -- 所有字頻值（升序），算百分位用；第一次用時建好快取
-local function pct(f)              -- f 落在所有字頻裡的百分位（0..1）
-  if not FSORT then
-    FSORT = {}
-    for _, v in pairs(data.freq) do FSORT[#FSORT + 1] = v end
-    table.sort(FSORT)
-  end
-  local n = #FSORT
-  if n == 0 then return 0.5 end
-  local lo, hi = 1, n
-  while lo <= hi do
-    local mid = math.floor((lo + hi) / 2)
-    if FSORT[mid] <= f then lo = mid + 1 else hi = mid - 1 end
-  end
-  return (lo - 1) / n
+  return data.freq[text] or 0      -- 單字
 end
 
 local function init(env)
@@ -87,13 +79,19 @@ local function init(env)
   pcall(function()
     env.apx_notifier = ctx.commit_notifier:connect(function(context)
       local got, text = pcall(function() return context:get_commit_text() end)
-      if got and text and text ~= "" then pcall(bump, text); pcall(save) end
+      -- 只記「含漢字」的上屏（標點、英數不訓練，免得像 ，被誤記）
+      if got and text and text ~= "" and text:find("[\228-\233]") then
+        pcall(bump, text); pcall(save)
+      end
     end)
   end)
 end
 local function fini(env)
   if env.apx_notifier then pcall(function() env.apx_notifier:disconnect() end) end
 end
+
+local PY_TOPK    = 5      -- 拼音候選前 K 名當「正常讀音」；之後的當冷讀音（於＝wū 對 wu）
+local PY_OBSCURE = 0.10   -- 冷讀音字頻打這個折，免得高字頻把它頂到前面
 
 local function filter(input, env)
   local code = env.engine.context.input
@@ -108,37 +106,34 @@ local function filter(input, env)
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  -- top = 選過(衰減) / 簡碼 / 主碼 exact；form = 其餘形碼候選；py = 拼音候選（保留拼音名次）
-  local top, form, py = {}, {}, {}
+  -- top = 有效選過次數 ≥ 簡碼門檻(3) 的（簡碼／exact 靠 floor 就達標；別的要真的累積選過）；
+  -- pool = 其餘全部（形碼補全＋容錯＋拼音）同池照 cf 排，拼音冷讀音打折。
+  local top, pool = {}, {}
+  local pyRank = 0
   for i, c in ipairs(cands) do
     local isShort = c.type == "ap_short"
     local isExact = exactSet[c.text]
     local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
-    if eu > 0 then
+    if eu >= S_FLOOR then
       top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
     else
       local mc = data.char2code[c.text]
       local isForm = isShort or c.type == "ap_pool" or (mc and mc:sub(1, #code) == code)
-      if isForm then form[#form + 1] = { c = c, i = i } else py[#py + 1] = { c = c, i = i } end
+      local w = cf(c.text)
+      if not isForm then                      -- 拼音候選：排在拼音自己前 K 名之外＝冷讀音，打折
+        pyRank = pyRank + 1
+        if pyRank > PY_TOPK then w = w * PY_OBSCURE end
+      end
+      pool[#pool + 1] = { c = c, i = i, w = w }
     end
   end
-
-  -- 混池：拼音照名次給位置分（等於真詞頻）；形碼照字頻百分位給位置分。
-  local pool, P = {}, math.max(#py, 1)
-  for k, e in ipairs(py) do
-    pool[#pool + 1] = { c = e.c, i = e.i, score = 1 - (k - 0.5) / P }
-  end
-  for _, e in ipairs(form) do
-    pool[#pool + 1] = { c = e.c, i = e.i, score = pct(cf(e.c.text)) }
-  end
-
   table.sort(top, function(a, b)
     if a.eu ~= b.eu then return a.eu > b.eu end
     if a.w ~= b.w then return a.w > b.w end
     return a.i < b.i
   end)
   table.sort(pool, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
+    if a.w ~= b.w then return a.w > b.w end
     return a.i < b.i
   end)
 

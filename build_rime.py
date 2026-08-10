@@ -341,6 +341,35 @@ def main():
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
+    # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
+    #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
+    #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
+    #      只收最常用的前 N 個多字詞控制檔案大小；沒收進來的罕詞在 Lua 端打折當罕詞處理。
+    WORDFREQ_TOPN = 60000
+    wordfreq = {}
+    try:
+        import bisect
+        SS = pathlib.Path("/Library/Input Methods/Squirrel.app/Contents/SharedSupport")
+        _essay = {}
+        for _ln in (SS / "essay.txt").read_text("utf-8", "ignore").splitlines():
+            _p = _ln.split("\t")
+            if len(_p) >= 2 and _p[1].strip().isdigit():
+                _n = int(_p[1])
+                if _n > 0:
+                    _essay[_p[0]] = _n
+        _single = [c for c in _essay if len(c) == 1]
+        _neg = sorted(-_essay[c] for c in _single)                 # 單字 essay 計次（升序負值，供 bisect）
+        _fw = sorted((freq_w(c) for c in _single), reverse=True)   # 單字 freq_w（降序）
+        def _wscore(n):
+            R = bisect.bisect_left(_neg, -n)                       # essay 計次 > n 的單字數
+            return _fw[min(R, len(_fw) - 1)] if _fw else 0
+        _words = [(_n, _w) for _w, _n in _essay.items() if 2 <= len(_w) <= 4]
+        _words.sort(reverse=True)                                  # 依計次由高到低，取前 N
+        for _n, _w in _words[:WORDFREQ_TOPN]:
+            wordfreq[_w] = _wscore(_n)
+    except (FileNotFoundError, OSError):
+        wordfreq = {}
+
     dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排用
     # 全字覆蓋：aiphabi_plus 的拼音會帶出沒取碼的字（吧／不／到…），排序也要它們的常用度。
     # charfreq（台港新聞高頻）先、freq.json 序補、再補上已取碼字（少數罕用可能都不在）。
@@ -352,6 +381,10 @@ def main():
         if _c and _c not in _fseen:
             _fseen.add(_c)
             dl.append(f'  [{lua_str(_c)}]={freq_w(_c)},')
+    dl += ["}", "M.wordfreq = {"]       # 多字詞 → 常用度分數（essay 真語料，已校準到單字同尺）；aiphabi_plus 池排序用
+    for _w, _s in sorted(wordfreq.items()):
+        dl.append(f'  [{lua_str(_w)}]={_s},')
+    print(f"詞頻 {len(wordfreq)} 條（essay 前 {WORDFREQ_TOPN}）")
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
