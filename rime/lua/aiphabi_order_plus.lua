@@ -73,6 +73,8 @@ local function fini(env)
   if env.apx_notifier then pcall(function() env.apx_notifier:disconnect() end) end
 end
 
+local PY_PER_GUESS = 2   -- 交錯比例：每插 1 個形碼猜測，先放 2 個拼音（拼音通常是主要想要的）
+
 local function filter(input, env)
   local code = env.engine.context.input
   local cands = {}
@@ -85,21 +87,43 @@ local function filter(input, env)
 
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
-  local useCf = #code <= SHORT_MAX
 
-  local arr = {}
+  -- 分三桶：
+  --   top     = 選過(衰減) / 簡碼 / 主碼 exact —— 有 floor 或 userfreq，照 eu 排（userfreq 能蓋簡碼/exact）
+  --   guesses = 其餘「形碼」候選（補全、容錯掉亂碼、同類/偏旁提示），照常用度排
+  --   pinyin  = 拼音候選 —— 保留拼音自己的排序（尊重它的機率，別被字頻蓋掉，例：於 wū 是冷讀音就該排後面）
+  local top, guesses, pinyin = {}, {}, {}
   for i, c in ipairs(cands) do
-    local floor = 0
-    if c.type == "ap_short" then floor = S_FLOOR
-    elseif exactSet[c.text] then floor = E_FLOOR end
-    arr[i] = { c = c, i = i, eu = math.max(effUf(c.text), floor), w = useCf and cf(c.text) or 0 }
+    local isShort = c.type == "ap_short"
+    local isExact = exactSet[c.text]
+    local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
+    local mc = data.char2code[c.text]
+    local isForm = isShort or isExact or c.type == "ap_pool"
+                   or (mc and mc:sub(1, #code) == code)      -- 形碼補全（碼以輸入開頭）
+    local rec = { c = c, i = i, eu = eu, cf = cf(c.text) }
+    if eu > 0 then top[#top + 1] = rec
+    elseif isForm then guesses[#guesses + 1] = rec
+    else pinyin[#pinyin + 1] = rec end
   end
-  table.sort(arr, function(a, b)
+  table.sort(top, function(a, b)
     if a.eu ~= b.eu then return a.eu > b.eu end
-    if a.w ~= b.w then return a.w > b.w end
+    if a.cf ~= b.cf then return a.cf > b.cf end
     return a.i < b.i
   end)
-  for _, e in ipairs(arr) do yield(e.c) end
+  table.sort(guesses, function(a, b)   -- 形碼猜測照常用度（愛 這種常用字排前面，冷字排後）
+    if a.cf ~= b.cf then return a.cf > b.cf end
+    return a.i < b.i
+  end)
+  -- pinyin 維持原順序（i 遞增），不動
+
+  for _, r in ipairs(top) do yield(r.c) end
+  local gi, pj = 1, 1
+  while gi <= #guesses or pj <= #pinyin do
+    for _ = 1, PY_PER_GUESS do
+      if pj <= #pinyin then yield(pinyin[pj].c); pj = pj + 1 end
+    end
+    if gi <= #guesses then yield(guesses[gi].c); gi = gi + 1 end
+  end
 end
 
 return { init = init, fini = fini, func = filter }
