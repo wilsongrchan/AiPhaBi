@@ -6,3 +6,4 @@ aiphabi_hint       = require("aiphabi_hint")
 aiphabi_fuzzy      = require("aiphabi_fuzzy")
 aiphabi_wildcard   = require("aiphabi_wildcard")
 aiphabi_order      = require("aiphabi_order")   -- 候選重排（簡碼→exact→其餘照常用度）
+aiphabi_order_plus = require("aiphabi_order_plus") -- 二合一版重排（選過衰減>簡碼>exact>常用度）

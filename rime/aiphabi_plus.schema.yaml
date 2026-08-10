@@ -63,7 +63,8 @@ engine:
     - lua_translator@aiphabi_wildcard    # 萬用鍵 `
   filters:
     - lua_filter@aiphabi_hint            # 同類字／偏旁碼／打繁出簡… 提示（只掛在形碼候選上）
-    - lua_filter@aiphabi_fuzzy           # 形碼輸入容錯
+    - lua_filter@aiphabi_fuzzy           # 形碼輸入容錯（漏碼/多碼/隔壁鍵/打反）
+    - lua_filter@aiphabi_order_plus      # 重排：選過(衰減)>簡碼>exact>常用度（形碼+拼音同池）
     - uniquifier
 
 speller:

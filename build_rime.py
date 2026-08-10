@@ -341,13 +341,17 @@ def main():
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
-    dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排（aiphabi_order）用
+    dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排用
+    # 全字覆蓋：aiphabi_plus 的拼音會帶出沒取碼的字（吧／不／到…），排序也要它們的常用度。
+    # charfreq（台港新聞高頻）先、freq.json 序補、再補上已取碼字（少數罕用可能都不在）。
     _fseen = set()
+    _allchars = list(dict.fromkeys(list(charfreq.keys()) + list(freq)))
     for _chs in code2chars.values():
-        for _c in _chs:
-            if _c not in _fseen:
-                _fseen.add(_c)
-                dl.append(f'  [{lua_str(_c)}]={freq_w(_c)},')
+        _allchars.extend(_chs)
+    for _c in _allchars:
+        if _c and _c not in _fseen:
+            _fseen.add(_c)
+            dl.append(f'  [{lua_str(_c)}]={freq_w(_c)},')
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
