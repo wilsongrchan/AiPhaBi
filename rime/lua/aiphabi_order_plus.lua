@@ -8,8 +8,8 @@
 --   每個候選的有效分數 = max(自己的衰減選過次數, floor)；先比這個，再比常用度。
 --   所以簡碼／exact 預設在最前，但你對某字（含拼音詞，如 BD→病毒）近期猛選、
 --   衝過門檻，它就會蓋過去；停一陣子衰減掉，又自動讓回來。
--- 常用度（cf）：短碼（≤5，形碼／拼音短碼混戰的情況）才拿它排「其餘」；長串（純拼音
---   組句，如 wodemingzi）不動拼音自己的順序，只把簡碼／exact 插到前面。
+-- 其餘候選（形碼補全＋容錯＋拼音）混在同一池，照常用度（cf）排；詞的常用度取「最冷那個字」，
+--   所以常用單字（愛）自然贏過冷詞（無瑕）。唯一保險：拼音的冷讀音（於＝wū 對 wu）常用度打折。
 -- 選過次數存在 ~/Library/Rime/aiphabi_plus_userfreq.tsv（字\t分數\t時間戳），
 --   每次 commit 累加、寫回；拿不到檔案就退回只記本次開機，候選照樣出。
 local data = require("aiphabi_data")
@@ -17,7 +17,6 @@ local data = require("aiphabi_data")
 local HALFLIFE = 2.5 * 24 * 3600   -- 衰減半衰期：2.5 天（秒）
 local S_FLOOR  = 3                  -- 簡碼門檻
 local E_FLOOR  = 6                  -- 主碼 exact 門檻
-local SHORT_MAX = 5                 -- 碼長 ≤ 此值才做跨系統常用度重排
 
 local PATH = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/aiphabi_plus_userfreq.tsv")) or nil
 local UF = {}                      -- text -> { score, ts }
@@ -49,13 +48,17 @@ local function save()
   f:close()
 end
 
-local function firstchar(s)
-  local b = s:byte(1) or 0
-  local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
-  return s:sub(1, len)
-end
-local function cf(text)            -- 常用度：單字用自己的；詞用首字的
-  return data.freq[text] or data.freq[firstchar(text)] or 0
+local function cf(text)            -- 常用度：單字用自己的；詞用「最冷門那個字」的
+  -- 一個詞大致被它最冷的字卡住常用度（無瑕 照 瑕 排），這樣常用單字「愛」自然贏過「無瑕」。
+  local m, i = nil, 1
+  while i <= #text do
+    local b = text:byte(i)
+    local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
+    local f = data.freq[text:sub(i, i + len - 1)] or 0
+    if m == nil or f < m then m = f end
+    i = i + len
+  end
+  return m or 0
 end
 
 local function init(env)
@@ -73,7 +76,8 @@ local function fini(env)
   if env.apx_notifier then pcall(function() env.apx_notifier:disconnect() end) end
 end
 
-local PY_PER_GUESS = 2   -- 交錯比例：每插 1 個形碼猜測，先放 2 個拼音（拼音通常是主要想要的）
+local PY_TOPK    = 5      -- 拼音候選前 K 個當「正常讀音」，之後的當冷讀音
+local PY_OBSCURE = 0.10   -- 冷讀音的常用度打折（例：於＝wū 對 wu 是冷讀音，別讓高字頻把它頂上來）
 
 local function filter(input, env)
   local code = env.engine.context.input
@@ -88,42 +92,41 @@ local function filter(input, env)
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  -- 分三桶：
-  --   top     = 選過(衰減) / 簡碼 / 主碼 exact —— 有 floor 或 userfreq，照 eu 排（userfreq 能蓋簡碼/exact）
-  --   guesses = 其餘「形碼」候選（補全、容錯掉亂碼、同類/偏旁提示），照常用度排
-  --   pinyin  = 拼音候選 —— 保留拼音自己的排序（尊重它的機率，別被字頻蓋掉，例：於 wū 是冷讀音就該排後面）
-  local top, guesses, pinyin = {}, {}, {}
+  -- 兩層：
+  --   top  = 選過(衰減) / 簡碼 / 主碼 exact —— 有門檻或 userfreq，照 eu 排（userfreq 能蓋簡碼/exact）
+  --   pool = 其餘全部（形碼補全＋容錯＋拼音）混在同一池，照常用度（cf）排；愛 這種常用字自然贏過 無瑕。
+  -- 唯一保險：拼音候選若排在拼音自己前 K 名之外（冷讀音），常用度打折，免得像 於 靠高字頻爬到第一。
+  local top, pool = {}, {}
+  local pyRank = 0
   for i, c in ipairs(cands) do
     local isShort = c.type == "ap_short"
     local isExact = exactSet[c.text]
     local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
-    local mc = data.char2code[c.text]
-    local isForm = isShort or isExact or c.type == "ap_pool"
-                   or (mc and mc:sub(1, #code) == code)      -- 形碼補全（碼以輸入開頭）
-    local rec = { c = c, i = i, eu = eu, cf = cf(c.text) }
-    if eu > 0 then top[#top + 1] = rec
-    elseif isForm then guesses[#guesses + 1] = rec
-    else pinyin[#pinyin + 1] = rec end
+    if eu > 0 then
+      top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
+    else
+      local mc = data.char2code[c.text]
+      local isForm = isShort or c.type == "ap_pool" or (mc and mc:sub(1, #code) == code)
+      local w = cf(c.text)
+      if not isForm then                      -- 拼音候選
+        pyRank = pyRank + 1
+        if pyRank > PY_TOPK then w = w * PY_OBSCURE end
+      end
+      pool[#pool + 1] = { c = c, i = i, w = w }
+    end
   end
   table.sort(top, function(a, b)
     if a.eu ~= b.eu then return a.eu > b.eu end
-    if a.cf ~= b.cf then return a.cf > b.cf end
+    if a.w ~= b.w then return a.w > b.w end
     return a.i < b.i
   end)
-  table.sort(guesses, function(a, b)   -- 形碼猜測照常用度（愛 這種常用字排前面，冷字排後）
-    if a.cf ~= b.cf then return a.cf > b.cf end
+  table.sort(pool, function(a, b)             -- 一個池，照常用度排
+    if a.w ~= b.w then return a.w > b.w end
     return a.i < b.i
   end)
-  -- pinyin 維持原順序（i 遞增），不動
 
   for _, r in ipairs(top) do yield(r.c) end
-  local gi, pj = 1, 1
-  while gi <= #guesses or pj <= #pinyin do
-    for _ = 1, PY_PER_GUESS do
-      if pj <= #pinyin then yield(pinyin[pj].c); pj = pj + 1 end
-    end
-    if gi <= #guesses then yield(guesses[gi].c); gi = gi + 1 end
-  end
+  for _, r in ipairs(pool) do yield(r.c) end
 end
 
 return { init = init, fini = fini, func = filter }
