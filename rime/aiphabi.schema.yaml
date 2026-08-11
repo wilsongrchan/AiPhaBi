@@ -16,9 +16,6 @@ schema:
 switches:
   # ascii_mode 不放進來：不需要它出現在方案選單／狀態列選單裡——
   # Shift 鍵本來就能切中英文（鼠鬚管內建的 ascii_composer 行為，與這份清單無關）。
-  # 底下這些開關都不設 reset：讓每一個都記住使用者上次的選擇，不會切個輸入法
-  # 再切回來、或重新部署一次，就被強制打回預設值（reset 這個欄位在 librime 裡
-  # 就是「每次 engine 重建都強制設回這個值」，蓋掉剛從使用者設定檔還原的值）。
   - name: full_shape
     states: [ 半形, 全形 ]
   - name: aiphabi_t2s              # 打繁出簡：候選字順便帶出簡體版
@@ -39,8 +36,6 @@ switches:
     states: [ 三簡碼關, 三簡碼開 ]
   - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
     states: [ 詞組關, 詞組開 ]
-  - name: prediction                # 智能聯想：選完字，猜下一個字／詞
-    states: [ 聯想關, 聯想開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -48,7 +43,6 @@ engine:
   processors:
     - ascii_composer
     - recognizer
-    - predictor
     - key_binder
     - speller
     - punctuator
@@ -62,7 +56,6 @@ engine:
     - punct_segmentor
     - fallback_segmentor
   translators:
-    - predict_translator
     - punct_translator
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
@@ -90,13 +83,8 @@ translator:
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
 
-predictor:
-  db: predict.db
-  max_candidates: 5    # 配 menu.page_size，一頁看得完
-  max_iterations: 1    # 選了聯想候選後，最多再連續猜一輪，別一路猜下去
-
 menu:
-  page_size: 6                 # 一次顯示 6 個候選（留多點空間給候選字放大）
+  page_size: 8                 # 一次顯示 8 個候選
 
 # 標點：正體中文的全形標點。字母鍵全部給字根用，標點就落在原本的標點鍵上。
 punctuator:
