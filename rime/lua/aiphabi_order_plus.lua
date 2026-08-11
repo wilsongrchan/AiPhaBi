@@ -56,6 +56,11 @@ end
 
 local RARE_WORD = 0.2              -- 詞頻表沒收的多字詞＝罕詞，用最冷字字頻打這個折
 local function clen(b) return (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4 end
+local function ulen(s)             -- UTF-8 字數
+  local n = 0
+  for i = 1, #s do local b = s:byte(i); if b < 128 or b >= 192 then n = n + 1 end end
+  return n
+end
 local function cf(text)            -- 常用度分數（同一把尺：單字字頻、多字真詞頻）
   local first = clen(text:byte(1) or 0)
   if #text > first then            -- 多字詞
@@ -93,6 +98,8 @@ end
 
 local PY_TOPK    = 5      -- 拼音候選前 K 名當「正常讀音」；之後的當冷讀音（於＝wū 對 wu）
 local PY_OBSCURE = 0.10   -- 冷讀音字頻打這個折，免得高字頻把它頂到前面
+local COMPLETION_PEN = 0.7 -- 補全候選（打的是長詞前綴，如 YCLX→人民幣）打個折，讓打滿的 exact（人民）
+                           -- 有優勢；但只是打折不是絕對——頻率高很多的補全（中華）照樣壓過冷門 exact。
 
 local function filter(input, env)
   local code = env.engine.context.input
@@ -132,10 +139,12 @@ local function filter(input, env)
         local mc = data.char2code[c.text]
         local isForm = isShort or c.type == "ap_pool" or (mc and mc:sub(1, #code) == code)
         local w = cf(c.text)
-        if not isForm then                    -- 拼音候選：排在拼音自己前 K 名之外＝冷讀音，打折
+        if not isForm then
           pyRank = pyRank + 1
-          if pyRank > PY_TOPK then w = w * PY_OBSCURE end
+          -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞（人民/中華）不是冷讀音、不打折
+          if pyRank > PY_TOPK and ulen(c.text) == 1 then w = w * PY_OBSCURE end
         end
+        if c.type == "completion" then w = w * COMPLETION_PEN end   -- 補全讓步給打滿的 exact
         pool[#pool + 1] = { c = c, i = i, w = w }
       end
     end
