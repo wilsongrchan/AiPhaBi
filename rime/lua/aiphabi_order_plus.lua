@@ -1,27 +1,28 @@
 -- 愛發筆＋拼音 · 候選重排（filter，只給 aiphabi_plus 用；純愛發筆的 aiphabi_order 不動）
 -- 排序規則（使用者定的）：
 --   選過次數（會隨時間衰減）  >  簡碼  >  主碼 exact  >  其餘照常用度
--- 用「虛擬選過次數（floor）」實作門檻：
---   * 簡碼命中的字 floor = 3（S）：別的候選要「近期選過 >3 次」才壓得過它。
---   * 主碼 exact 的字 floor = 6（E）：要「近期選過 >6 次」才壓得過它（比簡碼更黏）。
+-- 用「虛擬選過次數（floor）」實作：
+--   * 簡碼命中的字 floor = 9（S）：簡碼是發給最常用字的，就算撞到別字的完整碼，也要贏過那個 exact。
+--   * 主碼 exact 的字 floor = 6（E）：次之；要「近期選過 >6 次」才壓得過它。
 --   * 其餘 floor = 0。
 --   每個候選的有效分數 = max(自己的衰減選過次數, floor)；先比這個，再比常用度。
---   所以簡碼／exact 預設在最前，但你對某字（含拼音詞，如 BD→病毒）近期猛選、
---   衝過門檻，它就會蓋過去；停一陣子衰減掉，又自動讓回來。
+--   所以「簡碼 > exact > 池」是預設；但你對某字（含拼音詞，如 BD→病毒）近期猛選、
+--   衝過門檻（>6 壓過 exact、>9 壓過簡碼），它就會蓋過去；停一陣子衰減掉，又自動讓回來。
 -- 其餘候選（形碼補全＋容錯＋拼音）混在同一池，照「常用度分數」排，分數是同一把尺：
 --     * 單字 —— 字頻（data.freq）。
 --     * 多字詞 —— 真語料詞頻（data.wordfreq，essay 校準到單字同尺）；沒收錄的罕詞打折。
 --   字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），所以詞一律查真詞頻。
 --   唯一保險：拼音的冷讀音（於＝wū 對 wu，拼音自己排很後面）字頻雖高、要打折，免得爬到前面。
--- 門檻：候選要「有效選過次數 ≥ 簡碼門檻(3)」才升到 top 區壓過整池；單獨選過一兩次（如剛剛手滑選了
---   於）不算，留在池裡照常用度排。這樣才符合「簡碼>exact>頻率，userfreq 要累積過門檻才翻盤」。
+-- 升頂門檻 PROMOTE_MIN = 3：池裡的字要「近期選過 ≥3 次」才升到 top 區、開始壓過整池；手滑選一兩次
+--   （如剛剛的 於）不算，留在池裡照常用度排。簡碼(9)／exact(6) 靠 floor 本來就 ≥3，永遠在 top。
 -- 選過次數存在 ~/Library/Rime/aiphabi_plus_userfreq.tsv（字\t分數\t時間戳），
 --   每次 commit 累加、寫回；拿不到檔案就退回只記本次開機，候選照樣出。
 local data = require("aiphabi_data")
 
 local HALFLIFE = 2.5 * 24 * 3600   -- 衰減半衰期：2.5 天（秒）
-local S_FLOOR  = 3                  -- 簡碼門檻
-local E_FLOOR  = 6                  -- 主碼 exact 門檻
+local S_FLOOR     = 9               -- 簡碼 floor：預設排最前（撞到別字完整碼也贏）
+local E_FLOOR     = 6               -- 主碼 exact floor：次之
+local PROMOTE_MIN = 3               -- 池裡的字選過 ≥ 此值才升到 top 區（擋手滑一兩次）
 
 local PATH = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/aiphabi_plus_userfreq.tsv")) or nil
 local UF = {}                      -- text -> { score, ts }
@@ -106,7 +107,7 @@ local function filter(input, env)
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  -- top = 有效選過次數 ≥ 簡碼門檻(3) 的（簡碼／exact 靠 floor 就達標；別的要真的累積選過）；
+  -- top = 有效選過次數 ≥ PROMOTE_MIN(3) 的（簡碼 floor 9／exact floor 6 靠 floor 就達標；別的要真的累積選過）；
   -- pool = 其餘全部（形碼補全＋容錯＋拼音）同池照 cf 排，拼音冷讀音打折。
   local top, pool = {}, {}
   local pyRank = 0
@@ -114,7 +115,7 @@ local function filter(input, env)
     local isShort = c.type == "ap_short"
     local isExact = exactSet[c.text]
     local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
-    if eu >= S_FLOOR then
+    if eu >= PROMOTE_MIN then
       top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
     else
       local mc = data.char2code[c.text]
