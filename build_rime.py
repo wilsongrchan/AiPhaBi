@@ -266,6 +266,39 @@ def main():
     char2code = {c: shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
+    # ---- 詞組連打：常用詞 = 各字「簡碼（無簡碼則主碼）」串接 ----
+    # 例：我的 = 我jkq + 的ja = jkqja；中國人 = 中q + 國oq + 人y = qoqy；香港 = 香jtb + 港whvz = jtbwhvz。
+    # 打前綴（jkqj）即由 enable_completion 補出整個詞。詞收進共用碼表：二合一（＋拼音）預設就有；
+    # 純愛發筆用 aiphabi_phrase 開關控制（預設關，像三簡碼一樣自己開來用），關掉時由 aiphabi_phrase.lua 濾掉多字候選。
+    PHRASE_TOPN = 40000
+    phrase_entries = []
+    try:
+        SS = pathlib.Path("/Library/Input Methods/Squirrel.app/Contents/SharedSupport")
+        _pe = {}
+        for _ln in (SS / "essay.txt").read_text("utf-8", "ignore").splitlines():
+            _p = _ln.split("\t")
+            if len(_p) >= 2 and _p[1].strip().isdigit():
+                _n = int(_p[1])
+                if _n > 0 and 2 <= len(_p[0]) <= 4:
+                    _pe[_p[0]] = _n
+        for _w, _n in sorted(_pe.items(), key=lambda kv: -kv[1])[:PHRASE_TOPN]:
+            _parts, _ok = [], True
+            for _ch in _w:
+                _pc = shortcode_rev.get(_ch) or char2code.get(_ch)   # 簡碼優先，否則主碼
+                if not _pc:
+                    _ok = False
+                    break
+                _parts.append(_pc)
+            if _ok:
+                phrase_entries.append((_w, "".join(_parts), _n))
+    except (FileNotFoundError, OSError):
+        phrase_entries = []
+    if phrase_entries:
+        with open(OUT / "aiphabi.dict.yaml", "a", encoding="utf-8") as _f:
+            for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
+                _f.write(f"{_w}\t{_code}\t{_wt}\n")
+        print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN}，各字簡碼串接）")
+
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
     # 蓋掉剛從 user.yaml 讀回來的狀態，等於這個開關永遠記不住使用者切過什麼
@@ -282,6 +315,11 @@ def main():
     if short3:
         short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
                           "    states: [ 三簡碼關, 三簡碼開 ]\n")
+    # 詞組連打開關（純愛發筆）：先預設關，自己開來用；二合一（＋拼音）不掛這開關、永遠開。
+    phrase_switch = ""
+    if phrase_entries:
+        phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
+                          "    states: [ 詞組關, 詞組開 ]\n")
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
     # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
@@ -423,7 +461,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{short3_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
@@ -447,6 +485,7 @@ engine:
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
+    - lua_filter@aiphabi_phrase         # 詞組連打開關：關掉就濾掉多字候選（詞組）
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
