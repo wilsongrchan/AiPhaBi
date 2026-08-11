@@ -313,13 +313,16 @@ def main():
     except (FileNotFoundError, OSError):
         _pe = {}
 
-    # 地名詞庫（data/places.txt）：國家／中國省市／台灣縣市／北捷／港鐵… 一律收，不管在不在 essay 高頻表。
+    # 精選詞庫（data/*.txt 幾個主題檔）：地名／人名／常識／成語／飲食／品牌… 一律收，不管在不在 essay 高頻表。
     # 沒 essay 計次的給地板權重照樣排得出來；有字沒取碼的整詞收不了，建置時列出來讓人知道。
+    WORDLIST_FILES = ("places.txt", "people.txt", "lexicon.txt", "idioms.txt", "food.txt", "brands.txt")
     PLACE_FLOOR = 100000
     place_skipped = []
-    places_file = DATA / "places.txt"
-    if places_file.exists():
-        for _ln in places_file.read_text("utf-8").splitlines():
+    for _fname in WORDLIST_FILES:
+        _wf = DATA / _fname
+        if not _wf.exists():
+            continue
+        for _ln in _wf.read_text("utf-8").splitlines():
             for _w in _ln.split("#", 1)[0].split():
                 if len(_w) < 2:
                     continue
