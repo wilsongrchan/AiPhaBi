@@ -1,0 +1,136 @@
+# 愛發筆＋拼音 AiPhaBi Plus —— 形碼 + 智能拼音 二合一（實驗）
+# 與純愛發筆完全分開（schema_id 不同）。同一個輸入欄同時吃：
+#   * 愛發筆形碼（table_translator，用產生好的 aiphabi 碼表，原樣不變）
+#   * 全拼智能拼音（script_translator，用鼠鬚管內建的 luna_pinyin 碼表 + 語法模型）
+# 兩個共用一個 speller：愛發筆是「純字母、不做拼音變換」的，所以這裡不能加拼音的
+# algebra（簡拼／模糊音）——加了會污染形碼。因此本階段只有「全拼」，簡拼／模糊音
+# 留待下一步用「預先算好的簡拼碼表」另外補（見 docs/aiphabi-plus）。
+# 候選排序（簡碼→exact→依常用度、含拼音）之後由 aiphabi_order_plus 處理；本階段先
+# 用內建排序，確認兩套能同時出字。
+
+schema:
+  schema_id: aiphabi_plus
+  name: 愛發筆＋拼音
+  version: "2026.08.10"
+  author:
+    - wilsongrchan
+  description: |
+    形碼 + 智能拼音二合一（實驗）。長串像拼音的（wodemingzi）走拼音組句；
+    形碼（BD）走愛發筆。短碼兩邊都給，之後靠排序決定。
+
+switches:
+  - name: full_shape
+    states: [ 半形, 全形 ]
+  - name: aiphabi_t2s
+    states: [ 打繁出簡關, 打繁出簡開 ]
+  - name: aiphabi_s2t
+    states: [ 打簡出繁關, 打簡出繁開 ]
+  - name: aiphabi_family
+    states: [ 同類字關, 同類字開 ]
+  - name: aiphabi_comp
+    states: [ 偏旁關, 偏旁開 ]
+  - name: aiphabi_fuzzy
+    states: [ 容錯關, 容錯開 ]
+  - name: aiphabi_no_simp
+    states: [ 不打簡體關, 不打簡體開 ]
+  - name: aiphabi_short100
+    states: [ 簡碼關, 簡碼開 ]
+  - name: aiphabi_short3
+    states: [ 三簡碼關, 三簡碼開 ]
+  - name: ascii_punct
+    states: [ 。，, ．， ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - table_translator                  # 愛發筆形碼（原樣）
+    - script_translator@pinyin           # 全拼智能拼音（luna_pinyin）
+    - lua_translator@aiphabi_wildcard    # 萬用鍵 `
+  filters:
+    - lua_filter@aiphabi_hint            # 同類字／偏旁碼／打繁出簡… 提示（只掛在形碼候選上）
+    - lua_filter@aiphabi_fuzzy           # 形碼輸入容錯（漏碼/多碼/隔壁鍵/打反）
+    - lua_filter@aiphabi_order_plus      # 重排：選過(衰減)>簡碼>exact>常用度（形碼+拼音同池）
+    - uniquifier
+
+speller:
+  alphabet: 'zyxwvutsrqponmlkjihgfedcba`'
+  delimiter: " '"
+
+# 愛發筆形碼（與純愛發筆同一份碼表、同一套規則）
+translator:
+  dictionary: aiphabi
+  enable_charset_filter: false
+  enable_sentence: false
+  enable_encoder: false
+  enable_completion: true
+  strict_spelling: false
+  preedit_format:
+    - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
+  comment_format:
+    - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
+    - "xform/~/- /"
+
+# 智能拼音（全拼）：用鼠鬚管內建的 luna_pinyin 碼表 + 句子組合
+pinyin:
+  dictionary: luna_pinyin
+  enable_completion: true
+  enable_sentence: true
+  spelling_hints: 0
+  preedit_format:
+    - xform/([nl])v/$1ü/
+    - xform/([nl])ue/$1üe/
+    - xform/([jqxy])v/$1u/
+
+# 智能組句用的語法模型（鼠鬚管內建，繁體）
+grammar:
+  language: zh-hant-t-essay-bgw
+
+menu:
+  page_size: 8
+
+punctuator:
+  import_preset: default
+  half_shape:
+    ',': '，'
+    '.': '。'
+    '?': '？'
+    '!': '！'
+    ';': '；'
+    ':': '：'
+    '\': '、'
+    '/': '、'
+    '(': '（'
+    ')': '）'
+    '[': '「'
+    ']': '」'
+    '{': '『'
+    '}': '』'
+    '<': '《'
+    '>': '》'
+    '~': '～'
+    '^': '……'
+    '_': '——'
+    '-': '－'
+    '"': { pair: [ '「', '」' ] }
+    "'": { pair: [ '『', '』' ] }
+
+key_binder:
+  import_preset: default
+
+recognizer:
+  import_preset: default
