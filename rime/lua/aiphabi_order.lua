@@ -42,6 +42,12 @@ local function bump(text)                 -- 一個 commit 可能是詞：逐 UT
   end
 end
 
+-- 選字次數整份寫回磁碟不便宜——選一次字就整份重寫一次，選越多字（USERFREQ 越大）
+-- 越慢，在手機上尤其明顯（每次選字都卡一下）。改成：每次選字只更新記憶體（很便宜），
+-- 攢到一定次數（或輸入法收起來時）才真的寫回磁碟一次，把 I/O 成本攤薄。
+local DIRTY_FLUSH = 15
+local dirty = 0
+
 local function init(env)
   pcall(load)                             -- 開機讀回上次的選字次數
   local ok, ctx = pcall(function() return env.engine.context end)
@@ -51,13 +57,18 @@ local function init(env)
       local got, text = pcall(function() return context:get_commit_text() end)
       if got and text and text ~= "" then
         pcall(bump, text)
-        pcall(save)                       -- 每次選完就寫回，重開也記得
+        dirty = dirty + 1
+        if dirty >= DIRTY_FLUSH then
+          dirty = 0
+          pcall(save)
+        end
       end
     end)
   end)
 end
 
 local function fini(env)
+  if dirty > 0 then dirty = 0; pcall(save) end   -- 收起來前把攢著沒寫的存回去，別漏掉
   if env.ap_order_notifier then pcall(function() env.ap_order_notifier:disconnect() end) end
 end
 
