@@ -313,15 +313,12 @@ def main():
     except (FileNotFoundError, OSError):
         _pe = {}
 
-    # 精選詞庫（data/*.txt 幾個主題檔）：地名／人名／常識／成語／飲食／品牌… 一律收，不管在不在 essay 高頻表。
+    # 精選詞庫：data/phrases_*.txt 每個主題檔（地名／政要／紅星／英文名／常識／成語／飲食／品牌…）
+    # 一律收，不管在不在 essay 高頻表。新增主題檔只要照 phrases_ 命名就自動收進來。
     # 沒 essay 計次的給地板權重照樣排得出來；有字沒取碼的整詞收不了，建置時列出來讓人知道。
-    WORDLIST_FILES = ("places.txt", "people.txt", "stars.txt", "names_en.txt", "lexicon.txt", "idioms.txt", "food.txt", "brands.txt")
     PLACE_FLOOR = 100000
     place_skipped = []
-    for _fname in WORDLIST_FILES:
-        _wf = DATA / _fname
-        if not _wf.exists():
-            continue
+    for _wf in sorted(DATA.glob("phrases_*.txt")):
         for _ln in _wf.read_text("utf-8").splitlines():
             for _w in _ln.split("#", 1)[0].split():
                 if len(_w) < 2:
@@ -343,7 +340,7 @@ def main():
         with open(OUT / "aiphabi.dict.yaml", "a", encoding="utf-8") as _f:
             for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
                 _f.write(f"{_w}\t{_code}\t{_wt}\n")
-        print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN} + 地名 data/places.txt）")
+        print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN} + 精選詞庫 data/phrases_*.txt）")
     if place_skipped:
         print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
 
