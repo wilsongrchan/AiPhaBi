@@ -271,52 +271,78 @@ def main():
     # 打前綴（jkqj）即由 enable_completion 補出整個詞。詞收進共用碼表：二合一（＋拼音）預設就有；
     # 純愛發筆用 aiphabi_phrase 開關控制（預設關，像三簡碼一樣自己開來用），關掉時由 aiphabi_phrase.lua 濾掉多字候選。
     PHRASE_TOPN = 40000
-    phrase_entries = []
+    # 每字取碼，收三種串法（各字串接即詞組碼），彼此獨立、都能打：
+    #   main = 純主碼（簡碼有沒有都用主碼）——一樣=itveqk、我的=jkxqjba
+    #   simp = 簡碼優先，沒簡碼用主碼——一樣=itk、我的=jkqja
+    #   t3   = 簡碼優先，沒簡碼且主碼≥4 用三簡碼（頭2末1），否則主碼——最美=bnxvek、香港=jtbwhz
+    # 「簡碼打得出」不代表「主碼打不出」：main 一定收，所以完整主碼串永遠有效。
+    def _pcode(ch, mode):
+        mc = char2code.get(ch)                    # 主碼
+        if mode == "main":
+            return mc
+        sc = shortcode_rev.get(ch)                # 簡碼
+        if sc:
+            return sc
+        if mode == "t3" and mc and len(mc) >= 4:
+            return mc[0] + mc[1] + mc[-1]         # 三簡碼：頭2+末1
+        return mc
+    def _word_codes(w):                           # 回傳 {碼,...}；任一字沒取碼就回 None（整詞收不了）
+        out = set()
+        for mode in ("main", "simp", "t3"):
+            parts = []
+            for ch in w:
+                pc = _pcode(ch, mode)
+                if not pc:
+                    return None
+                parts.append(pc)
+            out.add("".join(parts))
+        return out
+
+    phrase_w = {}                                 # 詞 -> 權重（essay 計次；地名沒有就給地板值）
+    _pe = {}
     try:
         SS = pathlib.Path("/Library/Input Methods/Squirrel.app/Contents/SharedSupport")
-        _pe = {}
         for _ln in (SS / "essay.txt").read_text("utf-8", "ignore").splitlines():
             _p = _ln.split("\t")
             if len(_p) >= 2 and _p[1].strip().isdigit():
                 _n = int(_p[1])
                 if _n > 0 and 2 <= len(_p[0]) <= 4:
                     _pe[_p[0]] = _n
-        # 每字取碼，收三種串法（各字串接即詞組碼），彼此獨立、都能打：
-        #   main = 純主碼（簡碼有沒有都用主碼）——一樣=itveqk、我的=jkxqjba
-        #   simp = 簡碼優先，沒簡碼用主碼——一樣=itk、我的=jkqja
-        #   t3   = 簡碼優先，沒簡碼且主碼≥4 用三簡碼（頭2末1），否則主碼——最美=bnxvek、香港=jtbwhz
-        # 「簡碼打得出」不代表「主碼打不出」：main 一定收，所以完整主碼串永遠有效。
-        def _pcode(ch, mode):
-            mc = char2code.get(ch)                # 主碼
-            if mode == "main":
-                return mc
-            sc = shortcode_rev.get(ch)            # 簡碼
-            if sc:
-                return sc
-            if mode == "t3" and mc and len(mc) >= 4:
-                return mc[0] + mc[1] + mc[-1]     # 三簡碼：頭2+末1
-            return mc
         for _w, _n in sorted(_pe.items(), key=lambda kv: -kv[1])[:PHRASE_TOPN]:
-            _codes = set()
-            for _mode in ("main", "simp", "t3"):
-                _parts, _ok = [], True
-                for _ch in _w:
-                    _pc = _pcode(_ch, _mode)
-                    if not _pc:
-                        _ok = False
-                        break
-                    _parts.append(_pc)
-                if _ok:
-                    _codes.add("".join(_parts))
-            for _c in _codes:
-                phrase_entries.append((_w, _c, _n))
+            phrase_w[_w] = _n
     except (FileNotFoundError, OSError):
-        phrase_entries = []
+        _pe = {}
+
+    # 地名詞庫（data/places.txt）：國家／中國省市／台灣縣市／北捷／港鐵… 一律收，不管在不在 essay 高頻表。
+    # 沒 essay 計次的給地板權重照樣排得出來；有字沒取碼的整詞收不了，建置時列出來讓人知道。
+    PLACE_FLOOR = 100000
+    place_skipped = []
+    places_file = DATA / "places.txt"
+    if places_file.exists():
+        for _ln in places_file.read_text("utf-8").splitlines():
+            for _w in _ln.split("#", 1)[0].split():
+                if len(_w) < 2:
+                    continue
+                if _word_codes(_w) is None:
+                    place_skipped.append(_w)
+                elif _w not in phrase_w:
+                    phrase_w[_w] = max(_pe.get(_w, 0), PLACE_FLOOR)
+                elif phrase_w[_w] < PLACE_FLOOR:
+                    phrase_w[_w] = PLACE_FLOOR
+
+    phrase_entries, _seen_wc = [], set()
+    for _w, _wt in phrase_w.items():
+        for _c in (_word_codes(_w) or ()):
+            if (_w, _c) not in _seen_wc:
+                _seen_wc.add((_w, _c))
+                phrase_entries.append((_w, _c, _wt))
     if phrase_entries:
         with open(OUT / "aiphabi.dict.yaml", "a", encoding="utf-8") as _f:
             for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
                 _f.write(f"{_w}\t{_code}\t{_wt}\n")
-        print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN}，各字簡碼串接）")
+        print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN} + 地名 data/places.txt）")
+    if place_skipped:
+        print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
