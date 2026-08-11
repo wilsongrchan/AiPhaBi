@@ -54,7 +54,10 @@ local function filter(input, env)
   local s2t_on   = ok and ctx:get_option("aiphabi_s2t")
   local short_on = ok and ctx:get_option("aiphabi_short100")
   local short3_on = ok and #code == 3 and ctx:get_option("aiphabi_short3")
-  local si4_on    = ok and #code == 4 and ctx:get_option("aiphabi_si4")
+  -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
+  -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
+  local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
+  local si4_on    = ok and (#code == 3 or #code == 4) and phrase_on
   local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}

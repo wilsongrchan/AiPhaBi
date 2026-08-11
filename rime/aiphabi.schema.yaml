@@ -36,8 +36,6 @@ switches:
     states: [ 三簡碼關, 三簡碼開 ]
   - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
     states: [ 詞組關, 詞組開 ]
-  - name: aiphabi_si4               # 四碼連打：3+字詞每字首碼(末字補末碼)壓成 4 碼
-    states: [ 四碼關, 四碼開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 

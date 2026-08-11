@@ -358,7 +358,8 @@ def main():
             _c4 = char2code[_chs[0]][0] + char2code[_chs[1]][0] + char2code[_chs[2]][0] + char2code[_chs[2]][-1]
         else:
             _c4 = "".join(char2code[_c][0] for _c in _chs[:4])
-        si4[_c4].append((_wt, _w))
+        si4[_c4].append((_wt, _w))        # 完整四碼
+        si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
     for _c in list(si4):
         si4[_c] = [w for _, w in sorted(si4[_c], key=lambda x: -x[0])][:24]
     print(f"四碼連打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
@@ -384,11 +385,8 @@ def main():
     if phrase_entries:
         phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
                           "    states: [ 詞組關, 詞組開 ]\n")
-    # 四碼連打開關：3+字詞壓成 4 碼；先預設關，自己開來試。
-    si4_switch = ""
-    if si4:
-        si4_switch = ("  - name: aiphabi_si4               # 四碼連打：3+字詞每字首碼(末字補末碼)壓成 4 碼\n"
-                       "    states: [ 四碼關, 四碼開 ]\n")
+    # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
+    # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
     # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
@@ -479,6 +477,11 @@ def main():
             wordfreq[_w] = _wscore(_n)
     except (FileNotFoundError, OSError):
         wordfreq = {}
+    # 精選詞庫的專名（容祖兒／莫桑比克／台北車站…）多半不在 essay，補進詞頻表給地板值，
+    # 免得排序當罕詞掉後面——讓詞組／四碼詞組候選跟拼音同場競爭。
+    for _w in phrase_w:
+        if _w not in wordfreq:
+            wordfreq[_w] = PLACE_FLOOR
 
     dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排用
     # 全字覆蓋：aiphabi_plus 的拼音會帶出沒取碼的字（吧／不／到…），排序也要它們的常用度。
@@ -533,7 +536,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{short3_switch}{phrase_switch}{si4_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
