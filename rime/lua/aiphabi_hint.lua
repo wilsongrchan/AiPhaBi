@@ -36,14 +36,24 @@ local function fini(env)
   if env.aiphabi_notifier then env.aiphabi_notifier:disconnect() end
 end
 
+-- 上限：table_translator 開 enable_completion，碰上大碼表＋常見短前綴，一次可能
+-- 生出成千上百個候選（哪個字/詞的碼剛好以這幾碼開頭都算）。這裡若照單全收，等於
+-- 每個按鍵都要把這一大串全部算完（含底下的字典查找、組字串），纔輪到下面的 filter
+-- ——這就是手機上感覺到卡頓的根源，不是碼表本身「大」的問題（雾凇拼音碼表更大也
+-- 不卡，只是它沒有這種「先收全部再處理」的自訂 filter）。反正最後只會顯示
+-- page_size（6）個，游標往後的候選再多也用不到，收滿這個數字就不再跟 table_translator
+-- 要更多，讓它不必真的算出後面那一大串。
+local CAND_CAP = 200
+
 local function filter(input, env)
   local ctx = env.engine.context
   local code = ctx.input
-  -- 先收下全部候選（原順序不動），順便記下已出現的字
+  -- 先收下候選（原順序不動，但設上限，見上），順便記下已出現的字
   local cands, seen = {}, {}
   for cand in input:iter() do
     cands[#cands + 1] = cand
     seen[cand.text] = true
+    if #cands >= CAND_CAP then break end
   end
 
   -- 只處理純字母碼；萬用鍵那套交給 wildcard
