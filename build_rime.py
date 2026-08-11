@@ -281,19 +281,24 @@ def main():
                 _n = int(_p[1])
                 if _n > 0 and 2 <= len(_p[0]) <= 4:
                     _pe[_p[0]] = _n
-        # 每字取碼：簡碼優先；沒簡碼時，主碼版用主碼、三簡碼版用「頭2+末1」（跟單字三簡碼同規則）。
-        # 各字串接即詞組碼。收兩種串法（主碼串／三簡碼串），所以 香港=jtbwhvz 照打，最美=bnxvek 也打得出。
+        # 每字取碼，收三種串法（各字串接即詞組碼），彼此獨立、都能打：
+        #   main = 純主碼（簡碼有沒有都用主碼）——一樣=itveqk、我的=jkxqjba
+        #   simp = 簡碼優先，沒簡碼用主碼——一樣=itk、我的=jkqja
+        #   t3   = 簡碼優先，沒簡碼且主碼≥4 用三簡碼（頭2末1），否則主碼——最美=bnxvek、香港=jtbwhz
+        # 「簡碼打得出」不代表「主碼打不出」：main 一定收，所以完整主碼串永遠有效。
         def _pcode(ch, mode):
-            sc = shortcode_rev.get(ch)
+            mc = char2code.get(ch)                # 主碼
+            if mode == "main":
+                return mc
+            sc = shortcode_rev.get(ch)            # 簡碼
             if sc:
                 return sc
-            mc = char2code.get(ch)
             if mode == "t3" and mc and len(mc) >= 4:
                 return mc[0] + mc[1] + mc[-1]     # 三簡碼：頭2+末1
             return mc
         for _w, _n in sorted(_pe.items(), key=lambda kv: -kv[1])[:PHRASE_TOPN]:
             _codes = set()
-            for _mode in ("main", "t3"):
+            for _mode in ("main", "simp", "t3"):
                 _parts, _ok = [], True
                 for _ch in _w:
                     _pc = _pcode(_ch, _mode)
