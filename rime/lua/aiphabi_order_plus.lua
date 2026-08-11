@@ -104,28 +104,40 @@ local function filter(input, env)
     return
   end
 
+  -- 覆蓋長度：能吃掉整串輸入的候選（zuimeidehua→最美的話）要贏過只吃前段的（最、最美）。
+  -- 只吃前綴的一律降到最後，照吃得越多越前、再照常用度。短碼時大家都吃滿，等於沒差。
+  local maxCov = 0
+  for _, c in ipairs(cands) do
+    local e = c._end or 0
+    if e > maxCov then maxCov = e end
+  end
+
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  -- top = 有效選過次數 ≥ PROMOTE_MIN(3) 的（簡碼 floor 9／exact floor 6 靠 floor 就達標；別的要真的累積選過）；
-  -- pool = 其餘全部（形碼補全＋容錯＋拼音）同池照 cf 排，拼音冷讀音打折。
-  local top, pool = {}, {}
+  -- 吃滿的：top = 有效選過次數 ≥ PROMOTE_MIN(3)（簡碼 floor 9／exact floor 6 靠 floor 就達標）；
+  --         pool = 其餘全部同池照 cf 排，拼音冷讀音打折。 part = 只吃前綴的，全部降到最後。
+  local top, pool, part = {}, {}, {}
   local pyRank = 0
   for i, c in ipairs(cands) do
-    local isShort = c.type == "ap_short"
-    local isExact = exactSet[c.text]
-    local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
-    if eu >= PROMOTE_MIN then
-      top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
+    if (c._end or maxCov) < maxCov then
+      part[#part + 1] = { c = c, i = i, cov = c._end or 0, w = cf(c.text) }
     else
-      local mc = data.char2code[c.text]
-      local isForm = isShort or c.type == "ap_pool" or (mc and mc:sub(1, #code) == code)
-      local w = cf(c.text)
-      if not isForm then                      -- 拼音候選：排在拼音自己前 K 名之外＝冷讀音，打折
-        pyRank = pyRank + 1
-        if pyRank > PY_TOPK then w = w * PY_OBSCURE end
+      local isShort = c.type == "ap_short"
+      local isExact = exactSet[c.text]
+      local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
+      if eu >= PROMOTE_MIN then
+        top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
+      else
+        local mc = data.char2code[c.text]
+        local isForm = isShort or c.type == "ap_pool" or (mc and mc:sub(1, #code) == code)
+        local w = cf(c.text)
+        if not isForm then                    -- 拼音候選：排在拼音自己前 K 名之外＝冷讀音，打折
+          pyRank = pyRank + 1
+          if pyRank > PY_TOPK then w = w * PY_OBSCURE end
+        end
+        pool[#pool + 1] = { c = c, i = i, w = w }
       end
-      pool[#pool + 1] = { c = c, i = i, w = w }
     end
   end
   table.sort(top, function(a, b)
@@ -137,9 +149,15 @@ local function filter(input, env)
     if a.w ~= b.w then return a.w > b.w end
     return a.i < b.i
   end)
+  table.sort(part, function(a, b)             -- 前綴候選：吃得越多越前，再比常用度
+    if a.cov ~= b.cov then return a.cov > b.cov end
+    if a.w ~= b.w then return a.w > b.w end
+    return a.i < b.i
+  end)
 
   for _, r in ipairs(top) do yield(r.c) end
   for _, r in ipairs(pool) do yield(r.c) end
+  for _, r in ipairs(part) do yield(r.c) end
 end
 
 return { init = init, fini = fini, func = filter }
