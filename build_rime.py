@@ -344,6 +344,25 @@ def main():
     if place_skipped:
         print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
 
+    # ---- 四碼連打：3+ 字詞壓成固定 4 碼（開關 aiphabi_si4；不進碼表，靠 Lua 查 M.si4）----
+    #   3 字：字1首 + 字2首 + 字3首 + 字3末（末字補末碼消歧）——容祖兒=QQFL
+    #   4 字：四字各首碼——光明正大=WBFI
+    #   5+ 字：前四字各首碼——中華人民共和國=QHYC
+    # 撞碼的照詞頻排（常用在前），每碼上限收 24 個免爆。
+    si4 = defaultdict(list)
+    for _w, _wt in phrase_w.items():
+        _chs = list(_w)
+        if len(_chs) < 3 or any(_c not in char2code for _c in _chs[:4]):
+            continue
+        if len(_chs) == 3:
+            _c4 = char2code[_chs[0]][0] + char2code[_chs[1]][0] + char2code[_chs[2]][0] + char2code[_chs[2]][-1]
+        else:
+            _c4 = "".join(char2code[_c][0] for _c in _chs[:4])
+        si4[_c4].append((_wt, _w))
+    for _c in list(si4):
+        si4[_c] = [w for _, w in sorted(si4[_c], key=lambda x: -x[0])][:24]
+    print(f"四碼連打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
+
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
     # 蓋掉剛從 user.yaml 讀回來的狀態，等於這個開關永遠記不住使用者切過什麼
@@ -365,6 +384,11 @@ def main():
     if phrase_entries:
         phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
                           "    states: [ 詞組關, 詞組開 ]\n")
+    # 四碼連打開關：3+字詞壓成 4 碼；先預設關，自己開來試。
+    si4_switch = ""
+    if si4:
+        si4_switch = ("  - name: aiphabi_si4               # 四碼連打：3+字詞每字首碼(末字補末碼)壓成 4 碼\n"
+                       "    states: [ 四碼關, 四碼開 ]\n")
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
     # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
@@ -424,6 +448,9 @@ def main():
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
+    dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼連打；aiphabi_si4 開關控制，依詞頻排）
+    for sig, ws in sorted(si4.items()):
+        dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
     #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
@@ -506,7 +533,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{short3_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{phrase_switch}{si4_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
