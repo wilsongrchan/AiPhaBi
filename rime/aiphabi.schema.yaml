@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.08.11"
+  version: "2026.08.12"
   author:
     - wilsongrchan
   description: |
@@ -39,8 +39,10 @@ switches:
     states: [ 三簡碼關, 三簡碼開 ]
   - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
     states: [ 詞組關, 詞組開 ]
+    reset: 1
   - name: prediction                # 智能聯想：選完字，猜下一個字／詞
     states: [ 聯想關, 聯想開 ]
+    reset: 1
   - name: ascii_punct
     states: [ 。，, ．， ]
 

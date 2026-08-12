@@ -381,11 +381,15 @@ def main():
     if short3:
         short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
                           "    states: [ 三簡碼關, 三簡碼開 ]\n")
-    # 詞組連打開關（純愛發筆）：先預設關，自己開來用；二合一（＋拼音）不掛這開關、永遠開。
+    # 詞組連打開關（純愛發筆）：預設開。原本想學其他開關「不設 reset、記使用者選擇」，
+    # 但手機（Hamster）上這套「記住選擇」目前不可靠——切個 app 回來常常就被重置回預設值，
+    # 不是這裡的邏輯問題。與其讓使用者每次都要重新開一次，不如把預設值直接定在「開」，
+    # 這樣被重置回預設時至少停在使用者想要的那個狀態。
     phrase_switch = ""
     if phrase_entries:
         phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
-                          "    states: [ 詞組關, 詞組開 ]\n")
+                          "    states: [ 詞組關, 詞組開 ]\n"
+                          "    reset: 1\n")
     # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
     # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
@@ -397,10 +401,11 @@ def main():
     predict_translator = ""
     predictor_config = ""
     if (DATA / "predict.db").exists():
-        # 不設 reset，理由同三簡碼開關：讓使用者的選擇記得住，不會切個輸入法
-        # 回來就被重置回關。
+        # 預設開，理由同詞組連打開關：手機上「記住使用者選擇」目前不可靠，切個 app
+        # 回來就常被重置回預設值——與其停在關，不如直接把預設定成使用者想要的「開」。
         prediction_switch = ("  - name: prediction                # 智能聯想：選完字，猜下一個字／詞\n"
-                              "    states: [ 聯想關, 聯想開 ]\n")
+                              "    states: [ 聯想關, 聯想開 ]\n"
+                              "    reset: 1\n")
         predictor_processor = "    - predictor\n"
         predict_translator = "    - predict_translator\n"
         predictor_config = ("\npredictor:\n"
