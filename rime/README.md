@@ -1,6 +1,6 @@
 # 愛發筆 · Rime 輸入法
 
-由 `python3 build_rime.py` 產生。共 **4987 字**、**6475 條碼**
+由 `python3 build_rime.py` 產生。共 **5072 字**、**6595 條碼**
 （主碼 + 完整碼 + 手動收的兼容碼）。
 
 ## macOS（Squirrel 鼠鬚管）
@@ -53,7 +53,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 `"` 與 `'` 是成對的：連按會輪流出「」與『』的左右半邊。
 
-## 目前的重碼（283 組）
+## 目前的重碼（293 組）
 
 裝之前先知道哪些字要多按一次選字鍵：
 
@@ -62,26 +62,26 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `nx` → 收攸凤风
 * `sj` → 引弔乃勿
 * `tx` → 支枚权耂
-* `xq` → 丈戈叉处
 * `cj` → 力刀尸
-* `cl` → 已巳乜
+* `cl` → 已乜巳
 * `ihi` → 西亞酉
+* `iloda` → 贏嬴赢
 * `in` → 井亢亓
+* `it` → 干斗耒
 * `jbm` → 師帥帛
 * `jf` → 午壬乇
-* `jq` → 不入卜
 * `jtn` → 利禿秃
+* `kf` → 壯扞壮
 * `krto` → 哲掂据
 * `krx` → 版披扳
 * `myif` → 惟雀帷
-* `op` → 叨叩囝
+* `op` → 叩叨囝
 * `ot` → 田呆叶
-* `oxi` → 咚图咗
+* `oxi` → 咚咗图
 * `qk` → 永飞衤
 * `qr` → 戶广户
 * `sotmf` → 鮮鯉鮭
 * `tbt` → 卓桌棵
-* `tf` → 卡杆杜
 
 ## iOS（仓／Hamster）
 

@@ -213,7 +213,12 @@ function draw(data){
     svg.appendChild(mk('rect',{x:cx-bw/2,y:top,width:bw,height:h,rx:Math.min(3,bw/2),
       fill:b.col,'fill-opacity':p.now?.5:(p.add<0?.4:.9)}));
   }));
-  built[0].pts.forEach(p=>{const t=mk('text',{x:x(p.x),y:dZero+22,'text-anchor':'middle',class:'xtick'});t.textContent=p.label;svg.appendChild(t);});
+  // 日期軸：只畫間隔夠開的標籤（避免重疊）；一定保留最後一個（現在）。
+  (()=>{const pts=built[0].pts, MIN=46, endX=x(pts[pts.length-1].x); let lastX=-1e9;
+    pts.forEach((p,i)=>{const px=x(p.x), isEnd=i===pts.length-1;
+      if(isEnd || (px-lastX>=MIN && endX-px>=MIN)){
+        const t=mk('text',{x:px,y:dZero+22,'text-anchor':'middle',class:'xtick'});
+        t.textContent=p.label;svg.appendChild(t);lastX=px;}});})();
   const cross=mk('line',{y1:cumTop,y2:dZero,class:'cross'});svg.appendChild(cross);
   built.forEach(b=>b.pts.forEach((p,i)=>{const last=i===b.pts.length-1;
     svg.appendChild(mk('circle',{cx:x(p.x),cy:yc(p.cum),r:last?5:3.5,
