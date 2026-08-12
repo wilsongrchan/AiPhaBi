@@ -271,11 +271,10 @@ def main():
     # 打前綴（jkqj）即由 enable_completion 補出整個詞。詞收進共用碼表：二合一（＋拼音）預設就有；
     # 純愛發筆用 aiphabi_phrase 開關控制（預設關，像三簡碼一樣自己開來用），關掉時由 aiphabi_phrase.lua 濾掉多字候選。
     PHRASE_TOPN = 40000
-    # 每字取碼，收三種串法（各字串接即詞組碼），彼此獨立、都能打：
-    #   main = 純主碼（簡碼有沒有都用主碼）——一樣=itveqk、我的=jkxqjba
-    #   simp = 簡碼優先，沒簡碼用主碼——一樣=itk、我的=jkqja
-    #   t3   = 簡碼優先，沒簡碼且主碼≥4 用三簡碼（頭2末1），否則主碼——最美=bnxvek、香港=jtbwhz
-    # 「簡碼打得出」不代表「主碼打不出」：main 一定收，所以完整主碼串永遠有效。
+    # 每字有兩式：主碼；短碼＝簡碼優先、否則三簡碼(主碼≥4，頭2末1)、否則主碼。各字串接即詞組碼。
+    #   兩字詞：每字「短/主」任意搭配四式都收（短短、短主、主短、主主）——不用記哪個字該用哪式。
+    #           我的＝jkqja（短短）/jkqjba（短主）/jkxqja（主短）/jkxqjba（主主）。
+    #   3+字詞：整詞統一三式（main／簡碼優先／三簡碼優先），免得組合爆炸。
     def _pcode(ch, mode):
         mc = char2code.get(ch)                    # 主碼
         if mode == "main":
@@ -286,16 +285,26 @@ def main():
         if mode == "t3" and mc and len(mc) >= 4:
             return mc[0] + mc[1] + mc[-1]         # 三簡碼：頭2+末1
         return mc
+    def _char_short(ch):                          # 短碼：簡碼 > 三簡碼(主碼≥4) > 主碼
+        sc = shortcode_rev.get(ch)
+        if sc:
+            return sc
+        mc = char2code.get(ch)
+        if mc and len(mc) >= 4:
+            return mc[0] + mc[1] + mc[-1]
+        return mc
     def _word_codes(w):                           # 回傳 {碼,...}；任一字沒取碼就回 None（整詞收不了）
+        chs = list(w)
+        if any(char2code.get(ch) is None for ch in chs):
+            return None
         out = set()
-        for mode in ("main", "simp", "t3"):
-            parts = []
-            for ch in w:
-                pc = _pcode(ch, mode)
-                if not pc:
-                    return None
-                parts.append(pc)
-            out.add("".join(parts))
+        if len(chs) == 2:
+            for a in (_char_short(chs[0]), char2code[chs[0]]):
+                for b in (_char_short(chs[1]), char2code[chs[1]]):
+                    out.add(a + b)
+        else:
+            for mode in ("main", "simp", "t3"):
+                out.add("".join(_pcode(ch, mode) for ch in chs))
         return out
 
     phrase_w = {}                                 # 詞 -> 權重（essay 計次；地名沒有就給地板值）
