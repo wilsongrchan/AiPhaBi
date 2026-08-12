@@ -361,21 +361,32 @@ def main():
     # ---- 四碼連打：3+ 字詞壓成固定 4 碼（開關 aiphabi_si4；不進碼表，靠 Lua 查 M.si4）----
     #   3 字：字1首 + 字2首 + 字3首 + 字3末（末字補末碼消歧）——容祖兒=QQFL
     #   4 字：四字各首碼——光明正大=WBFI
-    #   5+ 字：前四字各首碼——中華人民共和國=QHYC
+    #   5+ 字：兩式都收——前四字各首碼（從開頭打就行，記得開頭即可）＝中華人民共和國 QHYC；
+    #          外加 前三字+末字首碼（記得整句可精準定位，消 中國人民X 那種撞碼）＝解放軍 QOY+軍。
     # 撞碼的照詞頻排（常用在前），每碼上限收 24 個免爆。
     si4 = defaultdict(list)
     for _w, _wt in phrase_w.items():
         _chs = list(_w)
-        if len(_chs) < 3 or any(_c not in char2code for _c in _chs[:4]):
+        if len(_chs) < 3 or any(_c not in char2code for _c in set(_chs[:4]) | {_chs[-1]}):
             continue
+        _codes4 = []
         if len(_chs) == 3:
-            _c4 = char2code[_chs[0]][0] + char2code[_chs[1]][0] + char2code[_chs[2]][0] + char2code[_chs[2]][-1]
-        else:
-            _c4 = "".join(char2code[_c][0] for _c in _chs[:4])
-        si4[_c4].append((_wt, _w))        # 完整四碼
-        si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
-    for _c in list(si4):
-        si4[_c] = [w for _, w in sorted(si4[_c], key=lambda x: -x[0])][:24]
+            _codes4.append(char2code[_chs[0]][0] + char2code[_chs[1]][0]
+                           + char2code[_chs[2]][0] + char2code[_chs[2]][-1])
+        elif len(_chs) == 4:
+            _codes4.append("".join(char2code[_c][0] for _c in _chs))
+        else:  # 5+：前四字首碼 ＋ 前三字+末字首碼
+            _codes4.append("".join(char2code[_c][0] for _c in _chs[:4]))
+            _codes4.append("".join(char2code[_c][0] for _c in _chs[:3]) + char2code[_chs[-1]][0])
+        for _c4 in _codes4:
+            si4[_c4].append((_wt, _w))        # 完整四碼
+            si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
+    for _c in list(si4):                      # 依詞頻排、去重、每碼上限 24
+        _seen, _out = set(), []
+        for _, _w in sorted(si4[_c], key=lambda x: -x[0]):
+            if _w not in _seen:
+                _seen.add(_w); _out.append(_w)
+        si4[_c] = _out[:24]
     print(f"四碼連打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
