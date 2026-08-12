@@ -111,24 +111,38 @@ local function filter(input, env)
     return
   end
 
-  -- 覆蓋長度：能吃掉整串輸入的候選（zuimeidehua→最美的話）要贏過只吃前段的（最、最美）。
-  -- 只吃前綴的一律降到最後，照吃得越多越前、再照常用度。短碼時大家都吃滿，等於沒差。
-  local maxCov = 0
-  for _, c in ipairs(cands) do
-    local e = c._end or 0
-    if e > maxCov then maxCov = e end
-  end
-
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  -- 吃滿的：top = 有效選過次數 ≥ PROMOTE_MIN(3)（簡碼 floor 9／exact floor 6 靠 floor 就達標）；
-  --         pool = 其餘全部同池照 cf 排，拼音冷讀音打折。 part = 只吃前綴的，全部降到最後。
+  -- 判斷候選是「形碼」還是「拼音」：形碼 preedit 是大寫字母（HOYJBT）；拼音是小寫音節。
+  local function isFormCand(c)
+    if c.type == "ap_short" or c.type == "ap_pool" then return true end
+    local mc = data.char2code[c.text]
+    if mc and mc:sub(1, #code) == code then return true end
+    local pe = c.preedit
+    return pe ~= nil and pe:match("^[A-Z`]+$") ~= nil
+  end
+
+  -- 覆蓋長度：吃整串的（最美的話）贏過只吃前段的（最、最美），只吃前綴的降到最後。
+  -- 但「吃得夠不夠」只跟同源比——形碼跟形碼比、拼音跟拼音比。不然拼音簡拼把整串吃滿，
+  -- 會把形碼真詞前綴（歡樂，只吃 6 碼）誤判成吃不夠、壓下去甚至擠掉。
+  local info, maxCovForm, maxCovPy = {}, 0, 0
+  for i, c in ipairs(cands) do
+    local form = isFormCand(c)
+    local cov = c._end or 0
+    info[i] = { form = form, cov = cov }
+    if form then
+      if cov > maxCovForm then maxCovForm = cov end
+    elseif cov > maxCovPy then maxCovPy = cov end
+  end
+
+  -- top = 選過(衰減)/簡碼/exact；pool = 其餘同池照 cf；part = 同源裡吃不滿的，降到最後。
   local top, pool, part = {}, {}, {}
   local pyRank = 0
   for i, c in ipairs(cands) do
-    if (c._end or maxCov) < maxCov then
-      part[#part + 1] = { c = c, i = i, cov = c._end or 0, w = cf(c.text) }
+    local form, cov = info[i].form, info[i].cov
+    if cov < (form and maxCovForm or maxCovPy) then
+      part[#part + 1] = { c = c, i = i, cov = cov, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
       local isExact = exactSet[c.text]
@@ -136,12 +150,10 @@ local function filter(input, env)
       if eu >= PROMOTE_MIN then
         top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
       else
-        local mc = data.char2code[c.text]
-        local isForm = isShort or c.type == "ap_pool" or (mc and mc:sub(1, #code) == code)
         local w = cf(c.text)
-        if not isForm then
+        if not form then
           pyRank = pyRank + 1
-          -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞（人民/中華）不是冷讀音、不打折
+          -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞不算
           if pyRank > PY_TOPK and ulen(c.text) == 1 then w = w * PY_OBSCURE end
         end
         if c.type == "completion" then w = w * COMPLETION_PEN end   -- 補全讓步給打滿的 exact

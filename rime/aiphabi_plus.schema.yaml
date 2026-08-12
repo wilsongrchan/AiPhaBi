@@ -75,7 +75,8 @@ speller:
 translator:
   dictionary: aiphabi
   enable_charset_filter: false
-  enable_sentence: false
+  enable_sentence: true            # 打過某詞的碼還繼續打（HOYJBT歡樂 +FB…），靠切分把「歡樂」留在候選裡、
+                                    # 不讓它憑空消失（跟拼音一樣切分組詞）。實驗中，會不會誤切再看。
   enable_encoder: false
   enable_completion: true
   strict_spelling: false
