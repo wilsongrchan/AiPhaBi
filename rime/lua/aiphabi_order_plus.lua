@@ -108,9 +108,18 @@ local function filter(input, env)
   -- enable_sentence 切分後，context.input 是整串（電腦 + tbt）；候選是「目前這段」的。
   -- 用候選的 start 取出目前這段的碼，才查得到 exact（不然拿整串去查 code2chars 一定落空，
   -- 桌／卓 就不被當 exact、被高頻補全壓下去）。沒切分時 start=0，等於原本行為。
-  local full = env.engine.context.input
-  local segStart = cands[1] and cands[1].start or 0
-  local code = full and full:sub(segStart + 1) or ""
+  -- 目前這段的範圍 [segStart, segEnd]：所有候選 start 最小、_end 最大。enable_sentence 會切出
+  -- 各種子段，不能只看 cands[1]——它可能吃前段（水[K]，start 0）或吃後段（民[CLX]，start 1）。
+  local full = env.engine.context.input or ""
+  local segStart, segEnd = 1e9, 0
+  for _, c in ipairs(cands) do
+    local st = c.start or 0
+    if st < segStart then segStart = st end
+    local en = c._end or 0
+    if en > segEnd then segEnd = en end
+  end
+  if segStart == 1e9 then segStart = 0 end
+  local code = full:sub(segStart + 1, segEnd)
 
   if not code or code == "" or code:find("[^a-z]") then   -- 萬用鍵／含非字母：不重排
     for _, c in ipairs(cands) do yield(c) end
@@ -122,36 +131,42 @@ local function filter(input, env)
 
   -- 判斷候選是「形碼」還是「拼音」：形碼 preedit 是大寫字母（HOYJBT）；拼音是小寫音節。
   local function isFormCand(c)
-    if c.type == "ap_short" or c.type == "ap_pool" then return true end
+    if c.type == "ap_short" or c.type == "ap_pool" or c.type == "ap_si4" then return true end
     local mc = data.char2code[c.text]
     if mc and mc:sub(1, #code) == code then return true end
     local pe = c.preedit
     return pe ~= nil and pe:match("^[A-Z`]+$") ~= nil
   end
 
-  -- 覆蓋長度：吃整串的（最美的話）贏過只吃前段的（最、最美），只吃前綴的降到最後。
-  -- 但「吃得夠不夠」只跟同源比——形碼跟形碼比、拼音跟拼音比。不然拼音簡拼把整串吃滿，
-  -- 會把形碼真詞前綴（歡樂，只吃 6 碼）誤判成吃不夠、壓下去甚至擠掉。
-  local info, maxCovForm, maxCovPy = {}, 0, 0
+  -- 覆蓋：吃滿整段 [minStart, maxEnd] 的才算數；缺頭（民 吃後段）或缺尾（水／最 吃前段）都墊底。
+  -- 只跟同源比（形碼 vs 形碼、拼音 vs 拼音），免得拼音簡拼吃滿整串、把形碼真詞前綴（歡樂）壓掉。
+  local info = {}
+  local sForm, eForm, sPy, ePy = 1e9, 0, 1e9, 0
   for i, c in ipairs(cands) do
     local form = isFormCand(c)
-    local cov = c._end or 0
-    info[i] = { form = form, cov = cov }
+    local st, en = c.start or 0, c._end or 0
+    info[i] = { form = form, st = st, en = en }
     if form then
-      if cov > maxCovForm then maxCovForm = cov end
-    elseif cov > maxCovPy then maxCovPy = cov end
+      if st < sForm then sForm = st end
+      if en > eForm then eForm = en end
+    else
+      if st < sPy then sPy = st end
+      if en > ePy then ePy = en end
+    end
   end
 
   -- top = 選過(衰減)/簡碼/exact；pool = 其餘同池照 cf；part = 同源裡吃不滿的，降到最後。
   local top, pool, part = {}, {}, {}
   local pyRank = 0
   for i, c in ipairs(cands) do
-    local form, cov = info[i].form, info[i].cov
-    if cov < (form and maxCovForm or maxCovPy) then
-      part[#part + 1] = { c = c, i = i, cov = cov, w = cf(c.text) }
+    local form, st, en = info[i].form, info[i].st, info[i].en
+    local minS = form and sForm or sPy
+    local maxE = form and eForm or ePy
+    if st > minS or en < maxE then          -- 吃不滿整段（缺頭或缺尾）→ 墊底
+      part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
-      local isExact = exactSet[c.text]
+      local isExact = exactSet[c.text] or c.type == "ap_si4"   -- 打滿的四碼詞＝exact 一級
       local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
       if eu >= PROMOTE_MIN then
         top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }

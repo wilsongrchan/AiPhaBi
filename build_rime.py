@@ -316,6 +316,11 @@ def main():
     # 精選詞庫：data/phrases_*.txt 每個主題檔（地名／政要／紅星／英文名／常識／成語／飲食／品牌…）
     # 一律收，不管在不在 essay 高頻表。新增主題檔只要照 phrases_ 命名就自動收進來。
     # 沒 essay 計次的給地板權重照樣排得出來；有字沒取碼的整詞收不了，建置時列出來讓人知道。
+    # 兩個地板分屬兩把不同的尺，別混用（之前混用害手機把 屬鼠 排在 屬於 前）：
+    #   PLACE_DICT_FLOOR：碼表 weight 的尺＝essay「原始計次」（屬於 67100、屬性 22130…）。手機沒 lua
+    #     重排，候選就照這個 weight 排，所以專名地板要落在「中等常用詞」以下、別高過常用詞。
+    #   PLACE_FLOOR：詞頻表 wordfreq 的尺＝校準到字頻（屬於 569984…），桌面 lua 重排用。兩尺數字不同。
+    PLACE_DICT_FLOOR = 12000
     PLACE_FLOOR = 100000
     place_skipped = []
     for _wf in sorted(DATA.glob("phrases_*.txt")):
@@ -326,9 +331,9 @@ def main():
                 if _word_codes(_w) is None:
                     place_skipped.append(_w)
                 elif _w not in phrase_w:
-                    phrase_w[_w] = max(_pe.get(_w, 0), PLACE_FLOOR)
-                elif phrase_w[_w] < PLACE_FLOOR:
-                    phrase_w[_w] = PLACE_FLOOR
+                    phrase_w[_w] = max(_pe.get(_w, 0), PLACE_DICT_FLOOR)
+                elif phrase_w[_w] < PLACE_DICT_FLOOR:
+                    phrase_w[_w] = PLACE_DICT_FLOOR
 
     phrase_entries, _seen_wc = [], set()
     for _w, _wt in phrase_w.items():

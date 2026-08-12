@@ -75,8 +75,10 @@ local function filter(input, env)
   local extra4 = {}        -- 四碼連打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
   if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or si4_on then
-    local s = cands[1] and cands[1].start or 0
-    local e = cands[1] and cands[1]._end or #code
+    -- 這些提示（同類／偏旁／簡碼／三簡碼／四碼…）都是查「整串輸入的碼」得來的，覆蓋 0..#code。
+    -- 不能抄 cands[1] 的範圍——開了 enable_sentence 後 cands[1] 常常只吃前段（水 只吃 K），
+    -- 抄了會讓打滿的四碼（水瓶座＝KVRF）被當「沒吃滿」壓到後面。
+    local s, e = 0, #code
     if fam_on or t2s_on or s2t_on then
       for _, ch in ipairs(data.code2chars[code] or {}) do
         if fam_on then                     -- 同類字：這個碼的字若屬某家族 → 帶出整組（各附正碼）
@@ -127,11 +129,17 @@ local function filter(input, env)
         end
       end
     end
-    if si4_on then                       -- 四碼連打：打了 4 碼，查詞庫壓成的四碼 → 帶出整詞（依詞頻）
+    if si4_on then                       -- 四碼連打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
+                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。
+      local exact4 = #code == 4
       for _, w in ipairs(data.si4[code] or {}) do
         if not seen[w] then
           seen[w] = true
-          extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+          if exact4 then
+            extra[#extra + 1] = Candidate("ap_si4", s, e, w, "四碼")
+          else
+            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+          end
         end
       end
     end

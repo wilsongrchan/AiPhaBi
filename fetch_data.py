@@ -96,8 +96,11 @@ def main():
 
     freq = DATA / "freq.json"
     if not freq.exists():
-        print("字頻（rime-essay）")
-        counts = collections.Counter()
+        print("字頻（rime-essay：字詞出現次數 × 單字頻 混合，較穩、涵蓋到尾）")
+        # 兩個訊號：wa=字在所有詞裡的加權出現次數（「一」出現在無數詞裡，自然排前，較準）；
+        #          sc=單字詞本身的次數。各自取名次百分位再混合（0.55/0.45），
+        #          消掉單一來源的怪癖（純單字頻把「一」壓太低、純 makemeahanzi 尾段又噪）。
+        wa, sc = collections.Counter(), collections.Counter()
         for line in fetch(ESSAY).decode("utf-8", "replace").splitlines():
             parts = line.split("\t")
             if len(parts) < 2:
@@ -106,11 +109,26 @@ def main():
                 w = int(parts[1])
             except ValueError:
                 continue
-            for ch in parts[0]:
-                if ch in chars:
-                    counts[ch] += w
-        ranked = [c for c, _ in counts.most_common()]
-        rest = sorted(chars - set(ranked), key=lambda c: (strokes[c], c))
+            word = parts[0]
+            for ch in word:
+                wa[ch] += w
+            if len(word) == 1:
+                sc[word] += w
+
+        def _han(c):
+            return "㐀" <= c <= "鿿" or "豈" <= c <= "﫿"
+
+        wa_rank = {c: i for i, c in enumerate(sorted(wa, key=lambda c: -wa[c]))}
+        sc_rank = {c: i for i, c in enumerate(sorted(sc, key=lambda c: -sc[c]))}
+        nw, ns = max(1, len(wa_rank)), max(1, len(sc_rank))
+
+        def _blend(c):
+            pw = wa_rank[c] / nw if c in wa_rank else 1.0
+            ps = sc_rank[c] / ns if c in sc_rank else 1.0
+            return 0.55 * pw + 0.45 * ps
+
+        ranked = sorted((c for c in wa if _han(c)), key=_blend)
+        rest = sorted(chars - set(ranked), key=lambda c: (strokes[c], c))  # makemeahanzi 有、essay 沒出現的
         freq.write_text(json.dumps({"order": ranked + rest, "with_freq": len(ranked)},
                                    ensure_ascii=False), "utf-8")
         print(f"  {len(ranked) + len(rest)} 字排序完成")
