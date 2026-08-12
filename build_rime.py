@@ -593,6 +593,7 @@ translator:
   comment_format:              # 候選旁邊的碼提示也顯示大寫
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
+    - "xform/☯/?/"             # enable_sentence 組句候選內建提示符 ☯ 改成 ?，跟其他提示風格一致
 {predictor_config}
 menu:
   page_size: 6                 # 一次顯示 6 個候選（留多點空間給候選字放大）
