@@ -298,6 +298,11 @@ def main():
             out.add("".join(parts))
         return out
 
+    # essay.txt 只在原作者自己的機器上有（Squirrel 分享目錄，不隨repo走）——別的機器建置
+    # （含 CI、其他協作者）essay 計次全部是 0，词组/四碼會漏掉大量常用詞（星期一之類）。
+    # data/phrases_preview.tsv 是先前從 essay.txt 匯出、有進 repo 的快照（詞+計次+碼），
+    # 拿它當備援：機器上有 essay.txt 就用最新的，沒有就退回這份快照，兩邊都建置得出
+    # 同一批常用詞的詞組／四碼，不會因為換一台機器建置就漏掉一大截。
     phrase_w = {}                                 # 詞 -> 權重（essay 計次；地名沒有就給地板值）
     _pe = {}
     try:
@@ -308,10 +313,19 @@ def main():
                 _n = int(_p[1])
                 if _n > 0 and 2 <= len(_p[0]) <= 4:
                     _pe[_p[0]] = _n
-        for _w, _n in sorted(_pe.items(), key=lambda kv: -kv[1])[:PHRASE_TOPN]:
-            phrase_w[_w] = _n
     except (FileNotFoundError, OSError):
         _pe = {}
+    if not _pe:
+        _preview = DATA / "phrases_preview.tsv"
+        if _preview.exists():
+            for _ln in _preview.read_text("utf-8").splitlines()[1:]:
+                _p = _ln.split("\t")
+                if len(_p) >= 2 and _p[1].strip().isdigit():
+                    _n = int(_p[1])
+                    if _n > 0 and 2 <= len(_p[0]) <= 4:
+                        _pe[_p[0]] = _n
+    for _w, _n in sorted(_pe.items(), key=lambda kv: -kv[1])[:PHRASE_TOPN]:
+        phrase_w[_w] = _n
 
     # 精選詞庫：data/phrases_*.txt 每個主題檔（地名／政要／紅星／英文名／常識／成語／飲食／品牌…）
     # 一律收，不管在不在 essay 高頻表。新增主題檔只要照 phrases_ 命名就自動收進來。
