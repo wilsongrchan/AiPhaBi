@@ -48,15 +48,9 @@ local CAND_CAP = 200
 local function filter(input, env)
   local ctx = env.engine.context
   local code = ctx.input
-  -- 先收下候選（原順序不動，但設上限，見上），順便記下已出現的字。
-  -- enable_sentence 自己組出來的組句候選，type 是 librime 內建的 "sentence"——「仓」
-  -- 在候選旁邊畫的那顆 ☯ 圖示是認這個 type 畫的，不是文字（comment_format 換不掉）。
-  -- 這裡重包成 ap_pool，圖示就不會跟著長出來，其餘（text/comment）原樣照抄。
+  -- 先收下候選（原順序不動，但設上限，見上），順便記下已出現的字
   local cands, seen = {}, {}
   for cand in input:iter() do
-    if cand.type == "sentence" then
-      cand = Candidate("ap_pool", cand.start, cand._end, cand.text, cand.comment)
-    end
     cands[#cands + 1] = cand
     seen[cand.text] = true
     if #cands >= CAND_CAP then break end
