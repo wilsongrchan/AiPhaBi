@@ -72,11 +72,19 @@ local function filter(input, env)
   local cands = {}
   for cand in input:iter() do cands[#cands + 1] = cand end
 
-  -- enable_sentence 切分後，context.input 是整串；候選是「目前這段」的。用候選的 start 取出
-  -- 目前這段的碼，才查得到 exact（不然拿整串查 code2chars 一定落空、exact 字被壓下去）。
-  local full = env.engine.context.input
-  local segStart = cands[1] and cands[1].start or 0
-  local code = full and full:sub(segStart + 1) or ""
+  -- enable_sentence 切分後，context.input 是整串；候選是「目前這段」的。目前這段的範圍
+  -- [segStart, segEnd]＝所有候選 start 最小、_end 最大（不能只看 cands[1]，它可能吃前段或後段）。
+  -- 用這段的碼查 exact（不然拿整串查 code2chars 一定落空、exact 字被壓下去）。
+  local full = env.engine.context.input or ""
+  local segStart, segEnd = 1e9, 0
+  for _, c in ipairs(cands) do
+    local st = c.start or 0
+    if st < segStart then segStart = st end
+    local en = c._end or 0
+    if en > segEnd then segEnd = en end
+  end
+  if segStart == 1e9 then segStart = 0 end
+  local code = full:sub(segStart + 1, segEnd)
 
   -- 萬用鍵／空碼／含非字母：不重排，原樣輸出
   if not code or code == "" or code:find("[^a-z]") then
@@ -87,14 +95,12 @@ local function filter(input, env)
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  -- 覆蓋長度：開了 enable_sentence 後會冒出只吃前段的切分候選（打 KVRF 時的 水[K]、扒[KV]）。
-  -- 吃不滿整串的一律降到最後，別讓常用單字（水）壓過打滿的四碼詞（水瓶座＝KVRF 全中）。
-  local maxCov = 0
-  for _, c in ipairs(cands) do local e = c._end or 0; if e > maxCov then maxCov = e end end
-
+  -- 覆蓋：enable_sentence 會冒出吃前段（水[K]）或吃後段（民[CLX]）的切分候選。吃不滿整段
+  -- [segStart,segEnd]（缺頭或缺尾）的一律墊底，別讓常用單字壓過打滿的詞（水瓶座＝KVRF、人民＝YCLX）。
   local short, exact, pool, part = {}, {}, {}, {}
   for _, c in ipairs(cands) do
-    if (c._end or maxCov) < maxCov then part[#part + 1] = { c = c, cov = c._end or 0 }
+    if (c.start or 0) > segStart or (c._end or 0) < segEnd then
+      part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = c
