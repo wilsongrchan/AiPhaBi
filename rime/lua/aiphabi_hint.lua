@@ -64,12 +64,17 @@ local function filter(input, env)
   local s2t_on   = ok and ctx:get_option("aiphabi_s2t")
   local short_on = ok and ctx:get_option("aiphabi_short100")
   local short3_on = ok and #code == 3 and ctx:get_option("aiphabi_short3")
+  -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
+  -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
+  local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
+  local si4_on    = ok and (#code == 3 or #code == 4) and phrase_on
   local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}
   local extra3 = {}        -- 三簡碼命中的字：排在所有正常候選之後（見下方排序理由）
+  local extra4 = {}        -- 四碼連打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
-  if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on then
+  if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or si4_on then
     local s = cands[1] and cands[1].start or 0
     local e = cands[1] and cands[1]._end or #code
     if fam_on or t2s_on or s2t_on then
@@ -119,6 +124,14 @@ local function filter(input, env)
           seen[ch] = true
           local sc = data.char2code[ch]
           extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
+        end
+      end
+    end
+    if si4_on then                       -- 四碼連打：打了 4 碼，查詞庫壓成的四碼 → 帶出整詞（依詞頻）
+      for _, w in ipairs(data.si4[code] or {}) do
+        if not seen[w] then
+          seen[w] = true
+          extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
         end
       end
     end
@@ -191,6 +204,9 @@ local function filter(input, env)
     if keep(c) then yield(c) end
   end
   for _, c in ipairs(extra3) do
+    if keep(c) then yield(c) end
+  end
+  for _, c in ipairs(extra4) do
     if keep(c) then yield(c) end
   end
 end
