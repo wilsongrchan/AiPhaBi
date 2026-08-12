@@ -119,11 +119,17 @@ local function filter(input, env)
         end
       end
     end
-    if si4_on then                       -- 四碼連打：打了 4 碼，查詞庫壓成的四碼 → 帶出整詞（依詞頻）
+    if si4_on then                       -- 四碼連打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
+                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。
+      local exact4 = #code == 4
       for _, w in ipairs(data.si4[code] or {}) do
         if not seen[w] then
           seen[w] = true
-          extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+          if exact4 then
+            extra[#extra + 1] = Candidate("ap_si4", s, e, w, "四碼")
+          else
+            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+          end
         end
       end
     end

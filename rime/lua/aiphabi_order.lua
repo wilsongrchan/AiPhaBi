@@ -102,6 +102,7 @@ local function filter(input, env)
     if (c.start or 0) > segStart or (c._end or 0) < segEnd then
       part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
+    elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = c
     else pool[#pool + 1] = { c = c } end                 -- 補全（沒中完整碼）也丟進池子

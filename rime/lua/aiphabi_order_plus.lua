@@ -131,7 +131,7 @@ local function filter(input, env)
 
   -- 判斷候選是「形碼」還是「拼音」：形碼 preedit 是大寫字母（HOYJBT）；拼音是小寫音節。
   local function isFormCand(c)
-    if c.type == "ap_short" or c.type == "ap_pool" then return true end
+    if c.type == "ap_short" or c.type == "ap_pool" or c.type == "ap_si4" then return true end
     local mc = data.char2code[c.text]
     if mc and mc:sub(1, #code) == code then return true end
     local pe = c.preedit
@@ -166,7 +166,7 @@ local function filter(input, env)
       part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
-      local isExact = exactSet[c.text]
+      local isExact = exactSet[c.text] or c.type == "ap_si4"   -- 打滿的四碼詞＝exact 一級
       local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
       if eu >= PROMOTE_MIN then
         top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
