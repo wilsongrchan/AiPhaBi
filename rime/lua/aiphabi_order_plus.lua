@@ -102,9 +102,15 @@ local COMPLETION_PEN = 0.7 -- 補全候選（打的是長詞前綴，如 YCLX→
                            -- 有優勢；但只是打折不是絕對——頻率高很多的補全（中華）照樣壓過冷門 exact。
 
 local function filter(input, env)
-  local code = env.engine.context.input
   local cands = {}
   for c in input:iter() do cands[#cands + 1] = c end
+
+  -- enable_sentence 切分後，context.input 是整串（電腦 + tbt）；候選是「目前這段」的。
+  -- 用候選的 start 取出目前這段的碼，才查得到 exact（不然拿整串去查 code2chars 一定落空，
+  -- 桌／卓 就不被當 exact、被高頻補全壓下去）。沒切分時 start=0，等於原本行為。
+  local full = env.engine.context.input
+  local segStart = cands[1] and cands[1].start or 0
+  local code = full and full:sub(segStart + 1) or ""
 
   if not code or code == "" or code:find("[^a-z]") then   -- 萬用鍵／含非字母：不重排
     for _, c in ipairs(cands) do yield(c) end
