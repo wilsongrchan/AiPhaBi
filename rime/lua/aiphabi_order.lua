@@ -87,9 +87,15 @@ local function filter(input, env)
   local exactSet = {}
   for _, ch in ipairs(data.code2chars[code] or {}) do exactSet[ch] = true end
 
-  local short, exact, pool = {}, {}, {}
+  -- 覆蓋長度：開了 enable_sentence 後會冒出只吃前段的切分候選（打 KVRF 時的 水[K]、扒[KV]）。
+  -- 吃不滿整串的一律降到最後，別讓常用單字（水）壓過打滿的四碼詞（水瓶座＝KVRF 全中）。
+  local maxCov = 0
+  for _, c in ipairs(cands) do local e = c._end or 0; if e > maxCov then maxCov = e end end
+
+  local short, exact, pool, part = {}, {}, {}, {}
   for _, c in ipairs(cands) do
-    if c.type == "ap_short" then short[#short + 1] = c
+    if (c._end or maxCov) < maxCov then part[#part + 1] = { c = c, cov = c._end or 0 }
+    elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = c
     else pool[#pool + 1] = { c = c } end                 -- 補全（沒中完整碼）也丟進池子
@@ -101,10 +107,16 @@ local function filter(input, env)
     if sa ~= sb then return sa > sb end
     return a.i < b.i
   end)
+  for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
+  table.sort(part, function(a, b)
+    if a.cov ~= b.cov then return a.cov > b.cov end
+    return a.i < b.i
+  end)
 
   for _, c in ipairs(short) do yield(c) end              -- 1. 簡碼
   for _, c in ipairs(exact) do yield(c) end              -- 2. 主碼 exact
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘（照 選過→常用度）
+  for _, e in ipairs(part) do yield(e.c) end             -- 4. 只吃前綴的切分候選，墊底
 end
 
 return { init = init, fini = fini, func = filter }
