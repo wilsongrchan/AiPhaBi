@@ -73,7 +73,7 @@ speller:
 translator:
   dictionary: aiphabi
   enable_charset_filter: false
-  enable_sentence: false
+  enable_sentence: true        # 打過某詞的碼還繼續打時，靠切分把已知的詞留在候選、並幫忙組出整句
   enable_encoder: false
   enable_completion: true      # 碼還沒打完就先給候選
   strict_spelling: false

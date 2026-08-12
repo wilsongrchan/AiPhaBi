@@ -61,14 +61,22 @@ local function fini(env)
   if env.ap_order_notifier then pcall(function() env.ap_order_notifier:disconnect() end) end
 end
 
-local function score(ch)                  -- 選過次數優先，其次常用度
-  return (USERFREQ[ch] or 0) * 1000000000 + (data.freq[ch] or 0)
+local function cf(text)                    -- 常用度：單字用字頻，多字（切分組出的詞）用詞頻
+  return (data.wordfreq and data.wordfreq[text]) or data.freq[text] or 0
+end
+local function score(ch)                   -- 選過次數優先，其次常用度
+  return (USERFREQ[ch] or 0) * 1000000000 + cf(ch)
 end
 
 local function filter(input, env)
-  local code = env.engine.context.input
   local cands = {}
   for cand in input:iter() do cands[#cands + 1] = cand end
+
+  -- enable_sentence 切分後，context.input 是整串；候選是「目前這段」的。用候選的 start 取出
+  -- 目前這段的碼，才查得到 exact（不然拿整串查 code2chars 一定落空、exact 字被壓下去）。
+  local full = env.engine.context.input
+  local segStart = cands[1] and cands[1].start or 0
+  local code = full and full:sub(segStart + 1) or ""
 
   -- 萬用鍵／空碼／含非字母：不重排，原樣輸出
   if not code or code == "" or code:find("[^a-z]") then
