@@ -69,12 +69,8 @@
   .tile .v{font-size:24px;color:var(--ink);line-height:1.1;}
   .tile .v small{font-size:12px;color:var(--muted);margin-left:4px;letter-spacing:0;}
   .tile.hl .v{color:var(--accent);}
-  .tile.click{cursor:pointer;}
-  .tile.click:hover{border-color:var(--accent);}
-  .tile.toggle{cursor:pointer;}
-  .tile.toggle:hover{border-color:var(--accent);}
-  .tile.toggle.off{opacity:.4;}
-  .tile.toggle.off .v{color:var(--muted);}
+  .tile.off{opacity:.4;}
+  .tile.off .v{color:var(--muted);}
   .tile.sum{border-color:var(--accent);border-width:1.5px;}
   .tile .view{font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:inline-block;}
   .tile .view:hover{text-decoration:underline;}
@@ -325,8 +321,8 @@ function draw(data){
   renderCats(data);
 }
 
-/* ---------- 繁體／簡體／傳承／日本漢字：可個別開關，附一個顯示目前勾選集合聯集的加總；
-   同一組開關也決定上面圖表要畫哪幾條線（catValue／catNow）。 ---------- */
+/* ---------- 繁體／簡體／傳承／日本漢字：純顯示（開關搬到圖表上方那排小按鈕了，
+   這裡不再點得動），只留「看這些字」連去 /annotate？q=。 ---------- */
 const CATDESC={trad:'有對應簡體字，如 國魚雲',simp:'簡體專屬，如 国鸟',inherited:'如人天后',jp:'新字体／國字，如県駅鉄'};
 function renderCats(data){
   const chars={trad:data.tradChars||[],simp:data.simpChars||[],
@@ -336,11 +332,9 @@ function renderCats(data){
   const mk_=(k,label,sub,list,extraClass)=>{
     const d=document.createElement('div');
     const on=catOn[k];
-    d.className='tile toggle'+(on?'':' off')+(extraClass?' '+extraClass:'');
+    d.className='tile'+(on?'':' off')+(extraClass?' '+extraClass:'');
     d.innerHTML=`<span class="k">${label}</span><span class="v num">${list.length.toLocaleString()}<small>${sub}</small></span>`+
       (list.length?`<a class="view" href="/annotate?q=${encodeURIComponent(list.join(''))}">看這些字 →</a>`:'');
-    d.querySelector('.k').onclick=d.querySelector('.v').onclick=()=>{catOn[k]=!catOn[k];saveCats();render();};
-    const link=d.querySelector('.view'); if(link) link.onclick=ev=>ev.stopPropagation();
     return d;
   };
   CATDEF.forEach(c=>box.appendChild(mk_(c.key,c.name,CATDESC[c.key],chars[c.key])));
