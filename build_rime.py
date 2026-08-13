@@ -266,6 +266,129 @@ def main():
     char2code = {c: shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
+    # ---- 詞組連打：常用詞 = 各字「簡碼（無簡碼則主碼）」串接 ----
+    # 例：我的 = 我jkq + 的ja = jkqja；中國人 = 中q + 國oq + 人y = qoqy；香港 = 香jtb + 港whvz = jtbwhvz。
+    # 打前綴（jkqj）即由 enable_completion 補出整個詞。詞收進共用碼表：二合一（＋拼音）預設就有；
+    # 純愛發筆用 aiphabi_phrase 開關控制（預設關，像三簡碼一樣自己開來用），關掉時由 aiphabi_phrase.lua 濾掉多字候選。
+    PHRASE_TOPN = 40000
+    # 每字有兩式：主碼；短碼＝簡碼優先、否則三簡碼(主碼≥4，頭2末1)、否則主碼。各字串接即詞組碼。
+    #   兩字詞：每字「短/主」任意搭配四式都收（短短、短主、主短、主主）——不用記哪個字該用哪式。
+    #           我的＝jkqja（短短）/jkqjba（短主）/jkxqja（主短）/jkxqjba（主主）。
+    #   3+字詞：整詞統一三式（main／簡碼優先／三簡碼優先），免得組合爆炸。
+    def _pcode(ch, mode):
+        mc = char2code.get(ch)                    # 主碼
+        if mode == "main":
+            return mc
+        sc = shortcode_rev.get(ch)                # 簡碼
+        if sc:
+            return sc
+        if mode == "t3" and mc and len(mc) >= 4:
+            return mc[0] + mc[1] + mc[-1]         # 三簡碼：頭2+末1
+        return mc
+    def _char_short(ch):                          # 短碼：簡碼 > 三簡碼(主碼≥4) > 主碼
+        sc = shortcode_rev.get(ch)
+        if sc:
+            return sc
+        mc = char2code.get(ch)
+        if mc and len(mc) >= 4:
+            return mc[0] + mc[1] + mc[-1]
+        return mc
+    def _word_codes(w):                           # 回傳 {碼,...}；任一字沒取碼就回 None（整詞收不了）
+        chs = list(w)
+        if any(char2code.get(ch) is None for ch in chs):
+            return None
+        out = set()
+        if len(chs) == 2:
+            for a in (_char_short(chs[0]), char2code[chs[0]]):
+                for b in (_char_short(chs[1]), char2code[chs[1]]):
+                    out.add(a + b)
+        else:
+            for mode in ("main", "simp", "t3"):
+                out.add("".join(_pcode(ch, mode) for ch in chs))
+        return out
+
+    phrase_w = {}                                 # 詞 -> 權重（essay 計次；地名沒有就給地板值）
+    _pe = {}
+    try:
+        SS = pathlib.Path("/Library/Input Methods/Squirrel.app/Contents/SharedSupport")
+        for _ln in (SS / "essay.txt").read_text("utf-8", "ignore").splitlines():
+            _p = _ln.split("\t")
+            if len(_p) >= 2 and _p[1].strip().isdigit():
+                _n = int(_p[1])
+                if _n > 0 and 2 <= len(_p[0]) <= 4:
+                    _pe[_p[0]] = _n
+        for _w, _n in sorted(_pe.items(), key=lambda kv: -kv[1])[:PHRASE_TOPN]:
+            phrase_w[_w] = _n
+    except (FileNotFoundError, OSError):
+        _pe = {}
+
+    # 精選詞庫：data/phrases_*.txt 每個主題檔（地名／政要／紅星／英文名／常識／成語／飲食／品牌…）
+    # 一律收，不管在不在 essay 高頻表。新增主題檔只要照 phrases_ 命名就自動收進來。
+    # 沒 essay 計次的給地板權重照樣排得出來；有字沒取碼的整詞收不了，建置時列出來讓人知道。
+    # 兩個地板分屬兩把不同的尺，別混用（之前混用害手機把 屬鼠 排在 屬於 前）：
+    #   PLACE_DICT_FLOOR：碼表 weight 的尺＝essay「原始計次」（屬於 67100、屬性 22130…）。手機沒 lua
+    #     重排，候選就照這個 weight 排，所以專名地板要落在「中等常用詞」以下、別高過常用詞。
+    #   PLACE_FLOOR：詞頻表 wordfreq 的尺＝校準到字頻（屬於 569984…），桌面 lua 重排用。兩尺數字不同。
+    PLACE_DICT_FLOOR = 12000
+    PLACE_FLOOR = 100000
+    place_skipped = []
+    for _wf in sorted(DATA.glob("phrases_*.txt")):
+        for _ln in _wf.read_text("utf-8").splitlines():
+            for _w in _ln.split("#", 1)[0].split():
+                if len(_w) < 2:
+                    continue
+                if _word_codes(_w) is None:
+                    place_skipped.append(_w)
+                elif _w not in phrase_w:
+                    phrase_w[_w] = max(_pe.get(_w, 0), PLACE_DICT_FLOOR)
+                elif phrase_w[_w] < PLACE_DICT_FLOOR:
+                    phrase_w[_w] = PLACE_DICT_FLOOR
+
+    phrase_entries, _seen_wc = [], set()
+    for _w, _wt in phrase_w.items():
+        for _c in (_word_codes(_w) or ()):
+            if (_w, _c) not in _seen_wc:
+                _seen_wc.add((_w, _c))
+                phrase_entries.append((_w, _c, _wt))
+    if phrase_entries:
+        with open(OUT / "aiphabi.dict.yaml", "a", encoding="utf-8") as _f:
+            for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
+                _f.write(f"{_w}\t{_code}\t{_wt}\n")
+        print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN} + 精選詞庫 data/phrases_*.txt）")
+    if place_skipped:
+        print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
+
+    # ---- 四碼連打：3+ 字詞壓成固定 4 碼（開關 aiphabi_si4；不進碼表，靠 Lua 查 M.si4）----
+    #   3 字：字1首 + 字2首 + 字3首 + 字3末（末字補末碼消歧）——容祖兒=QQFL
+    #   4 字：四字各首碼——光明正大=WBFI
+    #   5+ 字：兩式都收——前四字各首碼（從開頭打就行，記得開頭即可）＝中華人民共和國 QHYC；
+    #          外加 前三字+末字首碼（記得整句可精準定位，消 中國人民X 那種撞碼）＝解放軍 QOY+軍。
+    # 撞碼的照詞頻排（常用在前），每碼上限收 24 個免爆。
+    si4 = defaultdict(list)
+    for _w, _wt in phrase_w.items():
+        _chs = list(_w)
+        if len(_chs) < 3 or any(_c not in char2code for _c in set(_chs[:4]) | {_chs[-1]}):
+            continue
+        _codes4 = []
+        if len(_chs) == 3:
+            _codes4.append(char2code[_chs[0]][0] + char2code[_chs[1]][0]
+                           + char2code[_chs[2]][0] + char2code[_chs[2]][-1])
+        elif len(_chs) == 4:
+            _codes4.append("".join(char2code[_c][0] for _c in _chs))
+        else:  # 5+：前四字首碼 ＋ 前三字+末字首碼
+            _codes4.append("".join(char2code[_c][0] for _c in _chs[:4]))
+            _codes4.append("".join(char2code[_c][0] for _c in _chs[:3]) + char2code[_chs[-1]][0])
+        for _c4 in _codes4:
+            si4[_c4].append((_wt, _w))        # 完整四碼
+            si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
+    for _c in list(si4):                      # 依詞頻排、去重、每碼上限 24
+        _seen, _out = set(), []
+        for _, _w in sorted(si4[_c], key=lambda x: -x[0]):
+            if _w not in _seen:
+                _seen.add(_w); _out.append(_w)
+        si4[_c] = _out[:24]
+    print(f"四碼連打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
+
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
     # 蓋掉剛從 user.yaml 讀回來的狀態，等於這個開關永遠記不住使用者切過什麼
@@ -282,6 +405,13 @@ def main():
     if short3:
         short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
                           "    states: [ 三簡碼關, 三簡碼開 ]\n")
+    # 詞組連打開關（純愛發筆）：先預設關，自己開來用；二合一（＋拼音）不掛這開關、永遠開。
+    phrase_switch = ""
+    if phrase_entries:
+        phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
+                          "    states: [ 詞組關, 詞組開 ]\n")
+    # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
+    # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
     # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
     # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
@@ -341,13 +471,58 @@ def main():
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
-    dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排（aiphabi_order）用
+    dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼連打；aiphabi_si4 開關控制，依詞頻排）
+    for sig, ws in sorted(si4.items()):
+        dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
+    # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
+    #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
+    #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
+    #      只收最常用的前 N 個多字詞控制檔案大小；沒收進來的罕詞在 Lua 端打折當罕詞處理。
+    WORDFREQ_TOPN = 60000
+    wordfreq = {}
+    try:
+        import bisect
+        SS = pathlib.Path("/Library/Input Methods/Squirrel.app/Contents/SharedSupport")
+        _essay = {}
+        for _ln in (SS / "essay.txt").read_text("utf-8", "ignore").splitlines():
+            _p = _ln.split("\t")
+            if len(_p) >= 2 and _p[1].strip().isdigit():
+                _n = int(_p[1])
+                if _n > 0:
+                    _essay[_p[0]] = _n
+        _single = [c for c in _essay if len(c) == 1]
+        _neg = sorted(-_essay[c] for c in _single)                 # 單字 essay 計次（升序負值，供 bisect）
+        _fw = sorted((freq_w(c) for c in _single), reverse=True)   # 單字 freq_w（降序）
+        def _wscore(n):
+            R = bisect.bisect_left(_neg, -n)                       # essay 計次 > n 的單字數
+            return _fw[min(R, len(_fw) - 1)] if _fw else 0
+        _words = [(_n, _w) for _w, _n in _essay.items() if 2 <= len(_w) <= 4]
+        _words.sort(reverse=True)                                  # 依計次由高到低，取前 N
+        for _n, _w in _words[:WORDFREQ_TOPN]:
+            wordfreq[_w] = _wscore(_n)
+    except (FileNotFoundError, OSError):
+        wordfreq = {}
+    # 精選詞庫的專名（容祖兒／莫桑比克／台北車站…）多半不在 essay，補進詞頻表給地板值，
+    # 免得排序當罕詞掉後面——讓詞組／四碼詞組候選跟拼音同場競爭。
+    for _w in phrase_w:
+        if _w not in wordfreq:
+            wordfreq[_w] = PLACE_FLOOR
+
+    dl += ["}", "M.freq = {"]           # 字 → 常用度分數（現代字頻主導）；候選重排用
+    # 全字覆蓋：aiphabi_plus 的拼音會帶出沒取碼的字（吧／不／到…），排序也要它們的常用度。
+    # charfreq（台港新聞高頻）先、freq.json 序補、再補上已取碼字（少數罕用可能都不在）。
     _fseen = set()
+    _allchars = list(dict.fromkeys(list(charfreq.keys()) + list(freq)))
     for _chs in code2chars.values():
-        for _c in _chs:
-            if _c not in _fseen:
-                _fseen.add(_c)
-                dl.append(f'  [{lua_str(_c)}]={freq_w(_c)},')
+        _allchars.extend(_chs)
+    for _c in _allchars:
+        if _c and _c not in _fseen:
+            _fseen.add(_c)
+            dl.append(f'  [{lua_str(_c)}]={freq_w(_c)},')
+    dl += ["}", "M.wordfreq = {"]       # 多字詞 → 常用度分數（essay 真語料，已校準到單字同尺）；aiphabi_plus 池排序用
+    for _w, _s in sorted(wordfreq.items()):
+        dl.append(f'  [{lua_str(_w)}]={_s},')
+    print(f"詞頻 {len(wordfreq)} 條（essay 前 {WORDFREQ_TOPN}）")
     dl += ["}", "return M"]
     (LUA / "aiphabi_data.lua").write_text("\n".join(dl) + "\n", encoding="utf-8")
 
@@ -386,7 +561,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{short3_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
@@ -410,6 +585,7 @@ engine:
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
+    - lua_filter@aiphabi_phrase         # 詞組連打開關：關掉就濾掉多字候選（詞組）
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
@@ -422,7 +598,7 @@ speller:
 translator:
   dictionary: aiphabi
   enable_charset_filter: false
-  enable_sentence: false
+  enable_sentence: true        # 打過某詞的碼還繼續打時，靠切分把已知的詞留在候選、並幫忙組出整句
   enable_encoder: false
   enable_completion: true      # 碼還沒打完就先給候選
   strict_spelling: false
@@ -598,6 +774,8 @@ Weasel／fcitx5-rime 多半內建）：
             return
         for f in ("aiphabi.schema.yaml", "aiphabi.dict.yaml"):
             shutil.copy(OUT / f, RIME_USER_DIR / f)
+        if (OUT / "aiphabi_plus.schema.yaml").exists():   # 二合一（形碼＋拼音）實驗方案
+            shutil.copy(OUT / "aiphabi_plus.schema.yaml", RIME_USER_DIR / "aiphabi_plus.schema.yaml")
         if (DATA / "predict.db").exists():    # 智能聯想資料庫（官方 librime-predict）
             shutil.copy(DATA / "predict.db", RIME_USER_DIR / "predict.db")
         (RIME_USER_DIR / "lua").mkdir(exist_ok=True)

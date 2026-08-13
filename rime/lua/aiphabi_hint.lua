@@ -54,14 +54,21 @@ local function filter(input, env)
   local s2t_on   = ok and ctx:get_option("aiphabi_s2t")
   local short_on = ok and ctx:get_option("aiphabi_short100")
   local short3_on = ok and #code == 3 and ctx:get_option("aiphabi_short3")
+  -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
+  -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
+  local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
+  local si4_on    = ok and (#code == 3 or #code == 4) and phrase_on
   local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}
   local extra3 = {}        -- 三簡碼命中的字：排在所有正常候選之後（見下方排序理由）
+  local extra4 = {}        -- 四碼連打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
-  if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on then
-    local s = cands[1] and cands[1].start or 0
-    local e = cands[1] and cands[1]._end or #code
+  if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or si4_on then
+    -- 這些提示（同類／偏旁／簡碼／三簡碼／四碼…）都是查「整串輸入的碼」得來的，覆蓋 0..#code。
+    -- 不能抄 cands[1] 的範圍——開了 enable_sentence 後 cands[1] 常常只吃前段（水 只吃 K），
+    -- 抄了會讓打滿的四碼（水瓶座＝KVRF）被當「沒吃滿」壓到後面。
+    local s, e = 0, #code
     if fam_on or t2s_on or s2t_on then
       for _, ch in ipairs(data.code2chars[code] or {}) do
         if fam_on then                     -- 同類字：這個碼的字若屬某家族 → 帶出整組（各附正碼）
@@ -109,6 +116,20 @@ local function filter(input, env)
           seen[ch] = true
           local sc = data.char2code[ch]
           extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
+        end
+      end
+    end
+    if si4_on then                       -- 四碼連打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
+                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。
+      local exact4 = #code == 4
+      for _, w in ipairs(data.si4[code] or {}) do
+        if not seen[w] then
+          seen[w] = true
+          if exact4 then
+            extra[#extra + 1] = Candidate("ap_si4", s, e, w, "四碼")
+          else
+            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+          end
         end
       end
     end
@@ -181,6 +202,9 @@ local function filter(input, env)
     if keep(c) then yield(c) end
   end
   for _, c in ipairs(extra3) do
+    if keep(c) then yield(c) end
+  end
+  for _, c in ipairs(extra4) do
     if keep(c) then yield(c) end
   end
 end

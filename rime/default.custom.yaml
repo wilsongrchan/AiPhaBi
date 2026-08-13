@@ -1,13 +1,14 @@
 patch:
   schema_list:
     - schema: aiphabi
+    - schema: aiphabi_plus     # 二合一（形碼＋拼音）實驗方案；F4 切換
+    - schema: luna_pinyin      # 讓鼠鬚管替 aiphabi_plus 編譯 luna_pinyin 碼表（也可當純拼音用）
   # 方案選單（Control+` 或 F4 叫出來的那個小面板）：
   # 不縮成圖示，每個開關獨立一行、字打全，滑鼠點得準。
   switcher/fold_options: false
   switcher/abbreviate_options: false
-  # 方案選單一頁只顯示 5 項（鼠鬚管全域預設），愛發筆有 11 項（方案 + 10 個開關）——
-  # 調成 11，一頁就放得下，不用翻頁。
-  menu/page_size: 11
+  # 一頁放得下所有項目（方案 + 開關），不用翻頁。
+  menu/page_size: 13
   # 記住你關/開過的開關，重開鼠鬚管不會回到預設值。
   switcher/save_options:
     - full_shape
@@ -20,4 +21,5 @@ patch:
     - aiphabi_no_simp
     - aiphabi_short100
     - aiphabi_short3
+    - aiphabi_phrase
     - prediction

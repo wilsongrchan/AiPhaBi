@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.08.09"
+  version: "2026.08.12"
   author:
     - wilsongrchan
   description: |
@@ -34,8 +34,8 @@ switches:
     states: [ 簡碼關, 簡碼開 ]
   - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查
     states: [ 三簡碼關, 三簡碼開 ]
-  - name: prediction                # 智能聯想：選完字，猜下一個字／詞
-    states: [ 聯想關, 聯想開 ]
+  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
+    states: [ 詞組關, 詞組開 ]
   - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -43,7 +43,6 @@ engine:
   processors:
     - ascii_composer
     - recognizer
-    - predictor
     - key_binder
     - speller
     - punctuator
@@ -57,11 +56,11 @@ engine:
     - punct_segmentor
     - fallback_segmentor
   translators:
-    - predict_translator
     - punct_translator
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
+    - lua_filter@aiphabi_phrase         # 詞組連打開關：關掉就濾掉多字候選（詞組）
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
@@ -74,7 +73,7 @@ speller:
 translator:
   dictionary: aiphabi
   enable_charset_filter: false
-  enable_sentence: false
+  enable_sentence: true        # 打過某詞的碼還繼續打時，靠切分把已知的詞留在候選、並幫忙組出整句
   enable_encoder: false
   enable_completion: true      # 碼還沒打完就先給候選
   strict_spelling: false
@@ -83,11 +82,6 @@ translator:
   comment_format:              # 候選旁邊的碼提示也顯示大寫
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
-
-predictor:
-  db: predict.db
-  max_candidates: 5    # 配 menu.page_size，一頁看得完
-  max_iterations: 1    # 選了聯想候選後，最多再連續猜一輪，別一路猜下去
 
 menu:
   page_size: 8                 # 一次顯示 8 個候選
