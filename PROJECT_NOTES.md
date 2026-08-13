@@ -4,6 +4,17 @@ Working reference for Claude sessions. The goal is to let any session get orient
 to keep the project mentally split into its two halves so we can work on one without dragging
 the other in.
 
+> ### ⚠️ Read before your first edit
+> 1. `git fetch origin && git status -sb` — **every session, before touching anything.**
+> 2. Work out whether you are **Side A** (字根/取碼) or **Side B** (IME/候選) — see the table below.
+> 3. Read [**Hard rules — no exceptions**](#hard-rules--no-exceptions). Side A never writes
+>    `rime/**` or runs `build_rime.py`/`sync.sh`; Side B never writes `codes.json` / `zigen.json` /
+>    `rules.json`. No exemptions, including "it was obviously correct".
+>
+> A short version of this lives in `CLAUDE.md`, which loads automatically — but **this file is the
+> authority**; `CLAUDE.md` is only the pointer. If the two ever disagree, this file wins and
+> `CLAUDE.md` should be corrected to match.
+
 > **The one-line thesis.** AiPhaBi is a form-code (形碼) Chinese IME where every 字根 (zigen)
 > takes its shape from an English letter it resembles (B = 日, D = 月, so 明 = BD). Its design
 > stance is *"be your friend"*: codes are **derivable**, never rote; when you type something
