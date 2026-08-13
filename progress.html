@@ -8,20 +8,24 @@
   :root{
     --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a; --line:#e3ded4;
     --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
+    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17;
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb;
     --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26);
   }
   @media (prefers-color-scheme:dark){
     :root{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455; --line:#33312a;
       --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
+      --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc;
       --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
   }
   :root[data-theme="light"]{ --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a;
     --line:#e3ded4; --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
+    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17;
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb; --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26); }
   :root[data-theme="dark"]{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455;
     --line:#33312a; --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
+    --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc;
     --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c; --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
 
   *{box-sizing:border-box}
@@ -113,12 +117,6 @@
     <div class="eyebrow">愛發筆 AiPhaBi · 取碼進度</div>
     <h1><span class="big num" id="total">—</span><span class="unit">字</span></h1>
     <p class="lede" id="lede">讀取中…</p>
-    <div class="legend" id="modeseg" aria-label="簡繁計法（點一下顯示／隱藏該曲線）">
-      <button data-mode="uniq" class="on" style="color:var(--accent)"
-        title="繁體與它的簡體 twin 視為同一個字（衡量真正進度）"><i class="sw" style="background:var(--accent)"></i>簡繁不另計</button>
-      <button data-mode="raw" class="on" style="color:var(--s2)"
-        title="繁體、簡體各算一個字（碼表原始字數）"><i class="sw" style="background:var(--s2)"></i>簡繁另計</button>
-    </div>
   </header>
 
   <div class="card" id="chartcard">
@@ -143,36 +141,77 @@ const mk=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e
 const W=820,H=470,padL=48,padR=30,cumTop=54,cumBot=250,dTop=306,dZero=430;
 
 let PROG=null;
-const SHOW={uniq:true, raw:true};
-const SERIES=[
-  {key:'uniq', name:'不另計', col:'var(--accent)', c:'cumUniq', a:'addUniq', tot:'totalUniq'},
-  {key:'raw',  name:'另計',   col:'var(--s2)',     c:'cum',     a:'add',    tot:'total'},
+
+/* 繁體／簡體／傳承／日本漢字／加總：同一組開關，同時控制下面的 tile 跟圖表要畫哪幾條線。 */
+const CAT_KEY='aiphabi-progress-cats';
+let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true};
+try{Object.assign(catOn,JSON.parse(localStorage.getItem(CAT_KEY)||'{}'));}catch(e){}
+function saveCats(){localStorage.setItem(CAT_KEY,JSON.stringify(catOn));}
+const CATDEF=[
+  {key:'trad',      name:'繁體字', col:'var(--accent)', s:'有對應簡體字，如 國魚雲'},
+  {key:'simp',      name:'簡體字', col:'var(--s2)',      s:'簡體專屬，如 国鸟'},
+  {key:'inherited', name:'傳承字', col:'var(--s3)',      s:'如人天后'},
+  {key:'jp',        name:'日本漢字', col:'var(--s4)',    s:'新字体／國字，如県駅鉄'},
 ];
+
 fetch('/api/progress').then(r=>r.json()).then(d=>{PROG=d; render();}).catch(e=>{
   $('#chartcard').innerHTML='<div class="msg">讀取進度失敗：'+e+'</div>';
   $('#lede').textContent='';
 });
-document.querySelectorAll('#modeseg button').forEach(b=>b.onclick=()=>{
-  const k=b.dataset.mode;
-  if(SHOW[k] && Object.values(SHOW).filter(Boolean).length===1) return;  // 至少留一條曲線
-  SHOW[k]=!SHOW[k]; b.classList.toggle('on',SHOW[k]); render();
-});
 function render(){ if(PROG) draw(PROG); }
+
+/* 某天累計到那天為止的某類別數：sum＝目前勾選類別的精確聯集（trad∩simp 用 inter 扣，
+   jp 因為結構上一定落在 inherited 裡，inherited 開的話就不再另外加 jp，避免重複算）。*/
+function catValue(day,key){
+  if(key!=='sum') return day[key];
+  let v=0;
+  if(catOn.trad) v+=day.trad;
+  if(catOn.simp) v+=day.simp;
+  if(catOn.trad&&catOn.simp) v-=day.inter;
+  if(catOn.inherited) v+=day.inherited;
+  if(catOn.jp&&!catOn.inherited) v+=day.jp;
+  return v;
+}
+/* 目前（含尚未提交）的某類別數：sum 用真的字集合取聯集（Set 天然去重），
+   跟 tile 上「加總」那顆數字保證一致。 */
+function catNow(data,key){
+  if(key==='trad') return data.tradChars.length;
+  if(key==='simp') return data.totalSimp;
+  if(key==='inherited') return data.inheritedChars.length;
+  if(key==='jp') return data.totalJp;
+  const u=new Set();
+  if(catOn.trad) data.tradChars.forEach(c=>u.add(c));
+  if(catOn.simp) data.simpChars.forEach(c=>u.add(c));
+  if(catOn.inherited) data.inheritedChars.forEach(c=>u.add(c));
+  if(catOn.jp) data.jpChars.forEach(c=>u.add(c));
+  return u.size;
+}
 
 function draw(data){
   const days=data.days||[];
   $('#total').textContent=data.totalUniq.toLocaleString();
   if(!days.length){
     $('#chartcard').innerHTML='<div class="msg">還沒有取碼提交紀錄。</div>';
-    $('#lede').textContent='目前已取碼 '+data.totalUniq.toLocaleString()+' 字。'; return;
+    $('#lede').textContent='目前已取碼 '+data.totalUniq.toLocaleString()+' 字。';
+    renderCats(data); return;
   }
   const first=days[0].date, d0=new Date(first);
   const off=ds=>Math.round((new Date(ds)-d0)/864e5);
-  const vis=SERIES.filter(s=>SHOW[s.key]);
-  const built=vis.map(s=>{
-    const pts=days.map(p=>({x:off(p.date),date:p.date,label:p.date.slice(5),cum:p[s.c],add:p[s.a]}));
-    const unc=data[s.tot]-pts[pts.length-1].cum;
-    if(unc>0) pts.push({x:pts[pts.length-1].x+1,date:'現在',label:'現在',cum:data[s.tot],add:unc,now:true});
+
+  const seriesDefs=CATDEF.filter(c=>catOn[c.key]);
+  if(catOn.sum) seriesDefs.push({key:'sum',name:'加總',col:'var(--sum)'});
+  if(!seriesDefs.length){
+    $('#chartcard').innerHTML='<div class="msg">下面請至少勾選一個類別（繁體／簡體／傳承／日本漢字／加總）。</div>';
+    renderCats(data); return;
+  }
+  const built=seriesDefs.map(s=>{
+    const pts=days.map((p,i)=>{
+      const cum=catValue(p,s.key);
+      return {x:off(p.date),date:p.date,label:p.date.slice(5),cum,
+        add:i===0?cum:cum-catValue(days[i-1],s.key)};
+    });
+    const nowVal=catNow(data,s.key), lastCum=pts[pts.length-1].cum, unc=nowVal-lastCum;
+    if(unc>0) pts.push({x:pts[pts.length-1].x+1,date:'現在',label:'現在',cum:nowVal,add:unc,now:true});
     return {...s, pts};
   });
   const allpts=built.flatMap(b=>b.pts);
@@ -183,12 +222,16 @@ function draw(data){
   const yc=v=>cumBot-v/cumMax*(cumBot-cumTop);
   const yd=v=>dZero-v/addMax*(dZero-dTop);
 
-  const best=days.reduce((m,p)=>p.addUniq>m.addUniq?p:m,days[0]);
-  const unc=data.totalUniq-days[days.length-1].cumUniq;
+  const uniqCumAt=d=>d.total-d.simp;
+  const uniqSeries=days.map((d,i)=>({date:d.date,
+    add:i===0?uniqCumAt(d):uniqCumAt(d)-uniqCumAt(days[i-1])}));
+  const best=uniqSeries.reduce((m,p)=>p.add>m.add?p:m,uniqSeries[0]);
+  const unc=data.totalUniq-uniqCumAt(days[days.length-1]);
   $('#cumr').textContent='0 → '+data.totalUniq.toLocaleString()+' 字（不另計）';
   $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${data.totalUniq.toLocaleString()} 字</b>`+
     `（繁簡同字只算一個）；<span class="raw">另計 ${data.total.toLocaleString()} 條碼</span>。`+
-    (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'');
+    (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'')+
+    ` 圖表跟著下面的 tile 開關走。`;
 
   const svg=$('#chart'); svg.innerHTML='';
   const bxx={x:padL,y:cumTop,w:W-padL-padR,h:cumBot-cumTop};
@@ -253,7 +296,7 @@ function draw(data){
   const tiles=[
     {k:'不重複字',v:data.totalUniq.toLocaleString(),s:'＝繁體字＋傳承字',hl:true},
     {k:'碼表條數',v:data.total.toLocaleString(),s:'繁簡各算'},
-    {k:'最高單日',v:'+'+best.addUniq,s:best.date.slice(5),hl:true},
+    {k:'最高單日',v:'+'+best.add,s:best.date.slice(5),hl:true},
     {k:'活躍天數',v:days.length,s:'天有提交'},
   ];
   const scb=$('#stats');scb.innerHTML='';
@@ -263,36 +306,29 @@ function draw(data){
   renderCats(data);
 }
 
-/* ---------- 繁體／簡體／傳承／日本漢字：可個別開關，附一個顯示目前勾選集合聯集的加總 ---------- */
-const CAT_KEY='aiphabi-progress-cats';
-let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true};
-try{Object.assign(catOn,JSON.parse(localStorage.getItem(CAT_KEY)||'{}'));}catch(e){}
-function saveCats(){localStorage.setItem(CAT_KEY,JSON.stringify(catOn));}
-
+/* ---------- 繁體／簡體／傳承／日本漢字：可個別開關，附一個顯示目前勾選集合聯集的加總；
+   同一組開關也決定上面圖表要畫哪幾條線（catValue／catNow）。 ---------- */
+const CATDESC={trad:'有對應簡體字，如 國魚雲',simp:'簡體專屬，如 国鸟',inherited:'如人天后',jp:'新字体／國字，如県駅鉄'};
 function renderCats(data){
-  const CATS=[
-    {key:'trad',k:'繁體字',s:'有對應簡體字，如 國魚雲',chars:data.tradChars||[]},
-    {key:'simp',k:'簡體字',s:'簡體專屬，如 国鸟',chars:data.simpChars||[]},
-    {key:'inherited',k:'傳承字',s:'如人天后',chars:data.inheritedChars||[]},
-    {key:'jp',k:'日本漢字',s:'新字体／國字，如県駅鉄',chars:data.jpChars||[]},
-  ];
+  const chars={trad:data.tradChars||[],simp:data.simpChars||[],
+    inherited:data.inheritedChars||[],jp:data.jpChars||[]};
   const box=document.createElement('div');
-  box.className='stats';box.style.marginTop='0';
-  const mk_=(k,label,sub,chars,extraClass)=>{
+  box.className='stats';
+  const mk_=(k,label,sub,list,extraClass)=>{
     const d=document.createElement('div');
     const on=catOn[k];
     d.className='tile toggle'+(on?'':' off')+(extraClass?' '+extraClass:'');
-    d.innerHTML=`<span class="k">${label}</span><span class="v num">${chars.length.toLocaleString()}<small>${sub}</small></span>`+
-      (chars.length?`<a class="view" href="/annotate?q=${encodeURIComponent(chars.join(''))}">看這些字 →</a>`:'');
-    d.querySelector('.k').onclick=d.querySelector('.v').onclick=()=>{catOn[k]=!catOn[k];saveCats();renderCats(data);};
+    d.innerHTML=`<span class="k">${label}</span><span class="v num">${list.length.toLocaleString()}<small>${sub}</small></span>`+
+      (list.length?`<a class="view" href="/annotate?q=${encodeURIComponent(list.join(''))}">看這些字 →</a>`:'');
+    d.querySelector('.k').onclick=d.querySelector('.v').onclick=()=>{catOn[k]=!catOn[k];saveCats();render();};
     const link=d.querySelector('.view'); if(link) link.onclick=ev=>ev.stopPropagation();
     return d;
   };
-  CATS.forEach(c=>box.appendChild(mk_(c.key,c.k,c.s,c.chars)));
+  CATDEF.forEach(c=>box.appendChild(mk_(c.key,c.name,CATDESC[c.key],chars[c.key])));
 
   const union=new Set();
-  CATS.forEach(c=>{if(catOn[c.key])c.chars.forEach(ch=>union.add(ch));});
-  const chosen=CATS.filter(c=>catOn[c.key]).map(c=>c.k).join('＋')||'（沒有勾選）';
+  CATDEF.forEach(c=>{if(catOn[c.key])chars[c.key].forEach(ch=>union.add(ch));});
+  const chosen=CATDEF.filter(c=>catOn[c.key]).map(c=>c.name).join('＋')||'（沒有勾選）';
   box.appendChild(mk_('sum','加總',chosen,[...union],'sum'));
 
   const old=$('#catstats'); if(old) old.remove();
