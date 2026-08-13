@@ -15,6 +15,49 @@ the other in.
 > authority**; `CLAUDE.md` is only the pointer. If the two ever disagree, this file wins and
 > `CLAUDE.md` should be corrected to match.
 
+---
+
+## Starting a new session (or a new machine)
+
+Do these **in order**, before saying anything substantive to the session.
+
+| # | Step | |
+|---|---|---|
+| 1 | `git clone https://github.com/wilsongrchan/AiPhaBi.git && cd AiPhaBi` | only on a new machine |
+| 2 | Start Claude Code in the repo, and **trust the directory** when prompted | per machine |
+| 3 | **Approve the project hooks** when prompted — Claude Code will not silently run hooks shipped in a cloned repo | per machine |
+| 4 | **Declare the side, before your first message:** `echo A > .aiphabi-side` (字根/取碼) or `echo B > .aiphabi-side` (IME/候選) | **per checkout** |
+| 5 | Run `/hooks` and confirm a `PreToolUse` entry pointing at `.claude/hooks/side-guard.py` | per machine |
+| 6 | Tell the session which side it is, and to read `PROJECT_NOTES.md` | every session |
+| 7 | `git fetch origin && git status -sb` | every session |
+
+**Step 4 is the one that is easy to forget and matters most.** The guard reads the side from
+`.aiphabi-side` (or `$AIPHABI_SIDE`) — *never* from the conversation, because the hook is a separate
+process that cannot see what you tell the session. `.aiphabi-side` is **gitignored on purpose**: it
+describes this checkout, not the project, so it can never travel with a clone. **A fresh clone with
+no marker is unprotected** — the guard fails open, so that a not-yet-configured checkout isn't
+wedged. Saying "you're Side B" in chat protects nothing on its own.
+
+> **One checkout can only declare one side.** To run both sides on the same machine, use **two
+> separate clones** (or `git worktree add ../AiPhaBi-B`), each with its own `.aiphabi-side`.
+> Two sessions in one directory would share a marker and share a working tree — precisely the
+> situation the hard rules exist to prevent.
+
+### What the guard does and does not do
+
+`.claude/hooks/side-guard.py` is a `PreToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit`. When the
+checkout is Side B it exits 2 — a hard block, not a warning — on `data/codes.json`,
+`data/zigen.json`, `data/rules.json`, and returns the reason to Claude.
+
+It is **a guardrail against carelessness, not a security boundary.** It does not cover:
+`rime/**` (deliberately — regenerable, so a wrong-side rebuild is annoying, not costly);
+the annotation server writing `data/*.json` (different process, never passes through a hook);
+hand edits; `sync.sh`'s `git add -A` (that's a commit, not a write); or a write routed through
+`Bash`. It catches the realistic failure — a session helpfully "just fixing" one character.
+
+Hooks are **snapshotted when a session starts**, so adding or editing one mid-session has no effect
+until restart. After changing the guard, restart the session before trusting it.
+
 > **The one-line thesis.** AiPhaBi is a form-code (形碼) Chinese IME where every 字根 (zigen)
 > takes its shape from an English letter it resembles (B = 日, D = 月, so 明 = BD). Its design
 > stance is *"be your friend"*: codes are **derivable**, never rote; when you type something

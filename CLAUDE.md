@@ -3,8 +3,15 @@
 **Start every session with:**
 
 ```bash
+cat .aiphabi-side 2>/dev/null || echo "NO SIDE DECLARED — ask which side before editing"
 git fetch origin && git status -sb
 ```
+
+`.aiphabi-side` (gitignored, per-checkout) says whether this checkout is **A** or **B**. It also
+drives the `PreToolUse` guard in `.claude/hooks/side-guard.py`, which hard-blocks a Side B session
+from writing `codes.json` / `zigen.json` / `rules.json`. **If the file is missing the guard fails
+open and nothing is enforced** — full setup steps are in `PROJECT_NOTES.md` §
+*Starting a new session*.
 
 Then read **`PROJECT_NOTES.md`** — it is the working reference for this repo (data formats,
 the two sub-ecosystems, coding rules, quickcode conventions, known hazards). Do it before the
