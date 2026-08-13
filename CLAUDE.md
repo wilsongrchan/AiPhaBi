@@ -24,8 +24,10 @@ first edit, not mid-task.
 
 ## This repo is worked on by two parallel sessions
 
-They share one working tree and one `main` branch, so **ownership is by file, not by intent**.
-Figure out which side you are on before touching anything:
+Each runs in **its own folder** — `AiPhaBi` is Side A (branch `main`), `AiPhaBi-B` is Side B
+(branch `side-b`, which tracks and pushes to `origin/main`). They are git worktrees of one
+repository, so `.aiphabi-side` in *this* folder tells you which side you are. **Ownership is by
+file, not by intent:**
 
 | | **Side A · 字根/取碼** | **Side B · IME/候選** |
 |---|---|---|

@@ -21,15 +21,23 @@ the other in.
 
 Do these **in order**, before saying anything substantive to the session.
 
+**On Wilson's Mac the folders already exist** — open `AiPhaBi` for Side A or `AiPhaBi-B` for Side B
+(see *The two-folder layout* below) and skip to step 6. Steps 1–5 are for a new machine.
+
 | # | Step | |
 |---|---|---|
 | 1 | `git clone https://github.com/wilsongrchan/AiPhaBi.git && cd AiPhaBi` | only on a new machine |
 | 2 | Start Claude Code in the repo, and **trust the directory** when prompted | per machine |
 | 3 | **Approve the project hooks** when prompted — Claude Code will not silently run hooks shipped in a cloned repo | per machine |
-| 4 | **Declare the side, before your first message:** `echo A > .aiphabi-side` (字根/取碼) or `echo B > .aiphabi-side` (IME/候選) | **per checkout** |
+| 4 | **Declare the side, before your first message:** `echo A > .aiphabi-side` (字根/取碼) or `echo B > .aiphabi-side` (IME/候選) | **per folder, once** |
 | 5 | Run `/hooks` and confirm a `PreToolUse` entry pointing at `.claude/hooks/side-guard.py` | per machine |
 | 6 | Tell the session which side it is, and to read `PROJECT_NOTES.md` | every session |
 | 7 | `git fetch origin && git status -sb` | every session |
+
+Opening a folder in VS Code gives that window its own Claude Code session, so **one VS Code window
+per side** — `File > Open Folder…` on `AiPhaBi` (A) or `AiPhaBi-B` (B), or from a terminal
+`code "~/Desktop/Wilson Personal/Coding/AiPhaBi-B"`. The window's folder decides which marker the
+guard reads, so the two sessions can run side by side without ever touching each other's marker.
 
 **Step 4 is the one that is easy to forget** — and the guard **fails closed**, so forgetting it is
 loud rather than silent: until the marker says `A`, the three protected files are locked and any
@@ -42,10 +50,52 @@ chat protects nothing on its own. `.aiphabi-side` is **gitignored on purpose**: 
 checkout, not the project, so it can never travel with a clone. The marker is re-read on every tool
 call, so `echo A > .aiphabi-side` takes effect immediately — **no session restart needed.**
 
-> **One checkout can only declare one side.** To run both sides on the same machine, use **two
-> separate clones** (or `git worktree add ../AiPhaBi-B`), each with its own `.aiphabi-side`.
-> Two sessions in one directory would share a marker and share a working tree — precisely the
-> situation the hard rules exist to prevent.
+> **One checkout can only declare one side.** Two sessions in one directory share a marker and a
+> working tree — precisely what the hard rules exist to prevent. On Wilson's Mac this is already
+> solved with two worktrees; see below.
+
+### The two-folder layout (Wilson's Mac)
+
+Both sides run **simultaneously**, each in its own folder, each with a permanent marker. Neither
+marker is ever flipped.
+
+| | Side A · 字根/取碼 | Side B · IME/候選 |
+|---|---|---|
+| Folder | `~/Desktop/Wilson Personal/Coding/**AiPhaBi**` | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-B**` |
+| `.aiphabi-side` | `A` | `B` |
+| Branch | `main` | `side-b` |
+| May write | `codes/zigen/rules.json` | `rime/**`, `phrases_*.txt` |
+| May run | — | `build_rime.py`, `./sync.sh` |
+
+They are **git worktrees of one repository**, so there is a single `.git` and both sides' commits
+are visible from either folder immediately — no fetch needed to run `git log side-b`.
+
+**Why Side B is on `side-b` and not `main`:** git refuses to check out one branch in two worktrees
+(`fatal: 'main' is already used by worktree at ...`). So Side B gets its own branch. To keep the
+"everything lands on `main`" workflow intact, `side-b` **tracks `origin/main`** and the repo sets
+`push.default = upstream`, so a bare `git push` from either folder pushes to `origin/main`.
+**`sync.sh` therefore works unmodified** — it runs a bare `git push` and still deploys to `main`.
+
+To pick up the other side's work, either folder runs `git pull` as usual. Because the `.git` is
+shared, `git worktree list` from either folder shows both.
+
+<details>
+<summary>How this was created (for rebuilding on another machine)</summary>
+
+```bash
+cd "<repo>"                                  # the Side A folder, on main
+git worktree add -b side-b ../AiPhaBi-B origin/main
+git config push.default upstream             # shared config; both branches track origin/main
+echo A > .aiphabi-side
+echo B > ../AiPhaBi-B/.aiphabi-side
+cp data/freq.json data/opencc.json ../AiPhaBi-B/data/    # gitignored build inputs
+```
+
+The last line matters: `build_rime.py` reads `data/freq.json` and `data/opencc.json`, both
+**gitignored**, so a new worktree or clone does not get them and the build fails until they are
+copied (or `fetch_data.py` is re-run). The large annotation-side data (`graphics.txt`,
+`tw_strokes.json`, `hk_cache.json`) is only needed by Side A and does **not** need copying.
+</details>
 
 ### What the guard does and does not do
 
@@ -178,7 +228,12 @@ git fetch origin && git status -sb          # then read PROJECT_NOTES.md
 deploys while this session has half-finished annotation edits sitting uncommitted in
 `codes.json`/`zigen.json`, those edits get swept into a Side-B commit and pushed. Mitigation:
 **this session commits its annotation work before the IME session deploys**, and vice versa —
-don't leave Side-A edits uncommitted across a known Side-B deploy. Both sessions commit to `main`.
+don't leave Side-A edits uncommitted across a known Side-B deploy. Both sessions land on `main`
+(Side B via `side-b` → `origin/main`; see *The two-folder layout*).
+
+**With the two-folder layout this hazard is largely defused**: the folders have separate working
+trees, so Side B's `git add -A` can only see Side B's own files. It still applies to anything
+*inside one folder* — commit before deploying from that same folder.
 
 **2. `rules.json` is owned here but consumed there.** `build_rime.py:77` reads it, and the
 `short_code` rule's 60 `entries` become the IME's 簡碼 table (`shortcode` / `shortcode_rev` in
