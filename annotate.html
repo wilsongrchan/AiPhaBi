@@ -4343,6 +4343,10 @@ Promise.all([
   $('#status').textContent = '已載入';
   renderQueue();
   const q = new URLSearchParams(location.search);
+  /* 從別頁（如取碼進度頁的「日本漢字」統計）帶一串指定的字過來，直接在搜尋框
+     裡秀出這批字（不管取沒取碼），不用一個個手動貼。 */
+  const wantList = q.get('q');
+  if (wantList) { $('#search').value = wantList; renderQueue(); }
   const want = q.get('c');
   /* 嵌在分析頁的複審面板裡：收起頁首與字表，「儲存並下一字」只儲存 —— 那個
      「下一字」跳的是這一頁的佇列，會把人帶離正在複審的那一組。 */

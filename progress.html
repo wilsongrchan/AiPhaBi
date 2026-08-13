@@ -63,6 +63,8 @@
   .tile .v{font-size:24px;color:var(--ink);line-height:1.1;}
   .tile .v small{font-size:12px;color:var(--muted);margin-left:4px;letter-spacing:0;}
   .tile.hl .v{color:var(--accent);}
+  .tile.click{cursor:pointer;}
+  .tile.click:hover{border-color:var(--accent);}
 
   footer{color:var(--faint);font-size:12px;text-align:center;line-height:1.7;}
 
@@ -250,11 +252,14 @@ function draw(data){
     {k:'繁體字',v:trad.toLocaleString(),s:'有對應簡體字，如 國魚雲'},
     {k:'簡體字',v:simp.toLocaleString(),s:'簡體專屬，如 国鸟'},
     {k:'傳承字',v:inherited.toLocaleString(),s:'如人天后，三者加總＝碼表條數'},
-    {k:'日本漢字',v:jp.toLocaleString(),s:'新字体／國字，如県駅鉄，跟上面三個重疊'},
+    {k:'日本漢字',v:jp.toLocaleString(),s:'新字体／國字，如県駅鉄，跟上面三個重疊',
+      href:(data.jpChars&&data.jpChars.length)?'/annotate?q='+encodeURIComponent(data.jpChars.join('')):null},
   ];
   const scb=$('#stats');scb.innerHTML='';
-  tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'');
-    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;scb.appendChild(d);});
+  tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'')+(t.href?' click':'');
+    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;
+    if(t.href){d.title='點一下看這批字';d.onclick=()=>location.href=t.href;}
+    scb.appendChild(d);});
 }
 </script>
 </body>

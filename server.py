@@ -246,6 +246,7 @@ def progress_data():
     t2s = _load_t2s()
     jp_kanji = _load_jp_kanji()
     total_simp = total_trad = total_jp = 0
+    jp_chars = []
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
@@ -254,12 +255,14 @@ def progress_data():
             total_simp = sum(1 for c in coded_chars if c in simp_only)
             total_trad = sum(1 for c in coded_chars if c in t2s)
             # 日本漢字：跟上面三個是分開、可能重疊的額外標記，不併入加總
-            total_jp = sum(1 for c in coded_chars if c in jp_kanji)
+            jp_chars = sorted(c for c in coded_chars if c in jp_kanji)
+            total_jp = len(jp_chars)
         except json.JSONDecodeError:
             pass
 
     return {"days": days, "total": raw, "totalUniq": uniq,
-            "totalSimp": total_simp, "totalTrad": total_trad, "totalJp": total_jp}
+            "totalSimp": total_simp, "totalTrad": total_trad,
+            "totalJp": total_jp, "jpChars": jp_chars}
 
 
 def variants_data():
