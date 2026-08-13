@@ -55,6 +55,7 @@ CANGJIE = SHARED / "cangjie.json"
 DAYI = SHARED / "dayi.json"             # 大易4碼表（對照用；rime-dayi 匯入）
 OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
 DUAL_USE_MERGED = SHARED / "dual_use_merged.json"  # 歸併字白名單（不打簡體／碼表分析排除簡體 共用）
+JP_KANJI = SHARED / "jp_kanji.json"      # 日本漢字（新字體＋國字，扣掉跟簡體字同形的）：取碼進度頁額外標記
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
@@ -163,6 +164,13 @@ def _load_t2s():
         return {}
 
 
+def _load_jp_kanji():
+    try:
+        return set(json.loads(JP_KANJI.read_text("utf-8")).get("chars", []))
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+
 def _load_simp_only(s2t):
     """簡體專屬字（跟 simp_only_data／build_rime.py 不打簡體同一份定義）：
     s2t 有列、但不是歸併字（后／干／咸…本身也是獨立傳承字）的那些。"""
@@ -236,7 +244,8 @@ def progress_data():
     #   傳承字＝其餘（人／三／天／牛這種本來就沒被簡化過的字，加上 云／后／干／咸
     #   這種本身獨立、只是剛好被拿去當簡化目標的傳承字——見 dual_use_merged.json）
     t2s = _load_t2s()
-    total_simp = total_trad = 0
+    jp_kanji = _load_jp_kanji()
+    total_simp = total_trad = total_jp = 0
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
@@ -244,11 +253,13 @@ def progress_data():
                            if isinstance(r, dict) and r.get("code")}
             total_simp = sum(1 for c in coded_chars if c in simp_only)
             total_trad = sum(1 for c in coded_chars if c in t2s)
+            # 日本漢字：跟上面三個是分開、可能重疊的額外標記，不併入加總
+            total_jp = sum(1 for c in coded_chars if c in jp_kanji)
         except json.JSONDecodeError:
             pass
 
     return {"days": days, "total": raw, "totalUniq": uniq,
-            "totalSimp": total_simp, "totalTrad": total_trad}
+            "totalSimp": total_simp, "totalTrad": total_trad, "totalJp": total_jp}
 
 
 def variants_data():
