@@ -31,12 +31,16 @@ Do these **in order**, before saying anything substantive to the session.
 | 6 | Tell the session which side it is, and to read `PROJECT_NOTES.md` | every session |
 | 7 | `git fetch origin && git status -sb` | every session |
 
-**Step 4 is the one that is easy to forget and matters most.** The guard reads the side from
-`.aiphabi-side` (or `$AIPHABI_SIDE`) — *never* from the conversation, because the hook is a separate
-process that cannot see what you tell the session. `.aiphabi-side` is **gitignored on purpose**: it
-describes this checkout, not the project, so it can never travel with a clone. **A fresh clone with
-no marker is unprotected** — the guard fails open, so that a not-yet-configured checkout isn't
-wedged. Saying "you're Side B" in chat protects nothing on its own.
+**Step 4 is the one that is easy to forget** — and the guard **fails closed**, so forgetting it is
+loud rather than silent: until the marker says `A`, the three protected files are locked and any
+write to them returns instructions for declaring the side. Only an explicit `A` unlocks them; `B`,
+a missing marker, and an unrecognised marker all block.
+
+The side comes from `.aiphabi-side` (or `$AIPHABI_SIDE`) — *never* from the conversation, because
+the hook is a separate process that cannot see what you tell the session. Saying "you're Side B" in
+chat protects nothing on its own. `.aiphabi-side` is **gitignored on purpose**: it describes this
+checkout, not the project, so it can never travel with a clone. The marker is re-read on every tool
+call, so `echo A > .aiphabi-side` takes effect immediately — **no session restart needed.**
 
 > **One checkout can only declare one side.** To run both sides on the same machine, use **two
 > separate clones** (or `git worktree add ../AiPhaBi-B`), each with its own `.aiphabi-side`.
@@ -45,9 +49,18 @@ wedged. Saying "you're Side B" in chat protects nothing on its own.
 
 ### What the guard does and does not do
 
-`.claude/hooks/side-guard.py` is a `PreToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit`. When the
-checkout is Side B it exits 2 — a hard block, not a warning — on `data/codes.json`,
-`data/zigen.json`, `data/rules.json`, and returns the reason to Claude.
+`.claude/hooks/side-guard.py` is a `PreToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit`. It
+exits 2 — a hard block, not a warning — on `data/codes.json`, `data/zigen.json`, `data/rules.json`,
+and returns the reason to Claude.
+
+| `.aiphabi-side` | protected files | everything else |
+|---|---|---|
+| `A` | writable | writable |
+| `B` | **blocked** | writable |
+| missing / unrecognised | **blocked** (fail closed) | writable |
+
+Only the three files are ever guarded, so an undeclared checkout can still do all other work —
+it just can't touch the hand-authored data until it says who it is.
 
 It is **a guardrail against carelessness, not a security boundary.** It does not cover:
 `rime/**` (deliberately — regenerable, so a wrong-side rebuild is annoying, not costly);
