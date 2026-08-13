@@ -52,6 +52,40 @@ ownership is by file, not by intent. **A session never writes a file it doesn't 
 | `build_rime.py`, `sync.sh` | **B · IME** | read only |
 | `PROJECT_NOTES.md` | **shared** | see below |
 
+### Hard rules — no exceptions
+
+These three override every convenience argument below. They are not guidelines, and "it was
+obviously correct" / "it was only bookkeeping" / "it was already rebuilt anyway" are not exemptions.
+Both sessions follow them from now on.
+
+**1. Side A owns `data/codes.json`, `data/zigen.json`, `data/rules.json`.**
+Side B **never opens these in write mode — ever, for any reason.** Not a one-character fix, not a
+count bump, not restoring something Side B itself is sure was lost. Side B reads them freely and
+*reports* problems; the fix lands in Side A. (`rules.json` stays readable as the 簡碼 source — see
+hazard 2 — but readable is the whole of it.)
+
+**2. Side B owns `rime/**` — and the build that produces it.**
+Side A **never runs `build_rime.py`, never runs `./sync.sh`, and never edits anything under
+`rime/`**, including after its own data edits, and including when the rebuild is plainly needed.
+Side A commits its data change and writes **`rebuild needed`** in the commit message; Side B picks
+it up and rebuilds. A stale IME is a temporary, harmless state — a rebuild from the wrong session
+is a silent ownership breach that also desyncs the other session's installed copy.
+
+> This one is written from experience: `a18d9fd` ("重建碼表輸出：合併後 rebuild") was a Side-A
+> rebuild that regenerated and pushed `aiphabi.dict.yaml`, `aiphabi_data.lua`, `aiphabi.schema.yaml`
+> and `rime/README.md`. Nothing was corrupted — regenerated artifacts are reproducible — but it left
+> Side B's `~/Library/Rime/` silently out of sync with a `rime/` it had not built.
+
+**3. Every session starts with `git fetch` + `git status`.**
+Before the first edit of a session — not mid-task, not at deploy time — run both, and read this file.
+The cost of catching a divergence at minute zero is one command; the cost of catching it at push
+time is an unmergeable conflict in someone else's file. If `git status` shows changes outside your
+own scope, say so before doing anything else.
+
+```bash
+git fetch origin && git status -sb          # then read PROJECT_NOTES.md
+```
+
 ### Shared-file hazards worth knowing
 
 **1. `sync.sh` runs `git add -A` — this is the sharp edge.** Side B's deploy path
@@ -133,9 +167,14 @@ The sequence is: **this session codes → commits → the IME session is told to
 understanding of `codes.json`** → that session re-reads and rebuilds. The IME session should never
 edit `codes.json` to "fix" a code it dislikes — it reports the problem, and the fix lands here.
 
-`PROJECT_NOTES.md` is shared: **each session edits only its own half** (this session owns § A and
-this ownership section; the IME session owns § B). If a change spans both, whoever makes it says so
-in the commit message so the other session re-reads before its next edit.
+`PROJECT_NOTES.md` is shared: **each session edits only its own half** (Side A owns § A and this
+ownership section; Side B owns § B). If a change spans both, whoever makes it says so in the commit
+message so the other session re-reads before its next edit.
+
+**Exception: the "Hard rules" block above is cross-cutting and belongs to neither half.** It binds
+both sessions equally, so either may amend it — but an amendment must be flagged in the commit
+message *and* mentioned to Wilson, since loosening a hard rule is a decision about how the two
+sessions co-exist, not a note-keeping tidy-up.
 
 ---
 
