@@ -51,6 +51,8 @@
   .legend button .sw{width:11px;height:11px;border-radius:3px;display:inline-block;opacity:.3;transition:opacity .12s;}
   .legend button.on{color:var(--ink);border-color:currentColor;}
   .legend button.on .sw{opacity:1;}
+  #chartlegend{margin-top:0;}
+  #chartlegend button.sumbtn{font-weight:600;}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
     padding:clamp(14px,3vw,24px);}
@@ -119,6 +121,7 @@
     <p class="lede" id="lede">讀取中…</p>
   </header>
 
+  <div class="legend" id="chartlegend"></div>
   <div class="card" id="chartcard">
     <div class="plabel"><span>累計取碼</span><span class="r" id="cumr"></span></div>
     <div class="plabel" style="margin-top:12px"><span>每天新增</span><span class="r">依取碼提交</span></div>
@@ -187,7 +190,23 @@ function catNow(data,key){
   return u.size;
 }
 
+/* 圖表正上方的小開關列：跟下面的 tile 是同一組 catOn 狀態，兩邊點哪個都同步。
+   顏色 swatch 直接對應圖上線的顏色，一眼就知道哪條線是哪個類別。 */
+function renderLegend(){
+  const box=$('#chartlegend'); box.innerHTML='';
+  const defs=[...CATDEF, {key:'sum',name:'加總',col:'var(--sum)'}];
+  defs.forEach(c=>{
+    const b=document.createElement('button');
+    b.className=(catOn[c.key]?'on':'')+(c.key==='sum'?' sumbtn':'');
+    b.title=c.key==='sum'?'目前勾選類別的聯集':(CATDESC[c.key]||'');
+    b.innerHTML=`<i class="sw" style="background:${c.col}"></i>${c.name}`;
+    b.onclick=()=>{catOn[c.key]=!catOn[c.key];saveCats();render();};
+    box.appendChild(b);
+  });
+}
+
 function draw(data){
+  renderLegend();
   const days=data.days||[];
   $('#total').textContent=data.totalUniq.toLocaleString();
   if(!days.length){
