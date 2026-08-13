@@ -55,6 +55,7 @@ CANGJIE = SHARED / "cangjie.json"
 DAYI = SHARED / "dayi.json"             # 大易4碼表（對照用；rime-dayi 匯入）
 OPENCC = SHARED / "opencc.json"         # 繁簡對照（試打「簡繁兼容」用）
 DUAL_USE_MERGED = SHARED / "dual_use_merged.json"  # 歸併字白名單（不打簡體／碼表分析排除簡體 共用）
+JP_KANJI = SHARED / "jp_kanji.json"      # 日本漢字（新字體＋國字，扣掉跟簡體字同形的）：取碼進度頁額外標記
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
@@ -163,6 +164,13 @@ def _load_t2s():
         return {}
 
 
+def _load_jp_kanji():
+    try:
+        return set(json.loads(JP_KANJI.read_text("utf-8")).get("chars", []))
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+
 def _load_simp_only(s2t):
     """簡體專屬字（跟 simp_only_data／build_rime.py 不打簡體同一份定義）：
     s2t 有列、但不是歸併字（后／干／咸…本身也是獨立傳承字）的那些。"""
@@ -175,22 +183,30 @@ def _load_simp_only(s2t):
     return {c for c in s2t if c not in dual_use}
 
 
-def _counts(text, simp_only):
-    """回傳 (另計, 不另計)：不另計＝繁體字＋傳承字（總數扣掉簡體專屬字）。
-    簡體專屬字才是「另外多打的」——傳承字（后／云／咸…）本身就是獨立的字，
-    不是簡體，不能扣。"""
+def _cat_counts(text, simp_only, t2s, jp_kanji):
+    """逐日／現在狀態共用：把一份 codes.json 內容拆成 繁體／簡體／傳承／日本漢字
+    四類的字數，外加 trad∩simp 的重疊數（「坏」這種同時是簡體「壞」跟獨立繁體
+    「坏」的極少數個案——精確算聯集要扣這個）。
+    傳承字＝總數扣掉繁體、簡體（互斥定義）；日本漢字全部落在傳承字裡（jp_kanji.json
+    本身已排掉任何有 s2t／t2s／台灣標準字體的字），所以不需要另外扣。"""
     try:
         d = json.loads(text)
     except (json.JSONDecodeError, TypeError):
         return None
     coded = {ch for ch, r in d.items() if isinstance(r, dict) and r.get("code")}
-    simp = sum(1 for c in coded if c in simp_only)
-    return len(coded), len(coded) - simp
+    simp = {c for c in coded if c in simp_only}
+    trad = {c for c in coded if c in t2s}
+    jp = {c for c in coded if c in jp_kanji}
+    inherited = coded - simp - trad
+    return {"total": len(coded), "trad": len(trad), "simp": len(simp),
+            "inter": len(simp & trad), "inherited": len(inherited), "jp": len(jp)}
 
 
 def progress_data():
     s2t = _load_s2t()
     simp_only = _load_simp_only(s2t)
+    t2s = _load_t2s()
+    jp_kanji = _load_jp_kanji()
     try:
         head = _git("rev-parse", "HEAD")
         if head.returncode != 0:
@@ -211,44 +227,43 @@ def progress_data():
             if len(parts) < 2:
                 continue
             h, date = parts[0], parts[1]
-            c = _counts(_git("show", f"{h}:data/codes.json").stdout, simp_only)
+            c = _cat_counts(_git("show", f"{h}:data/codes.json").stdout, simp_only, t2s, jp_kanji)
             if c is None:
                 continue
             if date not in day_last:
                 order.append(date)
             day_last[date] = c
-        days, prev, prevU = [], 0, 0
+        days = []
         for date in order:
-            raw, uniq = day_last[date]
-            days.append({"date": date, "cum": raw, "cumUniq": uniq,
-                         "add": raw - prev, "addUniq": uniq - prevU})
-            prev, prevU = raw, uniq
+            days.append({"date": date, **day_last[date]})
         _prog_cache["head"], _prog_cache["days"] = head, days
 
-    # 目前（含還沒提交的）取碼字數：直接讀工作區的 codes.json
-    cur = _counts(CODES.read_text("utf-8"), simp_only) if CODES.exists() else None
-    raw, uniq = cur or (days[-1]["cum"] if days else 0, days[-1]["cumUniq"] if days else 0)
-
-    # 繁體／簡體／傳承字各取了多少：只看現在工作區狀態（不進歷史曲線，沒必要跟著
-    # 累計圖那套快取邏輯）。三者互斥、加總＝total：
-    #   簡體字＝simp_only（純簡化字，跟「碼表分析」排除簡體同一份白名單）
-    #   繁體字＝t2s 有列的（本身有對應簡體字的傳承正字，如 國／魚／雲）
-    #   傳承字＝其餘（人／三／天／牛這種本來就沒被簡化過的字，加上 云／后／干／咸
-    #   這種本身獨立、只是剛好被拿去當簡化目標的傳承字——見 dual_use_merged.json）
-    t2s = _load_t2s()
-    total_simp = total_trad = 0
+    # 繁體／簡體／傳承／日本漢字各取了多少：只看現在（含還沒提交的）工作區狀態，
+    # 不進歷史快取邏輯。附完整字清單，供頁面「看這些字」連去 /annotate？q= 用。
+    simp_chars = trad_chars = inherited_chars = jp_chars = []
+    raw = uniq = 0
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
             coded_chars = {c for c, r in coded_map.items()
                            if isinstance(r, dict) and r.get("code")}
-            total_simp = sum(1 for c in coded_chars if c in simp_only)
-            total_trad = sum(1 for c in coded_chars if c in t2s)
+            simp_chars = sorted(c for c in coded_chars if c in simp_only)
+            trad_chars = sorted(c for c in coded_chars if c in t2s)
+            jp_chars = sorted(c for c in coded_chars if c in jp_kanji)
+            inherited_chars = sorted(coded_chars - set(simp_chars) - set(trad_chars))
+            raw = len(coded_chars)
+            uniq = raw - len(simp_chars)
         except json.JSONDecodeError:
             pass
+    elif days:
+        last = days[-1]
+        raw, uniq = last["total"], last["total"] - last["simp"]
 
     return {"days": days, "total": raw, "totalUniq": uniq,
-            "totalSimp": total_simp, "totalTrad": total_trad}
+            "totalSimp": len(simp_chars), "totalTrad": len(trad_chars),
+            "totalJp": len(jp_chars),
+            "simpChars": simp_chars, "tradChars": trad_chars,
+            "inheritedChars": inherited_chars, "jpChars": jp_chars}
 
 
 def variants_data():
