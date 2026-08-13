@@ -65,6 +65,13 @@
   .tile.hl .v{color:var(--accent);}
   .tile.click{cursor:pointer;}
   .tile.click:hover{border-color:var(--accent);}
+  .tile.toggle{cursor:pointer;}
+  .tile.toggle:hover{border-color:var(--accent);}
+  .tile.toggle.off{opacity:.4;}
+  .tile.toggle.off .v{color:var(--muted);}
+  .tile.sum{border-color:var(--accent);border-width:1.5px;}
+  .tile .view{font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:inline-block;}
+  .tile .view:hover{text-decoration:underline;}
 
   footer{color:var(--faint);font-size:12px;text-align:center;line-height:1.7;}
 
@@ -243,23 +250,54 @@ function draw(data){
   function hide(){cross.classList.remove('on');tip.classList.remove('on');}
   svg.addEventListener('pointermove',show);svg.addEventListener('pointerdown',show);svg.addEventListener('pointerleave',hide);
 
-  const simp=data.totalSimp||0, trad=data.totalTrad||0, inherited=data.total-simp-trad, jp=data.totalJp||0;
   const tiles=[
     {k:'不重複字',v:data.totalUniq.toLocaleString(),s:'＝繁體字＋傳承字',hl:true},
     {k:'碼表條數',v:data.total.toLocaleString(),s:'繁簡各算'},
     {k:'最高單日',v:'+'+best.addUniq,s:best.date.slice(5),hl:true},
     {k:'活躍天數',v:days.length,s:'天有提交'},
-    {k:'繁體字',v:trad.toLocaleString(),s:'有對應簡體字，如 國魚雲'},
-    {k:'簡體字',v:simp.toLocaleString(),s:'簡體專屬，如 国鸟'},
-    {k:'傳承字',v:inherited.toLocaleString(),s:'如人天后，三者加總＝碼表條數'},
-    {k:'日本漢字',v:jp.toLocaleString(),s:'新字体／國字，如県駅鉄，跟上面三個重疊',
-      href:(data.jpChars&&data.jpChars.length)?'/annotate?q='+encodeURIComponent(data.jpChars.join('')):null},
   ];
   const scb=$('#stats');scb.innerHTML='';
-  tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'')+(t.href?' click':'');
+  tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'');
     d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;
-    if(t.href){d.title='點一下看這批字';d.onclick=()=>location.href=t.href;}
     scb.appendChild(d);});
+  renderCats(data);
+}
+
+/* ---------- 繁體／簡體／傳承／日本漢字：可個別開關，附一個顯示目前勾選集合聯集的加總 ---------- */
+const CAT_KEY='aiphabi-progress-cats';
+let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true};
+try{Object.assign(catOn,JSON.parse(localStorage.getItem(CAT_KEY)||'{}'));}catch(e){}
+function saveCats(){localStorage.setItem(CAT_KEY,JSON.stringify(catOn));}
+
+function renderCats(data){
+  const CATS=[
+    {key:'trad',k:'繁體字',s:'有對應簡體字，如 國魚雲',chars:data.tradChars||[]},
+    {key:'simp',k:'簡體字',s:'簡體專屬，如 国鸟',chars:data.simpChars||[]},
+    {key:'inherited',k:'傳承字',s:'如人天后',chars:data.inheritedChars||[]},
+    {key:'jp',k:'日本漢字',s:'新字体／國字，如県駅鉄',chars:data.jpChars||[]},
+  ];
+  const box=document.createElement('div');
+  box.className='stats';box.style.marginTop='0';
+  const mk_=(k,label,sub,chars,extraClass)=>{
+    const d=document.createElement('div');
+    const on=catOn[k];
+    d.className='tile toggle'+(on?'':' off')+(extraClass?' '+extraClass:'');
+    d.innerHTML=`<span class="k">${label}</span><span class="v num">${chars.length.toLocaleString()}<small>${sub}</small></span>`+
+      (chars.length?`<a class="view" href="/annotate?q=${encodeURIComponent(chars.join(''))}">看這些字 →</a>`:'');
+    d.querySelector('.k').onclick=d.querySelector('.v').onclick=()=>{catOn[k]=!catOn[k];saveCats();renderCats(data);};
+    const link=d.querySelector('.view'); if(link) link.onclick=ev=>ev.stopPropagation();
+    return d;
+  };
+  CATS.forEach(c=>box.appendChild(mk_(c.key,c.k,c.s,c.chars)));
+
+  const union=new Set();
+  CATS.forEach(c=>{if(catOn[c.key])c.chars.forEach(ch=>union.add(ch));});
+  const chosen=CATS.filter(c=>catOn[c.key]).map(c=>c.k).join('＋')||'（沒有勾選）';
+  box.appendChild(mk_('sum','加總',chosen,[...union],'sum'));
+
+  const old=$('#catstats'); if(old) old.remove();
+  const wrap=document.createElement('div'); wrap.id='catstats'; wrap.appendChild(box);
+  $('#stats').insertAdjacentElement('afterend',wrap);
 }
 </script>
 </body>

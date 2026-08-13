@@ -245,24 +245,26 @@ def progress_data():
     #   這種本身獨立、只是剛好被拿去當簡化目標的傳承字——見 dual_use_merged.json）
     t2s = _load_t2s()
     jp_kanji = _load_jp_kanji()
-    total_simp = total_trad = total_jp = 0
-    jp_chars = []
+    simp_chars = trad_chars = inherited_chars = jp_chars = []
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
             coded_chars = {c for c, r in coded_map.items()
                            if isinstance(r, dict) and r.get("code")}
-            total_simp = sum(1 for c in coded_chars if c in simp_only)
-            total_trad = sum(1 for c in coded_chars if c in t2s)
+            simp_chars = sorted(c for c in coded_chars if c in simp_only)
+            trad_chars = sorted(c for c in coded_chars if c in t2s)
             # 日本漢字：跟上面三個是分開、可能重疊的額外標記，不併入加總
             jp_chars = sorted(c for c in coded_chars if c in jp_kanji)
-            total_jp = len(jp_chars)
+            leftover = coded_chars - set(simp_chars) - set(trad_chars)
+            inherited_chars = sorted(leftover)
         except json.JSONDecodeError:
             pass
 
     return {"days": days, "total": raw, "totalUniq": uniq,
-            "totalSimp": total_simp, "totalTrad": total_trad,
-            "totalJp": total_jp, "jpChars": jp_chars}
+            "totalSimp": len(simp_chars), "totalTrad": len(trad_chars),
+            "totalJp": len(jp_chars),
+            "simpChars": simp_chars, "tradChars": trad_chars,
+            "inheritedChars": inherited_chars, "jpChars": jp_chars}
 
 
 def variants_data():
