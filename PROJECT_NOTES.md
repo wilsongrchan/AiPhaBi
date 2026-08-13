@@ -33,6 +33,69 @@ a Side-B task.
 
 ---
 
+## File ownership across parallel sessions
+
+This project is worked on in **two Claude sessions at once**, one per sub-ecosystem. They share a
+single working tree and a single `main` branch, so
+ownership is by file, not by intent. **A session never writes a file it doesn't own** — even a
+"tiny fix", even when it's obviously correct. Hand it to the owning session instead.
+
+| File / dir | Owner | The other session |
+|---|---|---|
+| `data/codes.json` | **A · annotation** | **read only** |
+| `data/zigen.json` | **A · annotation** | **read only** |
+| `data/rules.json` | **A · annotation** | **read only** — but see the `short_code` note below |
+| `data/todo_chars.txt` | **A · annotation** | read only |
+| `server.py` + every page it serves (`editor.html`, `annotate.html`, `rules.html`, `stats.html`, `progress.html`, `variants.html`, `type.html`) | **A · annotation** | read only |
+| `rime/**` (schemas, dict, `lua/`) | **B · IME** | read only |
+| `data/phrases_*.txt`, `phrases_preview.tsv` | **B · IME** | read only |
+| `build_rime.py`, `sync.sh` | **B · IME** | read only |
+| `PROJECT_NOTES.md` | **shared** | see below |
+
+### Shared-file hazards worth knowing
+
+**1. `sync.sh` runs `git add -A` — this is the sharp edge.** Side B's deploy path
+(`./sync.sh "<msg>"`) stages the *entire* working tree, not just `rime/`. If the IME session
+deploys while this session has half-finished annotation edits sitting uncommitted in
+`codes.json`/`zigen.json`, those edits get swept into a Side-B commit and pushed. Mitigation:
+**this session commits its annotation work before the IME session deploys**, and vice versa —
+don't leave Side-A edits uncommitted across a known Side-B deploy. Both sessions commit to `main`.
+
+**2. `rules.json` is owned here but consumed there.** `build_rime.py:77` reads it, and the
+`short_code` rule's 60 `entries` become the IME's 簡碼 table (`shortcode` / `shortcode_rev` in
+`aiphabi_data.lua`, which drives both 簡碼 lookup and the 簡碼 hint). So editing `short_code` in
+this session is a *user-visible IME change* that doesn't take effect until the IME session
+rebuilds. Tell the other session when 簡碼 entries move.
+
+**3. `server.py`'s optimistic lock only guards the tool tabs, not the sessions.** It compares file
+mtime, so it catches a stale browser tab — but a session editing `codes.json` with `Edit`/`Write`
+bypasses it entirely, and any open annotation tab will 409 on its next save. If you write to
+`data/*.json` from the shell while a tool tab is open, say so, so it can be reloaded.
+
+**4. The `fetch_data.py` outputs are gitignored and shared by both sides.** `data/freq.json`
+(`build_rime.py:78` + `/api/freq`), `data/opencc.json` (`build_rime.py:247` + `/api/opencc`),
+`data/cangjie.json`, `data/tw_strokes.json`, `data/graphics.txt`, `data/hk_cache.json`. Because
+they're untracked, a re-run leaves **no diff and no commit** — the change is invisible to the other
+session while silently shifting its inputs. Neither session should re-run `fetch_data.py` casually
+(~30 MB download); if it must happen, say so out loud.
+
+**5. `data/backups/` is gitignored**, so it never appears in `git status` — but it *does* grow on
+every tool save (one snapshot per PUT, pruned to 200 per stem). It's the recovery path if a session
+does clobber `codes.json`/`zigen.json`: pull the newest `codes-*.json` / `zigen-*.json` from there.
+
+### Refresh protocol
+
+New characters coded here don't reach the IME by the other session reading the file mid-flight.
+The sequence is: **this session codes → commits → the IME session is told to refresh its
+understanding of `codes.json`** → that session re-reads and rebuilds. The IME session should never
+edit `codes.json` to "fix" a code it dislikes — it reports the problem, and the fix lands here.
+
+`PROJECT_NOTES.md` is shared: **each session edits only its own half** (this session owns § A and
+this ownership section; the IME session owns § B). If a change spans both, whoever makes it says so
+in the commit message so the other session re-reads before its next edit.
+
+---
+
 ## A · Designer side — zigen & character coding
 
 ### What a zigen is
@@ -48,6 +111,15 @@ Zigen are matched by **stroke midline**, not bitmap (a component gets squashed/s
 different characters; bitmap comparison can't tell same-zigen apart, midline can). Global merge
 threshold `0.25`. See README "字根怎麼表示" for the two-radius subtlety (merge radius vs match
 radius) — don't collapse the global threshold to make one pair distinct.
+
+**The global `0.25` is more nominal than it looks.** Individual zigen carry a per-shape `thr`
+field that overrides it, and **273 of 400 zigen (68%) now have one** — values seen range from
+`0.0317` (日) to `0.1993` (炯), i.e. almost always *tighter* than the global. The lookup is
+`thr = shape.thr != null ? shape.thr : globalThr`, implemented in several places in
+`annotate.html` (see `thrOf` at lines ~2173, 2320, 2397, 4027). Practical consequence: changing
+`meta.merge_threshold` only moves the ~127 zigen that have no override, so it is **not** the knob
+for fixing a specific bad merge — tighten that zigen's own `thr` instead (which is what the
+per-shape overrides are for, and why there are so many).
 
 ### `data/zigen.json` — the zigen table (the "learned" alphabet)
 ```
@@ -74,24 +146,59 @@ characters you haven't coded yet.
 - `final`: the **code the IME actually uses** after the 碼長上限 rule (≥5 letters → keep first 4
   + last 1). `code` may be longer; `final` is what ships. **Always read `final`.**
 
+#### Rule-exception flags (per character)
+A character's breakdown can legitimately disagree with the enforced rules. Rather than weakening
+the rule, `annotate.html` records *why* on the character itself (UI at `annotate.html` ~L2571–2712).
+Three mutually-distinct verdicts, each a list of rule-instance keys like `merge:1-2`, `lone:0`,
+`comp:共:4`, `skip:4`, `letter:1`, `conv`:
+
+| Field | Meaning | Count |
+|---|---|---|
+| `conventional` | 約定特例 — genuinely breaks the rule, accepted by convention (上, 大, 三, 五) | 29 |
+| `compliant` | **not** an exception — the breakdown obeys the rule, the checker misjudged (見, 覺, 界, 士) | 42 |
+| `overrides` | ignore this rule here (業, 認, 鎮, 觸, 顛) | 16 |
+| `compliantWhy` | free-text reason, keyed by the same rule-instance key | 22 |
+
+`compliant` is the one to reach for when the *checker* is wrong; `conventional`/`overrides` when
+the *character* is. Flags are keyed to live rule instances — `annotate.html` prunes keys (and their
+`compliantWhy` text) when a re-code makes them stale, so they don't survive a changed breakdown.
+
 ### `data/rules.json` — 取碼原則 (coding rules)
-`rules[]`, each with `kind`:
+9 rules total, each with `kind`:
 - `kind: "enforced"` + `enabled: true` → the rule **actually runs** in the prediction engine.
-  Key ones: `stroke_order`, `merge_over_split` (seg_penalty 0.05), `skip_isolated_hv` (lone
-  橫→I / 豎→J only if first/last stroke), `max_code_length` (max 5, head 4, tail 1),
-  `tier_priority` (次 +1 cost, 三 +2), `enclosure` (囗/匚 first, overrides stroke order).
-- `kind: "manual"` → documentation only; not executed.
+  **All 7 enforced rules:** `stroke_order`, `merge_over_split` (seg_penalty 0.05),
+  `skip_isolated_hv` (lone 橫→I / 豎→J only if first/last stroke), `max_code_length` (max 5,
+  head 4, tail 1), `tier_priority` (次 +1 cost, 三 +2), `enclosure` (囗/匚 first, overrides
+  stroke order), and **`long_stroke`**.
+- `kind: "manual"` → documentation only; not executed. The 2 manual rules are `convention` and
+  `short_code`.
 - **`short_code` rule lives here** — its `entries` list is the hand-picked 簡碼 table (see below).
 
 ### Designer-side tools
-- **`server.py`** → `http://localhost:8777`, serves the HTML tools and read/writes `data/*.json`.
-- **`/` 字根表** — the 26 letters and their zigen, drag to re-group / re-tier.
-- **`annotate.html`** (`/annotate`) — click strokes → press a letter → forms a zigen; shows the
-  predicted breakdown; shows official stroke order from 3 regions.
-- **`rules.html`** (`/rules`) — the coding rules; enforced ones actually bite.
-- **`progress.html`**, **`stats.html`**, **`variants.html`**, **`type.html`**, **`editor.html`** —
-  progress tracking, stats, variant handling, a typing tester, and a breakdown editor.
-- `data/backups/` — timestamped snapshots (auto).
+`server.py` → `http://localhost:8777`, serves the HTML tools and read/writes `data/*.json`.
+The routes, as actually wired in `server.py` `do_GET` (~L353):
+
+| Route | File | Nav label | What it is |
+|---|---|---|---|
+| **`/`**, `/index.html` | **`editor.html`** | 字根表 | the 字根表: 26 letters and their zigen, drag to re-group / re-tier. **`editor.html` *is* the 字根表 editor — there is no separate "breakdown editor" page** |
+| `/annotate` | `annotate.html` | 逐字取碼 | the main tool: click strokes → press a letter → forms a zigen; shows the predicted breakdown + official stroke order from 3 regions |
+| `/variants` | `variants.html` | 兼容字型 | regional glyph variants |
+| `/stats` | `stats.html` | 碼表分析 | code-table analysis |
+| `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite |
+| `/type` | `type.html` | 試打 | actually type with AiPhaBi |
+| `/progress` | `progress.html` | 取碼進度 | daily cumulative coding curve |
+
+Data APIs: `GET /api/{zigen,codes,rules,learned,freq,progress,state,…}`;
+`PUT /api/{zigen,codes,rules,learned}` to write.
+
+- **Optimistic locking on write** (`do_PUT`, ~L507): the page sends `X-Base-Stamp` = the file
+  mtime it read; if the file changed since, the server returns **409 `{"error":"stale"}`** instead
+  of writing. This is what stops a stale tab's autosave from clobbering another writer. If you edit
+  `data/*.json` from a script while a tool tab is open, that tab will 409 on its next save — reload it.
+- **`codes.json` is normalized on save**: `_normalize_finals(data)` forces `final == shorten(code)`
+  for every entry, so a programmatic write can't leave `final` inconsistent with `code`.
+- `data/backups/` — timestamped snapshot taken on *every* PUT, pruned to the last 200 per stem
+  (currently ~500 files across stems).
 
 ---
 
