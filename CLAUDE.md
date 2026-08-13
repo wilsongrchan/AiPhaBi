@@ -8,11 +8,15 @@ git fetch origin && git status -sb
 ```
 
 `.aiphabi-side` (gitignored, per-checkout) says whether this checkout is **A** or **B**. It drives
-the `PreToolUse` guard in `.claude/hooks/side-guard.py`, which hard-blocks writes to
-`codes.json` / `zigen.json` / `rules.json` unless the marker says `A`. It **fails closed**: `B`, a
-missing marker, and a garbled marker all block, so if those files are locked, declare the side
-(`echo A > .aiphabi-side`) — it takes effect immediately, no restart. Full setup steps are in
-`PROJECT_NOTES.md` § *Starting a new session*.
+the `PreToolUse` guard in `.claude/hooks/side-guard.py`, which covers both `Write`/`Edit` **and**
+`Bash`:
+
+- writes to `codes.json` / `zigen.json` / `rules.json` — allowed only when the marker is `A`
+- running `build_rime.py` / `sync.sh` — allowed only when the marker is `B`
+
+Both **fail closed**: a missing or garbled marker blocks both. Reads are never blocked. If
+something is locked, declare the side (`echo A > .aiphabi-side`) — effective immediately, no
+restart. Full setup steps are in `PROJECT_NOTES.md` § *Starting a new session*.
 
 Then read **`PROJECT_NOTES.md`** — it is the working reference for this repo (data formats,
 the two sub-ecosystems, coding rules, quickcode conventions, known hazards). Do it before the

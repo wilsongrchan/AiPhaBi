@@ -49,18 +49,36 @@ call, so `echo A > .aiphabi-side` takes effect immediately — **no session rest
 
 ### What the guard does and does not do
 
-`.claude/hooks/side-guard.py` is a `PreToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit`. It
-exits 2 — a hard block, not a warning — on `data/codes.json`, `data/zigen.json`, `data/rules.json`,
-and returns the reason to Claude.
+`.claude/hooks/side-guard.py` is a `PreToolUse` hook on
+`Write|Edit|MultiEdit|NotebookEdit|Bash`. It exits 2 — a hard block, not a warning — and returns
+the reason to Claude. Two protections, each unlocked only by the correct marker:
 
-| `.aiphabi-side` | protected files | everything else |
-|---|---|---|
-| `A` | writable | writable |
-| `B` | **blocked** | writable |
-| missing / unrecognised | **blocked** (fail closed) | writable |
+| `.aiphabi-side` | write `codes/zigen/rules.json` | run `build_rime.py` / `sync.sh` | everything else |
+|---|---|---|---|
+| `A` | ✅ allowed | **blocked** | allowed |
+| `B` | **blocked** | ✅ allowed | allowed |
+| missing / unrecognised | **blocked** | **blocked** | allowed |
 
-Only the three files are ever guarded, so an undeclared checkout can still do all other work —
-it just can't touch the hand-authored data until it says who it is.
+Both fail closed, in opposite directions — the marker is a key that unlocks exactly one side's
+work, never both. Everything else stays writable, so an undeclared checkout is not wedged.
+
+**Reads are never blocked.** Side B reads the data files freely; only recognised *mutating* forms
+are stopped. For `Bash` the guard splits the command into segments, strips heredoc bodies (commit
+messages routinely mention `build_rime.py`, and that prose must not read as an invocation), and
+classifies each segment's `argv0`. It blocks redirects into a protected file, `sed -i`, `tee`,
+`mv`/`cp`/`rm`/`truncate`, `git checkout|restore|clean`, `jq --in-place`, and inline
+`python/perl` opening one for write.
+
+**Bash detection is heuristic and best-effort by nature** — it reads command strings, not intent.
+Two consequences to expect:
+- *False negatives*: an unusual mutation form can slip through. It catches the accident, not a
+  determined bypass.
+- *False positives*: a command that merely quotes one of these patterns as an argument can be
+  blocked even though it writes nothing. This bites when testing the guard itself — put test
+  cases in a file, not on the command line.
+
+Still outside the guard entirely: the annotation server writing `data/*.json` (a separate process,
+never passes through a hook), hand edits, and `sync.sh`'s `git add -A` (a commit, not a write).
 
 It is **a guardrail against carelessness, not a security boundary.** It does not cover:
 `rime/**` (deliberately — regenerable, so a wrong-side rebuild is annoying, not costly);
