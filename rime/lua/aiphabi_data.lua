@@ -20301,7 +20301,6 @@ M.simp = {
   ["圣"]=true,
   ["圹"]=true,
   ["场"]=true,
-  ["坏"]=true,
   ["块"]=true,
   ["坚"]=true,
   ["坛"]=true,
