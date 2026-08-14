@@ -384,6 +384,24 @@ The sequence is: **this session codes → commits → the IME session is told to
 understanding of `codes.json`** → that session re-reads and rebuilds. The IME session should never
 edit `codes.json` to "fix" a code it dislikes — it reports the problem, and the fix lands here.
 
+**`./commit_annotation.sh` does the "commits" step for you**, and can be run from *either* folder
+(it locates the Side-A worktree by its `.aiphabi-side` marker, so no hardcoded paths). It only ever
+runs git — it never writes the data files, so it is safe to invoke from Side B. It exists because
+the manual sequence has three easy-to-miss conventions baked in:
+
+- **stages only the four annotation files**, never `git add -A` (contrast `sync.sh`, which sweeps
+  the whole working tree);
+- **adds `[rebuild]` only when `codes.json`/`rules.json` changed** — not for `zigen.json`-only
+  commits, which are not a build input;
+- **commits *before* pulling**: `pull --rebase` refuses to run with unstaged changes, while `push`
+  fails when behind `origin/main`, so the order is forced and the obvious order is wrong.
+
+`./commit_annotation.sh -n` is a dry run: it prints which characters changed and the message it
+would use, and touches nothing. A worked failure this came from: the commands were run on a second
+machine where the edits didn't exist, so `add`/`commit`/`push` all "succeeded" while doing nothing —
+the annotation tool had written them on the *other* machine. Check `git log origin/main` actually
+moved before assuming a commit landed.
+
 `PROJECT_NOTES.md` is shared: **each session edits only its own half** (Side A owns § A and this
 ownership section; Side B owns § B). If a change spans both, whoever makes it says so in the commit
 message so the other session re-reads before its next edit.
