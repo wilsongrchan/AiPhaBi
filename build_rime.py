@@ -224,6 +224,37 @@ def main():
             if ch not in short3[sig]:
                 short3[sig].append(ch)
 
+    # 左簡碼：收錄的偏旁出現在字的最左邊時，偏旁本身只取首尾兩碼、中間略過
+    # （鮭 完整碼 SOTMFF → 魚 SOTM 收成 SM → SMFF）。跟三簡碼一樣是整個家族自動
+    # 適用、不必逐字挑，但只認 rules.json left_short 表裡那幾個偏旁。
+    # 家族名單（members）是 Side A 人工核可的，這裡直接照用——自己推導要
+    # data/dictionary.txt（IDS 部件拆分），那份 gitignored 而且 Side B 的 worktree
+    # 根本沒有。碼一律現算：名單只存字不存碼，存了會在某個字改碼時默默過期。
+    # 跟三簡碼一樣不進碼表、只靠 Lua 查（M.leftshort）——這樣條件五「不可疊加三簡碼」
+    # 自然成立：short3 是從 code2chars（碼表）算的，碼表裡沒有左簡碼就湊不出來。
+    left_rule = next((r for r in rules["rules"] if r["id"] == "left_short"), None)
+    leftshort = defaultdict(list)   # 左簡碼（小寫）-> [字, ...]（去重）
+    leftshort_skipped = []          # 前綴對不上的字：報出來，不要默默生一個錯的碼
+    if left_rule and left_rule.get("enabled"):
+        for entry in left_rule.get("entries", []):
+            ccode = (entry.get("code") or "").upper()
+            cshort = (entry.get("short") or "").upper()
+            if not ccode or not cshort:
+                continue
+            for ch in entry.get("members", []):
+                full = (codes.get(ch) or {}).get("code")
+                # 名單是照核可當時的碼收的。哪個字後來改了碼、偏旁前綴對不上，就跳過
+                # 並報出來——默默生一個錯的左簡碼，比少收一個字糟糕得多。
+                if not full or not full.startswith(ccode):
+                    leftshort_skipped.append((entry.get("comp"), ch, full or "（未取碼）"))
+                    continue
+                rest = full[len(ccode):]
+                if len(rest) > 3:       # 條件六：剩下仍多於三碼 → 首二＋末一（結果與碼長上限一致）
+                    rest = rest[0] + rest[1] + rest[-1]
+                sig = (cshort + rest).lower()
+                if ch not in leftshort[sig]:
+                    leftshort[sig].append(ch)
+
     conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
     FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
     family, comp = {}, defaultdict(list)
@@ -405,6 +436,11 @@ def main():
     if short3:
         short3_switch = ("  - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查\n"
                           "    states: [ 三簡碼關, 三簡碼開 ]\n")
+    # 左簡碼開關：同樣是新機制，比照三簡碼預設關。
+    left_switch = ""
+    if leftshort:
+        left_switch = ("  - name: aiphabi_left_short        # 左簡碼：左偏旁只取首尾兩碼（鮭 SOTMFF → SMFF）\n"
+                        "    states: [ 左簡碼關, 左簡碼開 ]\n")
     # 詞組連打開關（純愛發筆）：先預設關，自己開來用；二合一（＋拼音）不掛這開關、永遠開。
     phrase_switch = ""
     if phrase_entries:
@@ -470,6 +506,9 @@ def main():
         dl.append(f'  [{lua_str(ch)}]={lua_str(short)},')
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
+        dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
+    dl += ["}", "M.leftshort = {"]      # 左簡碼 → [字]（aiphabi_left_short 開關控制，提示一律秀主碼）
+    for sig, chs in sorted(leftshort.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
     dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼連打；aiphabi_si4 開關控制，依詞頻排）
     for sig, ws in sorted(si4.items()):
@@ -561,7 +600,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
-{short_switch}{short3_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{left_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
@@ -697,6 +736,8 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * **打簡出繁**（`aiphabi_s2t` 開關，預設關）— 候選字順便帶出它的繁體版，標「繁」。兩個各自獨立，要單開哪邊都行。
 * **不打簡體**（`aiphabi_no_simp` 開關，預設關）— 候選裡的簡體專屬字（純一對一簡化，如 馬→马、魚→鱼）整個濾掉，只留繁體字／傳承字；「歸併字」不算簡體專屬（如 后／干／咸／里／谷／面 這些字本身也是獨立傳承字），不會被濾掉。開了這個會順便把「打簡出繁」關掉——碼表裡沒有簡體本字，那個提示用不到。
 * **約定簡碼**（`aiphabi_short100` 開關，預設開）— 手動在「取碼原則」頁挑的常用字（的、我、是、這、就…），打它們主碼的「首尾兩碼」也找得到，標「簡碼」，並排在候選最前面。這幾個字常用到即使簡碼撞到別的字也划算，其餘沒挑的字不受影響。
+* **三簡碼**（`aiphabi_short3` 開關，預設關）— 約定簡碼的自動版，不用手動挑：主碼四碼以上的字，打「頭兩碼＋末一碼」也找得到（鮭 主碼 SOTMF → 打 SOF），標「三簡」。自動配對、可能撞到好幾個字，所以排在所有正常候選之後。
+* **左簡碼**（`aiphabi_left_short` 開關，預設關）— 魚金馬食車足酉革這幾個偏旁出現在字的最左邊時，偏旁本身只取首尾兩碼、中間略過（鮭 完整碼 SOTMFF → 打 SMFF；鐵 YFVFOEXQ → 打 YVFOQ），標「左簡」。整個家族自動適用，主碼不變、只是多一條路；跟三簡碼一樣排在正常候選之後，也一樣不能兩種疊在一起用。
 * **同類字**（`aiphabi_family`）— 打中約定表某形近字家族其一，把整組帶出來（打 `f` → 土 旁邊也給你 士 工 干 上…）。標「同類」。
 * **偏旁碼**（`aiphabi_comp`）— 打了某字「作為偏旁時」的碼，提醒你那個字（例 `ii` → 二）。標「偏旁碼」。
 * **輸入容錯**（`aiphabi_fuzzy`）— 漏打一碼、多打一碼、打成鍵盤隔壁鍵、相鄰兩碼打反，也照樣找得到，標「可能 …」。
@@ -764,6 +805,12 @@ Weasel／fcitx5-rime 多半內建）：
 """
     (OUT / "README.md").write_text(readme, encoding="utf-8")
 
+    if leftshort:
+        print(f"左簡碼 {sum(len(v) for v in leftshort.values())} 字 → {len(leftshort)} 個碼"
+              f"（{len((left_rule or {}).get('entries', []))} 個偏旁家族）")
+    for comp, ch, full in leftshort_skipped:
+        # 名單跟碼表對不上：Side A 改了這個字的碼，左簡碼家族名單要跟著更新。
+        print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
     print(f"字 {char_count}　碼 {len(entries)}　重碼組 {len(dups)}")
     print(f"寫出：{OUT}/aiphabi.schema.yaml、aiphabi.dict.yaml、README.md")
 

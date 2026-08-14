@@ -15,8 +15,11 @@
 -- 排序：簡碼（認定過「就這個字」）> 完整的正常候選（含補全，是不是主碼都算「打中了」）
 -- > 其餘提示（同類／偏旁碼／三簡碼…都是自動配對、沒認定過「就這個字」，一律墊底）。
 -- 真正打中的候選，哪怕只是補全中，也不該被這些自動提示擠到後面去。
+-- 左簡碼：收錄的偏旁（魚金馬食車足酉革）出現在字的最左邊時，偏旁本身只取首尾兩碼、
+-- 中間略過（鮭 完整碼 SOTMFF → SMFF）。跟三簡碼一樣是整個家族自動適用，也一樣是
+-- 自動配對、沒認定過「就這個字」，所以同樣墊底排在所有正常候選之後。
 -- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp / aiphabi_short100
--- / aiphabi_short3 各自獨立控制。
+-- / aiphabi_short3 / aiphabi_left_short 各自獨立控制。
 local data = require("aiphabi_data")
 
 -- 不打簡體開了，「打簡出繁」就沒有簡體本字可用（碼表裡已經濾掉了）——順便關掉，
@@ -54,6 +57,9 @@ local function filter(input, env)
   local s2t_on   = ok and ctx:get_option("aiphabi_s2t")
   local short_on = ok and ctx:get_option("aiphabi_short100")
   local short3_on = ok and #code == 3 and ctx:get_option("aiphabi_short3")
+  -- 左簡碼：碼長不固定（左偏旁兩碼＋剩餘一到三碼，3～5 碼都有），所以沒有 short3
+  -- 那種 #code 閘門，直接拿整串碼查表。查不到就沒事，是一次雜湊查詢而已。
+  local left_on = ok and ctx:get_option("aiphabi_left_short")
   -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
   -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
   local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
@@ -62,9 +68,10 @@ local function filter(input, env)
 
   local extra = {}
   local extra3 = {}        -- 三簡碼命中的字：排在所有正常候選之後（見下方排序理由）
+  local extraL = {}        -- 左簡碼命中的字：同三簡碼道理（自動配對、沒認定過「就這個字」），墊底
   local extra4 = {}        -- 四碼連打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
-  if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or si4_on then
+  if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or left_on or si4_on then
     -- 這些提示（同類／偏旁／簡碼／三簡碼／四碼…）都是查「整串輸入的碼」得來的，覆蓋 0..#code。
     -- 不能抄 cands[1] 的範圍——開了 enable_sentence 後 cands[1] 常常只吃前段（水 只吃 K），
     -- 抄了會讓打滿的四碼（水瓶座＝KVRF）被當「沒吃滿」壓到後面。
@@ -116,6 +123,16 @@ local function filter(input, env)
           seen[ch] = true
           local sc = data.char2code[ch]
           extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
+        end
+      end
+    end
+    if left_on then                      -- 左簡碼：左偏旁收成首尾兩碼後的碼（鮭 SOTMFF → SMFF）；
+                                          -- 提示一律秀主碼，跟三簡碼同理（比對到的是完整碼，太長）
+      for _, ch in ipairs(data.leftshort[code] or {}) do
+        if not seen[ch] then
+          seen[ch] = true
+          local sc = data.char2code[ch]
+          extraL[#extraL + 1] = Candidate("ap_pool", s, e, ch, sc and ("左簡 " .. sc:upper()) or "左簡")
         end
       end
     end
@@ -202,6 +219,9 @@ local function filter(input, env)
     if keep(c) then yield(c) end
   end
   for _, c in ipairs(extra3) do
+    if keep(c) then yield(c) end
+  end
+  for _, c in ipairs(extraL) do
     if keep(c) then yield(c) end
   end
   for _, c in ipairs(extra4) do

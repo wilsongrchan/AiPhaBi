@@ -34,6 +34,8 @@ switches:
     states: [ 簡碼關, 簡碼開 ]
   - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查
     states: [ 三簡碼關, 三簡碼開 ]
+  - name: aiphabi_left_short        # 左簡碼：左偏旁只取首尾兩碼（鮭 SOTMFF → SMFF）
+    states: [ 左簡碼關, 左簡碼開 ]
   - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
     states: [ 詞組關, 詞組開 ]
   - name: ascii_punct
