@@ -18,6 +18,8 @@
 -- 左簡碼：收錄的偏旁（魚金馬食車足酉革）出現在字的最左邊時，偏旁本身只取首尾兩碼、
 -- 中間略過（鮭 完整碼 SOTMFF → SMFF）。跟三簡碼一樣是整個家族自動適用，也一樣是
 -- 自動配對、沒認定過「就這個字」，所以同樣墊底排在所有正常候選之後。
+-- 但左簡碼是一字一碼（偏旁只有一個位置），所以跟約定簡碼一樣有反向提醒：打了完整碼，
+-- 就附「左簡 XX」教你下次可以少打幾碼（三簡碼一簽名多字，講不出這句，所以沒有）。
 -- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp / aiphabi_short100
 -- / aiphabi_short3 / aiphabi_left_short 各自獨立控制。
 local data = require("aiphabi_data")
@@ -189,6 +191,17 @@ local function filter(input, env)
       local sc = data.shortcode_rev[cand.text]
       if sc and sc ~= code then
         cand.comment = "簡碼 " .. sc:upper()
+        return cand
+      end
+    end
+    -- 左簡碼提醒：跟約定簡碼同一套「教你少打幾碼」的路數。三簡碼沒有這個提醒是因為
+    -- 那是自動配對、一個簽名常常對到好幾個字，講不出「你這個字有捷徑」；左簡碼是
+    -- 一字一碼（偏旁只有一個位置），講得出來，所以比照約定簡碼辦理。
+    -- 排在約定簡碼之後：那個是人工認定過的，更值得先講。
+    if left_on then
+      local lc = data.leftshort_rev[cand.text]
+      if lc and lc ~= code then
+        cand.comment = "左簡 " .. lc:upper()
         return cand
       end
     end
