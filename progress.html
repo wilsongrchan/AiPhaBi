@@ -73,7 +73,17 @@
   /* 官方字表覆蓋率：「取到哪裡算完成」用這個講，不是用碼表總字數 */
   .std{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
     padding:16px 18px;margin:0 0 18px;}
-  .std h2{font-size:12px;letter-spacing:.14em;color:var(--muted);margin:0 0 14px;font-weight:600;}
+  .stdhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin:0 0 14px;cursor:pointer;user-select:none;}
+  .std h2{font-size:12px;letter-spacing:.14em;color:var(--muted);margin:0;font-weight:600;}
+  .stdhead .chev{font-size:11px;color:var(--faint);white-space:nowrap;}
+  .stdhead:hover .chev{color:var(--accent);}
+  /* 收合：只剩兩條長條，一個字都不留。整張卡片可點，點了就展開回來。 */
+  .std.collapsed{padding:11px 18px;cursor:pointer;}
+  .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot{display:none;}
+  .std.collapsed .strow{margin:0 0 6px;}
+  .std.collapsed .strow:last-child{margin-bottom:0;}
+  .std.collapsed .stbar{height:7px;}
   .strow{margin:0 0 16px;}
   .strow:last-child{margin-bottom:0;}
   .sthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 7px;flex-wrap:wrap;}
@@ -348,11 +358,16 @@ function draw(data){
    缺的字照字表原順序給（教育部表筆畫序、GB2312 一級拼音序），連去 /annotate
    就是照那個順序往下取。網址塞不下幾千個字，所以一次只帶 LINK_CAP 個。 */
 const LINK_CAP=300;
+const STD_KEY='aiphabi-progress-std-collapsed';
+let stdCollapsed=localStorage.getItem(STD_KEY)==='1';
 function renderStandards(data){
   const list=data.standards||[];
   const box=$('#stdcard');
   if(!list.length){ box.innerHTML=''; return; }
-  box.innerHTML='<div class="std"><h2>官方字表覆蓋率</h2>'+list.map((s,i)=>{
+  box.innerHTML=`<div class="std${stdCollapsed?' collapsed':''}" id="stdbox"${
+      stdCollapsed?' title="展開官方字表覆蓋率"':''}>`+
+    '<div class="stdhead"><h2>官方字表覆蓋率</h2><span class="chev">收起 ▴</span></div>'+
+    list.map((s,i)=>{
     const pct=s.total?s.done/s.total*100:0;
     const left=s.missing.length;
     const head=s.missing.slice(0,LINK_CAP).join('');
@@ -370,6 +385,20 @@ function renderStandards(data){
       <div class="stfoot">${foot}</div>
     </div>`;
   }).join('')+'</div>';
+
+  /* 收合狀態記在 localStorage。展開時只有標題那排收得動，不然點「照字表順序
+     接著取」會先把卡片收起來；收合後整張卡片都可以點開，因為標題已經藏起來了。 */
+  const card=$('#stdbox');
+  const setC=v=>{
+    stdCollapsed=v;
+    localStorage.setItem(STD_KEY,v?'1':'0');
+    card.classList.toggle('collapsed',v);
+    if(v) card.setAttribute('title','展開官方字表覆蓋率'); else card.removeAttribute('title');
+  };
+  card.addEventListener('click',e=>{
+    if(stdCollapsed){ setC(false); return; }
+    if(e.target.closest('.stdhead')) setC(true);
+  });
 }
 
 /* ---------- 繁體／簡體／傳承／日本漢字：純顯示（開關搬到圖表上方那排小按鈕了，
