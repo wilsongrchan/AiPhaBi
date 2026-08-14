@@ -471,8 +471,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, PRIORITY.read_text("utf-8") if PRIORITY.exists()
                               else '{"order":[]}')
         if u.path == "/api/orderings":
-            return self._send(200, ORDERINGS.read_text("utf-8") if ORDERINGS.exists()
-                              else '{"news":[],"surname":[],"given":[]}')
+            # 官方字表也是一種「先取哪些」的排序來源，跟姓名／地名那些並列：
+            # 照字表原順序，把還沒取碼的排到未取碼佇列最前面。
+            try:
+                ords = json.loads(ORDERINGS.read_text("utf-8")) if ORDERINGS.exists() else {}
+            except json.JSONDecodeError:
+                ords = {}
+            for spec in STANDARDS:
+                ords[spec["id"]] = _load_standard(spec["file"])
+            return self._send(200, json.dumps(ords, ensure_ascii=False))
         if u.path == "/api/charfreq":
             return self._send(200, CHARFREQ.read_text("utf-8") if CHARFREQ.exists()
                               else '{}', cache=True)
