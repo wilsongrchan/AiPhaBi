@@ -463,15 +463,26 @@ the *character* is. Flags are keyed to live rule instances — `annotate.html` p
 `compliantWhy` text) when a re-code makes them stale, so they don't survive a changed breakdown.
 
 ### `data/rules.json` — 取碼原則 (coding rules)
-9 rules total, each with `kind`:
+11 rules total, each with `kind`:
 - `kind: "enforced"` + `enabled: true` → the rule **actually runs** in the prediction engine.
   **All 7 enforced rules:** `stroke_order`, `merge_over_split` (seg_penalty 0.05),
   `skip_isolated_hv` (lone 橫→I / 豎→J only if first/last stroke), `max_code_length` (max 5,
   head 4, tail 1), `tier_priority` (次 +1 cost, 三 +2), `enclosure` (囗/匚 first, overrides
   stroke order), and **`long_stroke`**.
-- `kind: "manual"` → documentation only; not executed. The 2 manual rules are `convention` and
-  `short_code`.
-- **`short_code` rule lives here** — its `entries` list is the hand-picked 簡碼 table (see below).
+- `kind: "manual"` → documentation only; not executed. The 4 manual rules are `convention`,
+  `short_code`, `short3`, `left_short`.
+- **The three 簡碼 rules (`short_code`, `short3`, `left_short`) still live in this file**, but
+  they are **edited on `/short`, not `/rules`** — see *Quickcode conventions* below. Only
+  `short_code` and `convention` are read by the build; `short3` is computed from the code table
+  and `left_short` is not implemented yet.
+
+> **Two pages write this one file.** `/rules` owns every non-簡碼 rule, `/short` owns the three
+> 簡碼 rules, and each holds the whole file in memory. Both save through
+> `assets/rulesio.js`, which sends `X-Base-Stamp` and, on a 409, re-reads the file, re-applies
+> only the rules that page owns, and retries once. Before this existed `rules.html` sent no stamp
+> at all, so the server's optimistic lock was inert for `rules.json` and whoever saved last
+> silently won. Known limit: deleting a rule on one page while the other has unsaved edits
+> brings it back.
 
 ### Designer-side tools
 `server.py` → `http://localhost:8777`, serves the HTML tools and read/writes `data/*.json`.
@@ -483,7 +494,8 @@ The routes, as actually wired in `server.py` `do_GET` (~L353):
 | `/annotate` | `annotate.html` | 逐字取碼 | the main tool: click strokes → press a letter → forms a zigen; shows the predicted breakdown + official stroke order from 3 regions |
 | `/variants` | `variants.html` | 兼容字型 | regional glyph variants |
 | `/stats` | `stats.html` | 碼表分析 | code-table analysis |
-| `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite |
+| `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite. **The 簡碼 rules are hidden here** — they render on `/short` |
+| `/short` | `shortcodes.html` | 簡碼 | 約定簡碼 / 三簡碼 / 左簡碼. Same `rules.json`, different page: 取碼原則 is "how does this character break apart", 簡碼 is "having broken it, how do you type fewer keys" |
 | `/type` | `type.html` | 試打 | actually type with AiPhaBi |
 | `/progress` | `progress.html` | 取碼進度 | daily cumulative coding curve |
 
@@ -562,13 +574,15 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
 ## Quickcode conventions (the JKXQ example)
 
 Every character has a derivable **主碼 (main code)** = its zigen letters in stroke order,
-capped at 5 (first 4 + last). On top of that are three *optional, opt-in* conveniences:
+capped at 5 (first 4 + last). On top of that are four *optional, opt-in* conveniences.
+**All of them are edited on `/short`, not `/rules`.**
 
 | Layer | What it is | How derived | Toggle | Example (我) |
 |---|---|---|---|---|
 | **主碼** | full derivable code | zigen in stroke order, cap 5 | always on | **JKXQ** |
 | **簡碼** | hand-picked shortcut for ~60 common chars | 首+末 (occasionally 首2+末), by designer discretion | `aiphabi_short100` | **JKQ** |
 | **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1 — **you type just those 3 keys**, no wildcard (`aiphabi_hint.lua` gates on `#code == 3`; the effect equals `AB` + `` ` `` + `C`, but `` ` `` is never pressed) | `aiphabi_short3` | (n/a, 我 is short) |
+| **左簡碼** | 8 curated 偏旁; when one sits on the far left, it contributes only 首+末 | 偏旁 2 codes + remainder, then the usual cap | **not implemented yet** (Side B) | (n/a, 我 has no such 偏旁) |
 | **詞組連打** | phrases = each char's 簡碼(or主碼) concatenated | see phrase rules below | `aiphabi_phrase` | 我的 = JKQJA |
 
 **The JKXQ / JKQ story — the core design principle in one example:**
@@ -593,6 +607,47 @@ on the user with no derivation and no hint.)
 it's a hand-curated 60. On a 簡碼 collision, **first in the list wins** (matches the rules-page
 preview). `build_rime.py` builds `shortcode` (code→char) and `shortcode_rev` (char→its 簡碼,
 drives the hint).
+
+### 左簡碼 — the 偏旁 layer (spec'd and curated; **not built yet**)
+
+When a curated 偏旁 sits at the far left of a character, the 偏旁 contributes only its **首+末**
+two codes and its middle is skipped. 鮭 完整碼 `SOTMFF` → 左簡碼 `SMFF`.
+
+The 8 偏旁 and their 左簡碼: 魚 `SOTM`→`SM`, 金 `YFV`→`YV`, 馬 `SHM`→`SM`, 食 `AEG`→`AG`,
+車 `IBT`→`IT`, 足 `OTL`→`OL`, 酉 `IHI`→`II`, 革 `HOT`→`HT`. **249 member characters**, all
+hand-reviewed. Note 食 and 足: the code is the *radical form as written on the left*
+(飠 `AEG`, 𧾷 `OTL`), which differs from the standalone character (食 `AEK`, 足 `OTY`).
+
+Six conditions, in `rules.json` → `left_short` → `conditions`. The two that carry the weight:
+**the 偏旁 must be leftmost with nothing to its left**, and **左簡碼 never stacks with 三簡碼** —
+one simplification per character.
+
+- **The member list is stored, not derived** (`entries[].members`). Two reasons, both load-bearing:
+  deriving needs `data/dictionary.txt` (IDS decomposition), which is **gitignored and absent from
+  Side B's worktree** — the build could not do it; and a derived list would silently grow every
+  time a new 金-radical character gets coded, gaining a code and possibly a collision that nobody
+  reviewed.
+- **Members store characters only, never their codes.** Codes are recomputed from `codes.json`
+  every time. A stored code goes stale the moment a character is recoded — 福 went
+  `QMIOOT`→`QMOOT` in Aug 2026.
+- **Prefix matching is not sufficient**, and this is the trap: 魯 `SOTMB` and 鮮 `SOTMVF` both
+  start with `SOTM`, but 魚 sits on *top* in 魯. The test is the IDS decomposition — `⿰`/`⿲`
+  with the 偏旁 as first component, accepting radical variants (釒 for 金, 飠 for 食). This is
+  also what excludes the false positives the earlier prefix-scan collected: 倖, 裹, 西, 亞, 遷,
+  轮, 薑, 暫, 磐.
+- `/short` shows **待審 / 失效** — candidates the IDS test finds that aren't on the list, and
+  members that no longer qualify. That keeps drift visible instead of automatic. It currently
+  reads 名單與部件拆分一致.
+- **Condition 6 needs no separate implementation.** It says "if the remainder still exceeds
+  3 codes, take the remainder's 首2+尾1, total ≤5" — since the 左簡碼 is always exactly 2 codes,
+  that is arithmetically identical to the existing `max_code_length` cap. Verified across all
+  249 with zero divergence, so the build can just call `shorten()`.
+- Known collisions: 針's `YVT` vs 伞 (伞 ranks 7454, 針 ranks 897 — judged negligible), plus
+  鈕鉗鋅鐘 colliding inside 金.
+- Simplified forms (跃 践 跻 酿 …) **are** included; `aiphabi_no_simp` already filters them out
+  of the dict for anyone who doesn't want that collision surface.
+
+Background and the numbers that led here: `偏旁縮碼investigation.md` at the repo root.
 
 ---
 
@@ -639,12 +694,16 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ ~5100 characters coded (`codes.json`), ~99.9% char coverage of common text.
+- ✅ 5215 characters coded (`codes.json`, Aug 2026), ~99.9% char coverage of common text.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
-- ✅ Annotation / rules / 字根表 / progress / stats / variants tools.
-- 🔄 Ongoing: keep coding the long tail of characters (`data/todo_chars.txt`); refine tiers/groups;
-  `kind:"manual"` rules not yet enforced.
+- ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
+- ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
+- ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
+  collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
+- 🔄 Ongoing: keep coding the long tail of characters (`data/todo_chars.txt`, 785 left); refine
+  tiers/groups; `kind:"manual"` rules not yet enforced.
+- ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
 
 ### B · User side
 - ✅ Two macOS schemas (pure `aiphabi` + `aiphabi_plus` with F4 pinyin toggle), installed via
