@@ -11,7 +11,9 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = pathlib.Path("/Users/wilson/Desktop/Wilson Personal/Coding/AiPhaBi")
+# Derived from this file's own location (<root>/.claude/hooks/), never hardcoded — the suite
+# must keep working if the folder is renamed and must run in either worktree.
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 GUARD = ROOT / ".claude" / "hooks" / "side-guard.py"
 
 D = "data/codes.json"

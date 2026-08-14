@@ -21,8 +21,8 @@ the other in.
 
 Do these **in order**, before saying anything substantive to the session.
 
-**On Wilson's Mac the folders already exist** — open `AiPhaBi` for Side A or `AiPhaBi-B` for Side B
-(see *The two-folder layout* below) and skip to step 6. Steps 1–5 are for a new machine.
+**On Wilson's Mac the folders already exist** — open `AiPhaBi-A` for Side A or `AiPhaBi-B` for
+Side B (see *The two-folder layout* below) and skip to step 6. Steps 1–5 are for a new machine.
 
 | # | Step | |
 |---|---|---|
@@ -35,9 +35,15 @@ Do these **in order**, before saying anything substantive to the session.
 | 7 | `git fetch origin && git status -sb` | every session |
 
 Opening a folder in VS Code gives that window its own Claude Code session, so **one VS Code window
-per side** — `File > Open Folder…` on `AiPhaBi` (A) or `AiPhaBi-B` (B), or from a terminal
-`code "~/Desktop/Wilson Personal/Coding/AiPhaBi-B"`. The window's folder decides which marker the
-guard reads, so the two sessions can run side by side without ever touching each other's marker.
+per side** — `File > Open Folder…` on `AiPhaBi-A` or `AiPhaBi-B`, or from a terminal:
+
+```bash
+code "~/Desktop/Wilson Personal/Coding/AiPhaBi-A"    # Side A
+code "~/Desktop/Wilson Personal/Coding/AiPhaBi-B"    # Side B
+```
+
+The window's folder decides which marker the guard reads, so the two sessions can run side by side
+without ever touching each other's marker.
 
 **Step 4 is the one that is easy to forget** — and the guard **fails closed**, so forgetting it is
 loud rather than silent: until the marker says `A`, the three protected files are locked and any
@@ -61,7 +67,7 @@ marker is ever flipped.
 
 | | Side A · 字根/取碼 | Side B · IME/候選 |
 |---|---|---|
-| Folder | `~/Desktop/Wilson Personal/Coding/**AiPhaBi**` | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-B**` |
+| Folder | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-A**` | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-B**` |
 | `.aiphabi-side` | `A` | `B` |
 | Branch | `main` | `side-b` |
 | May write | `codes/zigen/rules.json` | `rime/**`, `phrases_*.txt` |
@@ -71,7 +77,7 @@ They are **git worktrees of one repository**, so there is a single `.git` and bo
 are visible from either folder immediately — no fetch needed to run `git log side-b`.
 
 > **Worktrees share history, not files.** Each folder has its own working tree: a file edited (or
-> created) in `AiPhaBi` does **not** appear in `AiPhaBi-B` until it is committed there and the
+> created) in `AiPhaBi-A` does **not** appear in `AiPhaBi-B` until it is committed there and the
 > commit is merged across. `build_rime.py` reads `DATA = ROOT / "data"` relative to *its own*
 > folder (`build_rime.py:29-30`), so Side B always builds from **`AiPhaBi-B/data/`** — never from
 > Side A's copy. An uncommitted edit in the Side A folder is invisible to the build.
@@ -109,7 +115,8 @@ shared, `git worktree list` from either folder shows both.
 <summary>How this was created (for rebuilding on another machine)</summary>
 
 ```bash
-cd "<repo>"                                  # the Side A folder, on main
+git clone https://github.com/wilsongrchan/AiPhaBi.git AiPhaBi-A
+cd AiPhaBi-A                                 # the Side A folder, on main
 git worktree add -b side-b ../AiPhaBi-B origin/main
 git config push.default upstream             # shared config; both branches track origin/main
 echo A > .aiphabi-side
