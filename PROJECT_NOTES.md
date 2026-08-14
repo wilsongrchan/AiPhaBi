@@ -21,25 +21,37 @@ the other in.
 
 Do these **in order**, before saying anything substantive to the session.
 
-**On Wilson's Mac the folders already exist** — open `AiPhaBi-A` for Side A or `AiPhaBi-B` for
-Side B (see *The two-folder layout* below) and skip to step 6. Steps 1–5 are for a new machine.
+**On Wilson's Mac both folders already exist** — open `AiPhaBi-A` for Side A or `AiPhaBi-B` for
+Side B (see *The two-folder layout* below) and skip to step 10.
+
+Steps 1–9 build that layout from scratch on a new machine. **They produce both sides in one pass —
+run them to the end.** Stopping after the clone leaves a single-folder checkout that can only ever
+declare one side, which is the exact arrangement the hard rules exist to prevent.
 
 | # | Step | |
 |---|---|---|
-| 1 | `git clone https://github.com/wilsongrchan/AiPhaBi.git && cd AiPhaBi` | only on a new machine |
-| 2 | Start Claude Code in the repo, and **trust the directory** when prompted | per machine |
-| 3 | **Approve the project hooks** when prompted — Claude Code will not silently run hooks shipped in a cloned repo | per machine |
-| 4 | **Declare the side, before your first message:** `echo A > .aiphabi-side` (字根/取碼) or `echo B > .aiphabi-side` (IME/候選) | **per folder, once** |
-| 5 | Run `/hooks` and confirm a `PreToolUse` entry pointing at `.claude/hooks/side-guard.py` | per machine |
-| 6 | Tell the session which side it is, and to read `PROJECT_NOTES.md` | every session |
-| 7 | `git fetch origin && git status -sb` | every session |
+| 1 | `git clone https://github.com/wilsongrchan/AiPhaBi.git AiPhaBi-A && cd AiPhaBi-A` — the Side A folder, on `main` | new machine |
+| 2 | `git worktree add -b side-b ../AiPhaBi-B origin/main` — the Side B folder. One `.git`, two working trees | new machine |
+| 3 | `git config push.default upstream` — shared config; both branches track `origin/main`, so a bare `git push` from either folder still lands on `main`. This is what lets `sync.sh` work unmodified (see *Why Side B is on `side-b`* below) | new machine |
+| 4 | `echo A > .aiphabi-side && echo B > ../AiPhaBi-B/.aiphabi-side` — **one permanent marker per folder, never flipped** | new machine |
+| 5 | `python3 fetch_data.py` — fetches the ~30 MB of third-party glyph/frequency data into `data/`. Everything it writes is **gitignored, so a fresh clone does not have it**: without this, `/annotate` has no strokes and the build has no `freq.json`. Takes a few minutes; files already present are skipped | new machine |
+| 6 | `cp data/freq.json data/opencc.json ../AiPhaBi-B/data/` — Side B's build inputs. Worktrees do **not** share untracked files, so B's build fails until these are copied (or `fetch_data.py` is re-run inside B). The bulky annotation-side data (`graphics.txt`, `tw_strokes.json`, `hk_cache.json`) is Side A only — no need to copy it | new machine |
+| 7 | Open **each folder in its own VS Code window**, and **trust the directory** when prompted | per folder |
+| 8 | **Approve the project hooks** when prompted — Claude Code will not silently run hooks shipped in a cloned repo | per folder |
+| 9 | Run `/hooks` and confirm a `PreToolUse` entry pointing at `.claude/hooks/side-guard.py` | per folder |
+| 10 | Tell the session which side it is, and to read `PROJECT_NOTES.md` | every session |
+| 11 | `git fetch origin && git status -sb` | every session |
+
+Steps 7–9 are **per folder, not per machine**: each folder is its own Claude Code project, so each
+one prompts for trust and for hook approval separately. Skipping them in the second window leaves
+that side's guard unapproved.
 
 Opening a folder in VS Code gives that window its own Claude Code session, so **one VS Code window
 per side** — `File > Open Folder…` on `AiPhaBi-A` or `AiPhaBi-B`, or from a terminal:
 
 ```bash
-code "~/Desktop/Wilson Personal/Coding/AiPhaBi-A"    # Side A
-code "~/Desktop/Wilson Personal/Coding/AiPhaBi-B"    # Side B
+code ~/"Desktop/Wilson Personal/Coding/AiPhaBi-A"    # Side A
+code ~/"Desktop/Wilson Personal/Coding/AiPhaBi-B"    # Side B
 ```
 
 The window's folder decides which marker the guard reads, so the two sessions can run side by side
@@ -111,24 +123,10 @@ and it crosses the ownership line for no gain.
 To pick up the other side's work, either folder runs `git pull` as usual. Because the `.git` is
 shared, `git worktree list` from either folder shows both.
 
-<details>
-<summary>How this was created (for rebuilding on another machine)</summary>
-
-```bash
-git clone https://github.com/wilsongrchan/AiPhaBi.git AiPhaBi-A
-cd AiPhaBi-A                                 # the Side A folder, on main
-git worktree add -b side-b ../AiPhaBi-B origin/main
-git config push.default upstream             # shared config; both branches track origin/main
-echo A > .aiphabi-side
-echo B > ../AiPhaBi-B/.aiphabi-side
-cp data/freq.json data/opencc.json ../AiPhaBi-B/data/    # gitignored build inputs
-```
-
-The last line matters: `build_rime.py` reads `data/freq.json` and `data/opencc.json`, both
-**gitignored**, so a new worktree or clone does not get them and the build fails until they are
-copied (or `fetch_data.py` is re-run). The large annotation-side data (`graphics.txt`,
-`tw_strokes.json`, `hk_cache.json`) is only needed by Side A and does **not** need copying.
-</details>
+**Rebuilding this layout on another machine is steps 1–9 of the checklist above** — they are the
+commands that created it, in order. The one people cut short is step 6: `build_rime.py` reads
+`data/freq.json` and `data/opencc.json`, both **gitignored**, so a new worktree or clone does not
+get them and Side B's build fails until they are copied.
 
 ### What the guard does and does not do
 
@@ -633,7 +631,7 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   `fetch_data.py`.** Blended ordering = `0.55 × word-appearance-percentile + 0.45 ×
   single-char-percentile`. The blend logic lives *inside* `fetch_data.py` so it's reproducible.
 - `fetch_data.py` downloads the ~30 MB glyph/frequency source data (licensed separately, not in
-  git). Run once before `server.py`.
+  git). Run once per machine, before `server.py` — it is **step 5** of *Starting a new session*.
 
 ---
 
