@@ -24,6 +24,22 @@
 -- / aiphabi_short3 / aiphabi_left_short 各自獨立控制。
 local data = require("aiphabi_data")
 
+-- 候選旁邊那行字的統一寫法。整套只有兩種意思，靠圓括號分：
+--
+--   標籤 (主碼)   圓括號 ＝ 這是「這個字的主碼」，給你對照用。你剛打的不是它
+--                （打了簡碼、三簡、左簡、偏旁碼、同類字…都算），所以順便告訴你
+--                 這個字正式的碼長什麼樣。例：打 JKQ → 我 簡碼 (JKXQ)
+--
+--   標籤 捷徑碼    沒括號 ＝ 這是「你下次可以改打的碼」，比你剛打的短。
+--                 例：打 JKXQ → 我 簡碼 JKQ
+--
+-- 一句話：括號裡的是拿來看的，沒括號的是拿來打的。
+-- 方括號 [ ] 不在這套裡——那是輸入容錯（aiphabi_fuzzy）標「可能」用的，
+-- 兩者撞了會分不清哪個是猜的，所以參考碼一律用圓括號。
+local function refMark(label, main)      -- 參考用的主碼：加圓括號
+  return main and (label .. " (" .. main:upper() .. ")") or label
+end
+
 -- 不打簡體開了，「打簡出繁」就沒有簡體本字可用（碼表裡已經濾掉了）——順便關掉，
 -- 不然那個開關會一直是死的，使用者搞不懂為什麼打簡出繁沒反應。
 local function init(env)
@@ -85,7 +101,7 @@ local function filter(input, env)
             if not seen[sib] then
               seen[sib] = true
               local sc = data.char2code[sib]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, sib, sc and ("同類 " .. sc:upper()) or "同類")
+              extra[#extra + 1] = Candidate("ap_pool", s, e, sib, refMark("同類", sc))
             end
           end
         end
@@ -94,7 +110,7 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, v, sc and ("簡 " .. sc:upper()) or "簡")
+              extra[#extra + 1] = Candidate("ap_pool", s, e, v, refMark("簡", sc))
             end
           end
         end
@@ -103,7 +119,7 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, v, sc and ("繁 " .. sc:upper()) or "繁")
+              extra[#extra + 1] = Candidate("ap_pool", s, e, v, refMark("繁", sc))
             end
           end
         end
@@ -114,7 +130,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, sc and ("偏旁碼 " .. sc:upper()) or "偏旁碼")
+          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, refMark("偏旁碼", sc))
         end
       end
     end
@@ -124,7 +140,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, sc and ("三簡 " .. sc:upper()) or "三簡")
+          extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, refMark("三簡", sc))
         end
       end
     end
@@ -134,7 +150,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extraL[#extraL + 1] = Candidate("ap_pool", s, e, ch, sc and ("左簡 " .. sc:upper()) or "左簡")
+          extraL[#extraL + 1] = Candidate("ap_pool", s, e, ch, refMark("左簡", sc))
         end
       end
     end
@@ -160,7 +176,7 @@ local function filter(input, env)
       local ch = (data.shortcode[code] or {})[1]
       if ch then
         local sc = data.char2code[ch]
-        short_hit = Candidate("ap_short", s, e, ch, sc and ("簡碼 " .. sc:upper()) or "簡碼")
+        short_hit = Candidate("ap_short", s, e, ch, refMark("簡碼", sc))
       end
     end
   end
@@ -184,7 +200,7 @@ local function filter(input, env)
     local acs = data.altcode[cand.text]
     local main = data.char2code[cand.text]
     if acs and acs[code] and main then
-      cand.comment = "主碼 (" .. main:upper() .. ")"
+      cand.comment = refMark("主碼", main)
       return cand
     end
     if short_on then
@@ -212,9 +228,12 @@ local function filter(input, env)
     -- 萬用鍵（含反引號）不管，那邊自己有一套（ok 已經濾掉含反引號的情況）。
     if ok and main and main ~= code then
       if main:sub(1, #code) == code then
+        -- 「還差這幾碼」——是要你接著打下去的，不是參考用的主碼，所以不加括號。
         cand.comment = "- " .. main:sub(#code + 1):upper()
       else
-        cand.comment = main:upper()
+        -- 打的不是主碼的前綴（靠完整碼配到的），秀主碼當參考 → 照規矩加圓括號。
+        -- 這裡沒有標籤，就只有括號本身（refMark 的無標籤版）。
+        cand.comment = "(" .. main:upper() .. ")"
       end
     end
     return cand
