@@ -70,6 +70,24 @@
   .tile .v small{font-size:12px;color:var(--muted);margin-left:4px;letter-spacing:0;}
   .tile.hl .v{color:var(--accent);}
   .tile.off{opacity:.4;}
+  /* 官方字表覆蓋率：「取到哪裡算完成」用這個講，不是用碼表總字數 */
+  .std{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:16px 18px;margin:0 0 18px;}
+  .std h2{font-size:12px;letter-spacing:.14em;color:var(--muted);margin:0 0 14px;font-weight:600;}
+  .strow{margin:0 0 16px;}
+  .strow:last-child{margin-bottom:0;}
+  .sthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 7px;flex-wrap:wrap;}
+  .stname{font-size:14px;color:var(--ink);}
+  .stname small{color:var(--faint);font-size:11px;margin-left:7px;letter-spacing:0;}
+  .stnum{font-size:13px;color:var(--muted);white-space:nowrap;}
+  .stnum b{color:var(--accent);font-weight:600;font-size:16px;}
+  .stbar{height:9px;border-radius:5px;background:var(--grid);overflow:hidden;}
+  .stbar i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width .3s;}
+  .strow.b .stbar i{background:var(--s2);} .strow.b .stnum b{color:var(--s2);}
+  .stfoot{margin-top:7px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;}
+  .stfoot a{color:var(--s2);text-decoration:none;}
+  .stfoot a:hover{text-decoration:underline;}
+  .stdone{color:var(--s3);font-weight:600;}
   .tile.off .v{color:var(--muted);}
   .tile.sum{border-color:var(--accent);border-width:1.5px;}
   .tile .view{font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:inline-block;}
@@ -116,6 +134,8 @@
     <h1><span class="big num" id="total">—</span><span class="unit">字</span></h1>
     <p class="lede" id="lede">讀取中…</p>
   </header>
+
+  <div id="stdcard"></div>
 
   <div class="legend" id="chartlegend"></div>
   <div class="card" id="chartcard">
@@ -203,6 +223,7 @@ function renderLegend(){
 
 function draw(data){
   renderLegend();
+  renderStandards(data);
   const days=data.days||[];
   $('#total').textContent=data.totalUniq.toLocaleString();
   if(!days.length){
@@ -319,6 +340,36 @@ function draw(data){
     d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;
     scb.appendChild(d);});
   renderCats(data);
+}
+
+/* ---------- 官方字表覆蓋率 ----------
+   「取碼取到哪裡算完成」講的是這兩條，不是碼表總字數——總字數裡混了粵語字、
+   字根零件、日本漢字，不對應任何一份官方字表，講出去沒有意義。
+   缺的字照字表原順序給（教育部表筆畫序、GB2312 一級拼音序），連去 /annotate
+   就是照那個順序往下取。網址塞不下幾千個字，所以一次只帶 LINK_CAP 個。 */
+const LINK_CAP=300;
+function renderStandards(data){
+  const list=data.standards||[];
+  const box=$('#stdcard');
+  if(!list.length){ box.innerHTML=''; return; }
+  box.innerHTML='<div class="std"><h2>官方字表覆蓋率</h2>'+list.map((s,i)=>{
+    const pct=s.total?s.done/s.total*100:0;
+    const left=s.missing.length;
+    const head=s.missing.slice(0,LINK_CAP).join('');
+    const foot=left
+      ? `<span>還缺 <b>${left.toLocaleString()}</b> 字</span>`+
+        `<a href="/annotate?q=${encodeURIComponent(head)}">照字表順序接著取${
+          left>LINK_CAP?`（前 ${LINK_CAP} 個）`:''} →</a>`
+      : '<span class="stdone">✓ 這張表全部取完了</span>';
+    return `<div class="strow ${i?'b':'a'}">
+      <div class="sthead">
+        <span class="stname">${s.name}<small>${s.full}</small></span>
+        <span class="stnum"><b>${s.done.toLocaleString()}</b> / ${s.total.toLocaleString()}　${pct.toFixed(1)}%</span>
+      </div>
+      <div class="stbar"><i style="width:${pct.toFixed(2)}%"></i></div>
+      <div class="stfoot">${foot}</div>
+    </div>`;
+  }).join('')+'</div>';
 }
 
 /* ---------- 繁體／簡體／傳承／日本漢字：純顯示（開關搬到圖表上方那排小按鈕了，

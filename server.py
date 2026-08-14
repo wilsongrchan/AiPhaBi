@@ -183,6 +183,50 @@ def _load_simp_only(s2t):
     return {c for c in s2t if c not in dual_use}
 
 
+# 取碼目標：官方字表。「取到哪裡算完成」用這個講，不要用 makemeahanzi 的 9574 字
+# ——那是字形資料的涵蓋範圍，不是任何國家的標準。清單本身在 data/standards/，
+# 每個檔頭都寫了出處。
+STANDARDS = [
+    {"id": "tw4808", "name": "教育部常用國字",
+     "full": "中華民國教育部《常用國字標準字體表》甲表",
+     "file": "tw_common_4808.txt", "expect": 4808},
+    {"id": "gb2312", "name": "GB 2312",
+     "full": "GB 2312—80 基本集漢字（一級 3755 ＋ 二級 3008）",
+     "file": "gb2312.txt", "expect": 6763},
+]
+
+
+def _load_standard(name):
+    """讀 data/standards/<name>：# 開頭是註解，其餘每個漢字都算一個目標字。"""
+    p = DATA_DIR / "standards" / name
+    try:
+        text = p.read_text("utf-8")
+    except OSError:
+        return []
+    out, seen = [], set()
+    for line in text.splitlines():
+        if line.startswith("#"):
+            continue
+        for ch in line.strip():
+            if ch not in seen and ("一" <= ch <= "鿿" or 0x20000 <= ord(ch) < 0xF0000):
+                seen.add(ch)
+                out.append(ch)
+    return out
+
+
+def _standards_coverage(coded):
+    """每張字表取了多少、還缺哪些。缺的字照字表原順序給，頁面直接照排就有意義
+    （教育部表是筆畫序、GB2312 一級是拼音序），不必再排一次。"""
+    out = []
+    for spec in STANDARDS:
+        chars = _load_standard(spec["file"])
+        missing = [c for c in chars if c not in coded]
+        out.append({"id": spec["id"], "name": spec["name"], "full": spec["full"],
+                    "total": len(chars), "expect": spec["expect"],
+                    "done": len(chars) - len(missing), "missing": missing})
+    return out
+
+
 def _cat_counts(text, simp_only, t2s, jp_kanji):
     """逐日／現在狀態共用：把一份 codes.json 內容拆成 繁體／簡體／傳承／日本漢字
     四類的字數，外加 trad∩simp 的重疊數（「坏」這種同時是簡體「壞」跟獨立繁體
@@ -241,12 +285,14 @@ def progress_data():
     # 繁體／簡體／傳承／日本漢字各取了多少：只看現在（含還沒提交的）工作區狀態，
     # 不進歷史快取邏輯。附完整字清單，供頁面「看這些字」連去 /annotate？q= 用。
     simp_chars = trad_chars = inherited_chars = jp_chars = []
+    standards = []
     raw = uniq = 0
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
             coded_chars = {c for c, r in coded_map.items()
                            if isinstance(r, dict) and r.get("code")}
+            standards = _standards_coverage(coded_chars)
             simp_chars = sorted(c for c in coded_chars if c in simp_only)
             trad_chars = sorted(c for c in coded_chars if c in t2s)
             jp_chars = sorted(c for c in coded_chars if c in jp_kanji)
@@ -263,7 +309,8 @@ def progress_data():
             "totalSimp": len(simp_chars), "totalTrad": len(trad_chars),
             "totalJp": len(jp_chars),
             "simpChars": simp_chars, "tradChars": trad_chars,
-            "inheritedChars": inherited_chars, "jpChars": jp_chars}
+            "inheritedChars": inherited_chars, "jpChars": jp_chars,
+            "standards": standards}
 
 
 def variants_data():

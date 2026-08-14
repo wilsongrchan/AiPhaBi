@@ -515,10 +515,40 @@ The routes, as actually wired in `server.py` `do_GET` (~L353):
 | `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite. **The 簡碼 rules are hidden here** — they render on `/short` |
 | `/short` | `shortcodes.html` | 簡碼 | 約定簡碼 / 三簡碼 / 左簡碼. Same `rules.json`, different page: 取碼原則 is "how does this character break apart", 簡碼 is "having broken it, how do you type fewer keys" |
 | `/type` | `type.html` | 試打 | actually type with AiPhaBi |
-| `/progress` | `progress.html` | 取碼進度 | daily cumulative coding curve |
+| `/progress` | `progress.html` | 取碼進度 | daily cumulative coding curve **+ 官方字表覆蓋率** (see below) |
 
 Data APIs: `GET /api/{zigen,codes,rules,learned,freq,progress,state,…}`;
 `PUT /api/{zigen,codes,rules,learned}` to write.
+
+### 取碼目標：官方字表 (`data/standards/`)
+
+**"How far along is the coding?" is answered against official character lists, never against the
+size of `codes.json`.** The raw total is not a claim anyone can check: it mixes in Cantonese
+characters (咁 咗 哋 啲 喺), zigen components (㠯 丂), Japanese kanji and HK forms, and it is
+bounded by makemeahanzi's 9574 — a *font dataset*, not a standard published by anyone.
+
+Two target lists, committed to git (unlike the `fetch_data.py` downloads, these define the goal
+rather than supply glyph data — each file's header records its provenance):
+
+| File | List | Size |
+|---|---|---|
+| `data/standards/tw_common_4808.txt` | 中華民國教育部《常用國字標準字體表》甲表 | 4808 |
+| `data/standards/gb2312.txt` | GB 2312—80 基本集漢字 (一級 3755 ＋ 二級 3008) | 6763 |
+
+- **TW 4808** was taken from two independent public copies and diffed — byte-identical, 4808 with
+  no duplicates. It is **not** the same set as `data/tw_strokes.json` (g0v stroke-order data, which
+  is also MOE-derived): the stroke file is missing 乃 and 彝, and adds 彞 plus the Taiwanese-language
+  characters 𠊎 𪜶. Cite `standards/`, never `tw_strokes.json`, for coverage.
+- **GB 2312** is generated locally from Python's `gb2312` codec rather than downloaded — the
+  encoding *is* the standard's definition, so it is exactly reproducible and needs no network.
+- The two lists overlap by 3060 characters; their union is 8511.
+
+`server.py` `_standards_coverage()` reports done/missing per list into `/api/progress`; `/progress`
+draws a bar per list, and the "照字表順序接著取" link feeds the missing characters to `/annotate`
+**in the list's own order** (MOE is stroke-count ordered, GB2312 level 1 is pinyin ordered), capped
+at 300 per link because a URL cannot carry 3000 characters.
+
+Adding a third list means one row in `STANDARDS` plus a file in `data/standards/` — nothing else.
 
 - **Optimistic locking on write** (`do_PUT`, ~L507): the page sends `X-Base-Stamp` = the file
   mtime it read; if the file changed since, the server returns **409 `{"error":"stale"}`** instead
@@ -789,15 +819,20 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ 5215 characters coded (`codes.json`, Aug 2026), ~99.9% char coverage of common text.
+- ✅ 5253 characters coded (`codes.json`, 2026-08-14). Against the official lists (see
+  *取碼目標：官方字表*): **教育部常用國字 3995 / 4808 = 83.1%**, **GB 2312 3598 / 6763 = 53.2%**.
+  Quote those, not the raw total.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
 - ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
 - ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
 - ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
   collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
-- 🔄 Ongoing: keep coding the long tail of characters (`data/todo_chars.txt`, 785 left); refine
-  tiers/groups; `kind:"manual"` rules not yet enforced.
+- 🔄 Ongoing: keep coding toward the two official lists — 813 left for 教育部常用國字, 3165 for
+  GB 2312 (2553 of those have no already-coded traditional counterpart, so GB 2312 is the far
+  larger job). `data/todo_chars.txt` is the older frequency-ordered queue and its header counts
+  are stale; `/progress` is now the authority. Also: refine tiers/groups; `kind:"manual"` rules
+  not yet enforced.
 - ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
 
 ### B · User side
