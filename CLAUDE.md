@@ -46,7 +46,9 @@ are **not** exemptions.
 2. **Side B owns `rime/**` and the build that produces it.** Side A **never runs `build_rime.py`,
    never runs `./sync.sh`, never edits anything under `rime/`** — including after its own data
    edits, and including when a rebuild is plainly needed. Side A commits its data change with
-   **`rebuild needed`** in the commit message; Side B picks it up. A stale IME is harmless and
+   **`[rebuild] <subject>`** — that literal prefix at the start of the subject line, and only when
+   the commit touches `codes.json` / `rules.json` (**not** for `zigen.json`-only changes, which are
+   not a build input). Side B picks it up. A stale IME is harmless and
    temporary; a rebuild from the wrong session silently desyncs the other session's installed copy.
 
 3. **Every session starts with `git fetch` + `git status`** (above), before the first edit.

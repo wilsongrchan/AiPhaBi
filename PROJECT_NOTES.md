@@ -199,10 +199,55 @@ count bump, not restoring something Side B itself is sure was lost. Side B reads
 *reports* problems; the fix lands in Side A. (`rules.json` stays readable as the 簡碼 source — see
 hazard 2 — but readable is the whole of it.)
 
+### Commit convention: `[rebuild]`
+
+Side A cannot rebuild, so the commit message is the handoff. **Literal format — put it at the very
+start of the subject line, then write the subject as normal:**
+
+```
+[rebuild] <subject>
+```
+
+Real examples:
+
+```
+[rebuild] 新增取碼字 氈慼嗡鵲嗔 共 5 字
+[rebuild] 簡碼表調整：裡 QF → QV，避開卞
+[rebuild] 修正 覺 的取碼：FXXFUDJL → FXXFL
+```
+
+**Tag it only when the commit changes a build input.** `build_rime.py` reads:
+
+| file | tag? |
+|---|---|
+| `data/codes.json` | ✅ **yes** |
+| `data/rules.json` (incl. `short_code`) | ✅ **yes** |
+| `data/charfreq.json`, `data/dual_use_merged.json` | ✅ yes (rare) |
+| `data/zigen.json` | ❌ **no — not a build input** |
+| `PROJECT_NOTES.md`, `server.py`, the HTML tools | ❌ no |
+
+`zigen.json` is the one to get right: retiering, regrouping and `thr` tuning change *prediction*
+inside the annotation site, never the shipped code table. Tagging those would train Side B to
+ignore the tag. A commit that changes both `zigen.json` and `codes.json` **does** get tagged —
+because of `codes.json`.
+
+**Side B, when the deploy lands, prefixes its commit `[rebuilt]`.** That makes "is anything
+waiting?" answerable:
+
+```bash
+git log --oneline --grep='^\[rebuild\]' -10                 # all rebuild requests, newest first
+last=$(git log -1 --format=%H --grep='^\[rebuilt\]')        # ... since the last deploy
+git log --oneline "$last"..HEAD --grep='^\[rebuild\]'
+```
+
+The prefix is anchored with `^` so prose *about* the convention (this file, commit bodies that
+mention it) does not match. Nothing enforces the tag — it is a convention, not a hook.
+
 **2. Side B owns `rime/**` — and the build that produces it.**
 Side A **never runs `build_rime.py`, never runs `./sync.sh`, and never edits anything under
 `rime/`**, including after its own data edits, and including when the rebuild is plainly needed.
-Side A commits its data change and writes **`rebuild needed`** in the commit message; Side B picks
+Side A commits its data change with **`[rebuild]`** starting the subject line (see *Commit
+convention* above, and note that `zigen.json`-only changes are not tagged); Side B picks
 it up and rebuilds. A stale IME is a temporary, harmless state — a rebuild from the wrong session
 is a silent ownership breach that also desyncs the other session's installed copy.
 

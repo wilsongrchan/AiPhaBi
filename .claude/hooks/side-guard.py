@@ -97,8 +97,12 @@ Side A never runs `build_rime.py` and never runs `./sync.sh`, even right after i
 edits and even when a rebuild is plainly needed — a rebuild from the wrong session silently
 desyncs the other session's installed ~/Library/Rime. See PROJECT_NOTES.md -> "Hard rules".
 
-What to do instead: commit the data change with **`rebuild needed`** in the commit message.
-Side B picks it up and rebuilds. A stale IME is temporary and harmless.
+What to do instead: commit the data change with `[rebuild]` starting the subject line —
+
+    git commit -m "[rebuild] <what changed>"
+
+— and stop there. Side B picks it up and rebuilds. A stale IME is temporary and harmless.
+(Tag only if the commit touches codes.json / rules.json; zigen.json is not a build input.)
 """
 
 
