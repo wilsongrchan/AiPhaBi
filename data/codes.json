@@ -10108,7 +10108,10 @@
       }
     ],
     "code": "DJL",
-    "final": "DJL"
+    "final": "DJL",
+    "compliant": [
+      "merge:1-2"
+    ]
   },
   "克": {
     "segments": [
@@ -10532,7 +10535,10 @@
       }
     ],
     "code": "FXXFUDJL",
-    "final": "FXXFL"
+    "final": "FXXFL",
+    "compliant": [
+      "merge:6-7"
+    ]
   },
   "器": {
     "segments": [
@@ -195348,7 +195354,7 @@
         "strokes": [
           3
         ],
-        "letter": "Q"
+        "letter": "Z"
       },
       {
         "strokes": [
@@ -195367,8 +195373,8 @@
         "letter": "K"
       }
     ],
-    "code": "AQOK",
-    "final": "AQOK"
+    "code": "AZOK",
+    "final": "AZOK"
   },
   "氳": {
     "segments": [
@@ -218664,5 +218670,98 @@
     ],
     "code": "FY",
     "final": "FY"
+  },
+  "捅": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "K"
+      },
+      {
+        "strokes": [
+          3,
+          4
+        ],
+        "letter": "P"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "H"
+      }
+    ],
+    "code": "KPUH",
+    "final": "KPUH"
+  },
+  "錠": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          11,
+          12,
+          13
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          14,
+          15
+        ],
+        "letter": "Y"
+      }
+    ],
+    "code": "YFVQUFY",
+    "final": "YFVQY"
   }
 }
