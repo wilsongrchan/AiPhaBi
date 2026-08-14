@@ -156,6 +156,16 @@ local function filter(input, env)
           extraL[#extraL + 1] = Candidate("ap_pool", s, e, ch, refMark("左簡", sc))
         end
       end
+      -- 還沒打完的左簡碼（打 SMB，鯉 的左簡碼是 SMBF）：主碼有碼表的 enable_completion
+      -- 幫忙補全，左簡碼只在這張 Lua 表裡，不自己補就完全沒反應。前綴表至少三碼，
+      -- 兩碼的 SM 會一次倒出 35 個字。放在完整命中之後，打滿的排前面。
+      for _, ch in ipairs(data.leftshort_pre[code] or {}) do
+        if not seen[ch] then
+          seen[ch] = true
+          local sc = data.char2code[ch]
+          extraL[#extraL + 1] = Candidate("ap_pool", s, e, ch, refMark("左簡", sc))
+        end
+      end
     end
     if si4_on then                       -- 四碼連打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
                                           -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。

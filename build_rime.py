@@ -265,6 +265,21 @@ def main():
                 if len(sig) < len(shorten(full, max_rule)):
                     leftshort_rev.setdefault(ch, sig)
 
+    # 左簡碼的「還沒打完」：主碼靠碼表的 enable_completion 自動補全，左簡碼只活在 Lua
+    # 表裡，沒有那套 —— 不補的話打 SMB 會整個沒反應（鯉 的左簡碼是 SMBF），使用者會
+    # 以為左簡碼壞了。所以另存一份前綴表，讓打到一半也找得到。
+    # 前綴至少三碼：兩碼的話 SM 會一次倒出 35 個字（魚 SOTM 和 馬 SHM 都縮成 SM），
+    # 純粹是雜訊；三碼起最多只對到 9 個（YVI），這才是有用的補全。
+    LEFTSHORT_MIN_PREFIX = 3
+    leftshort_pre = defaultdict(list)   # 左簡碼前綴（≥3 碼）-> [字, ...]，常用字在前
+    for sig, chs in leftshort.items():
+        for n in range(LEFTSHORT_MIN_PREFIX, len(sig)):     # 真前綴，不含自己
+            for ch in chs:
+                if ch not in leftshort_pre[sig[:n]]:
+                    leftshort_pre[sig[:n]].append(ch)
+    for pre in leftshort_pre:
+        leftshort_pre[pre].sort(key=lambda c: -freq_w(c))
+
     conv = next((r for r in rules["rules"] if r["id"] == "convention"), None)
     FAM_SKIP = {"數字類", "馬字類"}          # 家族提示跳過數字／馬（非形近字）
     family, comp = {}, defaultdict(list)
@@ -520,6 +535,9 @@ def main():
     dl += ["}", "M.leftshort = {"]      # 左簡碼 → [字]（aiphabi_left_short 開關控制，提示一律秀主碼）
     for sig, chs in sorted(leftshort.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
+    dl += ["}", "M.leftshort_pre = {"]  # 左簡碼前綴(≥3碼) → [字]（左簡碼的補全；碼表的 enable_completion 管不到 Lua 表）
+    for pre, chs in sorted(leftshort_pre.items()):
+        dl.append(f'  [{lua_str(pre)}]={lua_arr(chs)},')
     dl += ["}", "M.leftshort_rev = {"]  # 字 → 左簡碼（打完整碼時提醒「其實有左簡碼」；aiphabi_left_short 開關控制）
     for ch, sig in sorted(leftshort_rev.items()):
         dl.append(f'  [{lua_str(ch)}]={lua_str(sig)},')
@@ -821,7 +839,8 @@ Weasel／fcitx5-rime 多半內建）：
     if leftshort:
         print(f"左簡碼 {sum(len(v) for v in leftshort.values())} 字 → {len(leftshort)} 個碼"
               f"（{len((left_rule or {}).get('entries', []))} 個偏旁家族；"
-              f"其中 {len(leftshort_rev)} 個字真的比主碼短，才給「左簡」提醒）")
+              f"其中 {len(leftshort_rev)} 個字真的比主碼短，才給「左簡」提醒；"
+              f"另有 {len(leftshort_pre)} 個前綴可補全）")
     for comp, ch, full in leftshort_skipped:
         # 名單跟碼表對不上：Side A 改了這個字的碼，左簡碼家族名單要跟著更新。
         print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
