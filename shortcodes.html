@@ -116,8 +116,31 @@
   .ls-fam { cursor:pointer; color:var(--accent); text-decoration:underline dotted; }
   .ls-detail td { background:var(--bg); font-size:11px; line-height:1.9; color:var(--muted); }
   .ls-detail b { color:var(--ink); font:600 11px ui-monospace,monospace; }
+  /* 家族清單排成對齊的欄，一眼掃得完 —— 字一欄、碼一欄，欄寬固定，
+     所以每一列的碼都對齊，不會被前一個字的碼長推歪。 */
+  .ls-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr));
+    gap:1px 4px; margin:2px 0; }
+  .ls-grid .m { display:flex; align-items:baseline; gap:4px; padding:1px 3px;
+    border-radius:5px; cursor:pointer; border:1px solid transparent; }
+  .ls-grid .m:hover { border-color:var(--bad); background:var(--card); }
+  .ls-grid .m:hover .ch::after { content:'✕'; font-size:9px; color:var(--bad); margin-left:2px; }
+  .ls-grid .ch { font:15px/1.5 "PingFang TC",serif; color:var(--ink);
+    width:1.6em; flex:none; text-align:left; }
+  .ls-grid .cd { font:600 11px ui-monospace,monospace; color:var(--ink); }
+  .ls-grid .m.hit .cd { color:var(--bad); }
   .ls-eg { font:14px "PingFang TC",serif; }
   .ls-eg .no { color:var(--bad); }
+  /* 待審／失效：名單跟推導對不上的地方，攤開讓人一個一個裁 */
+  .ls-rev { cursor:pointer; white-space:nowrap; }
+  .ls-rev .add { color:var(--warn); font-weight:600; }
+  .ls-rev .gone { color:var(--bad); font-weight:600; }
+  .ls-rev .clean { color:var(--muted); }
+  .ls-chip { display:inline-block; font:14px "PingFang TC",serif; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; padding:0 5px; margin:2px 3px 2px 0;
+    background:var(--card); color:var(--ink); }
+  .ls-chip:hover { border-color:var(--accent); color:var(--accent); }
+  .ls-chip small { font:600 10px ui-monospace,monospace; color:var(--muted); margin-left:3px; }
+  .ls-rev-h { font-size:11px; color:var(--muted); margin:4px 0 2px; }
 </style>
 </head>
 <body>
@@ -397,9 +420,17 @@ function leftComponentOf(ch) {
 /* 偏旁在 IDS 裡的寫法不一定跟單獨成字一樣（金→釒、食→飠），所以另存別體。 */
 const lsAliases = en => (en.alias && en.alias.length ? en.alias : [en.comp]);
 
-/* 這個偏旁帶得動的字：碼以偏旁碼開頭，而且 IDS 說它真的在最左邊。
-   偏旁自己不算 —— 條件四，單獨成字時要完整取碼。 */
-function lsFamily(en) {
+/* 出貨用的名單是 entries[].members —— 人工核可過的，build_rime.py 直接照這份做。
+   不讓建置自己推導，是因為推導要 data/dictionary.txt（IDS 部件拆分），那個檔案
+   gitignored，Side B 的 worktree 根本沒有。名單只存字不存碼：碼一律由 codes.json
+   現算，存下來會在某個字改碼時默默過期。 */
+function lsMembers(en) {
+  return en.members ? en.members : lsDerive(en);   /* 還沒建名單的偏旁先用推導的 */
+}
+
+/* 推導：碼以偏旁碼開頭，而且 IDS 說它真的在最左邊。偏旁自己不算
+   —— 條件四，單獨成字時要完整取碼。只用來「提名」，不直接出貨。 */
+function lsDerive(en) {
   if (!en.code) return [];
   const alias = lsAliases(en);
   const out = [];
@@ -409,12 +440,27 @@ function lsFamily(en) {
   }
   return out.sort();
 }
+/* 碼表長出新字（或偏旁的碼改了）之後，名單就會跟推導結果對不上。
+   與其默默跟著變，不如把差異攤開來讓人審：
+     待審 = 推導有、名單沒有   失效 = 名單有、但現在已經不符合 */
+function lsPending(en) {
+  const have = new Set(lsMembers(en));
+  return lsDerive(en).filter(ch => !have.has(ch));
+}
+function lsStale(en) {
+  if (!en.members) return [];
+  const ok = new Set(lsDerive(en));
+  return en.members.filter(ch => !ok.has(ch));
+}
 /* 左簡碼＝完整碼裡把偏旁中間那段拿掉；剩餘筆劃若仍多於三碼，剩餘那段再取
    首兩碼＋尾碼（條件六）。偏旁固定佔兩碼，所以合起來最多就是五碼。
    最後仍過一次 finalOf 當保險 —— 萬一有人把左簡碼手動改成三碼，還是不會超長。 */
 function lsCodeOf(ch, en) {
   const r = codes[ch];
   if (!r || !r.code || !en.short) return '';
+  /* 名單裡的字若已經不是這個偏旁碼開頭（改過碼了），算不出左簡碼 ——
+     硬算會把不相干的碼接起來，寧可空著讓「失效」欄去講。 */
+  if (!r.code.startsWith(en.code)) return '';
   const rest = r.code.slice(en.code.length);
   const kept = rest.length > 3 ? rest[0] + rest[1] + rest[rest.length - 1] : rest;
   return finalOf(en.short + kept).toUpperCase();
@@ -457,8 +503,10 @@ function renderLeftShort(box, r) {
   const drawExamples = () => {
   exBox.innerHTML = '';
   for (const exCh of [].concat(r.example || [])) {
-    const exEn = (r.entries || []).find(en => lsFamily(en).includes(exCh));
+    const exEn = (r.entries || []).find(en => lsMembers(en).includes(exCh));
     if (!exEn || !codes[exCh] || !codes[exCh].code) continue;
+    /* 範例字若改過碼、已經算不出左簡碼（會在「失效」欄現形），就別畫半截的範例 */
+    if (!lsCodeOf(exCh, exEn)) continue;
     const full = codes[exCh].code.toUpperCase();
     const main = finalOf(full).toUpperCase();
     const maxRule = data.rules.find(rr => rr.id === 'max_code_length' && rr.enabled && rr.kind === 'enforced');
@@ -537,7 +585,7 @@ function renderLeftShort(box, r) {
     byCode = new Map();
     fams = new Map();
     for (const en of r.entries) {
-      const fam = lsFamily(en);
+      const fam = lsMembers(en);
       fams.set(en.comp, fam);
       for (const ch of fam) {
         const c = lsCodeOf(ch, en);
@@ -554,17 +602,27 @@ function renderLeftShort(box, r) {
 
   const tbl = el('table', 'lstbl');
   tbl.innerHTML = '<thead><tr><th>偏旁</th><th>別體</th><th>單獨成字</th><th>作偏旁時</th>' +
-    '<th>左簡碼</th><th>家族</th><th>碰撞</th><th>例</th><th></th></tr></thead>';
+    '<th>左簡碼</th><th>名單</th><th>待審</th><th>碰撞</th><th>例</th><th></th></tr></thead>';
   const tb = el('tbody');
   /* 每列記住自己的「家族」「碰撞」兩格，改碼時只換這兩格的文字 —— 絕對不能整頁
      render()，那會把正在打字的 input 換掉、游標飛走（跟約定簡碼那張表同一個坑）。 */
-  const famCells = [], clashCells = [];
+  const famCells = [], clashCells = [], revCells = [];
   const refresh = () => {
     recompute();
-    let totFam = 0, totExt = 0, totDup = 0;
+    let totFam = 0, totExt = 0, totDup = 0, totPend = 0, totStale = 0;
     r.entries.forEach((en, i) => {
       const fam = fams.get(en.comp) || [];
       totFam += fam.length;
+      const pending = lsPending(en), stale = lsStale(en);
+      totPend += pending.length; totStale += stale.length;
+      if (revCells[i]) {
+        revCells[i].innerHTML = (pending.length || stale.length)
+          ? [pending.length ? `<span class="add">＋${pending.length}</span>` : '',
+             stale.length ? `<span class="gone">✗${stale.length}</span>` : ''].filter(Boolean).join(' ')
+          : '<span class="clean">—</span>';
+        revCells[i].title = (pending.length || stale.length)
+          ? '點開逐字加入／移除' : '名單跟部件拆分一致';
+      }
       const ext = fam.filter(ch => clashOf(ch, lsCodeOf(ch, en)).length);
       const dup = fam.filter(ch => dupOf(ch, lsCodeOf(ch, en)).length);
       totExt += ext.length; totDup += dup.length;
@@ -577,9 +635,12 @@ function renderLeftShort(box, r) {
         [ext.length ? `撞既有 ${ext.slice(0, 3).join('')}` : '',
          dup.length ? `互撞 ${dup.slice(0, 3).join('')}` : ''].filter(Boolean).join('　') + '</span>';
     });
-    summary.innerHTML = `共 <b>${r.entries.length}</b> 個偏旁　帶動 <b>${totFam}</b> 字　` +
+    summary.innerHTML = `共 <b>${r.entries.length}</b> 個偏旁　名單 <b>${totFam}</b> 字　` +
       `撞到既有碼 <span class="warn-n">${totExt}</span> 字　` +
-      `左簡碼之間自己撞 <span class="warn-n">${totDup}</span> 字`;
+      `左簡碼之間自己撞 <span class="warn-n">${totDup}</span> 字` +
+      ((totPend || totStale)
+        ? `　待審 <span class="warn-n">${totPend}</span>　失效 <span class="warn-n">${totStale}</span>`
+        : '　<span style="color:var(--ok)">名單與部件拆分一致</span>');
     /* 展開中的家族清單會跟著過期，收掉比留著錯的好 */
     for (const d of [...tb.querySelectorAll('.ls-detail')]) d.remove();
     drawExamples();
@@ -630,19 +691,95 @@ function renderLeftShort(box, r) {
       if (nx && nx.classList && nx.classList.contains('ls-detail')) { nx.remove(); return; }
       const now = fams.get(en.comp) || [];      /* 改過碼就重算過了，用當下的 */
       const dtr = el('tr', 'ls-detail');
-      const td = el('td'); td.colSpan = 9;
-      td.innerHTML = now.length
-        ? now.map(ch => {
-            const c = lsCodeOf(ch, en);
-            const bad = clashOf(ch, c).length || dupOf(ch, c).length;
-            return `${ch} <b${bad ? ' style="color:var(--bad)"' : ''}>${c}</b>`;
-          }).join('　')
-        : '（沒有字符合 —— 檢查「作偏旁時」的碼對不對）';
+      const td = el('td'); td.colSpan = 10;
+      if (!now.length) {
+        td.textContent = '（名單是空的 —— 檢查「作偏旁時」的碼對不對）';
+      } else {
+        td.append(Object.assign(el('div', 'ls-rev-h'), { textContent:
+          `名單 ${now.length} 字，紅色的會撞碼。點任何一個字可以從名單移除` +
+          '（移錯了不要緊 —— 它會回到「待審」，再點一下就加回來）：' }));
+        const grid = el('div', 'ls-grid');
+        for (const ch of now) {
+          const c = lsCodeOf(ch, en);
+          const hit = c && (clashOf(ch, c).length || dupOf(ch, c).length);
+          const cell = el('div', 'm' + (hit ? ' hit' : ''));
+          cell.append(el('span', 'ch', ch), el('span', 'cd', c || '—'));
+          cell.title = hit
+            ? `${ids[ch] || ''}　${c} 撞 ${[...clashOf(ch, c), ...dupOf(ch, c)].slice(0, 4).join('、')}　—— 點一下移除`
+            : `${ids[ch] || ''}　點一下從名單移除`;
+          cell.onclick = ev => {
+            ev.stopPropagation();
+            en.members = lsMembers(en).filter(x => x !== ch);
+            touch(); refresh(); dtr.remove(); fl.click();
+          };
+          grid.append(cell);
+        }
+        td.append(grid);
+      }
       dtr.append(td);
       tr.after(dtr);
     };
     famCells[i] = fl;
     t6.append(fl); tr.append(t6);
+
+    /* 待審／失效：名單是人工核可的，碼表卻會繼續長。差異攤在這裡，
+       點開可以逐字加入或移除 —— 名單不會自己跟著碼表偷偷變。 */
+    const tRev = el('td');
+    const rev = el('span', 'ls-rev');
+    revCells[i] = rev;
+    rev.onclick = () => {
+      const nx = tr.nextSibling;
+      if (nx && nx.classList && nx.classList.contains('ls-detail')) { nx.remove(); return; }
+      const pending = lsPending(en), stale = lsStale(en);
+      if (!pending.length && !stale.length) return;
+      const dtr = el('tr', 'ls-detail');
+      const td = el('td'); td.colSpan = 10;
+      if (pending.length) {
+        td.append(Object.assign(el('div', 'ls-rev-h'),
+          { textContent: `待審 ${pending.length} 字（部件拆分判定符合，尚未收進名單）—— 點一下加入：` }));
+        const box3 = el('div');
+        for (const ch of pending) {
+          const chip = el('span', 'ls-chip');
+          chip.innerHTML = `${ch}<small>${lsCodeOf(ch, en) || '?'}</small>`;
+          chip.title = `${ids[ch] || ''}　加入名單`;
+          chip.onclick = ev => {
+            ev.stopPropagation();
+            en.members = [...lsMembers(en), ch].sort();
+            touch(); refresh(); dtr.remove(); rev.click();
+          };
+          box3.append(chip);
+        }
+        const all = el('button', 'gnew', `全部加入（${pending.length}）`);
+        all.onclick = ev => {
+          ev.stopPropagation();
+          en.members = [...new Set([...lsMembers(en), ...pending])].sort();
+          touch(); refresh(); dtr.remove();
+        };
+        box3.append(all);
+        td.append(box3);
+      }
+      if (stale.length) {
+        td.append(Object.assign(el('div', 'ls-rev-h'),
+          { textContent: `失效 ${stale.length} 字（已經不符合條件，多半是改過碼）—— 點一下移除：` }));
+        const box4 = el('div');
+        for (const ch of stale) {
+          const chip = el('span', 'ls-chip');
+          const cur = codes[ch] && codes[ch].code ? finalOf(codes[ch].code).toUpperCase() : '未取碼';
+          chip.innerHTML = `${ch}<small>${cur}</small>`;
+          chip.title = `${ids[ch] || ''}　從名單移除`;
+          chip.onclick = ev => {
+            ev.stopPropagation();
+            en.members = lsMembers(en).filter(x => x !== ch);
+            touch(); refresh(); dtr.remove(); rev.click();
+          };
+          box4.append(chip);
+        }
+        td.append(box4);
+      }
+      dtr.append(td);
+      tr.after(dtr);
+    };
+    tRev.append(rev); tr.append(tRev);
 
     const t7 = el('td');
     clashCells[i] = t7;
