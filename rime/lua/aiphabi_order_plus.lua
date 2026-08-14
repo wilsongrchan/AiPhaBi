@@ -4,6 +4,8 @@
 -- 用「虛擬選過次數（floor）」實作：
 --   * 簡碼命中的字 floor = 9（S）：簡碼是發給最常用字的，就算撞到別字的完整碼，也要贏過那個 exact。
 --   * 主碼 exact 的字 floor = 6（E）：次之；要「近期選過 >6 次」才壓得過它。
+--     打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）同樣吃這個 floor —— 都是推得
+--     出來的碼，不是猜的。（左簡碼沒打完的補全不吃，那個是猜的。）
 --   * 其餘 floor = 0。
 --   每個候選的有效分數 = max(自己的衰減選過次數, floor)；先比這個，再比常用度。
 --   所以「簡碼 > exact > 池」是預設；但你對某字（含拼音詞，如 BD→病毒）近期猛選、
@@ -131,7 +133,8 @@ local function filter(input, env)
 
   -- 判斷候選是「形碼」還是「拼音」：形碼 preedit 是大寫字母（HOYJBT）；拼音是小寫音節。
   local function isFormCand(c)
-    if c.type == "ap_short" or c.type == "ap_pool" or c.type == "ap_si4" then return true end
+    if c.type == "ap_short" or c.type == "ap_pool" or c.type == "ap_si4"
+       or c.type == "ap_left" then return true end
     local mc = data.char2code[c.text]
     if mc and mc:sub(1, #code) == code then return true end
     local pe = c.preedit
@@ -166,7 +169,8 @@ local function filter(input, env)
       part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
-      local isExact = exactSet[c.text] or c.type == "ap_si4"   -- 打滿的四碼詞＝exact 一級
+      -- 打滿的四碼詞、打滿的左簡碼都是 exact 一級（左簡碼是推得出來的碼，不是猜的）
+      local isExact = exactSet[c.text] or c.type == "ap_si4" or c.type == "ap_left"
       local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
       if eu >= PROMOTE_MIN then
         top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }

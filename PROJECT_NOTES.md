@@ -520,7 +520,7 @@ Reads `data/codes.json` + `data/rules.json` + `data/freq.json` + `data/phrases_*
 - **`rime/aiphabi.dict.yaml`** — the dictionary: every char at its `final` code, plus 簡碼,
   三簡碼, and 詞組 (phrase) entries, each with a weight.
 - **`rime/lua/aiphabi_data.lua`** — a big Lua table (`require("aiphabi_data")`) the filters read:
-  `char2code`, `code2chars`, `shortcode` / `shortcode_rev`, `short3`, `si4` (四碼連打),
+  `char2code`, `code2chars`, `shortcode` / `shortcode_rev`, `short3`, `si4` (四碼快打),
   `freq` (single-char), `wordfreq` (multi-char, essay-calibrated), etc.
 - The two **schema files** (regenerated so switch lists / phrase toggle stay in sync).
 
@@ -550,8 +550,12 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   **They are two separate files with different structure and MUST be kept in sync** — any ordering
   fix has to be ported to both. Ranking tiers, high → low:
   1. **簡碼** (`ap_short`) — always first (S_FLOOR 9 in plus).
-  2. **exact / 四碼連打** (`exactSet` hit, or `ap_si4`) — your code exactly matches a char's full
-     code, or a fully-typed 4-code phrase (E_FLOOR 6).
+  2. **exact / 四碼快打 / 左簡碼** (`exactSet` hit, or `ap_si4`, or `ap_left`) — your code exactly
+     matches a char's full code, a fully-typed 4-code phrase, or a **fully-typed 左簡碼**
+     (E_FLOOR 6). The rule for this tier is *derivable, not guessed*: a complete 左簡碼 is as
+     definite as hitting a main code (247 codes for 249 chars, 2 collisions), so it must not
+     sit in the pool competing on raw frequency against 容錯 guesses and sentence-mode debris.
+     A **partially**-typed 左簡碼 is a guess and stays in the pool.
   3. **pool** — completions, 偏旁碼, 同類, 三簡, 容錯 (`ap_pool`), ranked by
      userfreq (session pick count, decaying in plus) then `cf` (word/char frequency).
      Completions ×0.7; cold-reading obscure single-char pinyin ×0.10 (plus only).
@@ -561,7 +565,7 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
      prefix/suffix fragments. `segStart = min(c.start)`, code extracted from that segment (not
      the whole `context.input`, which with sentence mode is the full composition).
 - **`aiphabi_hint.lua`** — attaches hints to candidates: 同類字, 偏旁碼, 打繁出簡/打簡出繁, and the
-  **簡碼 hint** (type a char's full code, see "簡碼 XX" reminder). Also **generates the 四碼連打
+  **簡碼 hint** (type a char's full code, see "簡碼 XX" reminder). Also **generates the 四碼快打
   candidates** from `data.si4` (not in the dict): `#code==4` exact → `ap_si4` (exact tier),
   3-prefix → `ap_pool` (完成/墊底). Gated on phrase being on.
 - **`aiphabi_phrase.lua`** — the phrase on/off gate (pure only): when `aiphabi_phrase` option is
@@ -651,7 +655,7 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
 
 ---
 
-## Phrase input (詞組連打) & 四碼連打
+## Phrase input (詞組連打) & 四碼快打
 
 - **Encoding rule:** a phrase's code = each character's 簡碼 (or 主碼 if no 簡碼) concatenated.
   Verified: 我的 = JKQJA, 你好 = YMLI, 中國人 = QOQY, 香港 = JTBWHZ.
@@ -659,7 +663,7 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
   (short/short, short/main, main/short, main/main) so you don't have to remember which mode.
 - **3+ char phrases** use three uniform modes (main / 簡碼-preferred / 三簡碼-preferred) to avoid
   combinatorial explosion.
-- **四碼連打 (`data.si4`, generated in `aiphabi_hint.lua`, not in dict):** a 4-key shortcut for
+- **四碼快打 (`data.si4`, generated in `aiphabi_hint.lua`, not in dict):** a 4-key shortcut for
   longer phrases. 3-char → 首首首末; 4-char → 4×首碼; **5+ char → both first-4 AND first-3+last**
   registered (first-4 = partial-recall friendly; first-3+last = better disambiguation on shared
   prefixes like 中國人民X). Exact 4-code → `ap_si4` (ranks as exact); 3-prefix → `ap_pool` (墊底).
@@ -713,7 +717,7 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 - ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼 > pool > coverage-
   demoted part; userfreq boosting; completion & cold-reading penalties; span-based coverage gating.
 - ✅ 詞組連打: ~40k+ curated phrases across 10 themed files; 2-char cartesian; 3+ uniform modes;
-  四碼連打 (first-4 + first-3+last for 5+); `enable_sentence` segmentation.
+  四碼快打 (first-4 + first-3+last for 5+); `enable_sentence` segmentation.
 - ✅ 容錯 (fuzzy), 萬用鍵 `` ` ``, 打繁出簡/打簡出繁, 偏旁碼/同類字 hints.
 - ✅ iOS (Hamster) working; dict weights sane for the no-lua path; mobile pulls phrase data + 4-code
   logic from repo.
@@ -730,8 +734,10 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ## Key naming / decisions cheat-sheet
 - **Candidate types** (librime-lua `.type`): `ap_short` (簡碼), `ap_si4` (exact 4-code phrase),
-  `ap_pool` (everything demotable: completion/偏旁/同類/三簡/容錯/3-prefix). `completion` is
-  librime's own type.
+  `ap_left` (fully-typed 左簡碼 — exact tier), `ap_pool` (everything demotable:
+  completion/偏旁/同類/三簡/容錯/3-prefix/partial 左簡碼). `completion` is librime's own type.
+  **A new type must be taught to both order filters** — an unknown `.type` silently falls
+  through to the pool, which looks like a ranking bug rather than a missing case.
 - **Candidate span fields:** `.start`, `._end` (Lua keyword `end` → `_end`), `.preedit` (form =
   UPPERCASE, pinyin = lowercase — used to tell form vs pinyin candidates apart).
 - **`final` not `code`** is the shipping code in `codes.json`.

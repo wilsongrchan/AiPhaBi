@@ -16,9 +16,11 @@
 -- > 其餘提示（同類／偏旁碼／三簡碼…都是自動配對、沒認定過「就這個字」，一律墊底）。
 -- 真正打中的候選，哪怕只是補全中，也不該被這些自動提示擠到後面去。
 -- 左簡碼：收錄的偏旁（魚金馬食車足酉革）出現在字的最左邊時，偏旁本身只取首尾兩碼、
--- 中間略過（鮭 完整碼 SOTMFF → SMFF）。跟三簡碼一樣是整個家族自動適用，也一樣是
--- 自動配對、沒認定過「就這個字」，所以同樣墊底排在所有正常候選之後。
--- 但左簡碼是一字一碼（偏旁只有一個位置），所以跟約定簡碼一樣有反向提醒：打了完整碼，
+-- 中間略過（鮭 完整碼 SOTMFF → SMFF）。跟三簡碼一樣是整個家族自動適用，但排法不同：
+-- 三簡碼是一個簽名對好幾個字的猜測，左簡碼是一字一碼、推得出來的碼（247 碼配 249 字，
+-- 只有兩處撞碼），所以**打滿的左簡碼標 ap_left、當 exact 一級排**，不跟猜測同池；
+-- 只有「還沒打完」的補全（打 SMB → 鯉 鯤）才標 ap_pool 墊底。
+-- 也因為是一字一碼，跟約定簡碼一樣有反向提醒：打了完整碼，
 -- 就附「左簡 XX」教你下次可以少打幾碼（三簡碼一簽名多字，講不出這句，所以沒有）。
 -- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp / aiphabi_short100
 -- / aiphabi_short3 / aiphabi_left_short 各自獨立控制。
@@ -90,7 +92,7 @@ local function filter(input, env)
   local extra = {}
   local extra3 = {}        -- 三簡碼命中的字：排在所有正常候選之後（見下方排序理由）
   local extraL = {}        -- 左簡碼命中的字：同三簡碼道理（自動配對、沒認定過「就這個字」），墊底
-  local extra4 = {}        -- 四碼連打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
+  local extra4 = {}        -- 四碼快打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
   if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or left_on or si4_on then
     -- 這些提示（同類／偏旁／簡碼／三簡碼／四碼…）都是查「整串輸入的碼」得來的，覆蓋 0..#code。
@@ -149,11 +151,15 @@ local function filter(input, env)
     end
     if left_on then                      -- 左簡碼：左偏旁收成首尾兩碼後的碼（鮭 SOTMFF → SMFF）；
                                           -- 提示一律秀主碼，跟三簡碼同理（比對到的是完整碼，太長）
+      -- 打滿的左簡碼標 ap_left＝exact 一級（兩個 order filter 都認）。這不是猜的：左簡碼
+      -- 是這個字正正經經推得出來的碼，247 個碼配 249 個字、只有兩處撞碼，確定性跟打中
+      -- 主碼同級。留在 ap_pool 的話會跟容錯猜測、切分湊出來的怪詞同池比字頻，打滿了
+      -- 反而被冷門猜測壓在後面（打 SMB 只看到 尔日 那種）。
       for _, ch in ipairs(data.leftshort[code] or {}) do
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extraL[#extraL + 1] = Candidate("ap_pool", s, e, ch, refMark("左簡", sc))
+          extraL[#extraL + 1] = Candidate("ap_left", s, e, ch, refMark("左簡", sc))
         end
       end
       -- 還沒打完的左簡碼（打 SMB，鯉 的左簡碼是 SMBF）：主碼有碼表的 enable_completion
@@ -167,7 +173,7 @@ local function filter(input, env)
         end
       end
     end
-    if si4_on then                       -- 四碼連打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
+    if si4_on then                       -- 四碼快打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
                                           -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。
       local exact4 = #code == 4
       for _, w in ipairs(data.si4[code] or {}) do

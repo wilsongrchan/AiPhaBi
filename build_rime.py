@@ -414,7 +414,7 @@ def main():
     if place_skipped:
         print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
 
-    # ---- 四碼連打：3+ 字詞壓成固定 4 碼（開關 aiphabi_si4；不進碼表，靠 Lua 查 M.si4）----
+    # ---- 四碼快打：3+ 字詞壓成固定 4 碼（開關 aiphabi_si4；不進碼表，靠 Lua 查 M.si4）----
     #   3 字：字1首 + 字2首 + 字3首 + 字3末（末字補末碼消歧）——容祖兒=QQFL
     #   4 字：四字各首碼——光明正大=WBFI
     #   5+ 字：兩式都收——前四字各首碼（從開頭打就行，記得開頭即可）＝中華人民共和國 QHYC；
@@ -443,7 +443,7 @@ def main():
             if _w not in _seen:
                 _seen.add(_w); _out.append(_w)
         si4[_c] = _out[:24]
-    print(f"四碼連打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
+    print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
@@ -541,7 +541,7 @@ def main():
     dl += ["}", "M.leftshort_rev = {"]  # 字 → 左簡碼（打完整碼時提醒「其實有左簡碼」；aiphabi_left_short 開關控制）
     for ch, sig in sorted(leftshort_rev.items()):
         dl.append(f'  [{lua_str(ch)}]={lua_str(sig)},')
-    dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼連打；aiphabi_si4 開關控制，依詞頻排）
+    dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼快打；aiphabi_si4 開關控制，依詞頻排）
     for sig, ws in sorted(si4.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
