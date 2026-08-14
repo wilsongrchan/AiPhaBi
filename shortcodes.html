@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛發筆 — 簡碼</title>
+<style>
+  :root {
+    --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --line:#e3ded4;
+    --accent:#b4531f; --warn:#d98324; --ok:#2e7d4f; --bad:#c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --line:#33312a;
+            --accent:#e0894f; --warn:#e0a95c; --ok:#6bbd8e; --bad:#e57373; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang TC","Helvetica Neue",sans-serif; }
+  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line);
+    padding:12px 20px; display:flex; gap:12px; align-items:center; z-index:5; }
+  h1 { font-size:16px; margin:0; font-weight:650; }
+  nav { display:flex; gap:5px; }
+  nav a { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 9px;
+    border:1px solid var(--line); border-radius:7px; }
+  nav a.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .grow { flex:1; }
+  button { font:inherit; font-size:13px; padding:6px 12px; border-radius:7px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #status { font-size:13px; color:var(--muted); min-width:70px; }
+  #status.dirty { color:var(--warn); } #status.saved { color:var(--ok); }
+
+  main { max-width:820px; margin:0 auto; padding:20px; }
+  .intro { color:var(--muted); font-size:13px; margin-bottom:14px; }
+  .intro b { color:var(--ink); }
+  .rule { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:10px; }
+  .rule.off { opacity:.5; }
+  .rh { display:flex; align-items:center; gap:9px; }
+  .name { font-weight:650; font-size:15px; border:none; background:transparent; color:var(--ink);
+    font-family:inherit; flex:1; padding:2px 4px; border-radius:5px; }
+  .name:focus { outline:1px solid var(--line); background:var(--bg); }
+  .tag { font-size:10px; padding:1px 6px; border-radius:20px; border:1px solid var(--line);
+    color:var(--muted); white-space:nowrap; }
+  .tag.enforced { color:var(--ok); border-color:var(--ok); }
+  .tag.manual { color:var(--muted); }
+  .desc, .note { width:100%; border:1px solid transparent; background:transparent; color:var(--ink);
+    font:inherit; font-size:14px; padding:3px 5px; border-radius:6px; resize:vertical; }
+  .note { font-size:12px; color:var(--muted); }
+  .desc:hover, .note:hover { border-color:var(--line); }
+  .desc:focus, .note:focus { outline:none; border-color:var(--accent); background:var(--bg); }
+
+  .groups { margin-top:10px; border-top:1px dashed var(--line); padding-top:10px; }
+  .gadd input { width:100%; font-size:12px; padding:4px 7px; border-radius:7px;
+    border:1px dashed var(--line); background:transparent; color:var(--ink); margin-bottom:6px; }
+  .gnew { font-size:12px; padding:3px 9px; border-radius:7px; }
+  .mv { cursor:pointer; color:var(--muted); font-size:12px; padding:0 3px; }
+  .mv:hover { color:var(--accent); }
+  .muted { color:var(--muted); font-style:italic; }
+
+  /* 約定簡碼：手動挑字清單 */
+  .sc-sort { margin-top:8px; font-size:12px; color:var(--muted); }
+  .sc-sort label { display:inline-flex; align-items:center; gap:5px; }
+  .sc-sort select { font-size:12px; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:6px; padding:2px 4px; }
+  .sc-stats { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted);
+    margin:8px 0; }
+  .sc-stats b { color:var(--ink); }
+  .sc-stats .warn-n { color:var(--warn); font-weight:600; }
+  .sc-drop { font-size:11px; color:var(--muted); margin-top:8px; }
+  .sctbl { width:100%; border-collapse:collapse; font-size:12px; }
+  .sctbl th { text-align:left; font-size:10px; color:var(--muted); font-weight:600;
+    padding:2px 6px; border-bottom:1px solid var(--line); }
+  .sctbl td { padding:3px 6px; border-bottom:1px solid var(--line); }
+  .sctbl td.sc-gc { font:20px/1.3 "PingFang TC",serif; width:34px; }
+  .sctbl code { font:600 12px ui-monospace,monospace; color:var(--muted); }
+  .sc-code { width:74px; font:700 13px ui-monospace,monospace; color:var(--accent);
+    text-transform:uppercase; padding:2px 5px; border-radius:6px;
+    border:1px solid var(--line); background:var(--card); }
+  .sctbl .ok { color:var(--ok); font:600 12px ui-monospace,monospace; }
+  .sctbl .bad { color:var(--bad); font:600 12px ui-monospace,monospace; }
+
+  /* 左簡碼：條件清單 ＋ 範例 ＋ 偏旁表。家族／碰撞都是即時從碼表算的，
+     所以表裡不存數字 —— 碼表改了，這頁下次打開就跟著對。 */
+  .ls-conds { margin:10px 0 0; padding:0 0 0 22px; font-size:13px; }
+  .ls-conds li { margin:2px 0; }
+  .ls-conds input { width:100%; border:1px solid transparent; background:transparent;
+    color:var(--ink); font:inherit; padding:2px 4px; border-radius:6px; }
+  .ls-conds input:hover { border-color:var(--line); }
+  .ls-conds input:focus { outline:none; border-color:var(--accent); background:var(--bg); }
+  .ls-ex { margin-top:10px; border:1px solid var(--line); border-radius:10px;
+    padding:8px 10px; background:var(--bg); }
+  .ls-ex h4 { margin:0 0 6px; font-size:12px; font-weight:650; color:var(--muted); }
+  .ls-ex table { border-collapse:collapse; font-size:12px; }
+  .ls-ex td { padding:2px 8px 2px 0; vertical-align:baseline; }
+  .ls-ex td.lab { color:var(--muted); white-space:nowrap; }
+  .ls-ex code { font:700 13px ui-monospace,monospace; color:var(--accent); }
+  .ls-ex .drop { color:var(--muted); text-decoration:line-through; font-weight:400; }
+  .ls-ex .arrow { color:var(--muted); margin:0 5px; }
+  .ls-ex .no { color:var(--bad); }
+  .ls-ex .why { color:var(--muted); font-size:11px; }
+  .lstbl { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+  .lstbl th { text-align:left; font-size:10px; color:var(--muted); font-weight:600;
+    padding:2px 5px; border-bottom:1px solid var(--line); }
+  .lstbl td { padding:3px 5px; border-bottom:1px solid var(--line); }
+  .lstbl td.ls-gc { font:20px/1.3 "PingFang TC",serif; width:30px; }
+  .lstbl code { font:600 12px ui-monospace,monospace; color:var(--muted); }
+  .lstbl .ok { color:var(--ok); font:600 12px ui-monospace,monospace; }
+  .lstbl .bad { color:var(--bad); font:600 12px ui-monospace,monospace; }
+  .ls-code { width:56px; font:700 13px ui-monospace,monospace; color:var(--accent);
+    text-transform:uppercase; padding:2px 4px; border-radius:6px;
+    border:1px solid var(--line); background:var(--card); }
+  .ls-alias { width:44px; font:14px "PingFang TC",serif; padding:2px 4px; border-radius:6px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); }
+  .ls-fam { cursor:pointer; color:var(--accent); text-decoration:underline dotted; }
+  .ls-detail td { background:var(--bg); font-size:11px; line-height:1.9; color:var(--muted); }
+  .ls-detail b { color:var(--ink); font:600 11px ui-monospace,monospace; }
+  .ls-eg { font:14px "PingFang TC",serif; }
+  .ls-eg .no { color:var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>愛發筆</h1>
+  <nav>
+    <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/short" class="on">簡碼</a><a href="/type">試打</a><a href="/progress">取碼進度</a>
+  </nav>
+  <div class="grow"></div>
+  <span id="status">已載入</span>
+  <button class="primary" id="save">儲存</button>
+</header>
+
+<main>
+  <div class="intro">
+    主碼之外的三層<b>簡化取碼</b>：每一層都是額外多一條路，<b>主碼永遠保留</b>，
+    也都各自有開關可以整層關掉。跟「取碼原則」分開放，是因為這幾條講的不是
+    一個字怎麼拆，而是拆完之後可以怎麼少打幾鍵。
+    資料仍然存在同一個 <code>data/rules.json</code>，兩頁同時開著也不會互相蓋掉。
+  </div>
+  <div id="list"></div>
+</main>
+
+<script src="/assets/shape.js"></script>
+<script src="/assets/zigen.js"></script>
+<script src="/assets/rulesio.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+let data = null, dirty = false, stamp = null;
+const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#status').className = 'dirty'; };
+
+/* 這一頁只畫三條簡碼規則，其餘的留在「取碼原則」 */
+const MINE = r => RulesIO.isShortcode(r);
+
+function render() {
+  const list = $('#list'); list.innerHTML = '';
+  for (const r of data.rules.filter(MINE)) {
+    const d = el('div', 'rule' + (r.enabled ? '' : ' off'));
+
+    const h = el('div', 'rh');
+    const on = el('input'); on.type = 'checkbox'; on.checked = !!r.enabled;
+    on.title = '關掉＝這條簡碼不生效（約定簡碼關掉後，build_rime.py 就不會產生簡碼表）';
+    on.onchange = () => { r.enabled = on.checked; touch(); render(); };
+    h.append(on);
+
+    const nm = el('input', 'name'); nm.value = r.name;
+    nm.oninput = () => { r.name = nm.value; touch(); };
+    h.append(nm);
+
+    const tag = el('span', 'tag ' + (r.kind || 'manual'),
+      r.kind === 'enforced' ? '會執行' : '僅記錄');
+    tag.title = '簡碼都是「僅記錄」：它們不影響逐字取碼頁的預測，只影響輸入法';
+    h.append(tag);
+    d.append(h);
+
+    const desc = el('textarea', 'desc'); desc.value = r.desc || '';
+    desc.rows = 3; desc.placeholder = '這條簡碼是什麼…';
+    desc.oninput = () => { r.desc = desc.value; touch(); };
+    d.append(desc);
+
+    const note = el('textarea', 'note'); note.value = r.note || '';
+    note.rows = 2; note.placeholder = '備註（程式如何處理這條…）';
+    note.oninput = () => { r.note = note.value; touch(); };
+    d.append(note);
+
+    if (r.id === 'short_code') renderShortCode(d, r);
+    if (r.id === 'left_short') renderLeftShort(d, r);
+
+    list.append(d);
+  }
+}
+
+/* 現有碼表佔掉的碼（主碼＋完整碼＋兼容碼＋兼容字型）：碼(小寫) → 佔用它的字。
+   約定簡碼跟左簡碼都要拿新碼來比對「會不會撞到別人」，用同一份定義，
+   免得兩張表對「撞到」的認定不一樣。 */
+function occupiedCodes() {
+  const occupied = new Map();
+  const occ = (code, ch) => {
+    const k = code.toLowerCase();
+    if (!occupied.has(k)) occupied.set(k, new Set());
+    occupied.get(k).add(ch);
+  };
+  for (const [ch, r] of Object.entries(codes)) {
+    if (!r.code) continue;
+    occ(finalOf(r.code), ch); occ(r.code, ch);
+    for (const a of r.alts || []) { occ(finalOf(a.code), ch); occ(a.code, ch); }
+    for (const v of r.variants || []) { const d = v.display || ch; occ(finalOf(v.code), d); occ(v.code, d); }
+  }
+  return occupied;
+}
+
+/* ---------- 約定簡碼：手動挑字 ----------
+   不是自動算前 N 名（試過，重碼太多）——自己一個一個加字，簡碼預設建議
+   主碼首尾兩碼，可以自己改。同樣即時算重碼衝擊，這樣挑的時候就看得到代價。 */
+function computeShortCodeStats(entries) {
+  const bySort = new Map();      /* 簡碼(小寫) → 這批裡搶它的所有列 */
+  for (const en of entries) {
+    if (!en.short) continue;
+    const s = en.short.toLowerCase();
+    if (!bySort.has(s)) bySort.set(s, []);
+    bySort.get(s).push(en);
+  }
+  const occupied = occupiedCodes();
+  return entries.map(en => {
+    const short = (en.short || '').toLowerCase();
+    const clash = short ? [...(occupied.get(short) || [])].filter(c => c !== en.c) : [];
+    const dupWithSelf = short && bySort.get(short).length > 1;
+    return { ...en, clash, dupWithSelf };
+  });
+}
+
+function suggestShort(ch) {
+  const rec = codes[ch];
+  if (!rec || !rec.code) return '';
+  const code = finalOf(rec.code);
+  return (code.length > 1 ? code[0] + code[code.length - 1] : code).toUpperCase();
+}
+
+/* 排序用的三個小工具：字頻（現代優先，rime-essay 打底）、筆畫（segments 的最大筆畫序號＋1）、
+   部首（IDS 拆分的第一個部件當代表——不是嚴格的康熙部首表，這份資料裡也沒有那張表，
+   但同部件的字會排在一起，夠用來找「這批我還缺誰」）。 */
+let _freqRank = null;
+function freqWFast(ch) {
+  if (!_freqRank) { _freqRank = new Map(); freqOrder.forEach((c, i) => _freqRank.set(c, i)); }
+  const base = Math.max(1, 100000 - (_freqRank.has(ch) ? _freqRank.get(ch) : 99999));
+  return (charfreq[ch] || 0) * 10000 + base;
+}
+function strokeCountOf(ch) {
+  const rec = codes[ch];
+  if (!rec || !rec.segments) return null;
+  let m = -1;
+  for (const s of rec.segments) for (const i of s.strokes) if (i > m) m = i;
+  for (const i of (rec.skipped || [])) if (i > m) m = i;
+  return m + 1;
+}
+const IDS_OPS = '⿰⿱⿲⿳⿴⿵⿶⿷⿸⿹⿺⿻';
+function radicalOf(ch) {
+  const d = ids[ch];
+  if (!d) return ch;
+  for (const c of d) if (!IDS_OPS.includes(c) && c !== ch) return c;
+  return ch;
+}
+const SC_SORTERS = {
+  add: null,   /* 加入順序：不排序，維持原陣列順序 */
+  freq: (a, b) => freqWFast(b.c) - freqWFast(a.c),
+  stroke: (a, b) => (strokeCountOf(a.c) ?? 99) - (strokeCountOf(b.c) ?? 99),
+  radical: (a, b) => radicalOf(a.c).localeCompare(radicalOf(b.c), 'zh-Hant'),
+  letter: (a, b) => (a.short || '').localeCompare(b.short || ''),
+};
+let scSortBy = 'add';
+
+function renderShortCode(box, r) {
+  r.entries = r.entries || [];
+  const wrap = el('div', 'groups');
+
+  /* 一次貼一串字，每個字各自建一列，預設簡碼抓主碼首尾兩碼——加完自己再逐一調整。 */
+  const add = el('div', 'gadd');
+  const inp = el('input');
+  inp.placeholder = '貼一串字（的我是這就）→ Enter 一次加入，簡碼預設抓主碼首尾兩碼';
+  inp.onkeydown = e => {
+    if (e.key !== 'Enter') return;
+    const chars = [...inp.value].filter(c => /[㐀-鿿]/.test(c));
+    for (const c of chars)
+      if (!r.entries.some(x => x.c === c)) r.entries.push({ c, short: suggestShort(c) });
+    inp.value = ''; touch(); render();
+  };
+  add.append(inp);
+  wrap.append(add);
+
+  if (!r.entries.length) {
+    wrap.append(Object.assign(el('div', 'sc-drop'), { textContent: '還沒加字。' }));
+    box.append(wrap);
+    return;
+  }
+
+  const sortRow = el('div', 'sc-sort');
+  const sortLab = el('label');
+  sortLab.append(el('span', '', '排序：'));
+  const sortSel = document.createElement('select');
+  sortSel.innerHTML = '<option value="add">加入順序</option><option value="freq">字頻</option>' +
+    '<option value="stroke">筆畫</option><option value="radical">部首（部件）</option>' +
+    '<option value="letter">字母（簡碼）</option>';
+  sortSel.value = scSortBy;
+  sortSel.onchange = () => { scSortBy = sortSel.value; render(); };
+  sortLab.append(sortSel);
+  sortRow.append(sortLab);
+  wrap.append(sortRow);
+
+  const summary = el('div', 'sc-stats');
+  wrap.append(summary);
+
+  const tbl = el('table', 'sctbl');
+  tbl.innerHTML = '<thead><tr><th>字</th><th>主碼</th><th>簡碼</th><th>碰撞</th><th></th></tr></thead>';
+  const tb = el('tbody');
+  const clashCells = [];
+
+  /* 改簡碼是打一個字重算一次——絕對不能整頁 render()（會把使用者正在打字的
+     input 整個換掉，游標跟著飛走，變成「打不進去」）。這裡只重算數字、
+     更新既有的碰撞欄文字，DOM 結構、focus 都不動。 */
+  const refresh = () => {
+    const stats = computeShortCodeStats(r.entries);
+    const extClash = stats.filter(x => x.clash.length).length;
+    const internalClash = stats.filter(x => x.dupWithSelf).length;
+    summary.innerHTML = `共 <b>${r.entries.length}</b> 字　` +
+      `這批裡自己撞自己 <span class="warn-n">${internalClash}</span> 字　` +
+      `撞到既有碼（多一次選字）<span class="warn-n">${extClash}</span> 字`;
+    stats.forEach((en, i) => {
+      const cell = clashCells[i];
+      if (!cell) return;
+      if (en.dupWithSelf) cell.innerHTML = '<span class="bad">同批搶碼</span>';
+      else if (en.clash.length) cell.innerHTML = `<span class="bad">撞 ${en.clash.slice(0, 4).join('、')}</span>`;
+      else cell.innerHTML = '<span class="ok">乾淨</span>';
+    });
+  };
+
+  /* 排序只影響顯示順序，不動 r.entries 本身的順序（存檔、加入順序都還在）——
+     所以每一列要記住自己在 r.entries 裡的原始 index，改碼／刪除才改得對地方。 */
+  const stats = computeShortCodeStats(r.entries).map((en, i) => ({ ...en, _i: i }));
+  if (SC_SORTERS[scSortBy]) stats.sort(SC_SORTERS[scSortBy]);
+  stats.forEach(en => {
+    const i = en._i;
+    const tr = el('tr');
+    const t1 = el('td'); t1.className = 'sc-gc'; t1.textContent = en.c; tr.append(t1);
+
+    const t2 = el('td');
+    const rec = codes[en.c];
+    t2.innerHTML = rec && rec.code
+      ? `<code>${finalOf(rec.code).toUpperCase()}</code>`
+      : '<span class="muted">未取碼</span>';
+    tr.append(t2);
+
+    const t3 = el('td');
+    /* 簡碼不一定只有兩碼——四五碼的字有時值得給個三碼的簡碼，上限跟系統的
+       碼長上限一樣就好（沒道理簡碼比最長的主碼還長）。 */
+    const maxLenRule = data.rules.find(rr => rr.id === 'max_code_length' && rr.enabled && rr.kind === 'enforced');
+    const maxLen = (maxLenRule && maxLenRule.params && maxLenRule.params.max) || 5;
+    const si = el('input', 'sc-code'); si.value = en.short || ''; si.maxLength = maxLen;
+    si.oninput = () => {
+      r.entries[i].short = si.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, maxLen);
+      si.value = r.entries[i].short;
+      touch(); refresh();
+    };
+    t3.append(si); tr.append(t3);
+
+    const t4 = el('td');
+    if (en.dupWithSelf) t4.innerHTML = '<span class="bad">同批搶碼</span>';
+    else if (en.clash.length) t4.innerHTML = `<span class="bad">撞 ${en.clash.slice(0, 4).join('、')}</span>`;
+    else t4.innerHTML = '<span class="ok">乾淨</span>';
+    clashCells[i] = t4;
+    tr.append(t4);
+
+    const t5 = el('td');
+    const x = el('span', 'mv', '✕');
+    x.onclick = () => { r.entries.splice(i, 1); touch(); render(); };
+    t5.append(x); tr.append(t5);
+    tb.append(tr);
+  });
+  tbl.append(tb);
+  wrap.append(tbl);
+  box.append(wrap);
+  refresh();   /* 填一次總覽數字（表格本身已經用初次算好的 stats 畫完了） */
+}
+
+/* ---------- 左簡碼：偏旁表 ----------
+   跟約定簡碼相反，這條不是逐字挑字 —— 挑的是偏旁，家族由碼表自己長出來。
+   關鍵是「在不在最左邊」光看碼看不出來：魯 SOTMB 跟鮮 SOTMVF 一樣是 SOTM
+   開頭，但魯的魚在上面。所以改用 IDS 部件拆分判斷 —— ⿰／⿲ 開頭、而且第一個
+   部件就是這個偏旁。這同時也擋掉了純比對碼前綴會誤收的字（倖 YFV… 不是金字旁，
+   裹 IBT… 不是車字旁，西／亞 IHI 不是酉字旁）。 */
+const LS_LEFT_OPS = '⿰⿲';
+function leftComponentOf(ch) {
+  const d = ids[ch] || '';
+  return d.length >= 2 && LS_LEFT_OPS.includes(d[0]) ? d[1] : null;
+}
+/* 偏旁在 IDS 裡的寫法不一定跟單獨成字一樣（金→釒、食→飠），所以另存別體。 */
+const lsAliases = en => (en.alias && en.alias.length ? en.alias : [en.comp]);
+
+/* 這個偏旁帶得動的字：碼以偏旁碼開頭，而且 IDS 說它真的在最左邊。
+   偏旁自己不算 —— 條件四，單獨成字時要完整取碼。 */
+function lsFamily(en) {
+  if (!en.code) return [];
+  const alias = lsAliases(en);
+  const out = [];
+  for (const [ch, r] of Object.entries(codes)) {
+    if (ch === en.comp || !r.code || !r.code.startsWith(en.code)) continue;
+    if (alias.includes(leftComponentOf(ch))) out.push(ch);
+  }
+  return out.sort();
+}
+/* 左簡碼＝完整碼裡把偏旁中間那段拿掉；剩餘筆劃若仍多於三碼，剩餘那段再取
+   首兩碼＋尾碼（條件六）。偏旁固定佔兩碼，所以合起來最多就是五碼。
+   最後仍過一次 finalOf 當保險 —— 萬一有人把左簡碼手動改成三碼，還是不會超長。 */
+function lsCodeOf(ch, en) {
+  const r = codes[ch];
+  if (!r || !r.code || !en.short) return '';
+  const rest = r.code.slice(en.code.length);
+  const kept = rest.length > 3 ? rest[0] + rest[1] + rest[rest.length - 1] : rest;
+  return finalOf(en.short + kept).toUpperCase();
+}
+/* 把被略過的碼畫成刪除線，讓「跳掉哪一段」看得見 */
+function lsMark(code, ranges) {
+  let out = '', at = 0;
+  for (const [s, e] of ranges) {
+    out += code.slice(at, s) + `<span class="drop">${code.slice(s, e)}</span>`;
+    at = e;
+  }
+  return out + code.slice(at);
+}
+
+function renderLeftShort(box, r) {
+  r.entries = r.entries || [];
+  r.conditions = r.conditions || [];
+  const wrap = el('div', 'groups');
+
+  /* 條件：這條原則的重點全在「什麼時候算數」，所以條列出來擺在最前面 */
+  const ol = el('ol', 'ls-conds');
+  r.conditions.forEach((c, ci) => {
+    const li = el('li');
+    const inp = el('input'); inp.value = c;
+    inp.oninput = () => { r.conditions[ci] = inp.value; touch(); };
+    const x = el('span', 'mv', '✕');
+    x.onclick = () => { r.conditions.splice(ci, 1); touch(); render(); };
+    li.append(inp, x);
+    ol.append(li);
+  });
+  const addCond = el('button', 'gnew', '＋ 條件');
+  addCond.onclick = () => { r.conditions.push(''); touch(); render(); };
+  wrap.append(ol, addCond);
+
+  /* 範例：四種碼擺在一起，才看得出左簡碼跟三簡碼跳的是不同段。
+     擺兩個字是有意的 —— 鮭 剩餘筆劃沒超過三碼，鐵 超過，要再套條件六。
+     改了偏旁的碼就要重畫，所以包成函式擺在容器裡。 */
+  const exBox = el('div');
+  wrap.append(exBox);
+  const drawExamples = () => {
+  exBox.innerHTML = '';
+  for (const exCh of [].concat(r.example || [])) {
+    const exEn = (r.entries || []).find(en => lsFamily(en).includes(exCh));
+    if (!exEn || !codes[exCh] || !codes[exCh].code) continue;
+    const full = codes[exCh].code.toUpperCase();
+    const main = finalOf(full).toUpperCase();
+    const maxRule = data.rules.find(rr => rr.id === 'max_code_length' && rr.enabled && rr.kind === 'enforced');
+    const mx = (maxRule && maxRule.params) || { max: 5, head: 4, tail: 1 };
+    const ls = lsCodeOf(exCh, exEn);
+    const three = main.length >= 4 ? main[0] + main[1] + main[main.length - 1] : '';
+    const box2 = el('div', 'ls-ex');
+    box2.append(Object.assign(el('h4'), { textContent: `範例：${exCh}（${exEn.comp} 字旁）` }));
+    const rows = [];
+    rows.push(['完整碼', `<code>${full}</code>`, '']);
+    rows.push(['主碼', full.length > mx.max
+      ? `<code>${lsMark(full, [[mx.head, full.length - mx.tail]])}</code>` +
+        `<span class="arrow">→</span><code>${main}</code>`
+      : `<code>${main}</code>`, '碼長上限：前 4 碼＋末 1 碼']);
+    if (three) rows.push(['三簡碼',
+      `<code>${lsMark(main, [[2, main.length - 1]])}</code>` +
+      `<span class="arrow">→</span><code>${three}</code>`, '主碼的頭 2 碼＋末 1 碼']);
+    /* 偏旁跳完之後，剩餘筆劃若仍多於三碼，剩餘那段再取首二尾一（條件六）——
+       中間那步要秀出來，不然「YFVFOEXQ 怎麼變成 YVFOQ」少了一截，看不懂。 */
+    const rest = full.slice(exEn.code.length);
+    const lsRaw = (exEn.short + rest).toUpperCase();
+    rows.push(['左簡碼',
+      `<code>${lsMark(full, [[1, exEn.code.length - 1]])}</code>` +
+      `<span class="arrow">→</span><code>${exEn.short}</code>＋<code>${rest}</code>` +
+      (lsRaw === ls ? '' : `<span class="arrow">→</span><code>${ls}</code>`),
+      lsRaw === ls
+        ? `${exEn.comp} 只取首尾 ${exEn.short}，中間略過；剩餘 ${rest} 未超過三碼，照抄`
+        : `${exEn.comp} 只取首尾 ${exEn.short}；剩餘 ${rest} 多於三碼，` +
+          `取首兩碼＋尾碼 ${rest.slice(0, 2)}${rest[rest.length - 1]}（條件六）`]);
+    const stacked = ls.length >= 4 ? ls[0] + ls[1] + ls[ls.length - 1] : '';
+    if (three && stacked) rows.push(['三簡＋左簡',
+      `<code class="no" style="text-decoration:line-through">${stacked}</code>` +
+      `<span class="no"> ✗</span>`, '只能選擇一種簡化方式取碼（條件五）']);
+    const t = el('table');
+    for (const [lab, val, why] of rows) {
+      const tr = el('tr');
+      tr.innerHTML = `<td class="lab">${lab}</td><td>${val}</td><td class="why">${why}</td>`;
+      t.append(tr);
+    }
+    box2.append(t);
+    exBox.append(box2);
+  }
+  };
+
+  /* 貼一個偏旁進來就開一列。作偏旁時的碼常常跟單獨成字不一樣（食 AEK／飠 AEG），
+     所以只給個起手值，兩欄都要自己確認。 */
+  const add = el('div', 'gadd');
+  const inp = el('input');
+  inp.placeholder = '貼偏旁（魚金馬）→ Enter，之後要自己核對「作偏旁時的碼」';
+  inp.onkeydown = e => {
+    if (e.key !== 'Enter') return;
+    for (const c of [...inp.value].filter(c => /[㐀-鿿]/.test(c))) {
+      if (r.entries.some(x => x.comp === c)) continue;
+      const rec = codes[c];
+      const code = rec && rec.code ? finalOf(rec.code).toUpperCase() : '';
+      r.entries.push({ comp: c, alias: [c], code,
+        short: code.length > 1 ? code[0] + code[code.length - 1] : code, ok: [], no: '' });
+    }
+    inp.value = ''; touch(); render();
+  };
+  add.append(inp);
+  wrap.append(add);
+
+  if (!r.entries.length) {
+    wrap.append(Object.assign(el('div', 'sc-drop'), { textContent: '還沒加偏旁。' }));
+    box.append(wrap); return;
+  }
+
+  /* 碰撞要跨偏旁一起算 —— 魚跟馬的左簡碼都是 SM，只看單一家族會漏掉。
+     這幾份是改一個碼就要重算的，所以包成 recompute()，不是算一次就算了。 */
+  let occupied, byCode, fams;
+  const clashOf = (ch, c) => [...(occupied.get((c || '').toLowerCase()) || [])].filter(x => x !== ch);
+  const dupOf = (ch, c) => (byCode.get(c) || []).filter(x => x !== ch);
+  const recompute = () => {
+    occupied = occupiedCodes();
+    byCode = new Map();
+    fams = new Map();
+    for (const en of r.entries) {
+      const fam = lsFamily(en);
+      fams.set(en.comp, fam);
+      for (const ch of fam) {
+        const c = lsCodeOf(ch, en);
+        if (!c) continue;
+        if (!byCode.has(c)) byCode.set(c, []);
+        byCode.get(c).push(ch);
+      }
+    }
+  };
+  recompute();
+
+  const summary = el('div', 'sc-stats');
+  wrap.append(summary);
+
+  const tbl = el('table', 'lstbl');
+  tbl.innerHTML = '<thead><tr><th>偏旁</th><th>別體</th><th>單獨成字</th><th>作偏旁時</th>' +
+    '<th>左簡碼</th><th>家族</th><th>碰撞</th><th>例</th><th></th></tr></thead>';
+  const tb = el('tbody');
+  /* 每列記住自己的「家族」「碰撞」兩格，改碼時只換這兩格的文字 —— 絕對不能整頁
+     render()，那會把正在打字的 input 換掉、游標飛走（跟約定簡碼那張表同一個坑）。 */
+  const famCells = [], clashCells = [];
+  const refresh = () => {
+    recompute();
+    let totFam = 0, totExt = 0, totDup = 0;
+    r.entries.forEach((en, i) => {
+      const fam = fams.get(en.comp) || [];
+      totFam += fam.length;
+      const ext = fam.filter(ch => clashOf(ch, lsCodeOf(ch, en)).length);
+      const dup = fam.filter(ch => dupOf(ch, lsCodeOf(ch, en)).length);
+      totExt += ext.length; totDup += dup.length;
+      if (famCells[i]) famCells[i].textContent = String(fam.length);
+      const cell = clashCells[i];
+      if (!cell) return;
+      if (!fam.length) cell.innerHTML = '<span class="muted">—</span>';
+      else if (!ext.length && !dup.length) cell.innerHTML = '<span class="ok">乾淨</span>';
+      else cell.innerHTML = '<span class="bad">' +
+        [ext.length ? `撞既有 ${ext.slice(0, 3).join('')}` : '',
+         dup.length ? `互撞 ${dup.slice(0, 3).join('')}` : ''].filter(Boolean).join('　') + '</span>';
+    });
+    summary.innerHTML = `共 <b>${r.entries.length}</b> 個偏旁　帶動 <b>${totFam}</b> 字　` +
+      `撞到既有碼 <span class="warn-n">${totExt}</span> 字　` +
+      `左簡碼之間自己撞 <span class="warn-n">${totDup}</span> 字`;
+    /* 展開中的家族清單會跟著過期，收掉比留著錯的好 */
+    for (const d of [...tb.querySelectorAll('.ls-detail')]) d.remove();
+    drawExamples();
+  };
+
+  r.entries.forEach((en, i) => {
+    const fam = fams.get(en.comp) || [];
+    const tr = el('tr');
+
+    const t1 = el('td'); t1.className = 'ls-gc'; t1.textContent = en.comp; tr.append(t1);
+
+    const t2 = el('td');
+    const al = el('input', 'ls-alias');
+    al.value = (en.alias || []).filter(a => a !== en.comp).join('');
+    al.placeholder = '—';
+    al.title = '這個偏旁在部件拆分裡的另一種寫法（金→釒、食→飠）。空著＝跟左邊一樣';
+    al.oninput = () => {
+      const extra = [...al.value].filter(c => /[㐀-鿿]/.test(c));
+      en.alias = [en.comp, ...extra]; touch(); refresh();   /* 別體會改變家族 */
+    };
+    t2.append(al); tr.append(t2);
+
+    const t3 = el('td');
+    const own = codes[en.comp] && codes[en.comp].code ? finalOf(codes[en.comp].code).toUpperCase() : '';
+    t3.innerHTML = own ? `<code>${own}</code>` : '<span class="muted">未取碼</span>';
+    t3.title = '條件四：偏旁單獨成字時不套左簡碼，一律用這個碼';
+    tr.append(t3);
+
+    const t4 = el('td');
+    const ci = el('input', 'ls-code'); ci.value = en.code || ''; ci.placeholder = '—';
+    ci.title = '這個偏旁出現在左邊時取的碼（飠 AEG 就跟單獨的食 AEK 不一樣）';
+    ci.oninput = () => { en.code = ci.value.toUpperCase().replace(/[^A-Z]/g, '');
+                         ci.value = en.code; touch(); refresh(); };
+    t4.append(ci); tr.append(t4);
+
+    const t5 = el('td');
+    const si = el('input', 'ls-code'); si.value = en.short || ''; si.placeholder = '—';
+    si.title = '偏旁碼的首尾兩碼';
+    si.oninput = () => { en.short = si.value.toUpperCase().replace(/[^A-Z]/g, '');
+                         si.value = en.short; touch(); refresh(); };
+    t5.append(si); tr.append(t5);
+
+    const t6 = el('td');
+    const fl = el('span', 'ls-fam', String(fam.length));
+    fl.title = '點開看整個家族跟各自的左簡碼';
+    fl.onclick = () => {
+      const nx = tr.nextSibling;
+      if (nx && nx.classList && nx.classList.contains('ls-detail')) { nx.remove(); return; }
+      const now = fams.get(en.comp) || [];      /* 改過碼就重算過了，用當下的 */
+      const dtr = el('tr', 'ls-detail');
+      const td = el('td'); td.colSpan = 9;
+      td.innerHTML = now.length
+        ? now.map(ch => {
+            const c = lsCodeOf(ch, en);
+            const bad = clashOf(ch, c).length || dupOf(ch, c).length;
+            return `${ch} <b${bad ? ' style="color:var(--bad)"' : ''}>${c}</b>`;
+          }).join('　')
+        : '（沒有字符合 —— 檢查「作偏旁時」的碼對不對）';
+      dtr.append(td);
+      tr.after(dtr);
+    };
+    famCells[i] = fl;
+    t6.append(fl); tr.append(t6);
+
+    const t7 = el('td');
+    clashCells[i] = t7;
+    tr.append(t7);
+
+    /* 例：合格的幾個 ＋ 一個不適用的。不適用那個是重點 —— 它跟合格的字碼前綴
+       一模一樣，光看碼分不出來，只有「在不在左邊」能分。 */
+    const t8 = el('td'); t8.className = 'ls-eg';
+    const okTxt = (en.ok || []).join('');
+    t8.innerHTML = okTxt + (en.no ? ` <span class="no">✗${en.no}</span>` : '');
+    if (en.no && codes[en.no]) t8.title =
+      `${en.no}：${(ids[en.no] || '')} —— 偏旁不在最左邊，所以不適用（碼 ${finalOf(codes[en.no].code).toUpperCase()} 一樣是 ${en.code} 開頭）`;
+    tr.append(t8);
+
+    const t9 = el('td');
+    const x = el('span', 'mv', '✕');
+    x.onclick = () => { if (confirm(`刪除偏旁「${en.comp}」？`)) {
+      r.entries.splice(i, 1); touch(); render(); } };
+    t9.append(x); tr.append(t9);
+    tb.append(tr);
+  });
+  tbl.append(tb);
+  wrap.append(tbl);
+  box.append(wrap);
+  refresh();     /* 總覽、家族數、碰撞欄、範例都由這裡填第一次 */
+}
+
+async function save() {
+  $('#status').textContent = '儲存中…';
+  const res = await RulesIO.save(data, stamp, MINE);
+  if (!res.ok) { $('#status').textContent = '儲存失敗'; return; }
+  stamp = res.stamp;
+  dirty = false;
+  $('#status').className = 'saved';
+  if (res.merged) {
+    data = res.data; render();
+    $('#status').textContent = '已儲存 ✓（取碼原則頁也改過，已合併）';
+  } else {
+    $('#status').textContent = '已儲存 ✓';
+  }
+}
+$('#save').onclick = save;
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+});
+setInterval(() => { if (dirty) save(); }, 15000);
+window.onbeforeunload = e => { if (dirty) return e.returnValue = '有未儲存的修改'; };
+
+/* 碰撞統計要對照碼表，所以這一頁也要讀碼表（唯讀，不寫） */
+let codes = {}, freqOrder = [], charfreq = {}, ids = {};
+const finalOf = code => Zigen.shorten(code, data && data.rules &&
+  data.rules.find(r => r.id === 'max_code_length' && r.enabled && r.kind === 'enforced'));
+
+Promise.all([fetch('/api/rules').then(r => r.json()),
+             fetch('/api/state').then(r => r.json()),
+             fetch('/api/codes').then(r => r.json()).catch(() => ({})),
+             fetch('/api/freq').then(r => r.json()).catch(() => ({ order: [] })),
+             fetch('/api/charfreq').then(r => r.json()).catch(() => ({})),
+             fetch('/api/ids').then(r => r.json()).catch(() => ({}))])
+  .then(([d, s, c, f, cf, idsData]) => {
+    data = d; stamp = s.rules; codes = c; freqOrder = f.order || []; charfreq = cf; ids = idsData; render();
+  });
+</script>
+</body>
+</html>

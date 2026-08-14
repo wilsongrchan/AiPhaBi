@@ -375,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._page("annotate.html")
         if u.path == "/rules":
             return self._page("rules.html")
+        if u.path == "/short":
+            return self._page("shortcodes.html")   # 簡碼：約定簡碼／三簡碼／左簡碼
         if u.path == "/stats":
             return self._page("stats.html")
         if u.path == "/type":
