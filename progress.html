@@ -149,8 +149,8 @@
 
   <div class="legend" id="chartlegend"></div>
   <div class="card" id="chartcard">
-    <div class="plabel"><span>累計取碼</span><span class="r" id="cumr"></span></div>
-    <div class="plabel" style="margin-top:12px"><span>每天新增</span><span class="r">依取碼提交</span></div>
+    <div class="plabel"><span>累計取碼（疊加）</span><span class="r" id="cumr"></span></div>
+    <div class="plabel" style="margin-top:12px"><span>每天新增（疊加）</span><span class="r">依取碼提交</span></div>
     <figure><svg id="chart" viewBox="0 0 820 470" role="img" aria-label="逐日累計取碼曲線與每日新增長條圖。"></svg></figure>
   </div>
 
@@ -171,7 +171,8 @@ const W=820,H=470,padL=48,padR=30,cumTop=54,cumBot=250,dTop=306,dZero=430;
 
 let PROG=null;
 
-/* 繁體／簡體／傳承／日本漢字／加總：同一組開關，同時控制下面的 tile 跟圖表要畫哪幾條線。 */
+/* 繁體／簡體／傳承／日本漢字：同一組開關，同時控制下面的 tile 跟圖上要疊哪幾條帶；
+   「加總」不是一條帶，只決定要不要在堆疊頂端描一條總計線。 */
 const CAT_KEY='aiphabi-progress-cats';
 let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true};
 try{Object.assign(catOn,JSON.parse(localStorage.getItem(CAT_KEY)||'{}'));}catch(e){}
@@ -189,32 +190,8 @@ fetch('/api/progress').then(r=>r.json()).then(d=>{PROG=d; render();}).catch(e=>{
 });
 function render(){ if(PROG) draw(PROG); }
 
-/* 某天累計到那天為止的某類別數：sum＝目前勾選類別的精確聯集（trad∩simp 用 inter 扣，
-   jp 因為結構上一定落在 inherited 裡，inherited 開的話就不再另外加 jp，避免重複算）。*/
-function catValue(day,key){
-  if(key!=='sum') return day[key];
-  let v=0;
-  if(catOn.trad) v+=day.trad;
-  if(catOn.simp) v+=day.simp;
-  if(catOn.trad&&catOn.simp) v-=day.inter;
-  if(catOn.inherited) v+=day.inherited;
-  if(catOn.jp&&!catOn.inherited) v+=day.jp;
-  return v;
-}
-/* 目前（含尚未提交）的某類別數：sum 用真的字集合取聯集（Set 天然去重），
-   跟 tile 上「加總」那顆數字保證一致。 */
-function catNow(data,key){
-  if(key==='trad') return data.tradChars.length;
-  if(key==='simp') return data.totalSimp;
-  if(key==='inherited') return data.inheritedChars.length;
-  if(key==='jp') return data.totalJp;
-  const u=new Set();
-  if(catOn.trad) data.tradChars.forEach(c=>u.add(c));
-  if(catOn.simp) data.simpChars.forEach(c=>u.add(c));
-  if(catOn.inherited) data.inheritedChars.forEach(c=>u.add(c));
-  if(catOn.jp) data.jpChars.forEach(c=>u.add(c));
-  return u.size;
-}
+/* 舊的 catValue()／catNow() 拿掉了：那是折線圖時代用來算「勾選類別的聯集」的。
+   改成疊加區域圖之後，聯集是堆疊本身的高度，由 bandVal() 保證各帶互斥。 */
 
 /* 圖表正上方的小開關列：跟下面的 tile 是同一組 catOn 狀態，兩邊點哪個都同步。
    顏色 swatch 直接對應圖上線的顏色，一眼就知道哪條線是哪個類別。 */
@@ -224,7 +201,7 @@ function renderLegend(){
   defs.forEach(c=>{
     const b=document.createElement('button');
     b.className=(catOn[c.key]?'on':'')+(c.key==='sum'?' sumbtn':'');
-    b.title=c.key==='sum'?'目前勾選類別的聯集':(CATDESC[c.key]||'');
+    b.title=c.key==='sum'?'在堆疊頂端加一條總計線（堆疊高度本來就是加總）':(CATDESC[c.key]||'');
     b.innerHTML=`<i class="sw" style="background:${c.col}"></i>${c.name}`;
     b.onclick=()=>{catOn[c.key]=!catOn[c.key];saveCats();render();};
     box.appendChild(b);
@@ -244,26 +221,54 @@ function draw(data){
   const first=days[0].date, d0=new Date(first);
   const off=ds=>Math.round((new Date(ds)-d0)/864e5);
 
-  const seriesDefs=CATDEF.filter(c=>catOn[c.key]);
-  if(catOn.sum) seriesDefs.push({key:'sum',name:'加總',col:'var(--sum)'});
-  if(!seriesDefs.length){
-    $('#chartcard').innerHTML='<div class="msg">下面請至少勾選一個類別（繁體／簡體／傳承／日本漢字／加總）。</div>';
+  /* 疊加區域圖：一個類別一條「帶」，帶的厚度＝那個類別的字數，堆起來的頂端＝加總。
+     帶一定要互斥，不然會重複算高度：trad∩simp（inter）與 jp⊂inherited 都得先扣掉。
+     扣的方式跟 catValue() 的聯集邏輯逐項對齊，所以任何開關組合下，堆疊頂端都等於
+     「加總」那個數字：
+       繁體  trad - inter（只有簡體也開著時才扣，不然 inter 該算在繁體裡）
+       簡體  simp（inter 已經在繁體那邊扣掉了，這裡收）
+       傳承  inherited - jp（只有日漢也開著時才扣，不然日漢該算在傳承裡）
+       日漢  jp
+     實際資料裡 inter 一直是 0（沒有同時是簡體專屬又有繁簡對照的字），但照樣扣，
+     免得哪天出現一個就悄悄多算一層。 */
+  const STACK=['inherited','jp','trad','simp'];   /* 由下往上疊 */
+  const bandVal=(d,k)=>
+      k==='trad'      ? d.trad - (catOn.simp?d.inter:0)
+    : k==='simp'      ? d.simp
+    : k==='inherited' ? d.inherited - (catOn.jp?d.jp:0)
+    :                   d.jp;
+  const defOf=Object.fromEntries(CATDEF.map(c=>[c.key,c]));
+  const keys=STACK.filter(k=>catOn[k]);
+  if(!keys.length){
+    $('#chartcard').innerHTML='<div class="msg">下面請至少勾選一個類別（繁體／簡體／傳承／日本漢字）。</div>';
     renderCats(data); return;
   }
-  const built=seriesDefs.map(s=>{
-    const pts=days.map((p,i)=>{
-      const cum=catValue(p,s.key);
-      return {x:off(p.date),date:p.date,label:p.date.slice(5),cum,
-        add:i===0?cum:cum-catValue(days[i-1],s.key)};
-    });
-    const nowVal=catNow(data,s.key), lastCum=pts[pts.length-1].cum, unc=nowVal-lastCum;
-    if(unc>0) pts.push({x:pts[pts.length-1].x+1,date:'現在',label:'現在',cum:nowVal,add:unc,now:true});
-    return {...s, pts};
+  /* 「現在」那一格（含還沒提交的）：湊成跟 days 一樣的形狀，就能共用 bandVal。
+     inter 現算：兩個字集合的交集大小。 */
+  const simpNow=new Set(data.simpChars||[]);
+  const nowDay={trad:(data.tradChars||[]).length, simp:data.totalSimp,
+    inherited:(data.inheritedChars||[]).length, jp:data.totalJp,
+    inter:(data.tradChars||[]).filter(c=>simpNow.has(c)).length};
+  const lastDay=days[days.length-1];
+  const uncommitted=STACK.some(k=>bandVal(nowDay,k)!==bandVal(lastDay,k));
+  const rows=days.map((d,i)=>{
+    const prev=i?days[i-1]:null;
+    const vals={},adds={};
+    for(const k of keys){ vals[k]=bandVal(d,k); adds[k]=prev?vals[k]-bandVal(prev,k):vals[k]; }
+    return {x:off(d.date),date:d.date,label:d.date.slice(5),vals,adds,
+            total:keys.reduce((s,k)=>s+vals[k],0)};
   });
-  const allpts=built.flatMap(b=>b.pts);
-  const dayMax=Math.max(1,...allpts.map(p=>p.x));
-  const cumMax=Math.max(200,Math.ceil(Math.max(...allpts.map(p=>p.cum))/300)*300);
-  const addMax=Math.max(100,Math.ceil(Math.max(...allpts.map(p=>p.add),1)/100)*100);
+  if(uncommitted){
+    const prev=lastDay, vals={},adds={};
+    for(const k of keys){ vals[k]=bandVal(nowDay,k); adds[k]=vals[k]-bandVal(prev,k); }
+    rows.push({x:rows[rows.length-1].x+1,date:'現在',label:'現在',vals,adds,now:true,
+               total:keys.reduce((s,k)=>s+vals[k],0)});
+  }
+  const dayMax=Math.max(1,...rows.map(p=>p.x));
+  const cumMax=Math.max(200,Math.ceil(Math.max(...rows.map(p=>p.total))/300)*300);
+  const addMax=Math.max(100,Math.ceil(Math.max(1,...rows.flatMap(p=>
+    [keys.reduce((s,k)=>s+Math.max(0,p.adds[k]),0),
+     -keys.reduce((s,k)=>s+Math.min(0,p.adds[k]),0)]))/100)*100);
   const x=v=>padL+v/dayMax*(W-padL-padR);
   const yc=v=>cumBot-v/cumMax*(cumBot-cumTop);
   const yd=v=>dZero-v/addMax*(dZero-dTop);
@@ -287,52 +292,90 @@ function draw(data){
   for(let i=0;i<=3;i++){const v=Math.round(cumMax*i/3);
     svg.appendChild(mk('line',{x1:padL,y1:yc(v),x2:W-padR,y2:yc(v),class:'grid-line'}));
     const t=mk('text',{x:padL-8,y:yc(v)+4,'text-anchor':'end',class:'tick'});t.textContent=v;svg.appendChild(t);}
-  // 累計：每條系列一條線（只有一條時才加面積）
-  const single=built.length===1;
-  built.forEach(b=>{
-    const solid=b.pts.filter(p=>!p.now), nowP=b.pts.find(p=>p.now);
-    if(single){
-      let aD=`M ${x(solid[0].x)} ${cumBot} `; solid.forEach(p=>aD+=`L ${x(p.x)} ${yc(p.cum)} `);
-      if(nowP)aD+=`L ${x(nowP.x)} ${yc(nowP.cum)} `;
-      aD+=`L ${x(b.pts[b.pts.length-1].x)} ${cumBot} Z`;
-      svg.appendChild(mk('path',{d:aD,fill:b.col,'fill-opacity':.11}));
+  // 累計：疊加區域。先算出每條帶的上下緣（下緣＝前面所有帶的和）
+  const upper={},lower={};
+  {
+    let acc=rows.map(()=>0);
+    for(const k of keys){
+      lower[k]=acc.slice();
+      acc=acc.map((v,i)=>v+rows[i].vals[k]);
+      upper[k]=acc.slice();
     }
-    svg.appendChild(mk('path',{d:'M '+solid.map(p=>`${x(p.x)} ${yc(p.cum)}`).join(' L '),
-      fill:'none',stroke:b.col,'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'}));
-    if(nowP){const a=solid[solid.length-1];
-      svg.appendChild(mk('path',{d:`M ${x(a.x)} ${yc(a.cum)} L ${x(nowP.x)} ${yc(nowP.cum)}`,
-        fill:'none',stroke:b.col,'stroke-width':2.5,'stroke-dasharray':'5 4','stroke-opacity':.8}));}
+  }
+  const edge=arr=>rows.map((p,i)=>`${x(p.x)} ${yc(arr[i])}`).join(' L ');
+  keys.forEach(k=>{
+    const col=defOf[k].col;
+    const back=rows.map((p,i)=>`${x(p.x)} ${yc(lower[k][i])}`).reverse().join(' L ');
+    svg.appendChild(mk('path',{d:`M ${edge(upper[k])} L ${back} Z`,
+      fill:col,'fill-opacity':.6}));
+    // 上緣描一條細線，兩條帶之間才分得開（相鄰顏色接近時特別需要）
+    svg.appendChild(mk('path',{d:'M '+edge(upper[k]),fill:'none',stroke:col,
+      'stroke-width':1.5,'stroke-linejoin':'round'}));
   });
-  // 每日新增：分組長條
+  // 「加總」不再是一條獨立的帶（堆疊頂端本來就是加總），改成頂端描一條線
+  if(catOn.sum)
+    svg.appendChild(mk('path',{d:'M '+rows.map(p=>`${x(p.x)} ${yc(p.total)}`).join(' L '),
+      fill:'none',stroke:'var(--sum)','stroke-width':2.5,'stroke-linejoin':'round',
+      'stroke-linecap':'round','stroke-opacity':.85}));
+  // 還沒提交的那一格：畫一條虛線分隔，右邊那段是工作區現況、不是 git 歷史
+  if(uncommitted){
+    const bx=x(rows[rows.length-2].x);
+    svg.appendChild(mk('line',{x1:bx,y1:cumTop,x2:bx,y2:dZero,stroke:'var(--faint)',
+      'stroke-width':1,'stroke-dasharray':'4 4'}));
+  }
+  {
+    const last=rows[rows.length-1];
+    svg.appendChild(mk('circle',{cx:x(last.x),cy:yc(last.total),r:5,
+      fill:'var(--sum)',stroke:'var(--card)','stroke-width':2}));
+  }
+  // 每日新增：同樣疊起來（正的往上疊、負的往下疊——改碼可能讓某類別當天變少）
   svg.appendChild(mk('line',{x1:padL,y1:dZero,x2:W-padR,y2:dZero,class:'zero-line'}));
-  const n=built.length, slot=Math.min(20,(W-padL-padR)/(dayMax+2)), bw=Math.max(3,(slot-2)/n);
-  built.forEach((b,si)=>b.pts.forEach(p=>{
-    const cx=x(p.x)+(si-(n-1)/2)*bw, top=p.add>=0?yd(p.add):dZero, h=Math.max(2,Math.abs(yd(p.add)-dZero));
-    svg.appendChild(mk('rect',{x:cx-bw/2,y:top,width:bw,height:h,rx:Math.min(3,bw/2),
-      fill:b.col,'fill-opacity':p.now?.5:(p.add<0?.4:.9)}));
-  }));
+  const slot=Math.min(20,(W-padL-padR)/(dayMax+2)), bw=Math.max(3,slot-3);
+  rows.forEach(p=>{
+    let up=0,dn=0;
+    for(const k of keys){
+      const v=p.adds[k]; if(!v) continue;
+      const col=defOf[k].col;
+      if(v>0){
+        svg.appendChild(mk('rect',{x:x(p.x)-bw/2,y:yd(up+v),width:bw,
+          height:Math.max(1,yd(up)-yd(up+v)),rx:1,fill:col,'fill-opacity':p.now?.5:.9}));
+        up+=v;
+      }else{
+        svg.appendChild(mk('rect',{x:x(p.x)-bw/2,y:yd(dn),width:bw,
+          height:Math.max(1,yd(dn+v)-yd(dn)),rx:1,fill:col,'fill-opacity':.4}));
+        dn+=v;
+      }
+    }
+  });
   // 日期軸：只畫間隔夠開的標籤（避免重疊）；一定保留最後一個（現在）。
-  (()=>{const pts=built[0].pts, MIN=46, endX=x(pts[pts.length-1].x); let lastX=-1e9;
-    pts.forEach((p,i)=>{const px=x(p.x), isEnd=i===pts.length-1;
+  (()=>{const MIN=46, endX=x(rows[rows.length-1].x); let lastX=-1e9;
+    rows.forEach((p,i)=>{const px=x(p.x), isEnd=i===rows.length-1;
       if(isEnd || (px-lastX>=MIN && endX-px>=MIN)){
         const t=mk('text',{x:px,y:dZero+22,'text-anchor':'middle',class:'xtick'});
         t.textContent=p.label;svg.appendChild(t);lastX=px;}});})();
   const cross=mk('line',{y1:cumTop,y2:dZero,class:'cross'});svg.appendChild(cross);
-  built.forEach(b=>b.pts.forEach((p,i)=>{const last=i===b.pts.length-1;
-    svg.appendChild(mk('circle',{cx:x(p.x),cy:yc(p.cum),r:last?5:3.5,
-      fill:last?b.col:'var(--card)',stroke:b.col,'stroke-width':2}));}));
 
-  // hover：一次顯示所有可見系列
-  const tip=$('#tip'), xs=built[0].pts.map(p=>p.x);
+  // hover：由上往下列出各帶，最後給堆疊頂端的加總
+  const tip=$('#tip'), xs=rows.map(p=>p.x);
   function show(ev){const cx=ev.clientX ?? ev.touches[0].clientX, cy=ev.clientY ?? ev.touches[0].clientY;
     const r=svg.getBoundingClientRect(), sx=(cx-r.left)/r.width*W, dq=(sx-padL)/(W-padL-padR)*dayMax;
     let xx=xs[0],bd=1e9;for(const q of xs){const dd=Math.abs(q-dq);if(dd<bd){bd=dd;xx=q;}}
     cross.setAttribute('x1',x(xx));cross.setAttribute('x2',x(xx));cross.classList.add('on');
-    const ref=built[0].pts.find(p=>p.x===xx);
-    let html=`<div class="td">${ref&&ref.now?'現在（未提交）':'2026-'+(ref?ref.date.slice(5):'')}</div>`;
-    for(const b of built){const p=b.pts.find(q=>q.x===xx); if(!p)continue;
-      html+=`<div class="row"><span class="lab"><i style="background:${b.col}"></i>${b.name}</span>`+
-        `<span class="val">${p.cum.toLocaleString()} <small style="color:var(--muted)">${p.add>=0?'+':''}${p.add}</small></span></div>`;}
+    const p=rows.find(q=>q.x===xx);
+    let html=`<div class="td">${p&&p.now?'現在（未提交）':'2026-'+(p?p.date.slice(5):'')}</div>`;
+    if(p){
+      /* 由上往下講，跟圖上的堆疊順序一致。傳承字那條在日漢也開著時是「扣掉日漢」
+         之後的厚度，跟下面的 tile（傳承字全額）差 11 字，所以標題直接寫清楚。 */
+      for(const k of [...keys].reverse()){
+        const c=defOf[k], v=p.vals[k], a=p.adds[k];
+        const nm=(k==='inherited'&&catOn.jp)?'傳承字（不含日漢）':c.name;
+        html+=`<div class="row"><span class="lab"><i style="background:${c.col}"></i>${nm}</span>`+
+          `<span class="val">${v.toLocaleString()} <small style="color:var(--muted)">${a>=0?'+':''}${a}</small></span></div>`;
+      }
+      const ta=keys.reduce((s,k)=>s+p.adds[k],0);
+      html+=`<div class="row"><span class="lab"><i style="background:var(--sum)"></i>加總</span>`+
+        `<span class="val">${p.total.toLocaleString()} <small style="color:var(--muted)">${ta>=0?'+':''}${ta}</small></span></div>`;
+    }
     tip.innerHTML=html; tip.classList.add('on');
     const tw=tip.offsetWidth,th=tip.offsetHeight;let l=cx+16,t=cy-th-10;
     if(l+tw>innerWidth-8)l=cx-tw-16; if(t<8)t=cy+18; tip.style.left=l+'px';tip.style.top=t+'px';}
