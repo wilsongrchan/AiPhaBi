@@ -20,6 +20,7 @@ Linux 是 ibus/fcitx5-rime、iOS 有 Hamster。給它一份 schema + 一份碼�
 """
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -835,6 +836,25 @@ Weasel／fcitx5-rime 多半內建）：
 > 若沒有 librime-lua，碼表照樣能打字，只是這些智慧候選（打繁出簡／打簡出繁／同類字／偏旁碼／輸入容錯／萬用鍵）不會出現。
 """
     (OUT / "README.md").write_text(readme, encoding="utf-8")
+
+    # 開關要「記得住」，靠的是 default.custom.yaml 的 switcher/save_options：不在那張清單裡的
+    # 開關，Rime 不會把使用者切的狀態寫回 user.yaml，於是切個 app、切一次英文再回來，就變回
+    # 預設值。新增開關時很容易只改 schema、忘了這張清單（aiphabi_left_short 就這樣漏過一次，
+    # 症狀是「開了又自己關掉」，看起來像 bug 其實是沒存），所以這裡每次建置都自動對一遍。
+    # 注意這個檔 --install 不會覆蓋（保留使用者自己的設定），所以漏掉時除了改 repo 這份，
+    # 還要手動補 ~/Library/Rime/default.custom.yaml，否則裝了也沒用。
+    def _switch_names(path):
+        if not path.exists():
+            return set()
+        return set(re.findall(r"^\s*-\s*name:\s*([A-Za-z_]\w*)", path.read_text("utf-8"), re.M))
+
+    declared = _switch_names(OUT / "aiphabi.schema.yaml") | _switch_names(OUT / "aiphabi_plus.schema.yaml")
+    custom = OUT / "default.custom.yaml"
+    if custom.exists():
+        saved = set(re.findall(r"^\s*-\s*([a-z_]\w*)\s*$", custom.read_text("utf-8"), re.M))
+        for name in sorted(declared - saved):
+            print(f"  ⚠ 開關 {name} 不在 rime/default.custom.yaml 的 switcher/save_options"
+                  f" —— 使用者切了不會記得（切 app／切英文回來就變回預設）")
 
     if leftshort:
         print(f"左簡碼 {sum(len(v) for v in leftshort.values())} 字 → {len(leftshort)} 個碼"

@@ -523,10 +523,23 @@ Reads `data/codes.json` + `data/rules.json` + `data/freq.json` + `data/phrases_*
   `char2code`, `code2chars`, `shortcode` / `shortcode_rev`, `short3`, `si4` (四碼快打),
   `freq` (single-char), `wordfreq` (multi-char, essay-calibrated), etc.
 - **`rime/aiphabi.schema.yaml`** — regenerated every build, so its switch list stays in sync.
-  ⚠️ **`rime/aiphabi_plus.schema.yaml` is NOT generated** — `build_rime.py` only *copies* it on
-  `--install` (`if (OUT / "aiphabi_plus.schema.yaml").exists()`). It is hand-maintained, so
-  **every new switch must be added there by hand** or the 二合一 schema silently lacks the toggle
-  while the pure one has it. (`aiphabi_left_short` was added by hand for this reason.)
+
+#### ⚠️ A new switch has THREE homes — miss one and it half-works
+
+Learned the hard way with `aiphabi_left_short`, which shipped missing #3 and looked like a bug:
+
+| # | File | Generated? | Miss it and… |
+|---|---|---|---|
+| 1 | `rime/aiphabi.schema.yaml` | ✅ by `build_rime.py` | the toggle doesn't exist in pure 愛發筆 |
+| 2 | `rime/aiphabi_plus.schema.yaml` | ❌ **hand-maintained** — `--install` only *copies* it | the toggle silently exists in pure but not in 二合一 |
+| 3 | `rime/default.custom.yaml` → `switcher/save_options` | ❌ hand-maintained, **and `--install` never overwrites an existing one** | **the toggle works but is never remembered** — Rime won't write it to `user.yaml`, so switching app or toggling to English and back reverts it to default. Looks exactly like a broken feature. |
+
+`build_rime.py` now **checks #3 automatically** and prints a `⚠ 開關 … 不在 …save_options` line for
+any switch declared in either schema but absent from the save list. It cannot fix it for you.
+
+Because `--install` preserves an existing `~/Library/Rime/default.custom.yaml`, fixing the repo
+copy is **not enough** — the installed copy needs the same edit by hand, or the user keeps the
+broken behaviour. Check with `diff rime/default.custom.yaml ~/Library/Rime/default.custom.yaml`.
 
 `--install` also copies everything into `~/Library/Rime/`. `./sync.sh "<msg>"` =
 `build_rime.py --install` → `Squirrel --reload` → git commit/push. **Deploy is `./sync.sh`,
