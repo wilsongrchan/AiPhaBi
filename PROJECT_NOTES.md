@@ -522,7 +522,11 @@ Reads `data/codes.json` + `data/rules.json` + `data/freq.json` + `data/phrases_*
 - **`rime/lua/aiphabi_data.lua`** — a big Lua table (`require("aiphabi_data")`) the filters read:
   `char2code`, `code2chars`, `shortcode` / `shortcode_rev`, `short3`, `si4` (四碼快打),
   `freq` (single-char), `wordfreq` (multi-char, essay-calibrated), etc.
-- The two **schema files** (regenerated so switch lists / phrase toggle stay in sync).
+- **`rime/aiphabi.schema.yaml`** — regenerated every build, so its switch list stays in sync.
+  ⚠️ **`rime/aiphabi_plus.schema.yaml` is NOT generated** — `build_rime.py` only *copies* it on
+  `--install` (`if (OUT / "aiphabi_plus.schema.yaml").exists()`). It is hand-maintained, so
+  **every new switch must be added there by hand** or the 二合一 schema silently lacks the toggle
+  while the pure one has it. (`aiphabi_left_short` was added by hand for this reason.)
 
 `--install` also copies everything into `~/Library/Rime/`. `./sync.sh "<msg>"` =
 `build_rime.py --install` → `Squirrel --reload` → git commit/push. **Deploy is `./sync.sh`,
@@ -573,6 +577,47 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
 
+### Candidate comment convention (what the bar writes next to a candidate)
+
+One rule, and every hint follows it — `refMark()` in `aiphabi_hint.lua` is the single place that
+formats the bracketed form:
+
+| Form | Means | Example |
+|---|---|---|
+| `標籤 (碼)` — **round brackets** | the bracketed code is that character's **主碼**, shown for reference. The label says *how you got here* | type `JKQ` → 我 `簡碼 (JKXQ)`; type `IF` → 主 `兼容 (QE)` |
+| `標籤 碼` — **no brackets** | a code you could **type instead**, shorter than what you just typed | type `JKXQ` → 我 `簡碼 JKQ` |
+| `[ 碼 ]` — **square brackets** | a 容錯 guess (`aiphabi_fuzzy` only) — deliberately distinct so a guess can never read as a reference | type `JKQ` → 不 `[ JQ ]` |
+
+The label never repeats the word 主碼: the brackets already mean that, so the label slot is spent
+on the route instead (簡碼 / 三簡 / 左簡 / 偏旁碼 / 同類 / 兼容). `- XX` is the odd one out and
+means "these keys still to press" — actionable, hence no brackets.
+
+### Testing the candidate bar offline
+
+`tests/` runs the **real** filter files against the **real** generated `aiphabi_data.lua`, with
+librime's `Candidate` / `yield` / `env.engine.context` / `input:iter()` stubbed out:
+
+```bash
+LUA_PATH="./tests/?.lua;;" ~/.local/bin/lua tests/run_tests.lua
+~/.local/bin/luac -p rime/lua/*.lua          # syntax check — catches a missing `end`
+```
+
+Lua is **not** installed system-wide on this Mac and there is no Homebrew; the binary at
+`~/.local/bin/lua` was built from source (`make macosx`). If it's missing, rebuild it there —
+nothing in the repo depends on its location except the command above.
+
+- **Run it before and after touching `aiphabi_hint.lua` / either order filter.** A broken filter
+  does not crash Rime — librime-lua logs and moves on, so the only symptom is "ordering went
+  weird", which is easy to miss.
+- The harness **models `uniquifier`** (last in the schema's filter chain). It has to: the 約定簡碼
+  branch deliberately ignores `seen` so it can promote a character to first place, so the same
+  character legitimately appears twice before `uniquifier` collapses it. Test the post-uniquifier
+  view, or you assert on something the user never sees.
+- **It cannot test** Rime's own dict lookup or `enable_sentence` segmentation — those inputs are
+  supplied by hand in each test case. So it proves *"given these candidates, we rank them thus"*,
+  not *"typing X produces exactly this bar"*. Typing is still the end-to-end check.
+- When an ordering bug turns up, **add the failing case first**, watch it fail, then fix.
+
 ---
 
 ## Quickcode conventions (the JKXQ example)
@@ -586,8 +631,23 @@ capped at 5 (first 4 + last). On top of that are four *optional, opt-in* conveni
 | **主碼** | full derivable code | zigen in stroke order, cap 5 | always on | **JKXQ** |
 | **簡碼** | hand-picked shortcut for ~60 common chars | 首+末 (occasionally 首2+末), by designer discretion | `aiphabi_short100` | **JKQ** |
 | **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1 — **you type just those 3 keys**, no wildcard (`aiphabi_hint.lua` gates on `#code == 3`; the effect equals `AB` + `` ` `` + `C`, but `` ` `` is never pressed) | `aiphabi_short3` | (n/a, 我 is short) |
-| **左簡碼** | 8 curated 偏旁; when one sits on the far left, it contributes only 首+末 | 偏旁 2 codes + remainder, then the usual cap | **not implemented yet** (Side B) | (n/a, 我 has no such 偏旁) |
+| **左簡碼** | 8 curated 偏旁; when one sits on the far left, it contributes only 首+末 | 偏旁 2 codes + remainder, then the usual cap | `aiphabi_left_short` (default off) | (n/a, 我 has no such 偏旁) |
 | **詞組連打** | phrases = each char's 簡碼(or主碼) concatenated | see phrase rules below | `aiphabi_phrase` | 我的 = JKQJA |
+
+**左簡碼 shipped notes** (Side B, `build_rime.py` + `aiphabi_hint.lua`): codes are computed live
+from `codes.json` — the `members` list stores characters only, never codes, so a re-coded character
+can't leave a stale shortcut behind. Three things worth knowing:
+- **Only 97 of the 249 family characters actually save a keystroke.** Once the remainder exceeds
+  3 codes, the cap squeezes both paths to 5 (鐵 主碼 `YFVFQ` vs 左簡碼 `YVFOQ`) — that's condition 6
+  and the cap agreeing, exactly as `over_cap_note` says. The forward lookup covers all 249, but the
+  **reverse hint fires only for the 97 that genuinely shorten**; whispering an equal-length code
+  would be telling the user to memorise nothing.
+- **It never enters the dict** — lua-only (`M.leftshort`). That is what makes condition 5
+  ("不可疊加三簡碼") true *structurally*: `short3` is derived from `code2chars`, so if 左簡碼 isn't
+  in the code table, no 三簡碼 can be built on top of one.
+- **Partial codes need their own completion table** (`M.leftshort_pre`, ≥3 codes). Main codes get
+  completion free from `enable_completion`; a lua-only code gets nothing, so typing `SMB` for 鯉
+  (`SMBF`) silently produced no candidate at all until the prefix table existed.
 
 **The JKXQ / JKQ story — the core design principle in one example:**
 - 我 main code = **JKXQ** (fully derivable from its zigen).
@@ -725,7 +785,9 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   order filters); the last known ordering work shipped at commit `9ffed24`.
 
 ### Not started / open
-- No formal test harness for candidate ordering (regressions found by manual typing).
+- ~~No formal test harness for candidate ordering~~ — **done**, see *Testing the candidate bar
+  offline* below. Coverage is still thin (left-short, the hint marks, one 簡碼 case); widen it
+  as ordering bugs surface, by adding the failing case first.
 - Wubi/Boshiamy重碼率 numbers for the comparison tool are unmeasured (proprietary/methodology).
 - Design-philosophy blurb exists as prose (not shipped as a page); decided *not* to name competitors
   for the 無理碼 point ("don't want to pick fights").
