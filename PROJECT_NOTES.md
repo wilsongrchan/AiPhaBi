@@ -70,6 +70,32 @@ marker is ever flipped.
 They are **git worktrees of one repository**, so there is a single `.git` and both sides' commits
 are visible from either folder immediately — no fetch needed to run `git log side-b`.
 
+> **Worktrees share history, not files.** Each folder has its own working tree: a file edited (or
+> created) in `AiPhaBi` does **not** appear in `AiPhaBi-B` until it is committed there and the
+> commit is merged across. `build_rime.py` reads `DATA = ROOT / "data"` relative to *its own*
+> folder (`build_rime.py:29-30`), so Side B always builds from **`AiPhaBi-B/data/`** — never from
+> Side A's copy. An uncommitted edit in the Side A folder is invisible to the build.
+
+#### Getting an edit from one folder to the other
+
+Because the `.git` is shared, this needs **no push and no network**:
+
+```bash
+# in the Side A folder — commit the change
+git commit -am "[rebuild] 詞庫：新增 …"
+
+# in the Side B folder — pick it up straight from the local branch
+cd ../AiPhaBi-B && git merge main
+```
+
+Pushing to `origin` is still worth doing for backup and for other machines, but it is not part of
+the handoff between these two folders.
+
+**`data/phrases_*.txt` is Side B's file — the simplest fix is to edit it in the Side B folder.**
+Then no transfer is needed at all: Side B edits, builds, and deploys from one working tree. Editing
+phrases in the Side A folder works, but it costs a commit and a merge before the build can see it,
+and it crosses the ownership line for no gain.
+
 **Why Side B is on `side-b` and not `main`:** git refuses to check out one branch in two worktrees
 (`fatal: 'main' is already used by worktree at ...`). So Side B gets its own branch. To keep the
 "everything lands on `main`" workflow intact, `side-b` **tracks `origin/main`** and the repo sets
@@ -222,6 +248,7 @@ Real examples:
 |---|---|
 | `data/codes.json` | ✅ **yes** |
 | `data/rules.json` (incl. `short_code`) | ✅ **yes** |
+| `data/phrases_*.txt` | ✅ **yes** — globbed at `build_rime.py:335`, they become dictionary entries |
 | `data/charfreq.json`, `data/dual_use_merged.json` | ✅ yes (rare) |
 | `data/zigen.json` | ❌ **no — not a build input** |
 | `PROJECT_NOTES.md`, `server.py`, the HTML tools | ❌ no |
