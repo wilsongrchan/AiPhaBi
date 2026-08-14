@@ -3,7 +3,7 @@
 # 完整碼一律接受；alts 是手動收的兼容碼。
 ---
 name: aiphabi
-version: "2026.08.13"
+version: "2026.08.14"
 sort: by_weight
 columns:
   - text
@@ -206,6 +206,7 @@ columns:
 怨	azw	100108367
 日	b	101059877
 曰	b	100097002
+㠯	b	100090460
 时	ba	100092134
 曬	baarc	100117936
 曬	baarhcc	100117936
@@ -4277,8 +4278,6 @@ columns:
 禧	qmfovo	100096408
 祿	qmgk	100097690
 祺	qmhev	100095871
-福	qmioot	100199314
-福	qmiot	100199314
 祎	qmip	100091836
 祕	qmjlq	100108554
 祕	qmjlqjq	100108554
@@ -4286,6 +4285,7 @@ columns:
 礼	qml	100091837
 祝	qmojl	100098344
 禪	qmoobt	100097713
+福	qmoot	100199314
 禪	qmoot	100097713
 禍	qmouo	100148201
 祁	qmp	100097066
@@ -5011,6 +5011,7 @@ columns:
 卓	tbt	100178026
 桌	tbt	100098475
 棵	tbt	100097324
+龺	tbt	100090446
 朝	tbtd	100119222
 韓	tbtdh	100258711
 韓	tbtdoh	100258711
@@ -8711,7 +8712,7 @@ columns:
 鄧麗君	ajropiaarcejo	12000
 鄧不利多	ajropjqjtnaa	12000
 鄧小平	ajropmivt	12000
-鄧福如	ajropqmiotljo	12000
+鄧福如	ajropqmootljo	12000
 鄧紫棋	ajroptlcgmthev	12000
 鄧肯	ajroptld	12000
 鄧倫	ajropyah	12000
@@ -13185,8 +13186,8 @@ columns:
 加入到	cjojrgfn	1162
 加入到	cjojrgn	1162
 加入了	cjojrp	7873
-加利福尼亞	cjojtnqmiotrcihi	12000
-加利福尼亞州	cjojtnqmiotrcihinnn	12000
+加利福尼亞	cjojtnqmootrcihi	12000
+加利福尼亞州	cjojtnqmootrcihinnn	12000
 加利福尼亞	cjojtnqmtrcihi	12000
 加利福尼亞州	cjojtnqmtrcihinnn	12000
 加德滿都	cjojytmwwhmyyfjbp	12000
@@ -22049,12 +22050,12 @@ columns:
 報價單	fvfpxyhdvoobt	907
 報價	fvfpxyhv	7037
 報仇	fvfpxyjz	1997
-幸福	fvfqmiot	17267
-幸福的	fvfqmiotja	2967
-幸福的	fvfqmiotjba	2967
-幸福生活	fvfqmiotjhiwjto	1022
-幸福感	fvfqmiotroxqw	2370
-幸福感	fvfqmiotrw	2370
+幸福	fvfqmoot	17267
+幸福的	fvfqmootja	2967
+幸福的	fvfqmootjba	2967
+幸福生活	fvfqmootjhiwjto	1022
+幸福感	fvfqmootroxqw	2370
+幸福感	fvfqmootrw	2370
 幸福	fvfqmt	17267
 幸福的	fvfqmtja	2967
 幸福生活	fvfqmtjhiwjo	1022
@@ -26987,7 +26988,7 @@ columns:
 斯巴達	hevrtdlfvfz	1401
 斯琴高娃	hevrteeajiouoljff	12000
 斯坦	hevrtfbi	1303
-斯坦福	hevrtfbiqmiot	2304
+斯坦福	hevrtfbiqmoot	2304
 斯塔默	hevrtfhaovfmkq	12000
 斯堪地那維亞	hevrtfhevlfplcijpgmyifihi	12000
 斯堪地那維亞	hevrtfhevlfplcpgmyifihi	12000
@@ -34684,7 +34685,7 @@ columns:
 誰也	iofpl	3574
 誰也不	iofpljq	1385
 誰家	iofqk	1716
-託福	iofqmiot	4146
+託福	iofqmoot	4146
 託福	iofqmt	4146
 講完	iofquijl	1753
 誰家	iofqujk	1716
@@ -35234,7 +35235,7 @@ columns:
 可喜	iojfoo	974
 可喜	iojfovo	974
 事都	iojfp	1316
-託福	iojfqmiot	4146
+託福	iojfqmoot	4146
 託福	iojfqmt	4146
 託尼	iojfrc	2573
 許願	iojfrjbmv	1070
@@ -46913,7 +46914,7 @@ columns:
 造船	jfozjuino	1008
 造船	jfozjuo	1008
 造了	jfozp	1102
-造福	jfozqmiot	1047
+造福	jfozqmoot	1047
 造福	jfozqmt	1047
 造成	jfozrcxq	46076
 造成了	jfozrcxqp	8227
@@ -46960,7 +46961,7 @@ columns:
 造船	jfzjuino	1008
 造船	jfzjuo	1008
 造了	jfzp	1102
-造福	jfzqmiot	1047
+造福	jfzqmoot	1047
 造福	jfzqmt	1047
 造成	jfzrcxq	46076
 造成	jfzrq	46076
@@ -48889,7 +48890,7 @@ columns:
 很喜歡	jkfovohooyy	10558
 很遠	jkfoz	2822
 很熱	jkfvfam	1271
-很幸福	jkfvfqmiot	1290
+很幸福	jkfvfqmoot	1290
 很幸福	jkfvfqmt	1290
 很幸運	jkfvfubtz	1592
 很幸運	jkfvfubz	1592
@@ -55100,7 +55101,7 @@ columns:
 衛生部	jydojjhiivop	1554
 衛生間	jydojjhippb	4602
 衛生院	jydojjhipqujl	1042
-衛生福利部	jydojjhiqmiotjtnivop	12000
+衛生福利部	jydojjhiqmootjtnivop	12000
 衛生局	jydojjhirco	1082
 衛生巾	jydojjhiuj	922
 衛兵	jydojjkv	897
@@ -55109,8 +55110,8 @@ columns:
 衛隊	jydojpvjk	918
 衛隊	jydojpvk	918
 衛視	jydojqmdjl	1444
-衛福部	jydojqmiotivop	12000
 衛視	jydojqml	1444
+衛福部	jydojqmootivop	12000
 衛浴	jydojwvo	1092
 衛浴	jydojwvyo	1092
 往外	jyeaq	1768
@@ -55187,7 +55188,7 @@ columns:
 很喜歡	jyekfovohooyy	10558
 很遠	jyekfoz	2822
 很熱	jyekfvfam	1271
-很幸福	jyekfvfqmiot	1290
+很幸福	jyekfvfqmoot	1290
 很幸運	jyekfvfubtz	1592
 很熱	jyekfvm	1271
 很能	jyekgc	1004
@@ -58420,7 +58421,7 @@ columns:
 攢了	kjfjvp	929
 攢錢	kjfjvyfq	1450
 攢錢	kjfjvyfvxq	1450
-托福	kjfqmiot	4146
+托福	kjfqmoot	4146
 托福	kjfqmt	4146
 托馬斯	kjfshmhet	12000
 托馬斯	kjfshmhevrt	12000
@@ -62575,7 +62576,7 @@ columns:
 羅納爾多	mgmyfgmuyvmxxxaa	1241
 羅斯	mgmyfhet	3327
 羅斯	mgmyfhevrt	3327
-羅斯福	mgmyfhevrtqmiot	868
+羅斯福	mgmyfhevrtqmoot	868
 羅輯	mgmyfibe	1654
 羅輯	mgmyfibtoe	1654
 羅文	mgmyfix	12000
@@ -63905,7 +63906,7 @@ columns:
 性情	mjfmfd	1445
 性別	mjfosn	6307
 性子	mjfpi	1101
-性福	mjfqmiot	867
+性福	mjfqmoot	867
 性福	mjfqmt	867
 性感	mjfroxqw	4687
 性質	mjfrtrtv	17270
@@ -66276,7 +66277,7 @@ columns:
 唸叨	oajwop	1337
 唸佛	oajwysn	934
 哈里	oaobf	12000
-哈里遜福特	oaobfpjgmzqmiotjhfa	12000
+哈里遜福特	oaobfpjgmzqmootjhfa	12000
 哈里遜福特	oaobfpjzqmtjha	12000
 哈維	oaogmf	12000
 哈維	oaogmyif	12000
@@ -73665,7 +73666,7 @@ columns:
 家的	qkjba	8405
 永動機	qkjbfcjtggjq	948
 永樂	qkjbggt	12000
-家樂福	qkjbggtqmiot	12000
+家樂福	qkjbggtqmoot	12000
 永動機	qkjbjtgq	948
 永樂	qkjbt	12000
 家樂福	qkjbtqmt	12000
@@ -74322,7 +74323,7 @@ columns:
 社會中	qmfabq	2048
 社會主義	qmfabqevejkq	6320
 社會主義	qmfabqeveq	6320
-社會福利	qmfabqmiotjtn	936
+社會福利	qmfabqmootjtn	936
 社會福利	qmfabqmtjtn	936
 社會實踐	qmfabqvotlxq	976
 社會實踐	qmfabqvotq	976
@@ -74360,7 +74361,7 @@ columns:
 社會問題	qmfavbppobfyjv	1338
 社會中	qmfavbq	2048
 社會主義	qmfavbqevejkq	6320
-社會福利	qmfavbqmiotjtn	936
+社會福利	qmfavbqmootjtn	936
 社會實踐	qmfavbquotvotlxq	976
 社會公衆	qmfavbvgjmyjk	958
 社會治安	qmfavbwgoqulj	1089
@@ -74464,41 +74465,6 @@ columns:
 市工商局	qmijiivorco	919
 市工商局	qmijiivuvorco	919
 市裏	qmik	1190
-福氣	qmiotazt	1334
-福氣	qmiotazvt	1334
-福臨	qmiotcko	12000
-福臨	qmiotckyoo	12000
-福建	qmiotehz	12000
-福建省	qmiotehzmjdi	12000
-福斯	qmiothet	12000
-福斯	qmiothevrt	12000
-福井	qmiotin	12000
-福井縣	qmiotindlmjm	12000
-福音	qmiotivb	1846
-福特	qmiotjha	12000
-福特	qmiotjhfa	12000
-福島	qmiotjsew	12000
-福島縣	qmiotjsewdlmjm	12000
-福島	qmiotjsw	12000
-福利	qmiotjtn	11788
-福利待遇	qmiotjtnjyfabugz	1168
-福利彩票	qmiotjtnwteihem	924
-福娃	qmiotljf	1014
-福娃	qmiotljff	1014
-福州	qmiotnnn	12000
-福州市	qmiotnnnqm	1020
-福田	qmiotot	1446
-福田區	qmiototcooo	948
-福田康夫	qmiototrekiiy	12000
-福祉	qmiotqml	922
-福祉	qmiotqmtl	922
-福克斯	qmiottojlhevrt	2228
-福岡	qmiotuvw	12000
-福岡縣	qmiotuvwdlmjm	12000
-福爾摩斯	qmiotvmxxxrttjjhevrt	12000
-福山雅治	qmiotwfjyifwgo	12000
-福彩	qmiotwte	998
-福布斯	qmiotxmhevrt	934
 祕籍	qmjaab	1819
 祕籍	qmjaaitb	1819
 神氣	qmjazt	874
@@ -74626,7 +74592,7 @@ columns:
 視圖	qmlooo	1930
 視界	qmlotn	1314
 視界	qmlotvn	1314
-祝福	qmlqmiot	6054
+祝福	qmlqmoot	6054
 祝福	qmlqmt	6054
 祝福你	qmlqmtym	1047
 視察	qmlqudzm	1710
@@ -74664,9 +74630,9 @@ columns:
 祝大家	qmojliyqujk	3307
 祝好	qmojlli	1188
 祝好	qmojlljpi	1188
-祝福	qmojlqmiot	6054
-祝福你	qmojlqmiotym	1047
-祝福你	qmojlqmiotysm	1047
+祝福	qmojlqmoot	6054
+祝福你	qmojlqmootym	1047
+祝福你	qmojlqmootysm	1047
 祝福	qmojlqmt	6054
 祝願	qmojlrjbmv	1727
 祝願	qmojlrjv	1727
@@ -74675,7 +74641,42 @@ columns:
 祝你	qmojlysm	2445
 祝您	qmojlysmw	931
 祝您	qmojlysw	931
+福氣	qmootazt	1334
+福氣	qmootazvt	1334
+福臨	qmootcko	12000
+福臨	qmootckyoo	12000
+福建	qmootehz	12000
+福建省	qmootehzmjdi	12000
+福斯	qmoothet	12000
+福斯	qmoothevrt	12000
+福井	qmootin	12000
+福井縣	qmootindlmjm	12000
+福音	qmootivb	1846
 禪師	qmootjbm	922
+福特	qmootjha	12000
+福特	qmootjhfa	12000
+福島	qmootjsew	12000
+福島縣	qmootjsewdlmjm	12000
+福島	qmootjsw	12000
+福利	qmootjtn	11788
+福利待遇	qmootjtnjyfabugz	1168
+福利彩票	qmootjtnwteihem	924
+福娃	qmootljf	1014
+福娃	qmootljff	1014
+福州	qmootnnn	12000
+福州市	qmootnnnqm	1020
+福田	qmootot	1446
+福田區	qmoototcooo	948
+福田康夫	qmoototrekiiy	12000
+福祉	qmootqml	922
+福祉	qmootqmtl	922
+福克斯	qmoottojlhevrt	2228
+福岡	qmootuvw	12000
+福岡縣	qmootuvwdlmjm	12000
+福爾摩斯	qmootvmxxxrttjjhevrt	12000
+福山雅治	qmootwfjyifwgo	12000
+福彩	qmootwte	998
+福布斯	qmootxmhevrt	934
 禍害	qmoqueo	1191
 禍害	qmoquo	1191
 禍害	qmouoqueo	1191
@@ -74690,7 +74691,7 @@ columns:
 祈求	qmrtikq	1040
 祈禱	qmrtqma	2081
 祈禱	qmrtqmfja	2081
-祈福	qmrtqmiot	1005
+祈福	qmrtqmoot	1005
 祈福	qmrtqmt	1005
 福氣	qmtazt	1334
 福氣	qmtazvt	1334
@@ -74722,8 +74723,8 @@ columns:
 福田康夫	qmtotrekiiy	12000
 祈禱	qmtqma	2081
 祈禱	qmtqmfja	2081
-祈福	qmtqmiot	1005
 福祉	qmtqml	922
+祈福	qmtqmoot	1005
 祈福	qmtqmt	1005
 福祉	qmtqmtl	922
 中小板	qmtrx	1044
@@ -75504,7 +75505,7 @@ columns:
 塞席爾	quhvfrhmvmxxx	12000
 塞內加爾	quhvfuycjovmxxx	12000
 塞翁失馬	quhvfvgciijiyshm	12000
-塞翁失馬焉知非福	quhvfvgciijiyshmflsmykojeeqmiot	12000
+塞翁失馬焉知非福	quhvfvgciijiyshmflsmykojeeqmoot	12000
 塞爾達	quhvfvmxxxfvfz	3299
 塞爾維亞	quhvfvmxxxgmyifihi	12000
 塞尚	quhvfwuo	12000
@@ -75893,7 +75894,7 @@ columns:
 家產	qujkixrjf	889
 家的	qujkja	8405
 家的	qujkjba	8405
-家樂福	qujkjbggtqmiot	12000
+家樂福	qujkjbggtqmoot	12000
 穿插	qujkje	2606
 穿插	qujkjtfe	2606
 家裝	qujkkfijk	1400
@@ -85249,7 +85250,7 @@ columns:
 柯文哲	tojixkro	12000
 柯文哲	tojixkrto	12000
 克里斯	tojlbfhevrt	1262
-克里斯多福諾蘭	tojlbfhevrtaaqmiotiohjohpptv	12000
+克里斯多福諾蘭	tojlbfhevrtaaqmootiohjohpptv	12000
 克里斯普瑞特	tojlbfhevrtvnvbewjmjhfa	12000
 克里斯漢斯沃	tojlbfhevrtwhoiyhevrtwjk	12000
 克里斯汀	tojlbfhevrtwj	12000
@@ -92435,7 +92436,7 @@ columns:
 法蘭西共和國	wfghpptvihihvjtoooxq	12000
 法蘭西共和國	wfghpptvihihvjtooq	12000
 法蘭克	wfghpptvtojl	12000
-法蘭克福	wfghpptvtojlqmiot	12000
+法蘭克福	wfghpptvtojlqmoot	12000
 法蘭	wfghpv	935
 法蘭西	wfghpvihi	12000
 法蘭西共和國	wfghpvihihvjtooq	12000
