@@ -568,7 +568,7 @@ capped at 5 (first 4 + last). On top of that are three *optional, opt-in* conven
 |---|---|---|---|---|
 | **主碼** | full derivable code | zigen in stroke order, cap 5 | always on | **JKXQ** |
 | **簡碼** | hand-picked shortcut for ~60 common chars | 首+末 (occasionally 首2+末), by designer discretion | `aiphabi_short100` | **JKQ** |
-| **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1, queried as `AB` + `` ` `` + `C` | `aiphabi_short3` | (n/a, 我 is short) |
+| **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1 — **you type just those 3 keys**, no wildcard (`aiphabi_hint.lua` gates on `#code == 3`; the effect equals `AB` + `` ` `` + `C`, but `` ` `` is never pressed) | `aiphabi_short3` | (n/a, 我 is short) |
 | **詞組連打** | phrases = each char's 簡碼(or主碼) concatenated | see phrase rules below | `aiphabi_phrase` | 我的 = JKQJA |
 
 **The JKXQ / JKQ story — the core design principle in one example:**
