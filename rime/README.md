@@ -68,7 +68,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `xq` → 戈叉弋处
 * `b` → 日曰㠯
 * `cj` → 力刀尸
-* `cl` → 已乜巳
+* `cl` → 已巳乜
 * `ekz` → 退逮逯
 * `ihe` → 形堊垔
 * `ihi` → 西亞酉
@@ -80,7 +80,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `jbm` → 師帥帛
 * `jf` → 午壬乇
 * `jtn` → 利禿秃
-* `kf` → 壯扞壮
+* `kf` → 壯壮扞
 * `krto` → 哲掂据
 * `krx` → 版披扳
 * `myif` → 惟雀帷
