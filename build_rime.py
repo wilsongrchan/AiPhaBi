@@ -244,27 +244,37 @@ def main():
             if not ccode or not cshort:
                 continue
             for ch in entry.get("members", []):
-                full = (codes.get(ch) or {}).get("code")
-                # 名單是照核可當時的碼收的。哪個字後來改了碼、偏旁前綴對不上，就跳過
-                # 並報出來——默默生一個錯的左簡碼，比少收一個字糟糕得多。
-                if not full or not full.startswith(ccode):
+                rec = codes.get(ch) or {}
+                full = rec.get("code")
+                # alts（手動收的兼容碼）在主碼表裡是完整公民（見上面 per_char），左簡碼
+                # 不能只認主碼——同一個字常常主碼、alts 各有一條前綴對得上偏旁的碼，
+                # 兩條都該有自己的左簡碼（回報：左簡碼_alts未涵蓋.md，9 字曾被漏掉）。
+                candidates = [full] if full else []
+                candidates += [a.get("code") for a in rec.get("alts", []) if a.get("code")]
+                # 名單是照核可當時的碼收的。哪個字後來改了碼、主碼跟每條 alts 全都對不上
+                # 偏旁前綴，就跳過並報出來——默默生一個錯的左簡碼，比少收一個字糟糕得多。
+                matched = False
+                for full_c in candidates:
+                    if not full_c.startswith(ccode):
+                        continue
+                    matched = True
+                    rest = full_c[len(ccode):]
+                    if len(rest) > 3:   # 條件六：剩下仍多於三碼 → 首二＋末一（結果與碼長上限一致）
+                        rest = rest[0] + rest[1] + rest[-1]
+                    sig = (cshort + rest).lower()
+                    if ch not in leftshort[sig]:
+                        leftshort[sig].append(ch)
+                    # 反查（打完整碼時提醒「其實有左簡碼」）只收「真的少打幾碼」的字。
+                    # 剩餘超過三碼時，左簡碼跟主碼一樣被壓成五碼（鐵 主碼 YFVFQ、左簡碼
+                    # YVFOQ，都是五碼）——這種提醒等於叫人多記一條沒省到的碼，是雜訊。
+                    # 正查（M.leftshort）照收全部：打得出來就是多一條路，不礙事。
+                    # 主碼、alts 各算各的長度差；先收（主碼優先，candidates 順序）的贏，
+                    # 跟正查的去重同一套 setdefault。一個字若主碼跟 alts 剛好對到不同
+                    # 偏旁家族（掃過的名單目前沒有這種情況），反查只指主碼那一條。
+                    if len(sig) < len(shorten(full_c, max_rule)):
+                        leftshort_rev.setdefault(ch, sig)
+                if not matched:
                     leftshort_skipped.append((entry.get("comp"), ch, full or "（未取碼）"))
-                    continue
-                rest = full[len(ccode):]
-                if len(rest) > 3:       # 條件六：剩下仍多於三碼 → 首二＋末一（結果與碼長上限一致）
-                    rest = rest[0] + rest[1] + rest[-1]
-                sig = (cshort + rest).lower()
-                if ch not in leftshort[sig]:
-                    leftshort[sig].append(ch)
-                # 反查（打完整碼時提醒「其實有左簡碼」）只收「真的少打幾碼」的字。
-                # 剩餘超過三碼時，左簡碼跟主碼一樣被壓成五碼（鐵 主碼 YFVFQ、左簡碼
-                # YVFOQ，都是五碼）——這種提醒等於叫人多記一條沒省到的碼，是雜訊。
-                # 249 個家族字裡有 152 個是這種，只有 97 個真的短。
-                # 正查（M.leftshort）照收全部 249：打得出來就是多一條路，不礙事。
-                # 一個字只會屬於一個偏旁家族（偏旁在最左邊，只有一個位置），所以
-                # 反查一定是一對一。真的重複收了，先收的贏，跟正查的去重同一套。
-                if len(sig) < len(shorten(full, max_rule)):
-                    leftshort_rev.setdefault(ch, sig)
 
     # 左簡碼的「還沒打完」：主碼靠碼表的 enable_completion 自動補全，左簡碼只活在 Lua
     # 表裡，沒有那套 —— 不補的話打 SMB 會整個沒反應（鯉 的左簡碼是 SMBF），使用者會
