@@ -402,6 +402,32 @@ machine where the edits didn't exist, so `add`/`commit`/`push` all "succeeded" w
 the annotation tool had written them on the *other* machine. Check `git log origin/main` actually
 moved before assuming a commit landed.
 
+**`./commit_annotation.sh --build` carries it through the rebuild too** — commit → `pull --rebase`
+→ push → *then*, **in the Side-B worktree**, `git pull` and that folder's own `./sync.sh`. The build
+never runs from Side A; if no `B`-marked worktree is found it stops and says so rather than falling
+back (that fallback is exactly the `a18d9fd` incident above). It also refuses to build when Side B's
+tree is dirty, because `sync.sh` is `git add -A` and would sweep up unfinished work there.
+
+**Use `--build` rather than running `./sync.sh` by hand.** Both produce the same table, but
+`sync.sh` alone commits with its default message, so the deploy carries no `[rebuilt]` prefix and
+the "is anything waiting?" query starts reporting already-built commits as pending. This happened on
+2026-08-14: two hand-run deploys left five `[rebuild]`s looking unbuilt. It self-heals — the next
+`--build` walks back to the last `[rebuilt]`, lists everything since, and resets the marker
+(`34351ee` did exactly that, listing all six) — but the window in between is misleading.
+
+The everyday commands, for a machine where the folders are `~/Desktop/Wilson Personal/Coding/`:
+
+```bash
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-A && python3 server.py              # 開站
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-A && ./commit_annotation.sh         # 只送出取碼
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-A && ./commit_annotation.sh --build # 送出＋重建 IME
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-B && git pull && ./sync.sh          # 只重建（不加 [rebuilt]）
+```
+
+The `Wilson*` glob is deliberate: the path contains a space, and quoting it invites the smart-quote
+paste failure — a `”` copied from a notes app leaves the shell at a `dquote>` prompt, silently
+swallowing every following line, so nothing runs at all and it looks like git did nothing.
+
 `PROJECT_NOTES.md` is shared: **each session edits only its own half** (Side A owns § A and this
 ownership section; Side B owns § B). If a change spans both, whoever makes it says so in the commit
 message so the other session re-reads before its next edit.
@@ -515,7 +541,7 @@ The routes, as actually wired in `server.py` `do_GET` (~L353):
 | `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite. **The 簡碼 rules are hidden here** — they render on `/short` |
 | `/short` | `shortcodes.html` | 簡碼 | 約定簡碼 / 三簡碼 / 左簡碼. Same `rules.json`, different page: 取碼原則 is "how does this character break apart", 簡碼 is "having broken it, how do you type fewer keys" |
 | `/type` | `type.html` | 試打 | actually type with AiPhaBi |
-| `/progress` | `progress.html` | 取碼進度 | daily cumulative coding curve **+ 官方字表覆蓋率** (see below) |
+| `/progress` | `progress.html` | 取碼進度 | **官方字表覆蓋率** (collapsible; see below) + a stacked-area cumulative chart by 繁體/簡體/傳承/日本漢字. The bands are made disjoint before stacking (`trad−inter`, `inherited−jp`, each only when the overlapping category is also shown), so the stack top equals the union for every toggle combination — 日本漢字 is a *subset* of 傳承字, and a naive stack double-counts it |
 
 Data APIs: `GET /api/{zigen,codes,rules,learned,freq,progress,state,…}`;
 `PUT /api/{zigen,codes,rules,learned}` to write.
@@ -819,8 +845,8 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ 5253 characters coded (`codes.json`, 2026-08-14). Against the official lists (see
-  *取碼目標：官方字表*): **教育部常用國字 3995 / 4808 = 83.1%**, **GB 2312 3598 / 6763 = 53.2%**.
+- ✅ 5432 characters coded (`codes.json`, end of 2026-08-14). Against the official lists (see
+  *取碼目標：官方字表*): **教育部常用國字 4169 / 4808 = 86.7%**, **GB 2312 3730 / 6763 = 55.2%**.
   Quote those, not the raw total.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
@@ -828,11 +854,13 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 - ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
 - ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
   collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
-- 🔄 Ongoing: keep coding toward the two official lists — 813 left for 教育部常用國字, 3165 for
-  GB 2312 (2553 of those have no already-coded traditional counterpart, so GB 2312 is the far
-  larger job). `data/todo_chars.txt` is the older frequency-ordered queue and its header counts
-  are stale; `/progress` is now the authority. Also: refine tiers/groups; `kind:"manual"` rules
-  not yet enforced.
+- 🔄 Ongoing: keep coding toward the two official lists — 639 left for 教育部常用國字, 3033 for
+  GB 2312 (most of those have no already-coded traditional counterpart, so GB 2312 is the far
+  larger job). The `/annotate` 未取碼 queue sorts by those tables directly (**國字表 / GB表**,
+  replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so working top-down *is*
+  working down the official list. `data/todo_chars.txt` is the older frequency-ordered queue and
+  its header counts are stale; `/progress` is the authority. Also: refine tiers/groups;
+  `kind:"manual"` rules not yet enforced.
 - ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
 
 ### B · User side
