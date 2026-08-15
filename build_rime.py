@@ -462,6 +462,12 @@ def main():
                 _seen.add(_w); _out.append(_w)
         si4[_c] = _out[:24]
     print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
+    # 反向提醒表只留最常用的一批：這只是「順便教你有捷徑」的提示，不是查得到查不到
+    # 的問題（M.si4 本身沒有這個上限）——生僻詞反正很少人會真的打整串主碼串接去打，
+    # 提醒的價值也低，不值得為了它們把整份 Lua 檔案撐大（手機 LuaJIT 常數表有上限，
+    # 之前 M.wordfreq 塞太大就整個炸過一次）。
+    SI4_REV_TOPN = 3000
+    si4_rev = dict(sorted(si4_rev.items(), key=lambda kv: -phrase_w.get(kv[0], 0))[:SI4_REV_TOPN])
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
