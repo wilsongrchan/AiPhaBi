@@ -22,6 +22,8 @@
 -- 只有「還沒打完」的補全（打 SMB → 鯉 鯤）才標 ap_pool 墊底。
 -- 也因為是一字一碼，跟約定簡碼一樣有反向提醒：打了完整碼，
 -- 就附「左簡 XX」教你下次可以少打幾碼（三簡碼一簽名多字，講不出這句，所以沒有）。
+-- 四碼快打也比照辦理：打完整串主碼串接打出一個有四碼可打的詞（先發制人…），
+-- 附「四碼 XXXX」——這個是詞不是字，但一個詞對一個四碼（同一式），講得出來。
 -- 由 aiphabi_family / aiphabi_comp / aiphabi_t2s / aiphabi_s2t / aiphabi_no_simp / aiphabi_short100
 -- / aiphabi_short3 / aiphabi_left_short 各自獨立控制。
 local data = require("aiphabi_data")
@@ -248,6 +250,17 @@ local function filter(input, env)
       local lc = data.leftshort_rev[cand.text]
       if lc and lc ~= code then
         cand.comment = "左簡 " .. lc:upper()
+        return cand
+      end
+    end
+    -- 四碼提醒：跟簡碼／左簡碼同一套「教你少打幾碼」，但這次是詞不是字——打完
+    -- 整串主碼串接打出這個詞（3+ 字），這個詞剛好有四碼快打，就附「四碼 XXXX」。
+    -- 只講第一式（si4_rev 只存了「從頭打」那式），5+ 字詞另外那式（前三字+末字，
+    -- 用來消撞）不在這裡提，太模糊，打完整串的人不缺這個字的辨識度。
+    if phrase_on then
+      local sc = data.si4_rev[cand.text]
+      if sc and sc ~= code then
+        cand.comment = "四碼 " .. sc:upper()
         return cand
       end
     end

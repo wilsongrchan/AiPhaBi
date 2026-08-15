@@ -436,6 +436,7 @@ def main():
     #          外加 前三字+末字首碼（記得整句可精準定位，消 中國人民X 那種撞碼）＝解放軍 QOY+軍。
     # 撞碼的照詞頻排（常用在前），每碼上限收 24 個免爆。
     si4 = defaultdict(list)
+    si4_rev = {}   # 詞 -> 四碼（打完整主碼串接、打出這個詞時，提醒「其實有四碼可以打」）
     for _w, _wt in phrase_w.items():
         _chs = list(_w)
         if len(_chs) < 3 or any(_c not in char2code for _c in set(_chs[:4]) | {_chs[-1]}):
@@ -449,6 +450,8 @@ def main():
         else:  # 5+：前四字首碼 ＋ 前三字+末字首碼
             _codes4.append("".join(char2code[_c][0] for _c in _chs[:4]))
             _codes4.append("".join(char2code[_c][0] for _c in _chs[:3]) + char2code[_chs[-1]][0])
+        if _w not in si4_rev:
+            si4_rev[_w] = _codes4[0]          # 只講第一式（從頭打就行，最好記）
         for _c4 in _codes4:
             si4[_c4].append((_wt, _w))        # 完整四碼
             si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
@@ -564,9 +567,12 @@ def main():
     dl += ["}", "M.leftshort_rev = {"]  # 字 → 左簡碼（打完整碼時提醒「其實有左簡碼」；aiphabi_left_short 開關控制）
     for ch, sig in sorted(leftshort_rev.items()):
         dl.append(f'  [{lua_str(ch)}]={lua_str(sig)},')
-    dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼快打；aiphabi_si4 開關控制，依詞頻排）
+    dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼快打；aiphabi_phrase 開關控制，依詞頻排）
     for sig, ws in sorted(si4.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
+    dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整主碼串接打出這個詞時，提醒「其實有四碼可以打」）
+    for w, sig in sorted(si4_rev.items()):
+        dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
     #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
