@@ -2,6 +2,9 @@
 -- 順序固定成三層：
 --   1. 約定簡碼（type=ap_short）—— 認定過「就這個字」，永遠第一。
 --   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
+--      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
+--      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
+--      那個是猜的，留在第 3 層。）
 --   3. 其餘全部一池：補全、偏旁碼、同類、三簡、容錯（後四者都標 type=ap_pool）。
 --      這一池不分類別，一律照「本次開機選過幾次（降冪）→ 常用度（降冪）」排。
 --      例：打 W，心（偏旁碼）比一堆冷僻的三點水補全常用，就會排到它們前面。
@@ -114,6 +117,7 @@ local function filter(input, env)
       part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
+    elseif c.type == "ap_left" then exact[#exact + 1] = c  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = c
     else pool[#pool + 1] = { c = c } end                 -- 補全（沒中完整碼）也丟進池子

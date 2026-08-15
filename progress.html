@@ -8,20 +8,24 @@
   :root{
     --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a; --line:#e3ded4;
     --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
+    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17;
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb;
     --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26);
   }
   @media (prefers-color-scheme:dark){
     :root{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455; --line:#33312a;
       --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
+      --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc;
       --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
   }
   :root[data-theme="light"]{ --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a;
     --line:#e3ded4; --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
+    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17;
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb; --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26); }
   :root[data-theme="dark"]{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455;
     --line:#33312a; --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
+    --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc;
     --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c; --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
 
   *{box-sizing:border-box}
@@ -47,6 +51,8 @@
   .legend button .sw{width:11px;height:11px;border-radius:3px;display:inline-block;opacity:.3;transition:opacity .12s;}
   .legend button.on{color:var(--ink);border-color:currentColor;}
   .legend button.on .sw{opacity:1;}
+  #chartlegend{margin-top:0;}
+  #chartlegend button.sumbtn{font-weight:600;}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
     padding:clamp(14px,3vw,24px);}
@@ -63,6 +69,39 @@
   .tile .v{font-size:24px;color:var(--ink);line-height:1.1;}
   .tile .v small{font-size:12px;color:var(--muted);margin-left:4px;letter-spacing:0;}
   .tile.hl .v{color:var(--accent);}
+  .tile.off{opacity:.4;}
+  /* 官方字表覆蓋率：「取到哪裡算完成」用這個講，不是用碼表總字數 */
+  .std{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:16px 18px;margin:0 0 18px;}
+  .stdhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin:0 0 14px;cursor:pointer;user-select:none;}
+  .std h2{font-size:12px;letter-spacing:.14em;color:var(--muted);margin:0;font-weight:600;}
+  .stdhead .chev{font-size:11px;color:var(--faint);white-space:nowrap;}
+  .stdhead:hover .chev{color:var(--accent);}
+  /* 收合：只剩兩條長條，一個字都不留。整張卡片可點，點了就展開回來。 */
+  .std.collapsed{padding:11px 18px;cursor:pointer;}
+  .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot{display:none;}
+  .std.collapsed .strow{margin:0 0 6px;}
+  .std.collapsed .strow:last-child{margin-bottom:0;}
+  .std.collapsed .stbar{height:7px;}
+  .strow{margin:0 0 16px;}
+  .strow:last-child{margin-bottom:0;}
+  .sthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 7px;flex-wrap:wrap;}
+  .stname{font-size:14px;color:var(--ink);}
+  .stname small{color:var(--faint);font-size:11px;margin-left:7px;letter-spacing:0;}
+  .stnum{font-size:13px;color:var(--muted);white-space:nowrap;}
+  .stnum b{color:var(--accent);font-weight:600;font-size:16px;}
+  .stbar{height:9px;border-radius:5px;background:var(--grid);overflow:hidden;}
+  .stbar i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width .3s;}
+  .strow.b .stbar i{background:var(--s2);} .strow.b .stnum b{color:var(--s2);}
+  .stfoot{margin-top:7px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;}
+  .stfoot a{color:var(--s2);text-decoration:none;}
+  .stfoot a:hover{text-decoration:underline;}
+  .stdone{color:var(--s3);font-weight:600;}
+  .tile.off .v{color:var(--muted);}
+  .tile.sum{border-color:var(--accent);border-width:1.5px;}
+  .tile .view{font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:inline-block;}
+  .tile .view:hover{text-decoration:underline;}
 
   footer{color:var(--faint);font-size:12px;text-align:center;line-height:1.7;}
 
@@ -97,24 +136,21 @@
 </head>
 <body>
 <nav>
-  <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/type">試打</a><a href="/progress" class="on">取碼進度</a>
+  <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules">取碼原則</a><a href="/short">簡碼</a><a href="/type">試打</a><a href="/progress" class="on">取碼進度</a>
 </nav>
 <div class="wrap">
   <header>
     <div class="eyebrow">愛發筆 AiPhaBi · 取碼進度</div>
     <h1><span class="big num" id="total">—</span><span class="unit">字</span></h1>
     <p class="lede" id="lede">讀取中…</p>
-    <div class="legend" id="modeseg" aria-label="簡繁計法（點一下顯示／隱藏該曲線）">
-      <button data-mode="uniq" class="on" style="color:var(--accent)"
-        title="繁體與它的簡體 twin 視為同一個字（衡量真正進度）"><i class="sw" style="background:var(--accent)"></i>簡繁不另計</button>
-      <button data-mode="raw" class="on" style="color:var(--s2)"
-        title="繁體、簡體各算一個字（碼表原始字數）"><i class="sw" style="background:var(--s2)"></i>簡繁另計</button>
-    </div>
   </header>
 
+  <div id="stdcard"></div>
+
+  <div class="legend" id="chartlegend"></div>
   <div class="card" id="chartcard">
-    <div class="plabel"><span>累計取碼</span><span class="r" id="cumr"></span></div>
-    <div class="plabel" style="margin-top:12px"><span>每天新增</span><span class="r">依取碼提交</span></div>
+    <div class="plabel"><span>累計取碼（疊加）</span><span class="r" id="cumr"></span></div>
+    <div class="plabel" style="margin-top:12px"><span>每天新增（疊加）</span><span class="r">依取碼提交</span></div>
     <figure><svg id="chart" viewBox="0 0 820 470" role="img" aria-label="逐日累計取碼曲線與每日新增長條圖。"></svg></figure>
   </div>
 
@@ -134,52 +170,119 @@ const mk=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e
 const W=820,H=470,padL=48,padR=30,cumTop=54,cumBot=250,dTop=306,dZero=430;
 
 let PROG=null;
-const SHOW={uniq:true, raw:true};
-const SERIES=[
-  {key:'uniq', name:'不另計', col:'var(--accent)', c:'cumUniq', a:'addUniq', tot:'totalUniq'},
-  {key:'raw',  name:'另計',   col:'var(--s2)',     c:'cum',     a:'add',    tot:'total'},
+
+/* 繁體／簡體／傳承／日本漢字：同一組開關，同時控制下面的 tile 跟圖上要疊哪幾條帶；
+   「加總」不是一條帶，只決定要不要在堆疊頂端描一條總計線。 */
+const CAT_KEY='aiphabi-progress-cats';
+let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true};
+try{Object.assign(catOn,JSON.parse(localStorage.getItem(CAT_KEY)||'{}'));}catch(e){}
+function saveCats(){localStorage.setItem(CAT_KEY,JSON.stringify(catOn));}
+const CATDEF=[
+  {key:'trad',      name:'繁體字', col:'var(--accent)', s:'有對應簡體字，如 國魚雲'},
+  {key:'simp',      name:'簡體字', col:'var(--s2)',      s:'簡體專屬，如 国鸟'},
+  {key:'inherited', name:'傳承字', col:'var(--s3)',      s:'如人天后'},
+  {key:'jp',        name:'日本漢字', col:'var(--s4)',    s:'新字体／國字，如県駅鉄'},
 ];
+
 fetch('/api/progress').then(r=>r.json()).then(d=>{PROG=d; render();}).catch(e=>{
   $('#chartcard').innerHTML='<div class="msg">讀取進度失敗：'+e+'</div>';
   $('#lede').textContent='';
 });
-document.querySelectorAll('#modeseg button').forEach(b=>b.onclick=()=>{
-  const k=b.dataset.mode;
-  if(SHOW[k] && Object.values(SHOW).filter(Boolean).length===1) return;  // 至少留一條曲線
-  SHOW[k]=!SHOW[k]; b.classList.toggle('on',SHOW[k]); render();
-});
 function render(){ if(PROG) draw(PROG); }
 
+/* 舊的 catValue()／catNow() 拿掉了：那是折線圖時代用來算「勾選類別的聯集」的。
+   改成疊加區域圖之後，聯集是堆疊本身的高度，由 bandVal() 保證各帶互斥。 */
+
+/* 圖表正上方的小開關列：跟下面的 tile 是同一組 catOn 狀態，兩邊點哪個都同步。
+   顏色 swatch 直接對應圖上線的顏色，一眼就知道哪條線是哪個類別。 */
+function renderLegend(){
+  const box=$('#chartlegend'); box.innerHTML='';
+  const defs=[...CATDEF, {key:'sum',name:'加總',col:'var(--sum)'}];
+  defs.forEach(c=>{
+    const b=document.createElement('button');
+    b.className=(catOn[c.key]?'on':'')+(c.key==='sum'?' sumbtn':'');
+    b.title=c.key==='sum'?'在堆疊頂端加一條總計線（堆疊高度本來就是加總）':(CATDESC[c.key]||'');
+    b.innerHTML=`<i class="sw" style="background:${c.col}"></i>${c.name}`;
+    b.onclick=()=>{catOn[c.key]=!catOn[c.key];saveCats();render();};
+    box.appendChild(b);
+  });
+}
+
 function draw(data){
+  renderLegend();
+  renderStandards(data);
   const days=data.days||[];
   $('#total').textContent=data.totalUniq.toLocaleString();
   if(!days.length){
     $('#chartcard').innerHTML='<div class="msg">還沒有取碼提交紀錄。</div>';
-    $('#lede').textContent='目前已取碼 '+data.totalUniq.toLocaleString()+' 字。'; return;
+    $('#lede').textContent='目前已取碼 '+data.totalUniq.toLocaleString()+' 字。';
+    renderCats(data); return;
   }
   const first=days[0].date, d0=new Date(first);
   const off=ds=>Math.round((new Date(ds)-d0)/864e5);
-  const vis=SERIES.filter(s=>SHOW[s.key]);
-  const built=vis.map(s=>{
-    const pts=days.map(p=>({x:off(p.date),date:p.date,label:p.date.slice(5),cum:p[s.c],add:p[s.a]}));
-    const unc=data[s.tot]-pts[pts.length-1].cum;
-    if(unc>0) pts.push({x:pts[pts.length-1].x+1,date:'現在',label:'現在',cum:data[s.tot],add:unc,now:true});
-    return {...s, pts};
+
+  /* 疊加區域圖：一個類別一條「帶」，帶的厚度＝那個類別的字數，堆起來的頂端＝加總。
+     帶一定要互斥，不然會重複算高度：trad∩simp（inter）與 jp⊂inherited 都得先扣掉。
+     扣的方式跟 catValue() 的聯集邏輯逐項對齊，所以任何開關組合下，堆疊頂端都等於
+     「加總」那個數字：
+       繁體  trad - inter（只有簡體也開著時才扣，不然 inter 該算在繁體裡）
+       簡體  simp（inter 已經在繁體那邊扣掉了，這裡收）
+       傳承  inherited - jp（只有日漢也開著時才扣，不然日漢該算在傳承裡）
+       日漢  jp
+     實際資料裡 inter 一直是 0（沒有同時是簡體專屬又有繁簡對照的字），但照樣扣，
+     免得哪天出現一個就悄悄多算一層。 */
+  const STACK=['inherited','jp','trad','simp'];   /* 由下往上疊 */
+  const bandVal=(d,k)=>
+      k==='trad'      ? d.trad - (catOn.simp?d.inter:0)
+    : k==='simp'      ? d.simp
+    : k==='inherited' ? d.inherited - (catOn.jp?d.jp:0)
+    :                   d.jp;
+  const defOf=Object.fromEntries(CATDEF.map(c=>[c.key,c]));
+  const keys=STACK.filter(k=>catOn[k]);
+  if(!keys.length){
+    $('#chartcard').innerHTML='<div class="msg">下面請至少勾選一個類別（繁體／簡體／傳承／日本漢字）。</div>';
+    renderCats(data); return;
+  }
+  /* 「現在」那一格（含還沒提交的）：湊成跟 days 一樣的形狀，就能共用 bandVal。
+     inter 現算：兩個字集合的交集大小。 */
+  const simpNow=new Set(data.simpChars||[]);
+  const nowDay={trad:(data.tradChars||[]).length, simp:data.totalSimp,
+    inherited:(data.inheritedChars||[]).length, jp:data.totalJp,
+    inter:(data.tradChars||[]).filter(c=>simpNow.has(c)).length};
+  const lastDay=days[days.length-1];
+  const uncommitted=STACK.some(k=>bandVal(nowDay,k)!==bandVal(lastDay,k));
+  const rows=days.map((d,i)=>{
+    const prev=i?days[i-1]:null;
+    const vals={},adds={};
+    for(const k of keys){ vals[k]=bandVal(d,k); adds[k]=prev?vals[k]-bandVal(prev,k):vals[k]; }
+    return {x:off(d.date),date:d.date,label:d.date.slice(5),vals,adds,
+            total:keys.reduce((s,k)=>s+vals[k],0)};
   });
-  const allpts=built.flatMap(b=>b.pts);
-  const dayMax=Math.max(1,...allpts.map(p=>p.x));
-  const cumMax=Math.max(200,Math.ceil(Math.max(...allpts.map(p=>p.cum))/300)*300);
-  const addMax=Math.max(100,Math.ceil(Math.max(...allpts.map(p=>p.add),1)/100)*100);
+  if(uncommitted){
+    const prev=lastDay, vals={},adds={};
+    for(const k of keys){ vals[k]=bandVal(nowDay,k); adds[k]=vals[k]-bandVal(prev,k); }
+    rows.push({x:rows[rows.length-1].x+1,date:'現在',label:'現在',vals,adds,now:true,
+               total:keys.reduce((s,k)=>s+vals[k],0)});
+  }
+  const dayMax=Math.max(1,...rows.map(p=>p.x));
+  const cumMax=Math.max(200,Math.ceil(Math.max(...rows.map(p=>p.total))/300)*300);
+  const addMax=Math.max(100,Math.ceil(Math.max(1,...rows.flatMap(p=>
+    [keys.reduce((s,k)=>s+Math.max(0,p.adds[k]),0),
+     -keys.reduce((s,k)=>s+Math.min(0,p.adds[k]),0)]))/100)*100);
   const x=v=>padL+v/dayMax*(W-padL-padR);
   const yc=v=>cumBot-v/cumMax*(cumBot-cumTop);
   const yd=v=>dZero-v/addMax*(dZero-dTop);
 
-  const best=days.reduce((m,p)=>p.addUniq>m.addUniq?p:m,days[0]);
-  const unc=data.totalUniq-days[days.length-1].cumUniq;
+  const uniqCumAt=d=>d.total-d.simp;
+  const uniqSeries=days.map((d,i)=>({date:d.date,
+    add:i===0?uniqCumAt(d):uniqCumAt(d)-uniqCumAt(days[i-1])}));
+  const best=uniqSeries.reduce((m,p)=>p.add>m.add?p:m,uniqSeries[0]);
+  const unc=data.totalUniq-uniqCumAt(days[days.length-1]);
   $('#cumr').textContent='0 → '+data.totalUniq.toLocaleString()+' 字（不另計）';
   $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${data.totalUniq.toLocaleString()} 字</b>`+
     `（繁簡同字只算一個）；<span class="raw">另計 ${data.total.toLocaleString()} 條碼</span>。`+
-    (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'');
+    (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'')+
+    ` 圖表跟著下面的 tile 開關走。`;
 
   const svg=$('#chart'); svg.innerHTML='';
   const bxx={x:padL,y:cumTop,w:W-padL-padR,h:cumBot-cumTop};
@@ -189,71 +292,184 @@ function draw(data){
   for(let i=0;i<=3;i++){const v=Math.round(cumMax*i/3);
     svg.appendChild(mk('line',{x1:padL,y1:yc(v),x2:W-padR,y2:yc(v),class:'grid-line'}));
     const t=mk('text',{x:padL-8,y:yc(v)+4,'text-anchor':'end',class:'tick'});t.textContent=v;svg.appendChild(t);}
-  // 累計：每條系列一條線（只有一條時才加面積）
-  const single=built.length===1;
-  built.forEach(b=>{
-    const solid=b.pts.filter(p=>!p.now), nowP=b.pts.find(p=>p.now);
-    if(single){
-      let aD=`M ${x(solid[0].x)} ${cumBot} `; solid.forEach(p=>aD+=`L ${x(p.x)} ${yc(p.cum)} `);
-      if(nowP)aD+=`L ${x(nowP.x)} ${yc(nowP.cum)} `;
-      aD+=`L ${x(b.pts[b.pts.length-1].x)} ${cumBot} Z`;
-      svg.appendChild(mk('path',{d:aD,fill:b.col,'fill-opacity':.11}));
+  // 累計：疊加區域。先算出每條帶的上下緣（下緣＝前面所有帶的和）
+  const upper={},lower={};
+  {
+    let acc=rows.map(()=>0);
+    for(const k of keys){
+      lower[k]=acc.slice();
+      acc=acc.map((v,i)=>v+rows[i].vals[k]);
+      upper[k]=acc.slice();
     }
-    svg.appendChild(mk('path',{d:'M '+solid.map(p=>`${x(p.x)} ${yc(p.cum)}`).join(' L '),
-      fill:'none',stroke:b.col,'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'}));
-    if(nowP){const a=solid[solid.length-1];
-      svg.appendChild(mk('path',{d:`M ${x(a.x)} ${yc(a.cum)} L ${x(nowP.x)} ${yc(nowP.cum)}`,
-        fill:'none',stroke:b.col,'stroke-width':2.5,'stroke-dasharray':'5 4','stroke-opacity':.8}));}
+  }
+  const edge=arr=>rows.map((p,i)=>`${x(p.x)} ${yc(arr[i])}`).join(' L ');
+  keys.forEach(k=>{
+    const col=defOf[k].col;
+    const back=rows.map((p,i)=>`${x(p.x)} ${yc(lower[k][i])}`).reverse().join(' L ');
+    svg.appendChild(mk('path',{d:`M ${edge(upper[k])} L ${back} Z`,
+      fill:col,'fill-opacity':.6}));
+    // 上緣描一條細線，兩條帶之間才分得開（相鄰顏色接近時特別需要）
+    svg.appendChild(mk('path',{d:'M '+edge(upper[k]),fill:'none',stroke:col,
+      'stroke-width':1.5,'stroke-linejoin':'round'}));
   });
-  // 每日新增：分組長條
+  // 「加總」不再是一條獨立的帶（堆疊頂端本來就是加總），改成頂端描一條線
+  if(catOn.sum)
+    svg.appendChild(mk('path',{d:'M '+rows.map(p=>`${x(p.x)} ${yc(p.total)}`).join(' L '),
+      fill:'none',stroke:'var(--sum)','stroke-width':2.5,'stroke-linejoin':'round',
+      'stroke-linecap':'round','stroke-opacity':.85}));
+  // 還沒提交的那一格：畫一條虛線分隔，右邊那段是工作區現況、不是 git 歷史
+  if(uncommitted){
+    const bx=x(rows[rows.length-2].x);
+    svg.appendChild(mk('line',{x1:bx,y1:cumTop,x2:bx,y2:dZero,stroke:'var(--faint)',
+      'stroke-width':1,'stroke-dasharray':'4 4'}));
+  }
+  {
+    const last=rows[rows.length-1];
+    svg.appendChild(mk('circle',{cx:x(last.x),cy:yc(last.total),r:5,
+      fill:'var(--sum)',stroke:'var(--card)','stroke-width':2}));
+  }
+  // 每日新增：同樣疊起來（正的往上疊、負的往下疊——改碼可能讓某類別當天變少）
   svg.appendChild(mk('line',{x1:padL,y1:dZero,x2:W-padR,y2:dZero,class:'zero-line'}));
-  const n=built.length, slot=Math.min(20,(W-padL-padR)/(dayMax+2)), bw=Math.max(3,(slot-2)/n);
-  built.forEach((b,si)=>b.pts.forEach(p=>{
-    const cx=x(p.x)+(si-(n-1)/2)*bw, top=p.add>=0?yd(p.add):dZero, h=Math.max(2,Math.abs(yd(p.add)-dZero));
-    svg.appendChild(mk('rect',{x:cx-bw/2,y:top,width:bw,height:h,rx:Math.min(3,bw/2),
-      fill:b.col,'fill-opacity':p.now?.5:(p.add<0?.4:.9)}));
-  }));
+  const slot=Math.min(20,(W-padL-padR)/(dayMax+2)), bw=Math.max(3,slot-3);
+  rows.forEach(p=>{
+    let up=0,dn=0;
+    for(const k of keys){
+      const v=p.adds[k]; if(!v) continue;
+      const col=defOf[k].col;
+      if(v>0){
+        svg.appendChild(mk('rect',{x:x(p.x)-bw/2,y:yd(up+v),width:bw,
+          height:Math.max(1,yd(up)-yd(up+v)),rx:1,fill:col,'fill-opacity':p.now?.5:.9}));
+        up+=v;
+      }else{
+        svg.appendChild(mk('rect',{x:x(p.x)-bw/2,y:yd(dn),width:bw,
+          height:Math.max(1,yd(dn+v)-yd(dn)),rx:1,fill:col,'fill-opacity':.4}));
+        dn+=v;
+      }
+    }
+  });
   // 日期軸：只畫間隔夠開的標籤（避免重疊）；一定保留最後一個（現在）。
-  (()=>{const pts=built[0].pts, MIN=46, endX=x(pts[pts.length-1].x); let lastX=-1e9;
-    pts.forEach((p,i)=>{const px=x(p.x), isEnd=i===pts.length-1;
+  (()=>{const MIN=46, endX=x(rows[rows.length-1].x); let lastX=-1e9;
+    rows.forEach((p,i)=>{const px=x(p.x), isEnd=i===rows.length-1;
       if(isEnd || (px-lastX>=MIN && endX-px>=MIN)){
         const t=mk('text',{x:px,y:dZero+22,'text-anchor':'middle',class:'xtick'});
         t.textContent=p.label;svg.appendChild(t);lastX=px;}});})();
   const cross=mk('line',{y1:cumTop,y2:dZero,class:'cross'});svg.appendChild(cross);
-  built.forEach(b=>b.pts.forEach((p,i)=>{const last=i===b.pts.length-1;
-    svg.appendChild(mk('circle',{cx:x(p.x),cy:yc(p.cum),r:last?5:3.5,
-      fill:last?b.col:'var(--card)',stroke:b.col,'stroke-width':2}));}));
 
-  // hover：一次顯示所有可見系列
-  const tip=$('#tip'), xs=built[0].pts.map(p=>p.x);
+  // hover：由上往下列出各帶，最後給堆疊頂端的加總
+  const tip=$('#tip'), xs=rows.map(p=>p.x);
   function show(ev){const cx=ev.clientX ?? ev.touches[0].clientX, cy=ev.clientY ?? ev.touches[0].clientY;
     const r=svg.getBoundingClientRect(), sx=(cx-r.left)/r.width*W, dq=(sx-padL)/(W-padL-padR)*dayMax;
     let xx=xs[0],bd=1e9;for(const q of xs){const dd=Math.abs(q-dq);if(dd<bd){bd=dd;xx=q;}}
     cross.setAttribute('x1',x(xx));cross.setAttribute('x2',x(xx));cross.classList.add('on');
-    const ref=built[0].pts.find(p=>p.x===xx);
-    let html=`<div class="td">${ref&&ref.now?'現在（未提交）':'2026-'+(ref?ref.date.slice(5):'')}</div>`;
-    for(const b of built){const p=b.pts.find(q=>q.x===xx); if(!p)continue;
-      html+=`<div class="row"><span class="lab"><i style="background:${b.col}"></i>${b.name}</span>`+
-        `<span class="val">${p.cum.toLocaleString()} <small style="color:var(--muted)">${p.add>=0?'+':''}${p.add}</small></span></div>`;}
+    const p=rows.find(q=>q.x===xx);
+    let html=`<div class="td">${p&&p.now?'現在（未提交）':'2026-'+(p?p.date.slice(5):'')}</div>`;
+    if(p){
+      /* 由上往下講，跟圖上的堆疊順序一致。傳承字那條在日漢也開著時是「扣掉日漢」
+         之後的厚度，跟下面的 tile（傳承字全額）差 11 字，所以標題直接寫清楚。 */
+      for(const k of [...keys].reverse()){
+        const c=defOf[k], v=p.vals[k], a=p.adds[k];
+        const nm=(k==='inherited'&&catOn.jp)?'傳承字（不含日漢）':c.name;
+        html+=`<div class="row"><span class="lab"><i style="background:${c.col}"></i>${nm}</span>`+
+          `<span class="val">${v.toLocaleString()} <small style="color:var(--muted)">${a>=0?'+':''}${a}</small></span></div>`;
+      }
+      const ta=keys.reduce((s,k)=>s+p.adds[k],0);
+      html+=`<div class="row"><span class="lab"><i style="background:var(--sum)"></i>加總</span>`+
+        `<span class="val">${p.total.toLocaleString()} <small style="color:var(--muted)">${ta>=0?'+':''}${ta}</small></span></div>`;
+    }
     tip.innerHTML=html; tip.classList.add('on');
     const tw=tip.offsetWidth,th=tip.offsetHeight;let l=cx+16,t=cy-th-10;
     if(l+tw>innerWidth-8)l=cx-tw-16; if(t<8)t=cy+18; tip.style.left=l+'px';tip.style.top=t+'px';}
   function hide(){cross.classList.remove('on');tip.classList.remove('on');}
   svg.addEventListener('pointermove',show);svg.addEventListener('pointerdown',show);svg.addEventListener('pointerleave',hide);
 
-  const simp=data.totalSimp||0, trad=data.totalTrad||0, inherited=data.total-simp-trad;
   const tiles=[
     {k:'不重複字',v:data.totalUniq.toLocaleString(),s:'＝繁體字＋傳承字',hl:true},
-    {k:'碼表條數',v:data.total.toLocaleString(),s:'繁簡各算'},
-    {k:'最高單日',v:'+'+best.addUniq,s:best.date.slice(5),hl:true},
+    {k:'所有漢字',v:data.total.toLocaleString(),s:''},
+    {k:'最高單日',v:'+'+best.add,s:best.date.slice(5),hl:true},
     {k:'活躍天數',v:days.length,s:'天有提交'},
-    {k:'繁體字',v:trad.toLocaleString(),s:'有對應簡體字，如 國魚雲'},
-    {k:'簡體字',v:simp.toLocaleString(),s:'簡體專屬，如 国鸟'},
-    {k:'傳承字',v:inherited.toLocaleString(),s:'如人天后，三者加總＝碼表條數'},
   ];
   const scb=$('#stats');scb.innerHTML='';
   tiles.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t.hl?' hl':'');
-    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;scb.appendChild(d);});
+    d.innerHTML=`<span class="k">${t.k}</span><span class="v num">${t.v}<small>${t.s}</small></span>`;
+    scb.appendChild(d);});
+  renderCats(data);
+}
+
+/* ---------- 官方字表覆蓋率 ----------
+   「取碼取到哪裡算完成」講的是這兩條，不是碼表總字數——總字數裡混了粵語字、
+   字根零件、日本漢字，不對應任何一份官方字表，講出去沒有意義。
+   缺的字照字表原順序給（教育部表筆畫序、GB2312 一級拼音序），連去 /annotate
+   就是照那個順序往下取。網址塞不下幾千個字，所以一次只帶 LINK_CAP 個。 */
+const LINK_CAP=300;
+const STD_KEY='aiphabi-progress-std-collapsed';
+let stdCollapsed=localStorage.getItem(STD_KEY)==='1';
+function renderStandards(data){
+  const list=data.standards||[];
+  const box=$('#stdcard');
+  if(!list.length){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="std${stdCollapsed?' collapsed':''}" id="stdbox"${
+      stdCollapsed?' title="展開官方字表覆蓋率"':''}>`+
+    '<div class="stdhead"><h2>官方字表覆蓋率</h2><span class="chev">收起 ▴</span></div>'+
+    list.map((s,i)=>{
+    const pct=s.total?s.done/s.total*100:0;
+    const left=s.missing.length;
+    const head=s.missing.slice(0,LINK_CAP).join('');
+    const foot=left
+      ? `<span>還缺 <b>${left.toLocaleString()}</b> 字</span>`+
+        `<a href="/annotate?q=${encodeURIComponent(head)}">照字表順序接著取${
+          left>LINK_CAP?`（前 ${LINK_CAP} 個）`:''} →</a>`
+      : '<span class="stdone">✓ 這張表全部取完了</span>';
+    return `<div class="strow ${i?'b':'a'}">
+      <div class="sthead">
+        <span class="stname">${s.name}<small>${s.full}</small></span>
+        <span class="stnum"><b>${s.done.toLocaleString()}</b> / ${s.total.toLocaleString()}　${pct.toFixed(1)}%</span>
+      </div>
+      <div class="stbar"><i style="width:${pct.toFixed(2)}%"></i></div>
+      <div class="stfoot">${foot}</div>
+    </div>`;
+  }).join('')+'</div>';
+
+  /* 收合狀態記在 localStorage。展開時只有標題那排收得動，不然點「照字表順序
+     接著取」會先把卡片收起來；收合後整張卡片都可以點開，因為標題已經藏起來了。 */
+  const card=$('#stdbox');
+  const setC=v=>{
+    stdCollapsed=v;
+    localStorage.setItem(STD_KEY,v?'1':'0');
+    card.classList.toggle('collapsed',v);
+    if(v) card.setAttribute('title','展開官方字表覆蓋率'); else card.removeAttribute('title');
+  };
+  card.addEventListener('click',e=>{
+    if(stdCollapsed){ setC(false); return; }
+    if(e.target.closest('.stdhead')) setC(true);
+  });
+}
+
+/* ---------- 繁體／簡體／傳承／日本漢字：純顯示（開關搬到圖表上方那排小按鈕了，
+   這裡不再點得動），只留「看這些字」連去 /annotate？q=。 ---------- */
+const CATDESC={trad:'有對應簡體字，如 國魚雲',simp:'簡體專屬，如 国鸟',inherited:'如人天后',jp:'新字体／國字，如県駅鉄'};
+function renderCats(data){
+  const chars={trad:data.tradChars||[],simp:data.simpChars||[],
+    inherited:data.inheritedChars||[],jp:data.jpChars||[]};
+  const box=document.createElement('div');
+  box.className='stats';
+  const mk_=(k,label,sub,list,extraClass)=>{
+    const d=document.createElement('div');
+    const on=catOn[k];
+    d.className='tile'+(on?'':' off')+(extraClass?' '+extraClass:'');
+    d.innerHTML=`<span class="k">${label}</span><span class="v num">${list.length.toLocaleString()}<small>${sub}</small></span>`+
+      (list.length?`<a class="view" href="/annotate?q=${encodeURIComponent(list.join(''))}">看這些字 →</a>`:'');
+    return d;
+  };
+  CATDEF.forEach(c=>box.appendChild(mk_(c.key,c.name,CATDESC[c.key],chars[c.key])));
+
+  const union=new Set();
+  CATDEF.forEach(c=>{if(catOn[c.key])chars[c.key].forEach(ch=>union.add(ch));});
+  const chosen=CATDEF.filter(c=>catOn[c.key]).map(c=>c.name).join('＋')||'（沒有勾選）';
+  box.appendChild(mk_('sum','加總',chosen,[...union],'sum'));
+
+  const old=$('#catstats'); if(old) old.remove();
+  const wrap=document.createElement('div'); wrap.id='catstats'; wrap.appendChild(box);
+  $('#stats').insertAdjacentElement('afterend',wrap);
 }
 </script>
 </body>

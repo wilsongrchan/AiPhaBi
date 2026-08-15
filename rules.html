@@ -100,35 +100,14 @@
   .add { width:100%; padding:10px; border:1px dashed var(--line); border-radius:12px;
     color:var(--muted); background:transparent; }
 
-  /* 約定簡碼：手動挑字清單（.gadd 借來排版一致，表格自己一組 class ——
-     故意不跟「約定原則」共用 .gtbl/.gcode/.gnow，見 renderShortCode 裡的說明） */
-  .sc-sort { margin-top:8px; font-size:12px; color:var(--muted); }
-  .sc-sort label { display:inline-flex; align-items:center; gap:5px; }
-  .sc-sort select { font-size:12px; color:var(--ink); background:var(--card);
-    border:1px solid var(--line); border-radius:6px; padding:2px 4px; }
-  .sc-stats { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted);
-    margin:8px 0; }
-  .sc-stats b { color:var(--ink); }
-  .sc-stats .warn-n { color:var(--warn); font-weight:600; }
-  .sc-drop { font-size:11px; color:var(--muted); margin-top:8px; }
-  .sctbl { width:100%; border-collapse:collapse; font-size:12px; }
-  .sctbl th { text-align:left; font-size:10px; color:var(--muted); font-weight:600;
-    padding:2px 6px; border-bottom:1px solid var(--line); }
-  .sctbl td { padding:3px 6px; border-bottom:1px solid var(--line); }
-  .sctbl td.sc-gc { font:20px/1.3 "PingFang TC",serif; width:34px; }
-  .sctbl code { font:600 12px ui-monospace,monospace; color:var(--muted); }
-  .sc-code { width:74px; font:700 13px ui-monospace,monospace; color:var(--accent);
-    text-transform:uppercase; padding:2px 5px; border-radius:6px;
-    border:1px solid var(--line); background:var(--card); }
-  .sctbl .ok { color:var(--ok); font:600 12px ui-monospace,monospace; }
-  .sctbl .bad { color:var(--bad); font:600 12px ui-monospace,monospace; }
+
 </style>
 </head>
 <body>
 <header>
   <h1>愛發筆</h1>
   <nav>
-    <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules" class="on">取碼原則</a><a href="/type">試打</a><a href="/progress">取碼進度</a>
+    <a href="/">字根表</a><a href="/annotate">逐字取碼</a><a href="/variants">兼容字型</a><a href="/stats">碼表分析</a><a href="/rules" class="on">取碼原則</a><a href="/short">簡碼</a><a href="/type">試打</a><a href="/progress">取碼進度</a>
   </nav>
   <div class="grow"></div>
   <span id="status">已載入</span>
@@ -149,6 +128,7 @@
 
 <script src="/assets/shape.js"></script>
 <script src="/assets/zigen.js"></script>
+<script src="/assets/rulesio.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t);
@@ -173,7 +153,11 @@ const PARAMS = {
 
 function render() {
   const list = $('#list'); list.innerHTML = '';
+  /* 簡碼三條（約定簡碼／三簡碼／左簡碼）搬到「簡碼」頁了 —— 資料還在同一個
+     rules.json，只是不在這頁編輯。索引仍用 data.rules 的真實 index，
+     上移／刪除才不會動到錯的規則。 */
   data.rules.forEach((r, i) => {
+    if (RulesIO.isShortcode(r)) return;
     const d = el('div', 'rule' + (r.enabled ? '' : ' off'));
 
     const h = el('div', 'rh');
@@ -241,7 +225,6 @@ function render() {
     /* 約定原則不是一句話能講完的，它是一張表：哪一類字、約定怎麼取。
        所以這條原則底下直接編分類（數字類、木字類、大字類…）。 */
     if (r.id === 'convention' || r.groups) renderGroups(d, r);
-    if (r.id === 'short_code') renderShortCode(d, r);
 
     list.append(d);
   });
@@ -367,191 +350,7 @@ function renderGroups(box, r) {
 /* ---------- 約定簡碼：手動挑字 ----------
    不是自動算前 N 名（試過，重碼太多）——自己一個一個加字，簡碼預設建議
    主碼首尾兩碼，可以自己改。同樣即時算重碼衝擊，這樣挑的時候就看得到代價。 */
-function computeShortCodeStats(entries) {
-  const bySort = new Map();      /* 簡碼(小寫) → 這批裡搶它的所有列 */
-  for (const en of entries) {
-    if (!en.short) continue;
-    const s = en.short.toLowerCase();
-    if (!bySort.has(s)) bySort.set(s, []);
-    bySort.get(s).push(en);
-  }
-  /* 跟現有碼表（主碼＋完整碼＋兼容碼＋兼容字型）比對，看簡碼會不會撞到別人 */
-  const occupied = new Map();
-  const occ = (code, ch) => {
-    const k = code.toLowerCase();
-    if (!occupied.has(k)) occupied.set(k, new Set());
-    occupied.get(k).add(ch);
-  };
-  for (const [ch, r] of Object.entries(codes)) {
-    if (!r.code) continue;
-    occ(finalOf(r.code), ch); occ(r.code, ch);
-    for (const a of r.alts || []) { occ(finalOf(a.code), ch); occ(a.code, ch); }
-    for (const v of r.variants || []) { const d = v.display || ch; occ(finalOf(v.code), d); occ(v.code, d); }
-  }
-  return entries.map(en => {
-    const short = (en.short || '').toLowerCase();
-    const clash = short ? [...(occupied.get(short) || [])].filter(c => c !== en.c) : [];
-    const dupWithSelf = short && bySort.get(short).length > 1;
-    return { ...en, clash, dupWithSelf };
-  });
-}
 
-function suggestShort(ch) {
-  const rec = codes[ch];
-  if (!rec || !rec.code) return '';
-  const code = finalOf(rec.code);
-  return (code.length > 1 ? code[0] + code[code.length - 1] : code).toUpperCase();
-}
-
-/* 排序用的三個小工具：字頻（現代優先，rime-essay 打底）、筆畫（segments 的最大筆畫序號＋1）、
-   部首（IDS 拆分的第一個部件當代表——不是嚴格的康熙部首表，這份資料裡也沒有那張表，
-   但同部件的字會排在一起，夠用來找「這批我還缺誰」）。 */
-let _freqRank = null;
-function freqWFast(ch) {
-  if (!_freqRank) { _freqRank = new Map(); freqOrder.forEach((c, i) => _freqRank.set(c, i)); }
-  const base = Math.max(1, 100000 - (_freqRank.has(ch) ? _freqRank.get(ch) : 99999));
-  return (charfreq[ch] || 0) * 10000 + base;
-}
-function strokeCountOf(ch) {
-  const rec = codes[ch];
-  if (!rec || !rec.segments) return null;
-  let m = -1;
-  for (const s of rec.segments) for (const i of s.strokes) if (i > m) m = i;
-  for (const i of (rec.skipped || [])) if (i > m) m = i;
-  return m + 1;
-}
-const IDS_OPS = '⿰⿱⿲⿳⿴⿵⿶⿷⿸⿹⿺⿻';
-function radicalOf(ch) {
-  const d = ids[ch];
-  if (!d) return ch;
-  for (const c of d) if (!IDS_OPS.includes(c) && c !== ch) return c;
-  return ch;
-}
-const SC_SORTERS = {
-  add: null,   /* 加入順序：不排序，維持原陣列順序 */
-  freq: (a, b) => freqWFast(b.c) - freqWFast(a.c),
-  stroke: (a, b) => (strokeCountOf(a.c) ?? 99) - (strokeCountOf(b.c) ?? 99),
-  radical: (a, b) => radicalOf(a.c).localeCompare(radicalOf(b.c), 'zh-Hant'),
-  letter: (a, b) => (a.short || '').localeCompare(b.short || ''),
-};
-let scSortBy = 'add';
-
-function renderShortCode(box, r) {
-  r.entries = r.entries || [];
-  const wrap = el('div', 'groups');
-
-  /* 一次貼一串字（跟約定原則的貼字輸入一樣），每個字各自建一列，
-     預設簡碼抓主碼首尾兩碼——加完自己再逐一調整。 */
-  const add = el('div', 'gadd');
-  const inp = el('input');
-  inp.placeholder = '貼一串字（的我是這就）→ Enter 一次加入，簡碼預設抓主碼首尾兩碼';
-  inp.onkeydown = e => {
-    if (e.key !== 'Enter') return;
-    const chars = [...inp.value].filter(c => /[㐀-鿿]/.test(c));
-    for (const c of chars)
-      if (!r.entries.some(x => x.c === c)) r.entries.push({ c, short: suggestShort(c) });
-    inp.value = ''; touch(); render();
-  };
-  add.append(inp);
-  wrap.append(add);
-
-  if (!r.entries.length) {
-    wrap.append(Object.assign(el('div', 'sc-drop'), { textContent: '還沒加字。' }));
-    box.append(wrap);
-    return;
-  }
-
-  const sortRow = el('div', 'sc-sort');
-  const sortLab = el('label');
-  sortLab.append(el('span', '', '排序：'));
-  const sortSel = document.createElement('select');
-  sortSel.innerHTML = '<option value="add">加入順序</option><option value="freq">字頻</option>' +
-    '<option value="stroke">筆畫</option><option value="radical">部首（部件）</option>' +
-    '<option value="letter">字母（簡碼）</option>';
-  sortSel.value = scSortBy;
-  sortSel.onchange = () => { scSortBy = sortSel.value; render(); };
-  sortLab.append(sortSel);
-  sortRow.append(sortLab);
-  wrap.append(sortRow);
-
-  const summary = el('div', 'sc-stats');
-  wrap.append(summary);
-
-  /* 注意：這張表刻意不共用 .gtbl／.gcode／.gnow —— 那幾個 class 是「約定原則」
-     那張表在用，syncStatus() 會抓全頁所有 .gtbl tbody tr 去跟碼表現況比對，
-     還會冒出「以約定為準」直接改字的主碼／拆解。簡碼只是額外多一條路，
-     跟這個字原本怎麼拆完全無關，絕對不能被那套邏輯誤觸，所以整組 class 分開。 */
-  const tbl = el('table', 'sctbl');
-  tbl.innerHTML = '<thead><tr><th>字</th><th>主碼</th><th>簡碼</th><th>碰撞</th><th></th></tr></thead>';
-  const tb = el('tbody');
-  const clashCells = [];
-
-  /* 改簡碼是打一個字重算一次——絕對不能整頁 render()（會把使用者正在打字的
-     input 整個換掉，游標跟著飛走，變成「打不進去」）。這裡只重算數字、
-     更新既有的碰撞欄文字，DOM 結構、focus 都不動。 */
-  const refresh = () => {
-    const stats = computeShortCodeStats(r.entries);
-    const extClash = stats.filter(x => x.clash.length).length;
-    const internalClash = stats.filter(x => x.dupWithSelf).length;
-    summary.innerHTML = `共 <b>${r.entries.length}</b> 字　` +
-      `這批裡自己撞自己 <span class="warn-n">${internalClash}</span> 字　` +
-      `撞到既有碼（多一次選字）<span class="warn-n">${extClash}</span> 字`;
-    stats.forEach((en, i) => {
-      const cell = clashCells[i];
-      if (!cell) return;
-      if (en.dupWithSelf) cell.innerHTML = '<span class="bad">同批搶碼</span>';
-      else if (en.clash.length) cell.innerHTML = `<span class="bad">撞 ${en.clash.slice(0, 4).join('、')}</span>`;
-      else cell.innerHTML = '<span class="ok">乾淨</span>';
-    });
-  };
-
-  /* 排序只影響顯示順序，不動 r.entries 本身的順序（存檔、加入順序都還在）——
-     所以每一列要記住自己在 r.entries 裡的原始 index，改碼／刪除才改得對地方。 */
-  const stats = computeShortCodeStats(r.entries).map((en, i) => ({ ...en, _i: i }));
-  if (SC_SORTERS[scSortBy]) stats.sort(SC_SORTERS[scSortBy]);
-  stats.forEach(en => {
-    const i = en._i;
-    const tr = el('tr');
-    const t1 = el('td'); t1.className = 'sc-gc'; t1.textContent = en.c; tr.append(t1);
-
-    const t2 = el('td');
-    const rec = codes[en.c];
-    t2.innerHTML = rec && rec.code
-      ? `<code>${finalOf(rec.code).toUpperCase()}</code>`
-      : '<span class="muted">未取碼</span>';
-    tr.append(t2);
-
-    const t3 = el('td');
-    /* 簡碼不一定只有兩碼——四五碼的字有時值得給個三碼的簡碼，上限跟系統的
-       碼長上限一樣就好（沒道理簡碼比最長的主碼還長）。 */
-    const maxLenRule = data.rules.find(rr => rr.id === 'max_code_length' && rr.enabled && rr.kind === 'enforced');
-    const maxLen = (maxLenRule && maxLenRule.params && maxLenRule.params.max) || 5;
-    const si = el('input', 'sc-code'); si.value = en.short || ''; si.maxLength = maxLen;
-    si.oninput = () => {
-      r.entries[i].short = si.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, maxLen);
-      si.value = r.entries[i].short;
-      touch(); refresh();
-    };
-    t3.append(si); tr.append(t3);
-
-    const t4 = el('td');
-    if (en.dupWithSelf) t4.innerHTML = '<span class="bad">同批搶碼</span>';
-    else if (en.clash.length) t4.innerHTML = `<span class="bad">撞 ${en.clash.slice(0, 4).join('、')}</span>`;
-    else t4.innerHTML = '<span class="ok">乾淨</span>';
-    clashCells[i] = t4;
-    tr.append(t4);
-
-    const t5 = el('td');
-    const x = el('span', 'mv', '✕');
-    x.onclick = () => { r.entries.splice(i, 1); touch(); render(); };
-    t5.append(x); tr.append(t5);
-    tb.append(tr);
-  });
-  tbl.append(tb);
-  wrap.append(tbl);
-  box.append(wrap);
-  refresh();   /* 填一次總覽數字（表格本身已經用初次算好的 stats 畫完了） */
-}
 
 /* 「碼表現況」：約定碼跟這個字實際取的碼對不對得上。
    對不上不代表誰錯 —— 但你總得看得見，而且要能一鍵把約定寫進碼表，
@@ -672,13 +471,21 @@ $('#add').onclick = () => {
                     kind: 'manual', enabled: true });
   touch(); render();
 };
+/* 這一頁管的是簡碼以外的每一條；簡碼那三條歸「簡碼」頁。
+   兩頁都握著整份 rules.json，所以存檔走 RulesIO：帶 X-Base-Stamp，
+   撞到就重讀合併再存，不會把對方的修改蓋掉。 */
+const MINE = r => !RulesIO.isShortcode(r);
 async function save() {
   $('#status').textContent = '儲存中…';
-  const r = await fetch('/api/rules', { method: 'PUT',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) });
-  if (r.ok) { dirty = false; $('#status').textContent = '已儲存 ✓'; $('#status').className = 'saved';
-              stamp = await fetch('/api/state').then(r => r.json()).then(s => s.rules); }
-  else $('#status').textContent = '儲存失敗';
+  const res = await RulesIO.save(data, stamp, MINE);
+  if (!res.ok) { $('#status').textContent = '儲存失敗'; return; }
+  stamp = res.stamp; dirty = false; $('#status').className = 'saved';
+  if (res.merged) {
+    data = res.data; render();
+    $('#status').textContent = '已儲存 ✓（簡碼頁也改過，已合併）';
+  } else {
+    $('#status').textContent = '已儲存 ✓';
+  }
 }
 $('#save').onclick = save;
 document.addEventListener('keydown', e => {
@@ -686,19 +493,17 @@ document.addEventListener('keydown', e => {
 });
 setInterval(() => { if (dirty) save(); }, 15000);
 window.onbeforeunload = e => { if (dirty) return e.returnValue = '有未儲存的修改'; };
-/* 約定分類要對照碼表現況，所以這一頁也要讀碼表（唯讀，不寫） */
-let codes = {}, freqOrder = [], charfreq = {}, ids = {};
+/* 約定分類要對照碼表現況，所以這一頁也要讀碼表（唯讀，不寫）。
+   字頻／部件拆分只有簡碼那幾張表在用，跟著搬去簡碼頁了，這裡不再抓。 */
+let codes = {};
 const finalOf = code => Zigen.shorten(code, data && data.rules &&
   data.rules.find(r => r.id === 'max_code_length' && r.enabled && r.kind === 'enforced'));
 
 Promise.all([fetch('/api/rules').then(r => r.json()),
              fetch('/api/state').then(r => r.json()),
-             fetch('/api/codes').then(r => r.json()).catch(() => ({})),
-             fetch('/api/freq').then(r => r.json()).catch(() => ({ order: [] })),
-             fetch('/api/charfreq').then(r => r.json()).catch(() => ({})),
-             fetch('/api/ids').then(r => r.json()).catch(() => ({}))])
-  .then(([d, s, c, f, cf, idsData]) => {
-    data = d; stamp = s.rules; codes = c; freqOrder = f.order || []; charfreq = cf; ids = idsData; render();
+             fetch('/api/codes').then(r => r.json()).catch(() => ({}))])
+  .then(([d, s, c]) => {
+    data = d; stamp = s.rules; codes = c; render();
   });
 </script>
 </body>
