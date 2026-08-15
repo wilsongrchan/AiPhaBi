@@ -422,6 +422,9 @@ def main():
     #          外加 前三字+末字首碼（記得整句可精準定位，消 中國人民X 那種撞碼）＝解放軍 QOY+軍。
     # 撞碼的照詞頻排（常用在前），每碼上限收 24 個免爆。
     si4 = defaultdict(list)
+    si4_rev = {}    # 詞 -> 四碼：打了詞組連打的完整碼，剛好有四碼快打可用，就提醒「其實有四碼」
+                    # （跟簡碼／左簡碼同一套反向提醒；5+ 字詞兩式都收，提醒只留第一式＝前四字首碼，
+                    # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒）
     for _w, _wt in phrase_w.items():
         _chs = list(_w)
         if len(_chs) < 3 or any(_c not in char2code for _c in set(_chs[:4]) | {_chs[-1]}):
@@ -438,13 +441,17 @@ def main():
         for _c4 in _codes4:
             si4[_c4].append((_wt, _w))        # 完整四碼
             si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
+        _wc = _word_codes(_w)                 # 只有「四碼真的比平常打法短」才提醒，不然沒省到
+        if _wc and min(len(_c) for _c in _wc) > 4:
+            si4_rev[_w] = _codes4[0]
     for _c in list(si4):                      # 依詞頻排、去重、每碼上限 24
         _seen, _out = set(), []
         for _, _w in sorted(si4[_c], key=lambda x: -x[0]):
             if _w not in _seen:
                 _seen.add(_w); _out.append(_w)
         si4[_c] = _out[:24]
-    print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼")
+    print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼；"
+          f"其中 {len(si4_rev)} 詞真的比平常打法短，才給「四碼」提醒")
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
@@ -545,6 +552,9 @@ def main():
     dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼快打；aiphabi_si4 開關控制，依詞頻排）
     for sig, ws in sorted(si4.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
+    dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
+    for w, sig in sorted(si4_rev.items()):
+        dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
     #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
