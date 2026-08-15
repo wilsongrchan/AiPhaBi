@@ -633,6 +633,43 @@ Hamster runs the same `rime/` files. It supports librime-lua **only if** the `lu
 dict weight column** — which is why weight columns must be sane on their own (see the mobile
 gotcha under Weights).
 
+#### The mobile packaging quirk — Hamster's LuaJIT has a hard constant limit
+
+Hamster runs Lua on **LuaJIT**, which caps any single chunk at **65,536 constants**. This is
+*not* a size concern on desktop (Squirrel uses vanilla Lua, no such cap) — it only bites the
+Hamster zip. Hit it once already: a ~60,000-entry `M.wordfreq` table pushed `aiphabi_data.lua`
+over the limit and `require("aiphabi_data")` failed **silently**, breaking every Lua-dependent
+feature (exact matches, hints, ordering) while table_translator's raw dict lookups kept limping
+along — very confusing to debug from symptoms alone, since it looks like a ranking bug, not a
+load failure.
+
+**The fix, and the recipe every mobile build must follow:**
+- `aiphabi.dict.yaml` ships **unmodified from git** (essay-quality phrase weights; the dict
+  itself is not the bottleneck — table_translator handles a big dict fine, mobile or not).
+- `aiphabi_data.lua` is **rebuilt locally** (this container has no `essay.txt`, so it falls back
+  to `data/phrases_preview.tsv` — see *Phrase input* above) and then has **`M.wordfreq` body
+  emptied to `{}`** before shipping. `M.wordfreq` is only read by `aiphabi_order_plus.lua`
+  (the plus/pinyin schema), which the mobile build doesn't ship, so this is safe to drop.
+- All 6 `rime/lua/*.lua` files **and** `rime.lua` itself must all be present — `rime.lua`
+  unconditionally `require()`s all of them at load; **omitting any one crashes the entire Lua
+  bootstrap**, not just the feature that file implements. This was the second crash found (after
+  the `wordfreq` one) and is the more dangerous of the two, since it's easy to assume a file is
+  "only used by the plus schema" and skip it.
+- **Empirically validated safe zone** (real-device tests, `aiphabi_data.lua` line count after the
+  `wordfreq` strip): **~54,000–59,000 lines has shipped and worked** across several consecutive
+  pulls. ~95,000+ lines (i.e. shipping `wordfreq` un-stripped) **reliably crashes**. There is a
+  large, untested gap between those numbers — treat any big jump in line count (a new large
+  reverse-lookup table, a new curated list) as a reason to check the size *before* shipping, not
+  after. This is why `si4_rev` (below) was capped rather than shipped at full size (~15,000 extra
+  lines) the first time it was built.
+- **This packaging step is not part of `./sync.sh`** and is not scripted anywhere in the repo —
+  it has so far only been done by hand (by an AI coding session) each time: rebuild, strip
+  `wordfreq`, assemble `aiphabi.dict.yaml` (from git) + the stripped `aiphabi_data.lua` (local) +
+  all lua files + `rime.lua` + `hamster.custom.yaml` + `default.custom.yaml` + `predict.db` into
+  one flat folder, zip it, hand it to the user to overwrite-import into Hamster's Files app.
+  Worth scripting (e.g. `package_hamster.py`) if this keeps recurring — currently just tribal
+  knowledge re-derived each session.
+
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
 `aiphabi_order[_plus]`.
@@ -759,7 +796,7 @@ it's a hand-curated 60. On a 簡碼 collision, **first in the list wins** (match
 preview). `build_rime.py` builds `shortcode` (code→char) and `shortcode_rev` (char→its 簡碼,
 drives the hint).
 
-### 左簡碼 — the 偏旁 layer (spec'd and curated; **not built yet**)
+### 左簡碼 — the 偏旁 layer (spec'd, curated, and **built** — shipped as `aiphabi_left_short`)
 
 When a curated 偏旁 sits at the far left of a character, the 偏旁 contributes only its **首+末**
 two codes and its middle is skipped. 鮭 完整碼 `SOTMFF` → 左簡碼 `SMFF`.
@@ -814,6 +851,16 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
   longer phrases. 3-char → 首首首末; 4-char → 4×首碼; **5+ char → both first-4 AND first-3+last**
   registered (first-4 = partial-recall friendly; first-3+last = better disambiguation on shared
   prefixes like 中國人民X). Exact 4-code → `ap_si4` (ranks as exact); 3-prefix → `ap_pool` (墊底).
+- **`data.si4_rev` (reverse hint, added 2026-08-15):** the mirror of the 簡碼/左簡碼 hint — type a
+  phrase out the long way (each char's main code, chained) and if it has a 四碼 shortcut, the
+  candidate gets a `"四碼 XXXX"` comment (via `refMark`, same convention as everything else in
+  *Candidate comment convention*). Only stores the **first** 4-code form (front-4, "just type
+  from the start") even for 5+ char phrases that register two forms — the alt disambiguation form
+  isn't worth surfacing here. **Capped to the 3,000 highest-weighted phrases** (`SI4_REV_TOPN` in
+  `build_rime.py`) — the full reverse table added ~15,000 lines to `aiphabi_data.lua`, which is
+  the kind of jump the mobile size limit above exists to warn about; low-frequency phrases are
+  also the ones least likely to get typed out the long way in the first place, so the cap costs
+  little in practice.
 - Phrase source files: **`data/phrases_*.txt`** (`build_rime.py` globs `phrases_*.txt`), space-
   separated, `#` comments, Traditional. Current set: `places`, `people`, `history`, `politicians`,
   `english_names`, `common`, `idioms`, `food`, `brands`, `orgs`. `phrases_preview.tsv` is a
@@ -871,10 +918,14 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 - ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼 > pool > coverage-
   demoted part; userfreq boosting; completion & cold-reading penalties; span-based coverage gating.
 - ✅ 詞組連打: ~40k+ curated phrases across 10 themed files; 2-char cartesian; 3+ uniform modes;
-  四碼快打 (first-4 + first-3+last for 5+); `enable_sentence` segmentation.
+  四碼快打 (first-4 + first-3+last for 5+) with a capped reverse-hint (`si4_rev`, top 3,000);
+  `enable_sentence` segmentation.
+- ✅ 左簡碼: 8 偏旁 families, 249 members, `aiphabi_left_short` toggle, exact-tier ranking +
+  reverse hint (`leftshort_rev`) — see *左簡碼 — the 偏旁 layer* above.
 - ✅ 容錯 (fuzzy), 萬用鍵 `` ` ``, 打繁出簡/打簡出繁, 偏旁碼/同類字 hints.
 - ✅ iOS (Hamster) working; dict weights sane for the no-lua path; mobile pulls phrase data + 4-code
-  logic from repo.
+  logic from repo, but needs its own package/strip step first — see *The mobile packaging quirk*
+  under iOS (Hamster) above. That step is currently manual and unscripted.
 - 🔄 Ongoing: expand phrase库; ordering edge-cases as they surface (each fix must land in BOTH
   order filters); the last known ordering work shipped at commit `9ffed24`.
 
