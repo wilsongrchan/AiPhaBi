@@ -18,8 +18,10 @@ return function(input, seg, env)
           seen[ch] = true
           -- 標一律秀主碼，不是比對到的那個碼——萬用鍵常常比對到完整碼（可能長到
           -- 看不完），跟 aiphabi_hint 的 markHints 同一個原則。
-          local mc = data.char2code[ch]
-          yield(Candidate("aiphabi", seg.start, seg._end, ch, mc and mc:upper() or code:upper()))
+          -- 加圓括號：這是「參考用的主碼」，不是叫你改打的捷徑碼——跟 aiphabi_hint
+          -- 的 refMark 同一套規矩（括號裡的拿來看，沒括號的拿來打）。
+          local mc = data.char2code[ch] or code
+          yield(Candidate("aiphabi", seg.start, seg._end, ch, "(" .. mc:upper() .. ")"))
         end
       end
     end

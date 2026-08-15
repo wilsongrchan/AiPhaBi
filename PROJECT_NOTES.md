@@ -384,6 +384,50 @@ The sequence is: **this session codes → commits → the IME session is told to
 understanding of `codes.json`** → that session re-reads and rebuilds. The IME session should never
 edit `codes.json` to "fix" a code it dislikes — it reports the problem, and the fix lands here.
 
+**`./commit_annotation.sh` does the "commits" step for you**, and can be run from *either* folder
+(it locates the Side-A worktree by its `.aiphabi-side` marker, so no hardcoded paths). It only ever
+runs git — it never writes the data files, so it is safe to invoke from Side B. It exists because
+the manual sequence has three easy-to-miss conventions baked in:
+
+- **stages only the four annotation files**, never `git add -A` (contrast `sync.sh`, which sweeps
+  the whole working tree);
+- **adds `[rebuild]` only when `codes.json`/`rules.json` changed** — not for `zigen.json`-only
+  commits, which are not a build input;
+- **commits *before* pulling**: `pull --rebase` refuses to run with unstaged changes, while `push`
+  fails when behind `origin/main`, so the order is forced and the obvious order is wrong.
+
+`./commit_annotation.sh -n` is a dry run: it prints which characters changed and the message it
+would use, and touches nothing. A worked failure this came from: the commands were run on a second
+machine where the edits didn't exist, so `add`/`commit`/`push` all "succeeded" while doing nothing —
+the annotation tool had written them on the *other* machine. Check `git log origin/main` actually
+moved before assuming a commit landed.
+
+**`./commit_annotation.sh --build` carries it through the rebuild too** — commit → `pull --rebase`
+→ push → *then*, **in the Side-B worktree**, `git pull` and that folder's own `./sync.sh`. The build
+never runs from Side A; if no `B`-marked worktree is found it stops and says so rather than falling
+back (that fallback is exactly the `a18d9fd` incident above). It also refuses to build when Side B's
+tree is dirty, because `sync.sh` is `git add -A` and would sweep up unfinished work there.
+
+**Use `--build` rather than running `./sync.sh` by hand.** Both produce the same table, but
+`sync.sh` alone commits with its default message, so the deploy carries no `[rebuilt]` prefix and
+the "is anything waiting?" query starts reporting already-built commits as pending. This happened on
+2026-08-14: two hand-run deploys left five `[rebuild]`s looking unbuilt. It self-heals — the next
+`--build` walks back to the last `[rebuilt]`, lists everything since, and resets the marker
+(`34351ee` did exactly that, listing all six) — but the window in between is misleading.
+
+The everyday commands, for a machine where the folders are `~/Desktop/Wilson Personal/Coding/`:
+
+```bash
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-A && python3 server.py              # 開站
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-A && ./commit_annotation.sh         # 只送出取碼
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-A && ./commit_annotation.sh --build # 送出＋重建 IME
+cd ~/Desktop/Wilson*/Coding/AiPhaBi-B && git pull && ./sync.sh          # 只重建（不加 [rebuilt]）
+```
+
+The `Wilson*` glob is deliberate: the path contains a space, and quoting it invites the smart-quote
+paste failure — a `”` copied from a notes app leaves the shell at a `dquote>` prompt, silently
+swallowing every following line, so nothing runs at all and it looks like git did nothing.
+
 `PROJECT_NOTES.md` is shared: **each session edits only its own half** (Side A owns § A and this
 ownership section; Side B owns § B). If a change spans both, whoever makes it says so in the commit
 message so the other session re-reads before its next edit.
@@ -463,15 +507,26 @@ the *character* is. Flags are keyed to live rule instances — `annotate.html` p
 `compliantWhy` text) when a re-code makes them stale, so they don't survive a changed breakdown.
 
 ### `data/rules.json` — 取碼原則 (coding rules)
-9 rules total, each with `kind`:
+11 rules total, each with `kind`:
 - `kind: "enforced"` + `enabled: true` → the rule **actually runs** in the prediction engine.
   **All 7 enforced rules:** `stroke_order`, `merge_over_split` (seg_penalty 0.05),
   `skip_isolated_hv` (lone 橫→I / 豎→J only if first/last stroke), `max_code_length` (max 5,
   head 4, tail 1), `tier_priority` (次 +1 cost, 三 +2), `enclosure` (囗/匚 first, overrides
   stroke order), and **`long_stroke`**.
-- `kind: "manual"` → documentation only; not executed. The 2 manual rules are `convention` and
-  `short_code`.
-- **`short_code` rule lives here** — its `entries` list is the hand-picked 簡碼 table (see below).
+- `kind: "manual"` → documentation only; not executed. The 4 manual rules are `convention`,
+  `short_code`, `short3`, `left_short`.
+- **The three 簡碼 rules (`short_code`, `short3`, `left_short`) still live in this file**, but
+  they are **edited on `/short`, not `/rules`** — see *Quickcode conventions* below. Only
+  `short_code` and `convention` are read by the build; `short3` is computed from the code table
+  and `left_short` is not implemented yet.
+
+> **Two pages write this one file.** `/rules` owns every non-簡碼 rule, `/short` owns the three
+> 簡碼 rules, and each holds the whole file in memory. Both save through
+> `assets/rulesio.js`, which sends `X-Base-Stamp` and, on a 409, re-reads the file, re-applies
+> only the rules that page owns, and retries once. Before this existed `rules.html` sent no stamp
+> at all, so the server's optimistic lock was inert for `rules.json` and whoever saved last
+> silently won. Known limit: deleting a rule on one page while the other has unsaved edits
+> brings it back.
 
 ### Designer-side tools
 `server.py` → `http://localhost:8777`, serves the HTML tools and read/writes `data/*.json`.
@@ -483,12 +538,43 @@ The routes, as actually wired in `server.py` `do_GET` (~L353):
 | `/annotate` | `annotate.html` | 逐字取碼 | the main tool: click strokes → press a letter → forms a zigen; shows the predicted breakdown + official stroke order from 3 regions |
 | `/variants` | `variants.html` | 兼容字型 | regional glyph variants |
 | `/stats` | `stats.html` | 碼表分析 | code-table analysis |
-| `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite |
+| `/rules` | `rules.html` | 取碼原則 | the coding rules; enforced ones actually bite. **The 簡碼 rules are hidden here** — they render on `/short` |
+| `/short` | `shortcodes.html` | 簡碼 | 約定簡碼 / 三簡碼 / 左簡碼. Same `rules.json`, different page: 取碼原則 is "how does this character break apart", 簡碼 is "having broken it, how do you type fewer keys" |
 | `/type` | `type.html` | 試打 | actually type with AiPhaBi |
-| `/progress` | `progress.html` | 取碼進度 | daily cumulative coding curve |
+| `/progress` | `progress.html` | 取碼進度 | **官方字表覆蓋率** (collapsible; see below) + a stacked-area cumulative chart by 繁體/簡體/傳承/日本漢字. The bands are made disjoint before stacking (`trad−inter`, `inherited−jp`, each only when the overlapping category is also shown), so the stack top equals the union for every toggle combination — 日本漢字 is a *subset* of 傳承字, and a naive stack double-counts it |
 
 Data APIs: `GET /api/{zigen,codes,rules,learned,freq,progress,state,…}`;
 `PUT /api/{zigen,codes,rules,learned}` to write.
+
+### 取碼目標：官方字表 (`data/standards/`)
+
+**"How far along is the coding?" is answered against official character lists, never against the
+size of `codes.json`.** The raw total is not a claim anyone can check: it mixes in Cantonese
+characters (咁 咗 哋 啲 喺), zigen components (㠯 丂), Japanese kanji and HK forms, and it is
+bounded by makemeahanzi's 9574 — a *font dataset*, not a standard published by anyone.
+
+Two target lists, committed to git (unlike the `fetch_data.py` downloads, these define the goal
+rather than supply glyph data — each file's header records its provenance):
+
+| File | List | Size |
+|---|---|---|
+| `data/standards/tw_common_4808.txt` | 中華民國教育部《常用國字標準字體表》甲表 | 4808 |
+| `data/standards/gb2312.txt` | GB 2312—80 基本集漢字 (一級 3755 ＋ 二級 3008) | 6763 |
+
+- **TW 4808** was taken from two independent public copies and diffed — byte-identical, 4808 with
+  no duplicates. It is **not** the same set as `data/tw_strokes.json` (g0v stroke-order data, which
+  is also MOE-derived): the stroke file is missing 乃 and 彝, and adds 彞 plus the Taiwanese-language
+  characters 𠊎 𪜶. Cite `standards/`, never `tw_strokes.json`, for coverage.
+- **GB 2312** is generated locally from Python's `gb2312` codec rather than downloaded — the
+  encoding *is* the standard's definition, so it is exactly reproducible and needs no network.
+- The two lists overlap by 3060 characters; their union is 8511.
+
+`server.py` `_standards_coverage()` reports done/missing per list into `/api/progress`; `/progress`
+draws a bar per list, and the "照字表順序接著取" link feeds the missing characters to `/annotate`
+**in the list's own order** (MOE is stroke-count ordered, GB2312 level 1 is pinyin ordered), capped
+at 300 per link because a URL cannot carry 3000 characters.
+
+Adding a third list means one row in `STANDARDS` plus a file in `data/standards/` — nothing else.
 
 - **Optimistic locking on write** (`do_PUT`, ~L507): the page sends `X-Base-Stamp` = the file
   mtime it read; if the file changed since, the server returns **409 `{"error":"stale"}`** instead
@@ -508,9 +594,26 @@ Reads `data/codes.json` + `data/rules.json` + `data/freq.json` + `data/phrases_*
 - **`rime/aiphabi.dict.yaml`** — the dictionary: every char at its `final` code, plus 簡碼,
   三簡碼, and 詞組 (phrase) entries, each with a weight.
 - **`rime/lua/aiphabi_data.lua`** — a big Lua table (`require("aiphabi_data")`) the filters read:
-  `char2code`, `code2chars`, `shortcode` / `shortcode_rev`, `short3`, `si4` (四碼連打),
+  `char2code`, `code2chars`, `shortcode` / `shortcode_rev`, `short3`, `si4` (四碼快打),
   `freq` (single-char), `wordfreq` (multi-char, essay-calibrated), etc.
-- The two **schema files** (regenerated so switch lists / phrase toggle stay in sync).
+- **`rime/aiphabi.schema.yaml`** — regenerated every build, so its switch list stays in sync.
+
+#### ⚠️ A new switch has THREE homes — miss one and it half-works
+
+Learned the hard way with `aiphabi_left_short`, which shipped missing #3 and looked like a bug:
+
+| # | File | Generated? | Miss it and… |
+|---|---|---|---|
+| 1 | `rime/aiphabi.schema.yaml` | ✅ by `build_rime.py` | the toggle doesn't exist in pure 愛發筆 |
+| 2 | `rime/aiphabi_plus.schema.yaml` | ❌ **hand-maintained** — `--install` only *copies* it | the toggle silently exists in pure but not in 二合一 |
+| 3 | `rime/default.custom.yaml` → `switcher/save_options` | ❌ hand-maintained, **and `--install` never overwrites an existing one** | **the toggle works but is never remembered** — Rime won't write it to `user.yaml`, so switching app or toggling to English and back reverts it to default. Looks exactly like a broken feature. |
+
+`build_rime.py` now **checks #3 automatically** and prints a `⚠ 開關 … 不在 …save_options` line for
+any switch declared in either schema but absent from the save list. It cannot fix it for you.
+
+Because `--install` preserves an existing `~/Library/Rime/default.custom.yaml`, fixing the repo
+copy is **not enough** — the installed copy needs the same edit by hand, or the user keeps the
+broken behaviour. Check with `diff rime/default.custom.yaml ~/Library/Rime/default.custom.yaml`.
 
 `--install` also copies everything into `~/Library/Rime/`. `./sync.sh "<msg>"` =
 `build_rime.py --install` → `Squirrel --reload` → git commit/push. **Deploy is `./sync.sh`,
@@ -538,8 +641,12 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   **They are two separate files with different structure and MUST be kept in sync** — any ordering
   fix has to be ported to both. Ranking tiers, high → low:
   1. **簡碼** (`ap_short`) — always first (S_FLOOR 9 in plus).
-  2. **exact / 四碼連打** (`exactSet` hit, or `ap_si4`) — your code exactly matches a char's full
-     code, or a fully-typed 4-code phrase (E_FLOOR 6).
+  2. **exact / 四碼快打 / 左簡碼** (`exactSet` hit, or `ap_si4`, or `ap_left`) — your code exactly
+     matches a char's full code, a fully-typed 4-code phrase, or a **fully-typed 左簡碼**
+     (E_FLOOR 6). The rule for this tier is *derivable, not guessed*: a complete 左簡碼 is as
+     definite as hitting a main code (247 codes for 249 chars, 2 collisions), so it must not
+     sit in the pool competing on raw frequency against 容錯 guesses and sentence-mode debris.
+     A **partially**-typed 左簡碼 is a guess and stays in the pool.
   3. **pool** — completions, 偏旁碼, 同類, 三簡, 容錯 (`ap_pool`), ranked by
      userfreq (session pick count, decaying in plus) then `cf` (word/char frequency).
      Completions ×0.7; cold-reading obscure single-char pinyin ×0.10 (plus only).
@@ -549,7 +656,7 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
      prefix/suffix fragments. `segStart = min(c.start)`, code extracted from that segment (not
      the whole `context.input`, which with sentence mode is the full composition).
 - **`aiphabi_hint.lua`** — attaches hints to candidates: 同類字, 偏旁碼, 打繁出簡/打簡出繁, and the
-  **簡碼 hint** (type a char's full code, see "簡碼 XX" reminder). Also **generates the 四碼連打
+  **簡碼 hint** (type a char's full code, see "簡碼 XX" reminder). Also **generates the 四碼快打
   candidates** from `data.si4` (not in the dict): `#code==4` exact → `ap_si4` (exact tier),
   3-prefix → `ap_pool` (完成/墊底). Gated on phrase being on.
 - **`aiphabi_phrase.lua`** — the phrase on/off gate (pure only): when `aiphabi_phrase` option is
@@ -557,19 +664,77 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
 
+### Candidate comment convention (what the bar writes next to a candidate)
+
+One rule, and every hint follows it — `refMark()` in `aiphabi_hint.lua` is the single place that
+formats the bracketed form:
+
+| Form | Means | Example |
+|---|---|---|
+| `標籤 (碼)` — **round brackets** | the bracketed code is that character's **主碼**, shown for reference. The label says *how you got here* | type `JKQ` → 我 `簡碼 (JKXQ)`; type `IF` → 主 `兼容 (QE)` |
+| `標籤 碼` — **no brackets** | a code you could **type instead**, shorter than what you just typed | type `JKXQ` → 我 `簡碼 JKQ` |
+| `[ 碼 ]` — **square brackets** | a 容錯 guess (`aiphabi_fuzzy` only) — deliberately distinct so a guess can never read as a reference | type `JKQ` → 不 `[ JQ ]` |
+
+The label never repeats the word 主碼: the brackets already mean that, so the label slot is spent
+on the route instead (簡碼 / 三簡 / 左簡 / 偏旁碼 / 同類 / 兼容). `- XX` is the odd one out and
+means "these keys still to press" — actionable, hence no brackets.
+
+### Testing the candidate bar offline
+
+`tests/` runs the **real** filter files against the **real** generated `aiphabi_data.lua`, with
+librime's `Candidate` / `yield` / `env.engine.context` / `input:iter()` stubbed out:
+
+```bash
+LUA_PATH="./tests/?.lua;;" ~/.local/bin/lua tests/run_tests.lua
+~/.local/bin/luac -p rime/lua/*.lua          # syntax check — catches a missing `end`
+```
+
+Lua is **not** installed system-wide on this Mac and there is no Homebrew; the binary at
+`~/.local/bin/lua` was built from source (`make macosx`). If it's missing, rebuild it there —
+nothing in the repo depends on its location except the command above.
+
+- **Run it before and after touching `aiphabi_hint.lua` / either order filter.** A broken filter
+  does not crash Rime — librime-lua logs and moves on, so the only symptom is "ordering went
+  weird", which is easy to miss.
+- The harness **models `uniquifier`** (last in the schema's filter chain). It has to: the 約定簡碼
+  branch deliberately ignores `seen` so it can promote a character to first place, so the same
+  character legitimately appears twice before `uniquifier` collapses it. Test the post-uniquifier
+  view, or you assert on something the user never sees.
+- **It cannot test** Rime's own dict lookup or `enable_sentence` segmentation — those inputs are
+  supplied by hand in each test case. So it proves *"given these candidates, we rank them thus"*,
+  not *"typing X produces exactly this bar"*. Typing is still the end-to-end check.
+- When an ordering bug turns up, **add the failing case first**, watch it fail, then fix.
+
 ---
 
 ## Quickcode conventions (the JKXQ example)
 
 Every character has a derivable **主碼 (main code)** = its zigen letters in stroke order,
-capped at 5 (first 4 + last). On top of that are three *optional, opt-in* conveniences:
+capped at 5 (first 4 + last). On top of that are four *optional, opt-in* conveniences.
+**All of them are edited on `/short`, not `/rules`.**
 
 | Layer | What it is | How derived | Toggle | Example (我) |
 |---|---|---|---|---|
 | **主碼** | full derivable code | zigen in stroke order, cap 5 | always on | **JKXQ** |
 | **簡碼** | hand-picked shortcut for ~60 common chars | 首+末 (occasionally 首2+末), by designer discretion | `aiphabi_short100` | **JKQ** |
-| **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1, queried as `AB` + `` ` `` + `C` | `aiphabi_short3` | (n/a, 我 is short) |
+| **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1 — **you type just those 3 keys**, no wildcard (`aiphabi_hint.lua` gates on `#code == 3`; the effect equals `AB` + `` ` `` + `C`, but `` ` `` is never pressed) | `aiphabi_short3` | (n/a, 我 is short) |
+| **左簡碼** | 8 curated 偏旁; when one sits on the far left, it contributes only 首+末 | 偏旁 2 codes + remainder, then the usual cap | `aiphabi_left_short` (default off) | (n/a, 我 has no such 偏旁) |
 | **詞組連打** | phrases = each char's 簡碼(or主碼) concatenated | see phrase rules below | `aiphabi_phrase` | 我的 = JKQJA |
+
+**左簡碼 shipped notes** (Side B, `build_rime.py` + `aiphabi_hint.lua`): codes are computed live
+from `codes.json` — the `members` list stores characters only, never codes, so a re-coded character
+can't leave a stale shortcut behind. Three things worth knowing:
+- **Only 97 of the 249 family characters actually save a keystroke.** Once the remainder exceeds
+  3 codes, the cap squeezes both paths to 5 (鐵 主碼 `YFVFQ` vs 左簡碼 `YVFOQ`) — that's condition 6
+  and the cap agreeing, exactly as `over_cap_note` says. The forward lookup covers all 249, but the
+  **reverse hint fires only for the 97 that genuinely shorten**; whispering an equal-length code
+  would be telling the user to memorise nothing.
+- **It never enters the dict** — lua-only (`M.leftshort`). That is what makes condition 5
+  ("不可疊加三簡碼") true *structurally*: `short3` is derived from `code2chars`, so if 左簡碼 isn't
+  in the code table, no 三簡碼 can be built on top of one.
+- **Partial codes need their own completion table** (`M.leftshort_pre`, ≥3 codes). Main codes get
+  completion free from `enable_completion`; a lua-only code gets nothing, so typing `SMB` for 鯉
+  (`SMBF`) silently produced no candidate at all until the prefix table existed.
 
 **The JKXQ / JKQ story — the core design principle in one example:**
 - 我 main code = **JKXQ** (fully derivable from its zigen).
@@ -594,9 +759,50 @@ it's a hand-curated 60. On a 簡碼 collision, **first in the list wins** (match
 preview). `build_rime.py` builds `shortcode` (code→char) and `shortcode_rev` (char→its 簡碼,
 drives the hint).
 
+### 左簡碼 — the 偏旁 layer (spec'd and curated; **not built yet**)
+
+When a curated 偏旁 sits at the far left of a character, the 偏旁 contributes only its **首+末**
+two codes and its middle is skipped. 鮭 完整碼 `SOTMFF` → 左簡碼 `SMFF`.
+
+The 8 偏旁 and their 左簡碼: 魚 `SOTM`→`SM`, 金 `YFV`→`YV`, 馬 `SHM`→`SM`, 食 `AEG`→`AG`,
+車 `IBT`→`IT`, 足 `OTL`→`OL`, 酉 `IHI`→`II`, 革 `HOT`→`HT`. **249 member characters**, all
+hand-reviewed. Note 食 and 足: the code is the *radical form as written on the left*
+(飠 `AEG`, 𧾷 `OTL`), which differs from the standalone character (食 `AEK`, 足 `OTY`).
+
+Six conditions, in `rules.json` → `left_short` → `conditions`. The two that carry the weight:
+**the 偏旁 must be leftmost with nothing to its left**, and **左簡碼 never stacks with 三簡碼** —
+one simplification per character.
+
+- **The member list is stored, not derived** (`entries[].members`). Two reasons, both load-bearing:
+  deriving needs `data/dictionary.txt` (IDS decomposition), which is **gitignored and absent from
+  Side B's worktree** — the build could not do it; and a derived list would silently grow every
+  time a new 金-radical character gets coded, gaining a code and possibly a collision that nobody
+  reviewed.
+- **Members store characters only, never their codes.** Codes are recomputed from `codes.json`
+  every time. A stored code goes stale the moment a character is recoded — 福 went
+  `QMIOOT`→`QMOOT` in Aug 2026.
+- **Prefix matching is not sufficient**, and this is the trap: 魯 `SOTMB` and 鮮 `SOTMVF` both
+  start with `SOTM`, but 魚 sits on *top* in 魯. The test is the IDS decomposition — `⿰`/`⿲`
+  with the 偏旁 as first component, accepting radical variants (釒 for 金, 飠 for 食). This is
+  also what excludes the false positives the earlier prefix-scan collected: 倖, 裹, 西, 亞, 遷,
+  轮, 薑, 暫, 磐.
+- `/short` shows **待審 / 失效** — candidates the IDS test finds that aren't on the list, and
+  members that no longer qualify. That keeps drift visible instead of automatic. It currently
+  reads 名單與部件拆分一致.
+- **Condition 6 needs no separate implementation.** It says "if the remainder still exceeds
+  3 codes, take the remainder's 首2+尾1, total ≤5" — since the 左簡碼 is always exactly 2 codes,
+  that is arithmetically identical to the existing `max_code_length` cap. Verified across all
+  249 with zero divergence, so the build can just call `shorten()`.
+- Known collisions: 針's `YVT` vs 伞 (伞 ranks 7454, 針 ranks 897 — judged negligible), plus
+  鈕鉗鋅鐘 colliding inside 金.
+- Simplified forms (跃 践 跻 酿 …) **are** included; `aiphabi_no_simp` already filters them out
+  of the dict for anyone who doesn't want that collision surface.
+
+Background and the numbers that led here: `偏旁縮碼investigation.md` at the repo root.
+
 ---
 
-## Phrase input (詞組連打) & 四碼連打
+## Phrase input (詞組連打) & 四碼快打
 
 - **Encoding rule:** a phrase's code = each character's 簡碼 (or 主碼 if no 簡碼) concatenated.
   Verified: 我的 = JKQJA, 你好 = YMLI, 中國人 = QOQY, 香港 = JTBWHZ.
@@ -604,7 +810,7 @@ drives the hint).
   (short/short, short/main, main/short, main/main) so you don't have to remember which mode.
 - **3+ char phrases** use three uniform modes (main / 簡碼-preferred / 三簡碼-preferred) to avoid
   combinatorial explosion.
-- **四碼連打 (`data.si4`, generated in `aiphabi_hint.lua`, not in dict):** a 4-key shortcut for
+- **四碼快打 (`data.si4`, generated in `aiphabi_hint.lua`, not in dict):** a 4-key shortcut for
   longer phrases. 3-char → 首首首末; 4-char → 4×首碼; **5+ char → both first-4 AND first-3+last**
   registered (first-4 = partial-recall friendly; first-3+last = better disambiguation on shared
   prefixes like 中國人民X). Exact 4-code → `ap_si4` (ranks as exact); 3-prefix → `ap_pool` (墊底).
@@ -639,12 +845,23 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ ~5100 characters coded (`codes.json`), ~99.9% char coverage of common text.
+- ✅ 5432 characters coded (`codes.json`, end of 2026-08-14). Against the official lists (see
+  *取碼目標：官方字表*): **教育部常用國字 4169 / 4808 = 86.7%**, **GB 2312 3730 / 6763 = 55.2%**.
+  Quote those, not the raw total.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
-- ✅ Annotation / rules / 字根表 / progress / stats / variants tools.
-- 🔄 Ongoing: keep coding the long tail of characters (`data/todo_chars.txt`); refine tiers/groups;
+- ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
+- ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
+- ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
+  collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
+- 🔄 Ongoing: keep coding toward the two official lists — 639 left for 教育部常用國字, 3033 for
+  GB 2312 (most of those have no already-coded traditional counterpart, so GB 2312 is the far
+  larger job). The `/annotate` 未取碼 queue sorts by those tables directly (**國字表 / GB表**,
+  replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so working top-down *is*
+  working down the official list. `data/todo_chars.txt` is the older frequency-ordered queue and
+  its header counts are stale; `/progress` is the authority. Also: refine tiers/groups;
   `kind:"manual"` rules not yet enforced.
+- ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
 
 ### B · User side
 - ✅ Two macOS schemas (pure `aiphabi` + `aiphabi_plus` with F4 pinyin toggle), installed via
@@ -654,7 +871,7 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 - ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼 > pool > coverage-
   demoted part; userfreq boosting; completion & cold-reading penalties; span-based coverage gating.
 - ✅ 詞組連打: ~40k+ curated phrases across 10 themed files; 2-char cartesian; 3+ uniform modes;
-  四碼連打 (first-4 + first-3+last for 5+); `enable_sentence` segmentation.
+  四碼快打 (first-4 + first-3+last for 5+); `enable_sentence` segmentation.
 - ✅ 容錯 (fuzzy), 萬用鍵 `` ` ``, 打繁出簡/打簡出繁, 偏旁碼/同類字 hints.
 - ✅ iOS (Hamster) working; dict weights sane for the no-lua path; mobile pulls phrase data + 4-code
   logic from repo.
@@ -662,7 +879,9 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   order filters); the last known ordering work shipped at commit `9ffed24`.
 
 ### Not started / open
-- No formal test harness for candidate ordering (regressions found by manual typing).
+- ~~No formal test harness for candidate ordering~~ — **done**, see *Testing the candidate bar
+  offline* below. Coverage is still thin (left-short, the hint marks, one 簡碼 case); widen it
+  as ordering bugs surface, by adding the failing case first.
 - Wubi/Boshiamy重碼率 numbers for the comparison tool are unmeasured (proprietary/methodology).
 - Design-philosophy blurb exists as prose (not shipped as a page); decided *not* to name competitors
   for the 無理碼 point ("don't want to pick fights").
@@ -671,8 +890,10 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ## Key naming / decisions cheat-sheet
 - **Candidate types** (librime-lua `.type`): `ap_short` (簡碼), `ap_si4` (exact 4-code phrase),
-  `ap_pool` (everything demotable: completion/偏旁/同類/三簡/容錯/3-prefix). `completion` is
-  librime's own type.
+  `ap_left` (fully-typed 左簡碼 — exact tier), `ap_pool` (everything demotable:
+  completion/偏旁/同類/三簡/容錯/3-prefix/partial 左簡碼). `completion` is librime's own type.
+  **A new type must be taught to both order filters** — an unknown `.type` silently falls
+  through to the pool, which looks like a ranking bug rather than a missing case.
 - **Candidate span fields:** `.start`, `._end` (Lua keyword `end` → `_end`), `.preedit` (form =
   UPPERCASE, pinyin = lowercase — used to tell form vs pinyin candidates apart).
 - **`final` not `code`** is the shipping code in `codes.json`.
