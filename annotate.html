@@ -792,6 +792,8 @@ const el = (t, c, x) => { const e = document.createElement(t);
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
 let orderings = { tw4808: [], gb2312: [], name: [], place: [], binom: [] };  /* 未取碼佇列的排序來源 */
+let stdChars = [];   /* 官方字表聯集（教育部常用國字4808 ∪ GB2312）：跟 /progress 同一套完成目標，
+                         不是 order（字頻表 9574，那是字形資料涵蓋範圍，見 server.py 的說明） */
 /* 取碼目標改用官方字表衡量之後，排序來源也跟著換：字頻已經是所有排序的墊底次序
    （選了某個來源，只是把那批字提到最前，其餘仍照字頻），不必再單獨列一顆；
    新聞字頻與「簡體」都併進 GB 表 —— 簡體專屬字本來就幾乎都在 GB 2312 裡。
@@ -3772,7 +3774,8 @@ function renderQueue() {
     d.onclick = () => load(c);
     box.append(d);
   }
-  $('#prog').innerHTML = `已取碼 <b>${order.filter(isDone).length}</b> / ${order.length}`;
+  $('#prog').innerHTML = `官方字表已取碼 <b>${stdChars.filter(isDone).length}</b> / ${stdChars.length}`;
+  $('#prog').title = '目標：教育部常用國字 4808 ＋ GB2312 6763 聯集，跟 /progress 同一套（不是字頻表 9574）';
 }
 /* ---------- 三欄可拖寬 ---------- */
 for (const [id, varName, side] of [['#dragL', '--colL', 'L'], ['#dragR', '--colR', 'R']]) {
@@ -4335,6 +4338,7 @@ Promise.all([
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
   orderings = Object.fromEntries(QSORTS.map(k => [k, (ords && ords[k]) || []]));
+  stdChars = [...new Set([...orderings.tw4808, ...orderings.gb2312])];
   opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };
   stamp = s;
