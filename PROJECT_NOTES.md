@@ -656,9 +656,13 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
      prefix/suffix fragments. `segStart = min(c.start)`, code extracted from that segment (not
      the whole `context.input`, which with sentence mode is the full composition).
 - **`aiphabi_hint.lua`** — attaches hints to candidates: 同類字, 偏旁碼, 打繁出簡/打簡出繁, and the
-  **簡碼 hint** (type a char's full code, see "簡碼 XX" reminder). Also **generates the 四碼快打
-  candidates** from `data.si4` (not in the dict): `#code==4` exact → `ap_si4` (exact tier),
-  3-prefix → `ap_pool` (完成/墊底). Gated on phrase being on.
+  reverse-hint trio that all follow the same "you typed the long way, here's the short way"
+  pattern — **簡碼** (`shortcode_rev`), **左簡碼** (`leftshort_rev`), and **四碼快打**
+  (`si4_rev`, added 2026-08-15). Also **generates the 四碼快打 candidates** from `data.si4` (not
+  in the dict): `#code==4` exact → `ap_si4` (exact tier), 3-prefix → `ap_pool` (完成/墊底).
+  Gated on phrase being on. `si4_rev` only fires when the 4-code path is genuinely shorter than
+  every normal way to type the word (`main`/`simp`/`t3` modes) — no point whispering a code that
+  doesn't save keys.
 - **`aiphabi_phrase.lua`** — the phrase on/off gate (pure only): when `aiphabi_phrase` option is
   off, hides multi-char candidates.
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
@@ -672,11 +676,11 @@ formats the bracketed form:
 | Form | Means | Example |
 |---|---|---|
 | `標籤 (碼)` — **round brackets** | the bracketed code is that character's **主碼**, shown for reference. The label says *how you got here* | type `JKQ` → 我 `簡碼 (JKXQ)`; type `IF` → 主 `兼容 (QE)` |
-| `標籤 碼` — **no brackets** | a code you could **type instead**, shorter than what you just typed | type `JKXQ` → 我 `簡碼 JKQ` |
+| `標籤 碼` — **no brackets** | a code you could **type instead**, shorter than what you just typed | type `JKXQ` → 我 `簡碼 JKQ`; type a phrase's full code → `四碼 XXXX` |
 | `[ 碼 ]` — **square brackets** | a 容錯 guess (`aiphabi_fuzzy` only) — deliberately distinct so a guess can never read as a reference | type `JKQ` → 不 `[ JQ ]` |
 
 The label never repeats the word 主碼: the brackets already mean that, so the label slot is spent
-on the route instead (簡碼 / 三簡 / 左簡 / 偏旁碼 / 同類 / 兼容). `- XX` is the odd one out and
+on the route instead (簡碼 / 三簡 / 左簡 / 四碼 / 偏旁碼 / 同類 / 兼容). `- XX` is the odd one out and
 means "these keys still to press" — actionable, hence no brackets.
 
 ### Testing the candidate bar offline
@@ -735,6 +739,11 @@ can't leave a stale shortcut behind. Three things worth knowing:
 - **Partial codes need their own completion table** (`M.leftshort_pre`, ≥3 codes). Main codes get
   completion free from `enable_completion`; a lua-only code gets nothing, so typing `SMB` for 鯉
   (`SMBF`) silently produced no candidate at all until the prefix table existed.
+- **`alts`（兼容碼）are scanned too, not just the main code.** Fixed 2026-08-16 (`cca07ff`) after
+  a Side-A bug report (`左簡碼_alts未涵蓋.md`, since resolved and removed) found 9 of the 249
+  members had a compatible alt code that never got its own 左簡碼 — the generator used to read
+  only `codes[ch]["code"]`. 2 of those 9 (餵, 轄) end up with the *same* signature for their main
+  code and their alt once the remainder gets capped past 3 codes — expected, not a regression.
 
 **The JKXQ / JKQ story — the core design principle in one example:**
 - 我 main code = **JKXQ** (fully derivable from its zigen).
@@ -759,7 +768,7 @@ it's a hand-curated 60. On a 簡碼 collision, **first in the list wins** (match
 preview). `build_rime.py` builds `shortcode` (code→char) and `shortcode_rev` (char→its 簡碼,
 drives the hint).
 
-### 左簡碼 — the 偏旁 layer (spec'd and curated; **not built yet**)
+### 左簡碼 — the 偏旁 layer (spec'd + curated by Side A; **shipped** — `build_rime.py` + `aiphabi_hint.lua`)
 
 When a curated 偏旁 sits at the far left of a character, the 偏旁 contributes only its **首+末**
 two codes and its middle is skipped. 鮭 完整碼 `SOTMFF` → 左簡碼 `SMFF`.
@@ -814,6 +823,12 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
   longer phrases. 3-char → 首首首末; 4-char → 4×首碼; **5+ char → both first-4 AND first-3+last**
   registered (first-4 = partial-recall friendly; first-3+last = better disambiguation on shared
   prefixes like 中國人民X). Exact 4-code → `ap_si4` (ranks as exact); 3-prefix → `ap_pool` (墊底).
+- **Reverse hint (`data.si4_rev`, added 2026-08-15):** word → its 4-code, registered only when
+  that's genuinely shorter than every normal typing mode for the word (`main`/`simp`/`t3`).
+  Typing a phrase the normal 詞組連打 way and getting it back as an ordinary candidate now appends
+  `四碼 XXXX` — same pattern as the 簡碼/左簡碼 reverse hints. 5+ char words register only the
+  first-4 variant (most memorable — "just remember the opening"); the first-3+last variant is
+  left unhinted so the hint doesn't have to choose which one to show.
 - Phrase source files: **`data/phrases_*.txt`** (`build_rime.py` globs `phrases_*.txt`), space-
   separated, `#` comments, Traditional. Current set: `places`, `people`, `history`, `politicians`,
   `english_names`, `common`, `idioms`, `food`, `brands`, `orgs`. `phrases_preview.tsv` is a
@@ -866,17 +881,25 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 ### B · User side
 - ✅ Two macOS schemas (pure `aiphabi` + `aiphabi_plus` with F4 pinyin toggle), installed via
   `./sync.sh`.
-- ✅ Quickcode stack: 60 hand-picked 簡碼, auto 三簡碼, both with toggles + reserved main codes +
-  簡碼 hint.
-- ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼 > pool > coverage-
-  demoted part; userfreq boosting; completion & cold-reading penalties; span-based coverage gating.
+- ✅ Quickcode stack: 60 hand-picked 簡碼, auto 三簡碼, 左簡碼 (8 偏旁 families, 299 members as of
+  2026-08-16), all three with toggles + reserved main codes + reverse hints — see *Candidate-bar
+  filters* and *Candidate comment convention*.
+- ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼/左簡碼 > pool >
+  coverage-demoted part; userfreq boosting; completion & cold-reading penalties; span-based
+  coverage gating.
 - ✅ 詞組連打: ~40k+ curated phrases across 10 themed files; 2-char cartesian; 3+ uniform modes;
-  四碼快打 (first-4 + first-3+last for 5+); `enable_sentence` segmentation.
+  四碼快打 (first-4 + first-3+last for 5+, plus a reverse hint `si4_rev` since 2026-08-15);
+  `enable_sentence` segmentation.
 - ✅ 容錯 (fuzzy), 萬用鍵 `` ` ``, 打繁出簡/打簡出繁, 偏旁碼/同類字 hints.
 - ✅ iOS (Hamster) working; dict weights sane for the no-lua path; mobile pulls phrase data + 4-code
   logic from repo.
-- 🔄 Ongoing: expand phrase库; ordering edge-cases as they surface (each fix must land in BOTH
-  order filters); the last known ordering work shipped at commit `9ffed24`.
+- ✅ Offline test harness (`tests/run_tests.lua` + `harness.lua`) runs the real filter files against
+  the real generated `aiphabi_data.lua` — see *Testing the candidate bar offline*.
+- ✅ Fixed 2026-08-16: 左簡碼 generation was reading only each member's main code and silently
+  ignoring `alts` — 9 of 249 members had a compatible alt code with no shortcut of its own
+  (`cca07ff`; bug report `左簡碼_alts未涵蓋.md` from Side A, now resolved and removed).
+- 🔄 Ongoing: expand phrase庫; ordering edge-cases as they surface (each fix must land in BOTH
+  order filters). Current build: 5911 字, 7715 碼, 393 重碼組 (as of 2026-08-16, commit `5ae4925`).
 
 ### Not started / open
 - ~~No formal test harness for candidate ordering~~ — **done**, see *Testing the candidate bar
@@ -897,7 +920,8 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 - **Candidate span fields:** `.start`, `._end` (Lua keyword `end` → `_end`), `.preedit` (form =
   UPPERCASE, pinyin = lowercase — used to tell form vs pinyin candidates apart).
 - **`final` not `code`** is the shipping code in `codes.json`.
-- **`shortcode_rev`** drives the 簡碼 hint; **`shortcode`** drives 簡碼 lookup.
+- **`shortcode_rev` / `leftshort_rev` / `si4_rev`** each drive one reverse hint (簡碼 / 左簡碼 /
+  四碼快打); **`shortcode` / `leftshort` / `si4`** drive the matching forward lookup.
 - Two order filters (`aiphabi_order.lua` + `aiphabi_order_plus.lua`) — **sync every fix**.
 - Deploy = **`./sync.sh "<msg>"`** only. `fetch_data.py` for third-party data (gitignored outputs).
 - `Z` = wildcard letter in the alphabet; `` ` `` = wildcard *key* while typing.
