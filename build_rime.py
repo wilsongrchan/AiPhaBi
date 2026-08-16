@@ -19,6 +19,7 @@ Linux 是 ibus/fcitx5-rime、iOS 有 Hamster。給它一份 schema + 一份碼�
     python3 build_rime.py --install  # 順便裝進 ~/Library/Rime（macOS）
 """
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -26,6 +27,13 @@ import subprocess
 import sys
 from collections import defaultdict
 from datetime import date
+
+# 手機（Hamster／LuaJIT）打包專用：M.si4／M.si4_rev 的鍵數量跟著詞庫成長，遲早會跟其他
+# M.* 表一起把單一 chunk 撐過 LuaJIT 65536 常數上限（見 PROJECT_NOTES.md「mobile packaging
+# quirk」）。桌面（Squirrel 用原版 Lua，沒有這個上限）建置不設這個環境變數，行為不變；
+# 手機打包腳本設 AIPHABI_MOBILE_SI4_TOPN 只留最常用的前 N 個詞去產生四碼快打，把 M.si4／
+# M.si4_rev 的鍵數壓在預算內。
+MOBILE_SI4_TOPN = int(os.environ.get("AIPHABI_MOBILE_SI4_TOPN") or 0) or None
 
 ROOT = pathlib.Path(__file__).parent
 DATA = ROOT / "data"
@@ -449,7 +457,10 @@ def main():
     si4_rev = {}    # 詞 -> 四碼：打了詞組連打的完整碼，剛好有四碼快打可用，就提醒「其實有四碼」
                     # （跟簡碼／左簡碼同一套反向提醒；5+ 字詞兩式都收，提醒只留第一式＝前四字首碼，
                     # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒）
-    for _w, _wt in phrase_w.items():
+    _si4_source = phrase_w
+    if MOBILE_SI4_TOPN:
+        _si4_source = dict(sorted(phrase_w.items(), key=lambda kv: -kv[1])[:MOBILE_SI4_TOPN])
+    for _w, _wt in _si4_source.items():
         _chs = list(_w)
         if len(_chs) < 3 or any(_c not in char2code for _c in set(_chs[:4]) | {_chs[-1]}):
             continue

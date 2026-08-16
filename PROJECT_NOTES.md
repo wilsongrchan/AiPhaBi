@@ -655,20 +655,50 @@ load failure.
   bootstrap**, not just the feature that file implements. This was the second crash found (after
   the `wordfreq` one) and is the more dangerous of the two, since it's easy to assume a file is
   "only used by the plus schema" and skip it.
-- **Empirically validated safe zone** (real-device tests, `aiphabi_data.lua` line count after the
-  `wordfreq` strip): **~54,000–59,000 lines has shipped and worked** across several consecutive
-  pulls. ~95,000+ lines (i.e. shipping `wordfreq` un-stripped) **reliably crashes**. There is a
-  large, untested gap between those numbers — treat any big jump in line count (a new large
-  reverse-lookup table, a new curated list) as a reason to check the size *before* shipping, not
-  after. This is why `si4_rev` (below) was capped rather than shipped at full size (~15,000 extra
-  lines) the first time it was built.
+- **Line count is not a reliable proxy for constant count — verify with `luajit` directly.**
+  The old rule of thumb here (see history below) was "~54,000–59,000 lines is safe, ~95,000+
+  crashes." That rule silently broke once the table *shape* changed: `M.si4`'s many-small-array
+  values (`["QOXQ"]={"中國","中國人",...}`) burn far more constants per line than a flat
+  `[key]=string` table like `M.char2code`, so a file that "looks" small by line count can still
+  blow the budget. Confirmed 2026-08-16 with `apt-get install luajit` (available in this
+  container) + `luajit -e "dofile('aiphabi_data.lua')"` — this is now the source of truth, not
+  line count. A file that *loads* is safe; a file that's merely under some historical line number
+  is not proven safe. Re-run this check before every mobile ship, not just when line count jumps.
+- **`AIPHABI_MOBILE_SI4_TOPN` (env var, `build_rime.py`, added 2026-08-16):** by 2026-08-16 the
+  combination of five more months of Side-A character growth plus the uncapped `si4_rev` (see
+  below) made even `M.si4` **alone** — with `wordfreq` and `si4_rev` both emptied — exceed the
+  65,536-constant budget (confirmed by bisecting table-by-table with `luajit`, not guessed). The
+  old per-code cap of 24 entries doesn't help: the problem is **18,828 distinct `si4` keys**, not
+  entries per key — each key alone costs ~3 constants (key string + table + ≥1 value string)
+  regardless of how many values it holds. The fix: `AIPHABI_MOBILE_SI4_TOPN=N` restricts `si4`/
+  `si4_rev` generation to the top-N phrases by weight (same lever as `PHRASE_TOPN`/`WORDFREQ_TOPN`).
+  **Unset in normal/desktop builds — behavior and dict.yaml output are unchanged**; only the
+  mobile packaging step sets it. Bisected the actual cliff for today's data: **~29,500 phrases
+  passes, 30,000 crashes** (right at the wall — no margin). Shipping at **`N=18000`** instead
+  (~55,600 lines after the `wordfreq` strip, confirmed loading with `luajit`, and incidentally
+  back inside the old "empirically safe" 54–59k line window) — gives real headroom for the next
+  few months of character/phrase growth before this needs revisiting. If this cap needs
+  loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
+  moves every time the base character/phrase count grows.
+- **`si4_rev` no longer has its own separate cap** (an earlier draft capped it directly to the
+  top 3,000 phrases by weight, `SI4_REV_TOPN` — that line never made it to `main` and was
+  discarded during a merge on 2026-08-16). It's now implicitly bounded by `AIPHABI_MOBILE_SI4_TOPN`
+  instead, since both tables are generated from the same phrase-weight-restricted loop.
+- **Longer-term, better fix if this recurs again:** split `M.si4`/`M.si4_rev` into their own
+  `require()`d Lua file instead of capping their content. LuaJIT's constant limit is **per
+  compiled chunk**, so a second file gets its own independent 65,536 budget — no data loss, unlike
+  topN capping. Not done yet (bigger change: new file + `rime.lua` require list + `aiphabi_hint.lua`
+  lookup path); the topN cap above is the pragmatic fix for now.
 - **This packaging step is not part of `./sync.sh`** and is not scripted anywhere in the repo —
-  it has so far only been done by hand (by an AI coding session) each time: rebuild, strip
-  `wordfreq`, assemble `aiphabi.dict.yaml` (from git) + the stripped `aiphabi_data.lua` (local) +
-  all lua files + `rime.lua` + `hamster.custom.yaml` + `default.custom.yaml` + `predict.db` into
-  one flat folder, zip it, hand it to the user to overwrite-import into Hamster's Files app.
-  Worth scripting (e.g. `package_hamster.py`) if this keeps recurring — currently just tribal
-  knowledge re-derived each session.
+  it has so far only been done by hand (by an AI coding session) each time: rebuild with
+  `AIPHABI_MOBILE_SI4_TOPN=18000` set, strip `wordfreq`, **verify with `luajit -e
+  "dofile('aiphabi_data.lua')"` before packaging** (don't skip this — it's what caught the
+  2026-08-16 regression), assemble `aiphabi.dict.yaml` (from git, full/uncapped — dict.yaml has
+  no such limit, see *Phrase input* below) + the stripped `aiphabi_data.lua` (local) + all lua
+  files + `rime.lua` + `hamster.custom.yaml` + `default.custom.yaml` + `predict.db` into one flat
+  folder, zip it, hand it to the user to overwrite-import into Hamster's Files app. Worth
+  scripting (e.g. `package_hamster.py`) if this keeps recurring — currently just tribal knowledge
+  re-derived each session.
 
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
