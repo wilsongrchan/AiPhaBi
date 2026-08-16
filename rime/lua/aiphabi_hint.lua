@@ -99,6 +99,9 @@ local function filter(input, env)
   -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
   local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
   local si4_on    = ok and (#code == 3 or #code == 4) and phrase_on
+  -- 四碼反向提醒：跟簡碼／左簡碼同一套「教你少打幾碼」，但不鎖 #code==3/4 那個閘門——
+  -- 這個提醒是打「詞組連打」的完整長碼（通常遠超過 4 碼）拿到詞當正常候選時才附註的。
+  local si4_rev_on = ok and phrase_on
   local no_simp  = ctx:get_option("aiphabi_no_simp")
 
   local extra = {}
@@ -253,14 +256,11 @@ local function filter(input, env)
         return cand
       end
     end
-    -- 四碼提醒：跟簡碼／左簡碼同一套「教你少打幾碼」，但這次是詞不是字——打完
-    -- 整串主碼串接打出這個詞（3+ 字），這個詞剛好有四碼快打，就附「四碼 XXXX」。
-    -- 只講第一式（si4_rev 只存了「從頭打」那式），5+ 字詞另外那式（前三字+末字，
-    -- 用來消撞）不在這裡提，太模糊，打完整串的人不缺這個字的辨識度。
-    if phrase_on then
-      local sc = data.si4_rev[cand.text]
-      if sc and sc ~= code then
-        cand.comment = "四碼 " .. sc:upper()
+    -- 四碼快打提醒：跟約定簡碼／左簡碼同一套。詞組（多字詞）才有，一字一字比照辦理。
+    if si4_rev_on then
+      local qc = data.si4_rev[cand.text]
+      if qc and qc ~= code then
+        cand.comment = "四碼 " .. qc:upper()
         return cand
       end
     end
