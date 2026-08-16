@@ -866,6 +866,31 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
   `english_names`, `common`, `idioms`, `food`, `brands`, `orgs`. `phrases_preview.tsv` is a
   **human-readable reference only — NOT consumed by the IME** (the IME needs `aiphabi.dict.yaml`
   + `aiphabi_data.lua`).
+- **Entry-count baseline (measured 2026-08-16):** `aiphabi.dict.yaml` phrase rows = **100,506**
+  across **42,508** distinct phrases, avg **2.36** entries/phrase. Distribution: 6,183 phrases
+  collapse to 1 entry (all modes produce the same code), 23,609 → 2, 3,759 → 3 (3+-char, all
+  uniform modes distinct), 8,957 → 4 (2-char, full cartesian, all 4 combos distinct). Today's
+  ceiling per phrase is 4 (2-char cartesian) or 3 (3+-char uniform modes).
+- **`aiphabi.dict.yaml` has no LuaJIT-style hard ceiling** — unlike `aiphabi_data.lua`'s `M.*`
+  tables (see *mobile packaging quirk* below), the phrase dict compiles into librime's own binary
+  `.table.bin`, not a Lua chunk, so the 65,536-constant wall doesn't apply to it. Production Rime
+  schemas (pinyin etc.) ship hundreds of thousands of dict entries without issue. The real cost of
+  growing this table isn't a crash risk, it's **code-space collision/quality** — every extra
+  variant is a string that can't be used for anything else (a char's short code, a 左簡碼, another
+  phrase's variant). No hard number established for where that starts hurting; ranking (frequency-
+  based reorder) currently absorbs it fine in practice, per user's own testing.
+- **Considered and rejected (2026-08-16): wiring 左簡碼 into 詞組連打.** The idea was adding
+  左簡碼 as a third per-character option in the 2-char cartesian (alongside short/main), the same
+  way `short` already works. Rejected because: (1) it would blow the 2-char cartesian from 2×2=4
+  to up to 3×3=9 per phrase where both chars qualify (or 3×2=6 one-sided) — the same combinatorial
+  growth the 3+-char code already dodges by using uniform modes instead of per-char cartesian; (2)
+  the 三簡碼 route already gets most 2-char phrases down to 6 codes total (3+3), so the marginal
+  win was small; (3) 左簡碼's real value is typing a **single character** fast — it was never
+  designed as a phrase-building primitive, and forcing it into that role doesn't fit the "偏旁 must
+  be leftmost, no stacking with 三簡碼" constraints it already has (see *左簡碼 — the 偏旁 layer*).
+  If this gets revisited, the sane path (if ever needed) is gating the extra option to only the
+  rare phrases where a component char actually has a 左簡碼 (249 chars total), not a blanket third
+  axis on every 2-char phrase.
 
 ---
 
@@ -908,7 +933,8 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   working down the official list. `data/todo_chars.txt` is the older frequency-ordered queue and
   its header counts are stale; `/progress` is the authority. Also: refine tiers/groups;
   `kind:"manual"` rules not yet enforced.
-- ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
+- (Side B caught up: 左簡碼 shipped as `aiphabi_left_short` — see *B · User side* below. Nothing
+  outstanding here.)
 
 ### B · User side
 - ✅ Two macOS schemas (pure `aiphabi` + `aiphabi_plus` with F4 pinyin toggle), installed via
