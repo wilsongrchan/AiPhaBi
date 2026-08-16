@@ -285,12 +285,6 @@
   .simppanel a.sc .g { font-size:22px; font-family:"PingFang TC","Songti TC",serif; color:var(--ink); line-height:1.15; }
   .simppanel a.sc .st { font:600 10px ui-monospace,monospace; color:var(--accent); white-space:nowrap; }
   .simppanel a.sc.todo .st { color:var(--warn); }
-  /* 主字形輸出更正（碼位與字形不符時） */
-  .morow { display:flex; align-items:center; gap:6px; margin:2px 0 6px; font-size:12px; color:var(--muted); }
-  .morow input { font:600 17px "PingFang TC",serif; width:44px; text-align:center; padding:2px 4px;
-    border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); }
-  .morow input.diff { border-color:var(--warn); color:var(--warn); }
-  .morow .mohint { font-size:10px; color:var(--warn); }
 
   /* 兼容字型清單（側欄） */
   #variants .vrow { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
@@ -674,14 +668,6 @@
         title="用另一種通行字形（例：為 的台灣字形）另取一個碼；打那個碼優先出那個字形，本字也接受">＋ 兼容字型</button>
     </div>
     <div id="vwrap" class="collapsed">
-      <!-- 主 田字格 的字形實際輸出哪個字。makemeahanzi 偶爾把字形畫成別的通行體
-           （為 U+70BA 畫成 12 筆的 爲），碼位與字形不符時，在這裡更正主字形要輸出的字。 -->
-      <label class="morow" id="moRow"
-        title="主 田字格 這個字形實際輸出哪個字。預設就是本字；makemeahanzi 把 為 畫成 爲 這種情況，改成 爲。">
-        <span>主字形輸出</span>
-        <input id="mainDisplay" maxlength="2" placeholder="—">
-        <span class="mohint" id="moHint"></span>
-      </label>
       <div id="variants"></div>
       <div id="vsuggest"></div>
     </div>
@@ -1635,7 +1621,7 @@ async function renderComponentAltSuggestions(X) {
 }
 
 /* ---------- 兼容字型 ----------
-   有些字有兩種通行寫法（為 的大陸字形 12 筆、台灣字形 9 筆），視為同一個字。
+   有些字有兩種通行寫法（賴 的台灣字形把負頂取成 S），視為同一個字。
    這裡用「另一種字形」（台灣／香港輪廓）另取一個碼：打那個碼優先出那個字形，
    本字也接受；反過來打本字的碼，那個字形排在後面（需要選字）。build_rime 據此產生互通的碼表。
 
@@ -1736,9 +1722,7 @@ async function vfOpen(variant) {
   vfChar = cur; vfEditing = variant || null;
   vfSegs = []; vfSkip = []; vfSel = [];
   vfForm = (variant && variant.form) || 'tw';
-  /* 新增時的預設輸出＝碼位本字：
-     賴 的台灣字形還是輸出「賴」（同字、另一種寫法）；
-     為 的台灣字形輸出「為」（主字形已改成 爲，這個才是碼位本字）。兩種都對。 */
+  /* 新增時的預設輸出＝本字：賴 的台灣字形還是輸出「賴」（同字、另一種寫法）。 */
   $('#vfdisplay').value = variant ? variant.display : cur;
   $('#vfsub').textContent = `　${cur} 的另一種通行字形`;
   $('#vfmsg').textContent = '';
@@ -1769,7 +1753,7 @@ function vfSave() {
   /* 只有「輸出同一個字、而且碼也跟主碼一模一樣」才是白收 —— 那才擋。
      輸出同字但碼不同（賴 的台灣字形把負頂取成 S）是有意義的：另一種寫法的人照樣打得出賴。 */
   const liveMain = (codes[cur] && codes[cur].code) || segs.map(s => s.letter).join('');
-  if (display === mainOutOf(cur) && finalOf(code) === finalOf(liveMain)) {
+  if (display === cur && finalOf(code) === finalOf(liveMain)) {
     $('#vfmsg').textContent = '這跟主碼一模一樣，不必收。'; return;
   }
   if (!vfStrokes.length) { $('#vfmsg').textContent = '沒有字形資料，收不了。'; return; }
@@ -1857,40 +1841,15 @@ async function suggestComponentVariants(char, form) {
   box.append(wrap);
 }
 
-/* 主 田字格 這個字形實際輸出哪個字（預設本字）。makemeahanzi 把 為 畫成 爲 時，改成 爲。 */
-const mainOutOf = ch => (codes[ch] && codes[ch].display) || ch;
-
 /* 主碼算不算「取好了」——已存檔的碼，或畫面上已把每一筆都指派／略過的完整拆解。
    （兼容碼、兼容字型都要等主碼好了才能收；不能只看已存檔的 codes[cur].code，
     否則剛取完、還沒存的字就一直是灰的。） */
 const mainCoded = () => !!(codes[cur] && codes[cur].code) ||
   (segs.length > 0 && restStrokes().length === 0);
 
-/* 設定「這個字形實際輸出哪個字」——標題那個大字、側欄那格，都由它更新。 */
-function setMainOut(v) {
-  const rec = codes[cur] || (codes[cur] = {});
-  v = (v || '').trim();
-  if (v && [...v].length !== 1) { $('#status').textContent = '請填正好一個字（例：爲）'; return false; }
-  if (!v || v === cur) delete rec.display; else rec.display = v;
-  touch(); renderCurHeader(); renderMainOut();
-  return true;
-}
-
-/* 標題左上那個大字：顯示「實際輸出的字」；點一下可改（makemeahanzi 把 為 畫成 爲 時用得上）。 */
+/* 標題左上那個大字。 */
 function renderCurHeader() {
-  const out = mainOutOf(cur);
-  const diff = out !== cur;
-  $('#cur').innerHTML =
-    `<b id="curglyph" title="點一下：這個字形實際是哪個字（makemeahanzi 把 為 畫成 爲）">${out}</b>` +
-    (diff ? `<span class="cplabel" title="鍵盤佇列與字頻仍以碼位字為準">碼位 ${cur}</span>` : '') +
-    `<span>${strokes.length} 筆</span>`;
-  $('#curglyph').onclick = () => {
-    const r = prompt('這個字形實際是哪個字？\n\n' +
-      'makemeahanzi 把「為」(U+70BA) 畫成 12 筆的「爲」。想讓這個字形輸出 爲，就填 爲；' +
-      '填回本字或留空＝用碼位本字。', mainOutOf(cur));
-    if (r === null) return;
-    setMainOut(r);
-  };
+  $('#cur').innerHTML = `<b id="curglyph">${cur}</b><span>${strokes.length} 筆</span>`;
 }
 
 /* 繁簡對照小面板：這個字的另一體（繁→簡 或 簡→繁）。點它跳過去看那個字。
@@ -1918,16 +1877,7 @@ function renderSimp(c) {
   }
 }
 
-function renderMainOut() {
-  const inp = $('#mainDisplay');
-  const out = mainOutOf(cur);
-  inp.value = out;
-  const diff = out !== cur;
-  inp.classList.toggle('diff', diff);
-  $('#moHint').textContent = diff ? `≠ 碼位「${cur}」` : '';
-}
-
-/* 兼容字型很少用，預設收起；有既有設定（變體或主字形改過）的字才自動展開。 */
+/* 兼容字型很少用，預設收起；有既有設定的字才自動展開。 */
 let vExpanded = false;
 function applyVwrap() {
   $('#vwrap').classList.toggle('collapsed', !vExpanded);
@@ -1935,7 +1885,6 @@ function applyVwrap() {
 }
 
 function renderVariants() {
-  renderMainOut();
   applyVwrap();
   $('#vsuggest').innerHTML = '';   /* 換字了，上一個字的「同部件」建議別留著 */
   const box = $('#variants'); box.innerHTML = '';
@@ -1947,7 +1896,7 @@ function renderVariants() {
   if (!vs.length) {
     box.innerHTML = '<div class="newz">這個字有另一種通行寫法、而大陸字形畫不出來時，' +
       '按上面「＋ 兼容字型」載入台灣／香港字形另取一個碼。' +
-      '同一個字（賴 的台灣字形把負頂取成 S）或另一個字（為 的台灣字形 為）都可以——' +
+      '同一個字（賴 的台灣字形把負頂取成 S）也可以——' +
       '那個碼打得出那個字形，本字也接受。</div>';
     return;
   }
@@ -1972,7 +1921,6 @@ function renderVariants() {
 
 $('#newVariant').onclick = e => { e.stopPropagation(); vExpanded = true; applyVwrap(); vfOpen(); };
 $('#vhead').onclick = e => { if (e.target.closest('#newVariant')) return; vExpanded = !vExpanded; applyVwrap(); };
-$('#mainDisplay').onchange = () => { if (!setMainOut($('#mainDisplay').value)) renderMainOut(); };
 
 $('#vfclose').onclick = () => vfClose();
 $('#vfsave').onclick = () => vfSave();
@@ -3353,7 +3301,9 @@ async function load(c) {
   cur = c; sel = []; segs = []; skipped = [];
   $('#altsib').innerHTML = '';                 /* 清掉上一個字的連坐／部件兼容碼建議 */
   const g = await Zigen.getGlyph(c);
-  if (!g) {                             /* 沒有筆畫資料（例：粵語 啲 喺 冇）：改走手動取碼 */
+  const forceManual = !!(codes[c] && codes[c].manual);
+  if (!g || forceManual) {              /* 沒有筆畫資料（例：粵語 啲 喺 冇），或設計者強制手動
+                                            （例：makemeahanzi 把 為 畫成 爲 的混淆，改走手動取碼）*/
     strokes = []; medians = []; baseStrokes = []; baseMedians = []; drawGlyph();
     document.body.classList.add('manualmode');
     showManual(c);
@@ -3378,9 +3328,9 @@ async function load(c) {
   $('#notcomp').checked = !!(rec && rec.notComponent);
   renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
   /* 收合預設要在 renderSegs（會觸發 renderAlts→applyAwrap）之前設好，不然套到的是上一個字的值：
-     有手動兼容碼就自動展開兼容碼欄；有兼容字型／改過主字形輸出就自動展開兼容字型欄。 */
+     有手動兼容碼就自動展開兼容碼欄；有兼容字型就自動展開兼容字型欄。 */
   aExpanded = !!(rec && rec.alts && rec.alts.length);
-  vExpanded = !!(rec && ((rec.variants && rec.variants.length) || rec.display));
+  vExpanded = !!(rec && rec.variants && rec.variants.length);
   drawGlyph(); renderSegs(); suggest(); renderQueue(); renderCangjie(c); strokeOrder(c);
   renderRelated(c); renderBack(); renderVariants();
   if (vfOpenNow()) vfClose();      /* 換了字就別讓上一個字的兼容字型編輯器開著 */
@@ -3433,7 +3383,7 @@ async function manualSave(goNext) {
   const note = $('#mpNote').value.trim();
   if (note) rec.note = note; else delete rec.note;
   /* 全空 → 這個字乾脆整筆拿掉，不留空殼 */
-  if (!rec.code && !(rec.alts && rec.alts.length) && !rec.note && !rec.display &&
+  if (!rec.code && !(rec.alts && rec.alts.length) && !rec.note &&
       !(rec.variants && rec.variants.length)) delete codes[cur];
   st.style.color = 'var(--muted)'; st.textContent = '儲存中…';
   const r = await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
