@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.08.16"
+  version: "2026.08.17"
   author:
     - wilsongrchan
   description: |
@@ -39,6 +39,7 @@ switches:
     states: [ 三簡碼關, 三簡碼開 ]
   - name: aiphabi_left_short        # 左簡碼：左偏旁只取首尾兩碼（鮭 SOTMFF → SMFF）
     states: [ 左簡碼關, 左簡碼開 ]
+    reset: 1
   - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
     states: [ 詞組關, 詞組開 ]
     reset: 1
