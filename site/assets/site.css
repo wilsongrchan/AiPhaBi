@@ -359,6 +359,181 @@ th, td {
 th { font-weight: 600; white-space: nowrap; }
 tbody tr:last-child td { border-bottom: 0; }
 
+/* ---------- 字根表（zigen.html） ---------- *
+ * 版面參考《倉頡輸入法／輔助字形》：一字母一節，節裡是「取形意圖｜字根｜字例」的表格。
+ * 這一頁的內容比 --measure 寬，所以整頁不套那個上限，交給表格自己捲。 */
+
+.zg-tools { margin: 1.6rem 0 .6rem; }
+
+.zg-find { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+.zg-find > span { font-size: .9rem; color: var(--ink-dim); }
+
+.zg-find input {
+  font: inherit;
+  font-size: 1.1rem;
+  width: 7rem;
+  padding: .35rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.zg-find input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.zg-status { font-size: .88rem; color: var(--accent); margin: .5rem 0 0; min-height: 1.2em; }
+
+/* A–Z 跳轉列：黏在頂端，但要讓開 .topbar */
+.zg-jump {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+  padding: .6rem 0;
+  margin-bottom: .6rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.zg-jl {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: .85rem;
+  min-width: 1.7rem;
+  text-align: center;
+  padding: .2rem .1rem;
+  border-radius: 5px;
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.zg-jl.is-off { color: var(--ink-dim); background: transparent; opacity: .45; }
+
+.zg-letter { scroll-margin-top: 3.4rem; }
+
+.zg-h {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  font-size: 1rem;
+  margin: 2.2rem 0 .4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+/* 字母本身就是字根的形狀，所以給它鍵帽的樣子 —— 跟首頁的 .key 一致 */
+.zg-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.zg-n { font-size: .82rem; color: var(--ink-dim); font-weight: 400; }
+
+.zg-tbl { font-size: .9rem; }
+.zg-tbl th { color: var(--ink-dim); font-size: .82rem; }
+.zg-tbl td { vertical-align: middle; }
+
+.zg-desc {
+  max-width: 17rem;
+  color: var(--ink);
+  border-inline-end: 1px solid var(--line);
+  vertical-align: top !important;
+  padding-top: .7rem;
+}
+
+.zg-todo { color: var(--ink-dim); font-style: italic; }
+
+.zg-tier {
+  display: inline-block;
+  margin-top: .35rem;
+  font-size: .74rem;
+  color: var(--ink-dim);
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: .1rem .4rem;
+}
+
+.zg-shapecell { white-space: nowrap; }
+
+.zg-shape { display: inline-flex; align-items: center; gap: .45rem; }
+
+/* 取自哪個字。刻意不放大到像「這就是字根」—— 字根只是它的其中幾筆 */
+.zg-src {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.zg-span { font-size: .78rem; color: var(--ink-dim); white-space: nowrap; }
+
+.zg-ex { line-height: 1.9; }
+
+.zg-ch {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 1.25rem;
+  margin-inline-end: .3rem;
+}
+
+.zg-ch.is-hit {
+  color: var(--accent);
+  font-weight: 700;
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 .15rem;
+}
+
+.zg-more { font-size: .78rem; color: var(--ink-dim); }
+
+.zg-loading { color: var(--ink-dim); font-size: .92rem; }
+
+@media (max-width: 34rem) {
+  .zg-desc { max-width: 11rem; font-size: .85rem; }
+  .zg-ch { font-size: 1.1rem; }
+}
+
+/* 相近字形辨析（內容來自 site/content/similar.md） */
+.zg-sim {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem .4rem;
+  margin: 0 0 1.1rem;
+}
+
+.zg-sim h3 { margin: 0 0 .3rem; font-size: 1rem; }
+.zg-sim .tablewrap { margin: .6rem 0 .2rem; }
+.zg-simtbl { font-size: .9rem; }
+.zg-simtbl th { color: var(--ink-dim); font-size: .8rem; }
+.zg-simtbl td { vertical-align: middle; }
+.zg-simshape { width: 3rem; }
+.zg-trait { color: var(--ink-dim); font-size: .86rem; }
+
+.zg-key-sm {
+  min-width: 1.7rem;
+  height: 1.7rem;
+  font-size: .9rem;
+}
+
+.zg-simnote {
+  font-size: .88rem;
+  color: var(--ink-dim);
+  border-top: 1px solid var(--line);
+  padding-top: .6rem;
+  margin: .4rem 0 .8rem;
+  max-width: none;
+}
+
 /* 未完成的段落，Side C 接手時把它拿掉 */
 .todo {
   background: var(--accent-soft);

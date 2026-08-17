@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Generate the two data files the public site needs, from the repo's own source of truth.
+"""Generate the data files the public site needs, from the repo's own source of truth.
 
     site/assets/dict.json   碼 → 候選字（線上試打用）
     site/assets/t2s.json    繁 → 簡 單字對照（繁簡切換用）
+    site/assets/zigen.json  字根表（取形意圖 ＋ 例字），給 zigen.html 用
 
-Both outputs are **generated, never hand-edited, and gitignored**. They are rebuilt in the
+All outputs are **generated, never hand-edited, and gitignored**. They are rebuilt in the
 Pages workflow right before deploy, so the published demo can never drift from `data/codes.json`
 the way a committed copy would — every newly coded character is live the next time the site
 deploys.
@@ -18,6 +19,7 @@ Reading Side A's data is fine from any side (the guard never blocks reads). Writ
 """
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -41,6 +43,132 @@ def load(name):
     if not path.exists():
         sys.exit(f"missing {path} — run this from a full checkout")
     return json.loads(path.read_text("utf-8"))
+
+
+def build_similar():
+    """相近字形辨析：全部來自 site/content/similar.md，Wilson 手寫。
+
+    資料裡沒有這種東西 —— 「哪兩個形狀容易認錯」是取碼的人腦袋裡的知識，zigen.json
+    只知道兩個形狀不一樣（meta.distinct），不知道它們**像**。所以這一節不產生內容，
+    只負責把手寫的檔案讀進來。檔案不存在或全空就回傳空 list，那一節整段不出現。
+
+    格式（詳見 similar.md 檔頭）：
+        ## 標題
+        - 形 | 字母 | 例字 | 特徵
+        > 整組說明
+    """
+    path = ROOT / "site" / "content" / "similar.md"
+    if not path.exists():
+        return []
+
+    text = path.read_text("utf-8")
+    # <!-- --> 之間是候選清單，不要當成內容
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    # ``` 圍起來的是格式說明本身（檔頭那段範例），不是資料 —— 不擋掉的話
+    # 範例裡的「## 標題（隨便寫…）」會變成網站上真的一組辨析
+    text = re.sub(r"^```.*?^```", "", text, flags=re.S | re.M)
+
+    groups, cur = [], None
+    for raw in text.splitlines():
+        line = raw.strip()
+        # Wilson 會很自然地寫 **粗體**；這裡不做 markdown，把星號去掉就好
+        line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
+        if line.startswith("## "):
+            if cur and cur["items"]:
+                groups.append(cur)
+            cur = {"title": line[3:].strip(), "items": [], "note": ""}
+        elif line.startswith("- ") and cur is not None:
+            parts = [p.strip() for p in line[2:].split("|")]
+            if len(parts) < 4:
+                continue                      # 欄位不夠就跳過，不要半條爛資料上線
+            shape, letter, ex, trait = parts[0], parts[1], parts[2], " ".join(parts[3:])
+            if shape == "？" or not letter:
+                continue                      # 還沒填的候選
+            cur["items"].append({
+                "shape": shape,
+                "letter": letter,
+                "ex": [c for c in ex.split() if c],
+                "trait": trait,
+            })
+        elif line.startswith(">") and cur is not None:
+            cur["note"] = (cur["note"] + " " + line[1:].strip()).strip()
+
+    if cur and cur["items"]:
+        groups.append(cur)
+    return groups
+
+
+def build_zigen(zigen, codes, rank, far):
+    """字根表：把 zigen.json 攤成網站要的形狀。
+
+    ⚠️ 純文字版，刻意不畫字根。一個字根存的是「某個字的第幾筆到第幾筆」
+    （glyph = {src, strokes}），筆畫幾何在 data/graphics.txt（makemeahanzi）裡，
+    而那個檔 **gitignore、不隨本專案散布**，CI 上也不存在。所以這裡只輸出文字：
+    取形意圖（desc）、取自哪個字的第幾筆、以及例字。要畫出字根、在例字上高亮，
+    得先解決字形資料的授權與取得——那是另一個決定，不要偷偷在這裡引入相依。
+
+    例字（seen）依字頻排序後截斷：常用字排前面，學的人才認得出來。
+    """
+    # 筆畫總數只能從 codes.json 的 segments 反推（union 出來的最大索引 + 1）。
+    # 有了它才能分辨「整個字」和「字的前幾筆」——沒有 graphics.txt 就只有這條路。
+    nstrokes = {}
+    for ch, rec in codes.items():
+        mx = -1
+        for seg in rec.get("segments") or []:
+            for s in seg.get("strokes") or []:
+                if s > mx:
+                    mx = s
+        if mx >= 0:
+            nstrokes[ch] = mx + 1
+
+    def span(src, strokes):
+        """人看得懂的說法：整個「名」字 / 名 的第 1–3 筆 / 名 的第 1、3、4 筆"""
+        if not strokes:
+            return ""
+        ss = sorted(strokes)
+        total = nstrokes.get(src)
+        if total and len(ss) == total and ss == list(range(total)):
+            return "whole"
+        if ss == list(range(ss[0], ss[-1] + 1)):
+            return f"{ss[0] + 1}–{ss[-1] + 1}" if len(ss) > 1 else f"{ss[0] + 1}"
+        return "、".join(str(s + 1) for s in ss)
+
+    letters, n_shapes, n_nodesc = [], 0, 0
+    for L in zigen.get("letters", []):
+        groups = []
+        for it in L.get("intentions", []):
+            shapes = []
+            for sh in it.get("shapes", []):
+                g = sh.get("glyph") or {}
+                src = g.get("src") or sh.get("ex") or ""
+                seen = [c for c in (sh.get("seen") or []) if c in codes]
+                seen.sort(key=lambda c: rank.get(c, far))
+                shapes.append({
+                    "src": src,
+                    "span": span(src, g.get("strokes") or []),
+                    "count": sh.get("count", 0),
+                    "seen": seen,
+                })
+                n_shapes += 1
+            if not shapes:
+                continue
+            desc = (it.get("desc") or "").strip()
+            if not desc:
+                n_nodesc += 1
+            # 原形先、衍生後（倉頡的輔助字形表也是這個順序）。整個字構成的字根就是原形，
+            # 先看到「日」再看到「提 的第 4–7 筆」才讀得懂；純照 count 排會把衍生形頂到最前面。
+            shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
+            groups.append({"desc": desc, "tier": it.get("tier") or "primary",
+                           "shapes": shapes})
+        letters.append({"letter": L.get("letter", ""), "groups": groups})
+
+    return {
+        "note": "generated by site/tools/build_site_data.py — do not edit",
+        "tiers": (zigen.get("meta") or {}).get("tiers") or {},
+        "shapes": n_shapes,
+        "no_desc": n_nodesc,
+        "letters": letters,
+    }
 
 
 def main():
@@ -132,14 +260,22 @@ def main():
     t2s = {k: (v[0] if isinstance(v, list) else v) for k, v in t2s_raw.items()}
     t2s = {k: v for k, v in t2s.items() if k != v}
 
+    zg = build_zigen(load("zigen.json"), codes, rank, far)
+    zg["similar"] = build_similar()
+
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "dict.json").write_text(
         json.dumps(dict_out, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "t2s.json").write_text(
         json.dumps(t2s, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    (OUT / "zigen.json").write_text(
+        json.dumps(zg, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
     print(f"t2s.json   {len(t2s)} 組繁簡對照")
+    print(f"zigen.json {zg['shapes']} 個字根 / {len(zg['letters'])} 個字母"
+          + f" / {len(zg['similar'])} 組相近字形辨析"
+          + (f"  ⚠️ {zg['no_desc']} 組還沒寫取形意圖" if zg["no_desc"] else ""))
 
 
 if __name__ == "__main__":
