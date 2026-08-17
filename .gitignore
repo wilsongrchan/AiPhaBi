@@ -38,3 +38,10 @@ data/cj_img/
 
 # session side declaration (per-checkout, never committed)
 .aiphabi-side
+
+# 公開網站的產生檔（Side C）：由 site/tools/build_site_data.py 從 data/ 產生，
+# 部署時在 CI 裡重跑。不進版控是刻意的 —— 收進來就會有一份跟 codes.json 不同步的碼表
+# 躺在 repo 裡，而「網站上的字跟輸入法不一樣」是最難發現的那種錯。
+# 本機預覽前先跑：python3 site/tools/build_site_data.py
+site/assets/dict.json
+site/assets/t2s.json

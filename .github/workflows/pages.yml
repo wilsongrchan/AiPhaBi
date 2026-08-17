@@ -1,0 +1,73 @@
+# 把 site/ 發佈到 GitHub Pages。
+#
+# 為什麼要用 workflow 而不是直接指定資料夾：GitHub Pages 的「從分支發佈」只能選 / 或 /docs，
+# 而 docs/ 已經放了手稿和截圖。走 Actions 這條路可以發佈任何資料夾，順便在部署前重新產生
+# 網站資料，網站上的碼表與進度數字因此永遠對得上 main 上的 data/codes.json。
+#
+# 一次性設定（在 GitHub 網頁上做，workflow 自己做不到）：
+#   Settings → Pages → Build and deployment → Source 選 **GitHub Actions**
+# 沒設這個，這個 workflow 會在 deploy 那一步失敗。
+#
+# 網址：https://wilsongrchan.github.io/AiPhaBi/ —— 是專案站，網站在 /AiPhaBi/ 底下，
+# 所以 site/ 裡的連結與資源一律用相對路徑，絕對路徑（/assets/…）會全部 404。
+
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+      # 網站的數字和試打碼表是從這些檔案產生的，它們一動就該重新部署
+      - 'data/codes.json'
+      - 'data/rules.json'
+      - 'data/freq.json'
+      - 'data/opencc.json'
+      - 'data/standards/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時只跑一個部署；排隊而不是互相取消，免得比較新的一次被比較舊的一次蓋掉
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 產生 site/assets/dict.json 與 site/assets/t2s.json（兩個都不進 git）
+      - name: 產生網站資料
+        run: python3 site/tools/build_site_data.py
+
+      - name: 確認產出存在
+        run: |
+          test -s site/assets/dict.json || { echo "dict.json 沒產出來"; exit 1; }
+          test -s site/assets/t2s.json  || { echo "t2s.json 沒產出來";  exit 1; }
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

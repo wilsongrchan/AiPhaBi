@@ -5,13 +5,21 @@ Which side this checkout is cannot come from the conversation — the hook is a 
 process and never sees it. It comes from, in order of precedence:
 
     1. $AIPHABI_SIDE
-    2. the .aiphabi-side file at the repo root (gitignored, one letter: A or B)
+    2. the .aiphabi-side file at the repo root (gitignored, one letter: A, B or C)
 
-**Fails closed.** Each protection unlocks only on an explicit, correct marker; "B", "A",
-missing and unrecognised all block the thing they are not entitled to:
+**Fails closed.** Each protection unlocks only on an explicit, correct marker; every other
+marker value — including a *different* valid side, and including none at all — blocks the
+thing it is not entitled to:
 
     data/{codes,zigen,rules}.json  writable only when side == A   (hand-authored, irreplaceable)
     build_rime.py / sync.sh        runnable only when side == B   (Side B owns the build)
+    site/**                        writable only when side == C   (Side C owns the public site)
+
+`site/**` is a **lighter** guard than the other two, on purpose. Its Bash detection covers
+redirects and the obvious mutators but deliberately skips the `python … >` heuristic used for
+the data files, because `python3 site/tools/build_site_data.py` is a legitimate command that
+merely mentions a site path. Getting the site wrong is visible and reversible; getting
+`codes.json` wrong is not.
 
 The marker is re-read on every invocation, so `echo A > .aiphabi-side` takes effect on the very
 next tool call — no session restart needed. (Restart is only needed if the hook *registration*
@@ -44,6 +52,9 @@ PROTECTED = {
     "data/rules.json",
 }
 
+# Everything under site/ belongs to Side C (the public website).
+SITE_PREFIX = "site/"
+
 # Matches the protected data files as they appear inside a shell command.
 PROTECTED_IN_CMD = re.compile(r"(?:\./)?(?:data/)?(codes|zigen|rules)\.json\b")
 
@@ -51,6 +62,10 @@ PROTECTED_IN_CMD = re.compile(r"(?:\./)?(?:data/)?(codes|zigen|rules)\.json\b")
 REDIRECT_TO_PROTECTED = re.compile(
     r">>?\s*[\"']?(?:\./)?(?:data/)?(?:codes|zigen|rules)\.json\b"
 )
+
+# A path under site/ appearing as a command argument, and a redirect into one.
+SITE_IN_CMD = re.compile(r"(?:^|[\s\"'=])(?:\./)?site/\S*")
+REDIRECT_TO_SITE = re.compile(r">>?\s*[\"']?(?:\./)?site/")
 
 # argv0 values that mutate a file named in their arguments.
 MUTATORS = {
@@ -62,13 +77,15 @@ GIT_MUTATING_SUBCMDS = {"checkout", "restore", "clean", "apply", "stash"}
 
 BUILD_SCRIPTS = ("build_rime.py", "sync.sh")
 
-MSG_DATA_B = """\
-BLOCKED by .claude/hooks/side-guard.py — this checkout is declared **Side B** (.aiphabi-side).
+SIDE_NAMES = {"A": "Side A (字根/取碼)", "B": "Side B (IME/候選)", "C": "Side C (公開網站)"}
+
+MSG_DATA_OTHER = """\
+BLOCKED by .claude/hooks/side-guard.py — this checkout is declared **{side}** (.aiphabi-side).
 
   {what}
 
-is owned by Side A (字根/取碼) and is strictly read-only for Side B. No exceptions — not a
-one-character fix, not a count bump. See PROJECT_NOTES.md -> "Hard rules — no exceptions".
+is owned by Side A (字根/取碼) and is strictly read-only for every other side. No exceptions —
+not a one-character fix, not a count bump. See PROJECT_NOTES.md -> "Hard rules — no exceptions".
 
 Reading is fine; only writes are blocked. Report the problem so it can be fixed in a Side A
 session. Do not route around this with another tool.
@@ -83,9 +100,28 @@ is a Side A (字根/取碼) data file, and the guard fails closed. Declare the s
 
     echo A > .aiphabi-side     # 字根/取碼 — may write these files
     echo B > .aiphabi-side     # IME/候選  — may not
+    echo C > .aiphabi-side     # 公開網站  — may not
 
 Takes effect on the next tool call; no session restart needed. See PROJECT_NOTES.md ->
 "Starting a new session".
+"""
+
+MSG_SITE = """\
+BLOCKED by .claude/hooks/side-guard.py — `site/**` is Side C's (公開網站){whose}.
+
+  {what}
+
+The public site is hand-authored, so a wrong-side edit is not regenerable the way rime/ is.
+Reading is fine; only writes are blocked. Hand the change to a Side C session.
+
+If this checkout *is* the website session, declare it:
+
+    echo C > .aiphabi-side
+
+Takes effect on the next tool call; no session restart needed.
+
+Note: `site/assets/dict.json` and `site/assets/t2s.json` are generated, never hand-edited —
+`python3 site/tools/build_site_data.py` rebuilds them from data/.
 """
 
 MSG_BUILD = """\
@@ -107,7 +143,7 @@ What to do instead: commit the data change with `[rebuild]` starting the subject
 
 
 def resolve_side(root: pathlib.Path) -> str:
-    """Return "A", "B", or "" (undeclared / unreadable / unrecognised)."""
+    """Return "A", "B", "C", or "" (undeclared / unreadable / unrecognised)."""
     side = os.environ.get("AIPHABI_SIDE", "").strip()
     if not side:
         marker = root / ".aiphabi-side"
@@ -117,7 +153,7 @@ def resolve_side(root: pathlib.Path) -> str:
         except OSError:
             return ""
     initial = side[:1].upper()
-    return initial if initial in ("A", "B") else ""
+    return initial if initial in ("A", "B", "C") else ""
 
 
 def raw_marker(root: pathlib.Path) -> str:
@@ -224,6 +260,30 @@ def mutates_protected(segment: str, toks) -> str:
     return ""
 
 
+def mutates_site(segment: str, toks) -> str:
+    """Return a description if this segment writes under site/, else "".
+
+    Deliberately narrower than mutates_protected: no `python … >` heuristic, because
+    `python3 site/tools/build_site_data.py` legitimately names a site path and writes only
+    the two generated assets."""
+    if REDIRECT_TO_SITE.search(segment):
+        return "redirect into site/"
+    if not SITE_IN_CMD.search(segment) or not toks:
+        return ""
+    a0 = os.path.basename(argv0(toks))
+    if a0 in MUTATORS:
+        return f"{a0} targeting site/"
+    if a0 == "sed" and any(t == "-i" or t.startswith("-i") for t in toks):
+        return "sed -i on site/"
+    if a0 == "git":
+        rest = [t for t in toks[1:] if not t.startswith("-")]
+        if rest and rest[0] in GIT_MUTATING_SUBCMDS:
+            return f"git {rest[0]} on site/"
+    if a0 == "jq" and any(t in ("-i", "--in-place") for t in toks):
+        return "jq --in-place on site/"
+    return ""
+
+
 def check_bash(command: str, side: str, root: pathlib.Path) -> int:
     cleaned = strip_heredocs(command)
     for seg in segments(cleaned):
@@ -240,30 +300,43 @@ def check_bash(command: str, side: str, root: pathlib.Path) -> int:
         why = mutates_protected(seg, toks)
         if why and side != "A":
             what = f"{why}\n  in: {seg.strip()[:200]}"
-            if side == "B":
-                sys.stderr.write(MSG_DATA_B.format(what=what))
+            if side in SIDE_NAMES:
+                sys.stderr.write(MSG_DATA_OTHER.format(what=what, side=SIDE_NAMES[side]))
             else:
                 raw = raw_marker(root)
-                found = f' (found {raw!r}, expected "A" or "B")' if raw else ""
+                found = f' (found {raw!r}, expected "A", "B" or "C")' if raw else ""
                 sys.stderr.write(MSG_DATA_UNDECLARED.format(what=what, found=found))
+            return 2
+
+        why = mutates_site(seg, toks)
+        if why and side != "C":
+            whose = f" — this checkout is {SIDE_NAMES[side]}" if side in SIDE_NAMES else \
+                    " — and this checkout has no side declared"
+            sys.stderr.write(MSG_SITE.format(
+                what=f"{why}\n  in: {seg.strip()[:200]}", whose=whose))
             return 2
     return 0
 
 
 def check_file(target: str, side: str, root: pathlib.Path) -> int:
-    if side == "A":
-        return 0
     try:
         rel = pathlib.Path(target).resolve().relative_to(root.resolve()).as_posix()
     except (ValueError, OSError):
         return 0
-    if rel not in PROTECTED:
+
+    if rel.startswith(SITE_PREFIX) and side != "C":
+        whose = f" — this checkout is {SIDE_NAMES[side]}" if side in SIDE_NAMES else \
+                " — and this checkout has no side declared"
+        sys.stderr.write(MSG_SITE.format(what=rel, whose=whose))
+        return 2
+
+    if rel not in PROTECTED or side == "A":
         return 0
-    if side == "B":
-        sys.stderr.write(MSG_DATA_B.format(what=rel))
+    if side in SIDE_NAMES:
+        sys.stderr.write(MSG_DATA_OTHER.format(what=rel, side=SIDE_NAMES[side]))
     else:
         raw = raw_marker(root)
-        found = f' (found {raw!r}, expected "A" or "B")' if raw else ""
+        found = f' (found {raw!r}, expected "A", "B" or "C")' if raw else ""
         sys.stderr.write(MSG_DATA_UNDECLARED.format(what=rel, found=found))
     return 2
 

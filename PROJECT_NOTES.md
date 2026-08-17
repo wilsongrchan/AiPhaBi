@@ -21,19 +21,19 @@ the other in.
 
 Do these **in order**, before saying anything substantive to the session.
 
-**On Wilson's Mac both folders already exist** — open `AiPhaBi-A` for Side A or `AiPhaBi-B` for
-Side B (see *The two-folder layout* below) and skip to step 9.
+**On Wilson's Mac all three folders already exist** — open `AiPhaBi-A` for Side A, `AiPhaBi-B` for
+Side B, `AiPhaBi-C` for Side C (see *The folder layout* below) and skip to step 9.
 
-Steps 1–8 build that layout from scratch on a new machine. **They produce both sides in one pass —
-run them to the end.** Stopping after the clone leaves a single-folder checkout that can only ever
-declare one side, which is the exact arrangement the hard rules exist to prevent.
+Steps 1–8 build that layout from scratch on a new machine. **They produce all three sides in one
+pass — run them to the end.** Stopping after the clone leaves a single-folder checkout that can
+only ever declare one side, which is the exact arrangement the hard rules exist to prevent.
 
 | # | Step | |
 |---|---|---|
 | 1 | `git clone https://github.com/wilsongrchan/AiPhaBi.git AiPhaBi-A && cd AiPhaBi-A` — the Side A folder, on `main` | new machine |
-| 2 | `git worktree add -b side-b ../AiPhaBi-B origin/main` — the Side B folder. One `.git`, two working trees | new machine |
-| 3 | `git config push.default upstream` — shared config; both branches track `origin/main`, so a bare `git push` from either folder still lands on `main`. This is what lets `sync.sh` work unmodified (see *Why Side B is on `side-b`* below) | new machine |
-| 4 | `echo A > .aiphabi-side && echo B > ../AiPhaBi-B/.aiphabi-side` — **one permanent marker per folder, never flipped** | new machine |
+| 2 | `git worktree add -b side-b ../AiPhaBi-B origin/main` and `git worktree add -b side-c ../AiPhaBi-C origin/main` — the Side B and Side C folders. One `.git`, three working trees | new machine |
+| 3 | `git config push.default upstream` — shared config; all three branches track `origin/main`, so a bare `git push` from any folder still lands on `main`. This is what lets `sync.sh` work unmodified (see *Why Side B is on `side-b`* below) | new machine |
+| 4 | `echo A > .aiphabi-side && echo B > ../AiPhaBi-B/.aiphabi-side && echo C > ../AiPhaBi-C/.aiphabi-side` — **one permanent marker per folder, never flipped** | new machine |
 | 5 | `python3 fetch_data.py` — **Side A only.** Fetches the ~30 MB of third-party glyph data (`graphics.txt`, `tw_strokes.json`, `hk_cache.json`, `dictionary.txt`) into `data/`; these stay gitignored, and without them `/annotate` has no strokes. Takes a few minutes; files already present are skipped. **Side B does not need this** — every input `build_rime.py` reads is tracked in git, so `AiPhaBi-B` can build straight after the clone | new machine |
 | 6 | Open **each folder in its own VS Code window**, and **trust the directory** when prompted | per folder |
 | 7 | **Approve the project hooks** when prompted — Claude Code will not silently run hooks shipped in a cloned repo | per folder |
@@ -71,21 +71,21 @@ call, so `echo A > .aiphabi-side` takes effect immediately — **no session rest
 > working tree — precisely what the hard rules exist to prevent. On Wilson's Mac this is already
 > solved with two worktrees; see below.
 
-### The two-folder layout (Wilson's Mac)
+### The folder layout (Wilson's Mac)
 
-Both sides run **simultaneously**, each in its own folder, each with a permanent marker. Neither
+All three sides run **simultaneously**, each in its own folder, each with a permanent marker. No
 marker is ever flipped.
 
-| | Side A · 字根/取碼 | Side B · IME/候選 |
-|---|---|---|
-| Folder | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-A**` | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-B**` |
-| `.aiphabi-side` | `A` | `B` |
-| Branch | `main` | `side-b` |
-| May write | `codes/zigen/rules.json` | `rime/**`, `phrases_*.txt` |
-| May run | — | `build_rime.py`, `./sync.sh` |
+| | Side A · 字根/取碼 | Side B · IME/候選 | Side C · 公開網站 |
+|---|---|---|---|
+| Folder | `~/Desktop/Wilson Personal/Coding/**AiPhaBi-A**` | `…/**AiPhaBi-B**` | `…/**AiPhaBi-C**` |
+| `.aiphabi-side` | `A` | `B` | `C` |
+| Branch | `main` | `side-b` | `side-c` |
+| May write | `codes/zigen/rules.json` | `rime/**`, `phrases_*.txt` | `site/**` |
+| May run | — | `build_rime.py`, `./sync.sh` | `site/tools/build_site_data.py` |
 
-They are **git worktrees of one repository**, so there is a single `.git` and both sides' commits
-are visible from either folder immediately — no fetch needed to run `git log side-b`.
+They are **git worktrees of one repository**, so there is a single `.git` and every side's commits
+are visible from any folder immediately — no fetch needed to run `git log side-b`.
 
 > **Worktrees share history, not files.** Each folder has its own working tree: a file edited (or
 > created) in `AiPhaBi-A` does **not** appear in `AiPhaBi-B` until it is committed there and the
@@ -136,14 +136,22 @@ bulky glyph data remain untracked.
 `Write|Edit|MultiEdit|NotebookEdit|Bash`. It exits 2 — a hard block, not a warning — and returns
 the reason to Claude. Two protections, each unlocked only by the correct marker:
 
-| `.aiphabi-side` | write `codes/zigen/rules.json` | run `build_rime.py` / `sync.sh` | everything else |
-|---|---|---|---|
-| `A` | ✅ allowed | **blocked** | allowed |
-| `B` | **blocked** | ✅ allowed | allowed |
-| missing / unrecognised | **blocked** | **blocked** | allowed |
+| `.aiphabi-side` | write `codes/zigen/rules.json` | run `build_rime.py` / `sync.sh` | write `site/**` | everything else |
+|---|---|---|---|---|
+| `A` | ✅ allowed | **blocked** | **blocked** | allowed |
+| `B` | **blocked** | ✅ allowed | **blocked** | allowed |
+| `C` | **blocked** | **blocked** | ✅ allowed | allowed |
+| missing / unrecognised | **blocked** | **blocked** | **blocked** | allowed |
 
-Both fail closed, in opposite directions — the marker is a key that unlocks exactly one side's
-work, never both. Everything else stays writable, so an undeclared checkout is not wedged.
+All three fail closed, in different directions — the marker is a key that unlocks exactly one
+side's work, never another's. Everything else stays writable, so an undeclared checkout is not
+wedged.
+
+**`site/**` is guarded more lightly than the other two, deliberately.** Its `Bash` detection covers
+redirects and the obvious mutators but skips the `python … >` heuristic used for the data files,
+because `python3 site/tools/build_site_data.py` legitimately names a site path — and that command
+is the site's own generator, which any side may run. Getting the website wrong is visible and
+reversible; getting `codes.json` wrong is neither.
 
 **Reads are never blocked.** Side B reads the data files freely; only recognised *mutating* forms
 are stopped. For `Bash` the guard splits the command into segments, strips heredoc bodies (commit
@@ -218,6 +226,7 @@ ownership is by file, not by intent. **A session never writes a file it doesn't 
 | `rime/**` (schemas, dict, `lua/`) | **B · IME** | read only |
 | `data/phrases_*.txt`, `phrases_preview.tsv` | **B · IME** | read only |
 | `build_rime.py`, `sync.sh` | **B · IME** | read only |
+| `site/**` (公開網站), `.github/workflows/pages.yml` | **C · 網站** | read only |
 | `PROJECT_NOTES.md` | **shared** | see below |
 
 ### Hard rules — no exceptions
@@ -290,7 +299,20 @@ is a silent ownership breach that also desyncs the other session's installed cop
 > and `rime/README.md`. Nothing was corrupted — regenerated artifacts are reproducible — but it left
 > Side B's `~/Library/Rime/` silently out of sync with a `rime/` it had not built.
 
-**3. Every session starts with `git fetch` + `git status`.**
+**3. Side C owns `site/**` — the public website — and only that.**
+Sides A and B never edit anything under `site/`. Side C never writes `codes.json` / `zigen.json` /
+`rules.json`, never runs `build_rime.py` or `./sync.sh`, and never touches `rime/**` — it **reads**
+all of them freely, which is exactly how the site gets its numbers, and *reports* problems to the
+owning side. Site changes need **no commit tag**: the website is not a build input, and its own
+deploy is triggered by the Pages workflow, not by another session.
+
+> The failure this prevents is not corruption, it is **a public page that contradicts the IME**.
+> The site is the only artifact strangers read, so a wrong number or a stale code there is the one
+> mistake in this repo that gets quoted back. Hence the standing rule for Side C: **never hand-copy
+> a code or a count into the site** — either generate it (`site/tools/build_site_data.py`) or check
+> it against `data/` at the moment you write it. See *C · 公開網站* below.
+
+**4. Every session starts with `git fetch` + `git status`.**
 Before the first edit of a session — not mid-task, not at deploy time — run both, and read this file.
 The cost of catching a divergence at minute zero is one command; the cost of catching it at push
 time is an unmergeable conflict in someone else's file. If `git status` shows changes outside your
@@ -723,6 +745,93 @@ nothing in the repo depends on its location except the command above.
   supplied by hand in each test case. So it proves *"given these candidates, we rank them thus"*,
   not *"typing X produces exactly this bar"*. Typing is still the end-to-end check.
 - When an ordering bug turns up, **add the failing case first**, watch it fail, then fix.
+
+---
+
+## C · 公開網站 (Side C)
+
+The public-facing site that introduces AiPhaBi to strangers. Scaffolded 2026-08-17 by Side A as a
+one-time bootstrap (Side C did not exist yet to build its own folder); **everything under `site/`
+is Side C's from now on**, and the guard enforces it.
+
+### Where it lives and how it ships
+
+| | |
+|---|---|
+| Source | `site/` — hand-written HTML/CSS/JS, no toolchain, no `node_modules` |
+| Deploy | `.github/workflows/pages.yml` → GitHub Pages, on every push to `main` that touches `site/**` or the data the site is generated from |
+| URL | `https://wilsongrchan.github.io/AiPhaBi/` |
+| Language | 繁體中文 written once; 简体 converted **in the browser** from `assets/t2s.json` |
+
+**One manual step, done once on github.com:** *Settings → Pages → Build and deployment → Source*
+must be **GitHub Actions**. The workflow cannot set this itself and its deploy step fails without it.
+
+**It is a project site, so everything is served under `/AiPhaBi/`.** Every link and asset path in
+`site/` must be **relative** (`assets/site.css`, `design.html`). An absolute path (`/assets/…`)
+works in local preview and 404s in production — the worst kind of bug to ship.
+
+### The generated files (this is the important part)
+
+`site/assets/dict.json` and `site/assets/t2s.json` are **generated and gitignored**:
+
+```bash
+python3 site/tools/build_site_data.py       # 本機預覽前先跑一次
+python3 -m http.server 8099 --directory site
+```
+
+The workflow reruns it right before deploy, so the published site always matches `main`'s
+`data/codes.json`. **They are gitignored on purpose:** a committed copy is a second code table
+living in the repo, and "the website types differently from the IME" is close to undiscoverable.
+
+`build_site_data.py` reads Side A's and Side B's data and writes **only** into `site/assets/`.
+Its `shorten()` is a copy of `build_rime.py:36` — **if the cap rule ever changes, both must change**,
+or the demo starts lying. It emits:
+
+| key | what |
+|---|---|
+| `codes` | 碼 → 候選字串, frequency-ordered; 主碼 + 完整碼 + 兼容碼, honouring `display` |
+| `short` / `short_rev` | 約定簡碼 both directions — drives the 「簡碼 JKQ」 whisper |
+| `stats` | `chars`, `tw4808`, `gb2312`, `clash` — every number the site prints |
+
+`stats` exists so **no number is ever hand-typed into the HTML**. The pages carry a stale fallback
+value inline (so they read correctly without JS) and `site.js` overwrites it from `dict.json`.
+
+### What is built and what is not
+
+Built and verified: the three pages, the shared shell (nav + 繁簡 toggle), the deploy workflow, the
+generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion, frequency
+ordering, 約定簡碼 with the reverse hint, digit/space selection, 正體 punctuation.
+
+**Not built** (the demo says so on the page, and it must keep saying so): 三簡碼, 左簡碼, 詞組連打,
+四碼快打, 輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞. Also not built: the 下載安裝 page
+(Wilson deferred it — the site currently points at GitHub instead), the 字根表 overview, and the
+取碼原則 page.
+
+### Copy
+
+`site/content/blurb.md` is Wilson's own text, fetched verbatim from his Google Doc on 2026-08-17,
+plus a **fact-check table**. Use its voice — it is the outward-facing register, where this file is
+the inward-facing one. Two things it records that matter:
+
+- Its numbers hold up (重碼率 4.5% → measured 4.4%; 「近五萬詞組」 → actually 100,856 multi-char
+  entries, so it understates).
+- **Verify codes against `rime/aiphabi.dict.yaml`, not by reassembling `codes.json` yourself.**
+  The blurb's 香港 ＝ `JTBWHZ` looks wrong if you concatenate main codes (香 `JTB` ＋ 港 `WHVZ`
+  ＝ `JTBWHVZ`) — and it is not wrong: `_word_codes` (`build_rime.py:363`) emits **every
+  combination of each character's 簡碼-or-主碼**, so 港's 三簡碼 `WHZ` puts `jtbwhz` in the dict
+  too. Both spellings ship. Side A got this wrong once during the bootstrap by reasoning instead
+  of grepping the dict.
+- Codes do genuinely get revised (福 `QMIOOT`→`QMOOT`), so any code printed on the site still has
+  to be generated or re-checked against the shipped dict at the moment it is written.
+
+Its 取碼原則 section is unfinished in the source doc (stroke-order references are still `XXX`).
+
+### Reference sites (content, not visual)
+
+Wilson's picks for *what a 形碼 site conventionally covers* — he notes they are "kinda ugly", so
+read them for information architecture only: <http://xumax.cn> (徐碼),
+<https://boshiamy.com/tutorial_why.php> (嘸蝦米's "why" page — the direct foil; the 無理碼 argument
+in *Quickcode conventions* below is aimed squarely at it), <https://www.ckcsys.com> (縱橫碼).
 
 ---
 
