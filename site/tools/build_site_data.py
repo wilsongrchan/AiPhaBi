@@ -175,6 +175,30 @@ def build_similar():
     return groups
 
 
+# 每個字根列幾個例字。3–4 是 Wilson 定的：一個取形意圖底下最多 13 個形狀，
+# 掛在意圖上會讓每一列分不到；掛在字根上、每列 4 個，版面才平均。
+# 調這個數字會連帶改變 glyphs.json 的大小（3→2.8MB、4→3.2MB、5→3.7MB）。
+EX_PER_SHAPE = 4
+
+
+def _examples(seen, nstroke, letter, codes, limit):
+    """挑例字，並算出每個例字裡哪幾筆屬於這個字根（用來高亮）。
+
+    高亮的筆序是**建置時**用 codes.json 的 segments 反查的：取該字裡「字母相同、
+    筆數也對得上」的段。標註工具是用中線做形狀比對，那需要 medians，體積加倍而
+    網站畫圖用不到。同一個字裡有多段都符合時（朋＝D[1-4]D[5-8]，兩個都是同一個
+    字根）就**全部**高亮 —— 不必在幾個都對的候選裡挑一個，也就不會挑錯。
+    """
+    out = []
+    for c in seen[:limit]:
+        hi = []
+        for seg in (codes.get(c, {}).get("segments") or []):
+            if seg.get("letter") == letter and len(seg.get("strokes") or []) == nstroke:
+                hi += list(seg["strokes"])
+        out.append({"c": c, "st": sorted(set(hi))})
+    return out
+
+
 def build_zigen(zigen, codes, rank, far):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
@@ -220,14 +244,18 @@ def build_zigen(zigen, codes, rank, far):
                 src = g.get("src") or sh.get("ex") or ""
                 seen = [c for c in (sh.get("seen") or []) if c in codes]
                 seen.sort(key=lambda c: rank.get(c, far))
+                st = g.get("strokes") or []
                 shapes.append({
                     "src": src,
                     # 原始筆畫索引：畫字根要用它去 glyphs.json 挑出哪幾筆塗深。
                     # span 是給人看的文字（「第 1–3 筆」），沒有字形資料時的退路。
-                    "st": g.get("strokes") or [],
-                    "span": span(src, g.get("strokes") or []),
+                    "st": st,
+                    "span": span(src, st),
                     "count": sh.get("count", 0),
                     "seen": seen,
+                    # 例字掛在**每個字根**上，不是掛在取形意圖上：一個意圖底下最多有
+                    # 13 個形狀（平均 3.6），整組只給 5 個的話每一列都分不到。
+                    "ex": _examples(seen, len(st), L.get("letter"), codes, EX_PER_SHAPE),
                 })
                 n_shapes += 1
             if not shapes:
@@ -236,33 +264,11 @@ def build_zigen(zigen, codes, rank, far):
             if not desc:
                 n_nodesc += 1
 
-            # 例字改成「每個取形意圖 5 個」而不是「每個字根 12 個」（Wilson 2026-08-17）。
-            # 一個意圖底下的形狀本來就是同一類，各列 12 個既重複又吵；而且例字要能
-            # 高亮就得附上字形資料，5 個／意圖只要 326 字，12 個／字根要 2471 字。
-            #
-            # 高亮哪幾筆：標註工具是用中線做形狀比對算的，那需要 medians（體積加倍）。
-            # 這裡改成建置時用 codes.json 的 segments 反查：取該字裡「字母相同、筆數
-            # 也對得上」的段。實測 483 個例字裡 430 個只有唯一解，53 個有多段
-            # （朋＝D[1-4]D[5-8] 這種，兩個都是同一個字根）——多段就**全部**高亮，
-            # 這樣不必在幾個都對的候選裡挑一個，也不會挑錯。
-            n_by_shape = {len(sh["st"]) for sh in shapes if sh["st"]}
-            pool = []
-            for sh in shapes:
-                pool += sh["seen"]
-            pool = sorted(set(pool), key=lambda c: rank.get(c, far))[:5]
-
-            examples = []
-            for c in pool:
-                hi = []
-                for seg in (codes.get(c, {}).get("segments") or []):
-                    if seg.get("letter") == L.get("letter") and len(seg.get("strokes") or []) in n_by_shape:
-                        hi += list(seg["strokes"])
-                examples.append({"c": c, "st": sorted(set(hi))})
             # 原形先、衍生後（倉頡的輔助字形表也是這個順序）。整個字構成的字根就是原形，
             # 先看到「日」再看到「提 的第 4–7 筆」才讀得懂；純照 count 排會把衍生形頂到最前面。
             shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
-                           "shapes": shapes, "ex": examples})
+                           "shapes": shapes})
         letters.append({"letter": L.get("letter", ""), "groups": groups})
 
     return {
@@ -381,8 +387,9 @@ def main():
                         glyph_chars.add(a["src"])
     for L in zg["letters"]:
         for g in L["groups"]:
-            for e in g["ex"]:
-                glyph_chars.add(e["c"])
+            for sh in g["shapes"]:
+                for e in sh["ex"]:
+                    glyph_chars.add(e["c"])
     # 辨析表裡寫成「石#1,2」的字根也要畫得出來
     for grp in zg["similar"]:
         for item in grp["items"]:

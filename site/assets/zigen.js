@@ -175,16 +175,13 @@
         sd.appendChild(describeShape(sh));
         tr.appendChild(sd);
 
-        // 例字掛在**取形意圖**上（每組 5 個），跟說明一樣跨列——同一組的形狀本來就是
-        // 同一類，每個形狀各列一排例字既重複又吵
-        if (i === 0) {
-          var ex = el('td', 'zg-ex');
-          ex.rowSpan = g.shapes.length;
-          (g.ex || []).forEach(function (e) {
-            ex.appendChild(exampleGlyph(e, filter));
-          });
-          tr.appendChild(ex);
-        }
+        // 例字掛在**每個字根**上：一個取形意圖底下最多 13 個形狀（平均 3.6），
+        // 掛在意圖上整組只給幾個的話，形狀多的那幾組每一列都分不到
+        var ex = el('td', 'zg-ex');
+        (sh.ex || []).forEach(function (e) {
+          ex.appendChild(exampleGlyph(e, filter));
+        });
+        tr.appendChild(ex);
         tb.appendChild(tr);
       });
     });
