@@ -924,4 +924,7 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   四碼快打); **`shortcode` / `leftshort` / `si4`** drive the matching forward lookup.
 - Two order filters (`aiphabi_order.lua` + `aiphabi_order_plus.lua`) — **sync every fix**.
 - Deploy = **`./sync.sh "<msg>"`** only. `fetch_data.py` for third-party data (gitignored outputs).
-- `Z` = wildcard letter in the alphabet; `` ` `` = wildcard *key* while typing.
+- `` ` `` = wildcard *key* while typing (shipped, `aiphabi_wildcard.lua`). `zigen.json`'s
+  `meta.wildcard_key: "Z"` is a **stale early concept** — `Z` is a normal, populated letter
+  (辶-shaped radicals) and this field isn't read by any tool on either side. Don't treat it as
+  live; if Side A wants it removed/repurposed, that's their call on their file.
