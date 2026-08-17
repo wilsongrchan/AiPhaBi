@@ -496,11 +496,10 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 畫出來的字根本身。有圖之後，來源字退成小字註記——圖才是主角 */
 .zg-icon { display: inline-flex; align-items: center; }
 
-.zg-svg {
-  width: 2rem;
-  height: 2rem;
-  display: block;
-}
+/* 尺寸由 zigen.js 逐個算好寫在 width/height 屬性上（開根號縮放），
+ * 這裡不要再寫死 —— 寫死就等於把裁切過的 viewBox 全部拉成同一個大小，
+ * 一筆的「點」會變得又大又粗、六筆的部件又小又細。 */
+.zg-svg { display: block; }
 
 .zg-svg path {
   fill: var(--ink);

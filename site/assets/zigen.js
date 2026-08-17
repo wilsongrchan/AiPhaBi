@@ -65,8 +65,13 @@
     for (var j = 0; j < sel.length; j++) {
       if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
     }
+    // 顯示尺寸取 bbox 的平方根，不是固定值也不是線性：viewBox 已經裁到字根本身，
+    // 固定 2rem 會把一筆的「點」撐得又大又粗、把六筆的部件縮得又小又細。線性縮放
+    // 則會讓兩者差到三倍。開根號把差距壓到肉眼可接受，又保留「筆畫多的略大」。
+    var px = Math.max(16, Math.min(40, Math.round(1 + 0.98 * Math.sqrt(s))));
     return '<svg class="zg-svg" viewBox="' + (cx - s / 2) + ' ' + (cy - s / 2) + ' ' + s + ' ' + s +
-      '" aria-hidden="true"><g transform="' + SVG_TF + '">' + paths + '</g></svg>';
+      '" width="' + px + '" height="' + px + '" aria-hidden="true">' +
+      '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
   }
 
   /* 整個字都畫出來，屬於這個字根的筆畫塗深、其餘塗淺。
@@ -80,10 +85,14 @@
       if (e.c === filter) plain.classList.add('is-hit');
       return plain;
     }
-    var paths = '';
+    // off 先全部畫完，on 才畫 —— 照筆順混著畫的話，序號較後的未選中筆畫會蓋在
+    // 高亮的筆畫上面（例如字根是第 1–4 筆、第 5–8 筆從它上面壓過去）。
+    var off = '', on = '';
     for (var i = 0; i < strokes.length; i++) {
-      paths += '<path class="' + (e.st.indexOf(i) >= 0 ? 'on' : 'off') + '" d="' + strokes[i] + '"/>';
+      if (e.st.indexOf(i) >= 0) on += '<path class="on" d="' + strokes[i] + '"/>';
+      else off += '<path class="off" d="' + strokes[i] + '"/>';
     }
+    var paths = off + on;
     var holder = el('span', 'zg-exg' + (e.c === filter ? ' is-hit' : ''));
     holder.title = e.c + '　第 ' + e.st.map(function (k) { return k + 1; }).join('、') + ' 筆';
     holder.setAttribute('data-keep', '');
