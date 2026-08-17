@@ -235,11 +235,34 @@ def build_zigen(zigen, codes, rank, far):
             desc = (it.get("desc") or "").strip()
             if not desc:
                 n_nodesc += 1
+
+            # 例字改成「每個取形意圖 5 個」而不是「每個字根 12 個」（Wilson 2026-08-17）。
+            # 一個意圖底下的形狀本來就是同一類，各列 12 個既重複又吵；而且例字要能
+            # 高亮就得附上字形資料，5 個／意圖只要 326 字，12 個／字根要 2471 字。
+            #
+            # 高亮哪幾筆：標註工具是用中線做形狀比對算的，那需要 medians（體積加倍）。
+            # 這裡改成建置時用 codes.json 的 segments 反查：取該字裡「字母相同、筆數
+            # 也對得上」的段。實測 483 個例字裡 430 個只有唯一解，53 個有多段
+            # （朋＝D[1-4]D[5-8] 這種，兩個都是同一個字根）——多段就**全部**高亮，
+            # 這樣不必在幾個都對的候選裡挑一個，也不會挑錯。
+            n_by_shape = {len(sh["st"]) for sh in shapes if sh["st"]}
+            pool = []
+            for sh in shapes:
+                pool += sh["seen"]
+            pool = sorted(set(pool), key=lambda c: rank.get(c, far))[:5]
+
+            examples = []
+            for c in pool:
+                hi = []
+                for seg in (codes.get(c, {}).get("segments") or []):
+                    if seg.get("letter") == L.get("letter") and len(seg.get("strokes") or []) in n_by_shape:
+                        hi += list(seg["strokes"])
+                examples.append({"c": c, "st": sorted(set(hi))})
             # 原形先、衍生後（倉頡的輔助字形表也是這個順序）。整個字構成的字根就是原形，
             # 先看到「日」再看到「提 的第 4–7 筆」才讀得懂；純照 count 排會把衍生形頂到最前面。
             shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
-                           "shapes": shapes})
+                           "shapes": shapes, "ex": examples})
         letters.append({"letter": L.get("letter", ""), "groups": groups})
 
     return {
@@ -356,6 +379,16 @@ def main():
                 for a in sh.get("alts") or []:
                     if a.get("src"):
                         glyph_chars.add(a["src"])
+    for L in zg["letters"]:
+        for g in L["groups"]:
+            for e in g["ex"]:
+                glyph_chars.add(e["c"])
+    # 辨析表裡寫成「石#1,2」的字根也要畫得出來
+    for grp in zg["similar"]:
+        for item in grp["items"]:
+            m = re.match(r"^(.)#[\d,、\s]+$", item["shape"])
+            if m:
+                glyph_chars.add(m.group(1))
     n_glyph = build_glyphs(glyph_chars)
 
     OUT.mkdir(parents=True, exist_ok=True)

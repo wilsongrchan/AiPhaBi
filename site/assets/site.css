@@ -714,3 +714,21 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 }
 
 .rail .empty { color: var(--ink-dim); font-size: .9rem; }
+
+/* 例字：整個字畫出來，屬於該字根的筆畫塗深、其餘塗淺。
+ * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
+.zg-exg { display: inline-block; vertical-align: middle; margin-inline-end: .15rem; }
+
+.zg-exsvg { width: 2.1rem; height: 2.1rem; display: block; }
+.zg-exsvg path.on  { fill: var(--accent); }
+.zg-exsvg path.off { fill: var(--ink); opacity: .22; }
+
+.zg-exg.is-hit {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+@media (max-width: 34rem) {
+  .zg-exsvg { width: 1.8rem; height: 1.8rem; }
+}

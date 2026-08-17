@@ -69,6 +69,29 @@
       '" aria-hidden="true"><g transform="' + SVG_TF + '">' + paths + '</g></svg>';
   }
 
+  /* 整個字都畫出來，屬於這個字根的筆畫塗深、其餘塗淺。
+   * 這是標註工具 fillExampleCell 的做法，也是「元件分開、上色」的那個效果。
+   * 哪幾筆屬於這個字根是**建置時**算好寫在 e.st 裡的（見 build_site_data.py），
+   * 因為原本的做法要靠中線做形狀比對，那份資料體積加倍而網站畫圖用不到。 */
+  function exampleGlyph(e, filter) {
+    var strokes = GLYPHS && GLYPHS[e.c];
+    if (!strokes || !e.st || !e.st.length) {
+      var plain = glyph(e.c);
+      if (e.c === filter) plain.classList.add('is-hit');
+      return plain;
+    }
+    var paths = '';
+    for (var i = 0; i < strokes.length; i++) {
+      paths += '<path class="' + (e.st.indexOf(i) >= 0 ? 'on' : 'off') + '" d="' + strokes[i] + '"/>';
+    }
+    var holder = el('span', 'zg-exg' + (e.c === filter ? ' is-hit' : ''));
+    holder.title = e.c + '　第 ' + e.st.map(function (k) { return k + 1; }).join('、') + ' 筆';
+    holder.setAttribute('data-keep', '');
+    holder.innerHTML = '<svg class="zg-exsvg" viewBox="0 0 1024 1024" aria-label="' + e.c +
+      '"><g transform="' + SVG_TF + '">' + paths + '</g></svg>';
+    return holder;
+  }
+
   /* 「取自『名』第 1–3 筆」／「整個『日』字」——有字形資料時前面再加上畫出來的字根 */
   function describeShape(sh) {
     var wrap = el('span', 'zg-shape');
@@ -152,16 +175,16 @@
         sd.appendChild(describeShape(sh));
         tr.appendChild(sd);
 
-        var ex = el('td', 'zg-ex');
-        sh.seen.slice(0, 12).forEach(function (c) {
-          var g2 = glyph(c);
-          if (c === filter) g2.classList.add('is-hit');
-          ex.appendChild(g2);
-        });
-        if (sh.seen.length > 12) {
-          ex.appendChild(el('span', 'zg-more', '＋' + (sh.seen.length - 12)));
+        // 例字掛在**取形意圖**上（每組 5 個），跟說明一樣跨列——同一組的形狀本來就是
+        // 同一類，每個形狀各列一排例字既重複又吵
+        if (i === 0) {
+          var ex = el('td', 'zg-ex');
+          ex.rowSpan = g.shapes.length;
+          (g.ex || []).forEach(function (e) {
+            ex.appendChild(exampleGlyph(e, filter));
+          });
+          tr.appendChild(ex);
         }
-        tr.appendChild(ex);
         tb.appendChild(tr);
       });
     });
@@ -286,9 +309,25 @@
       g.items.forEach(function (it) {
         var tr = el('tr');
         var c0 = el('td', 'zg-simshape');
-        // 「丶」「乚」是字，「石字 1、2 筆」是描述——後者放大會撐爆欄寬
-        var sg = glyph(it.shape, 'zg-src');
-        if (Array.from(it.shape).length > 2) sg.classList.add('is-desc');
+
+        // 有些字根根本打不出來（石的前兩筆、兔的末兩筆），寫成描述又難讀。
+        // similar.md 可以寫成「石#1,2」，這裡直接把那幾筆畫出來。
+        var sg = null;
+        var ref = /^(.)#([\d,、\s]+)$/.exec(it.shape);
+        if (ref && GLYPHS && GLYPHS[ref[1]]) {
+          var sel = ref[2].split(/[,、\s]+/).filter(Boolean).map(function (n) { return +n - 1; });
+          var svg = rootIconSvg(GLYPHS[ref[1]], sel);
+          if (svg) {
+            sg = el('span', 'zg-icon');
+            sg.innerHTML = svg;
+            sg.title = ref[1] + '　第 ' + ref[2] + ' 筆';
+          }
+        }
+        if (!sg) {
+          // 「丶」「乚」是字，「石字 1、2 筆」是描述——後者放大會撐爆欄寬
+          sg = glyph(ref ? ref[1] + ' 第 ' + ref[2] + ' 筆' : it.shape, 'zg-src');
+          if (Array.from(sg.textContent).length > 2) sg.classList.add('is-desc');
+        }
         var target = findZigenRow(it.letter, it.ex);
         if (target) {
           var link = el('a', 'zg-simlink');
