@@ -2,7 +2,11 @@
 data/graphics.txt
 data/dictionary.txt
 data/tw_strokes.json
-data/freq.json
+
+# data/freq.json 從這裡拿掉、改成收進 git（139K）。原因：它是 build_rime.py 的輸入，
+# 又不進版控，於是每台機器各有一份，兩台機器輪流建置就會互相蓋掉 8000 多個 weight
+# ——碼表內容一模一樣，只有重碼時誰排前面不一樣（實測 1167 個重碼碼位裡有 15 個會換
+# 順序，例 JTFC 乘/乖）。不進版控就永遠對不齊，而且新機器沒跑 fetch_data.py 根本建不起來。
 
 # 智能聯想資料庫（官方 librime-predict，各自授權）：由 fetch_data.py 下載
 data/predict.db

@@ -35,7 +35,7 @@ declare one side, which is the exact arrangement the hard rules exist to prevent
 | 3 | `git config push.default upstream` — shared config; both branches track `origin/main`, so a bare `git push` from either folder still lands on `main`. This is what lets `sync.sh` work unmodified (see *Why Side B is on `side-b`* below) | new machine |
 | 4 | `echo A > .aiphabi-side && echo B > ../AiPhaBi-B/.aiphabi-side` — **one permanent marker per folder, never flipped** | new machine |
 | 5 | `python3 fetch_data.py` — fetches the ~30 MB of third-party glyph/frequency data into `data/`. Everything it writes is **gitignored, so a fresh clone does not have it**: without this, `/annotate` has no strokes and the build has no `freq.json`. Takes a few minutes; files already present are skipped | new machine |
-| 6 | `cp data/freq.json data/opencc.json ../AiPhaBi-B/data/` — Side B's build inputs. Worktrees do **not** share untracked files, so B's build fails until these are copied (or `fetch_data.py` is re-run inside B). The bulky annotation-side data (`graphics.txt`, `tw_strokes.json`, `hk_cache.json`) is Side A only — no need to copy it | new machine |
+| 6 | `cp data/opencc.json ../AiPhaBi-B/data/` — Side B's remaining untracked build input. Worktrees do **not** share untracked files, so B's build fails until it is copied (or `fetch_data.py` is re-run inside B). **`data/freq.json` is now tracked in git**, so it needs no copying. The bulky annotation-side data (`graphics.txt`, `tw_strokes.json`, `hk_cache.json`) is Side A only — no need to copy it | new machine |
 | 7 | Open **each folder in its own VS Code window**, and **trust the directory** when prompted | per folder |
 | 8 | **Approve the project hooks** when prompted — Claude Code will not silently run hooks shipped in a cloned repo | per folder |
 | 9 | Run `/hooks` and confirm a `PreToolUse` entry pointing at `.claude/hooks/side-guard.py` | per folder |
@@ -125,8 +125,9 @@ shared, `git worktree list` from either folder shows both.
 
 **Rebuilding this layout on another machine is steps 1–9 of the checklist above** — they are the
 commands that created it, in order. The one people cut short is step 6: `build_rime.py` reads
-`data/freq.json` and `data/opencc.json`, both **gitignored**, so a new worktree or clone does not
-get them and Side B's build fails until they are copied.
+`data/opencc.json`, which is **gitignored**, so a new worktree or clone does not get it and Side B's
+build fails until it is copied. (`data/freq.json` used to be in the same boat and is now tracked —
+see hazard 4 for why.)
 
 ### What the guard does and does not do
 
@@ -323,12 +324,20 @@ mtime, so it catches a stale browser tab — but a session editing `codes.json` 
 bypasses it entirely, and any open annotation tab will 409 on its next save. If you write to
 `data/*.json` from the shell while a tool tab is open, say so, so it can be reloaded.
 
-**4. The `fetch_data.py` outputs are gitignored and shared by both sides.** `data/freq.json`
-(`build_rime.py:78` + `/api/freq`), `data/opencc.json` (`build_rime.py:247` + `/api/opencc`),
-`data/cangjie.json`, `data/tw_strokes.json`, `data/graphics.txt`, `data/hk_cache.json`. Because
-they're untracked, a re-run leaves **no diff and no commit** — the change is invisible to the other
-session while silently shifting its inputs. Neither session should re-run `fetch_data.py` casually
-(~30 MB download); if it must happen, say so out loud.
+**4. The `fetch_data.py` outputs are gitignored and shared by both sides.** `data/opencc.json`
+(`build_rime.py:247` + `/api/opencc`), `data/cangjie.json`, `data/tw_strokes.json`,
+`data/graphics.txt`, `data/hk_cache.json`. Because they're untracked, a re-run leaves **no diff and
+no commit** — the change is invisible to the other session while silently shifting its inputs.
+Neither session should re-run `fetch_data.py` casually (~30 MB download); if it must happen, say so
+out loud.
+
+> **`data/freq.json` was moved into git (139K) because this bit us for real.** It is a
+> `build_rime.py` input, so two machines each holding their own copy meant every alternate build
+> rewrote **8210 weights** — identical code table, different tie-breaks. Measured impact: of 1167
+> codes carrying more than one candidate, **15 changed order**, 13 of them among characters the
+> modern frequency table scores at 0; the visible one was `JTFC` (乘 ⇄ 乖). Small, but it never
+> settles, and it buries real diffs in noise. **`data/opencc.json` is still untracked and is the
+> same class of hazard** — it feeds 打繁出簡/打簡出繁, so a drifted copy changes those candidates.
 
 **5. `data/backups/` is gitignored**, so it never appears in `git status` — but it *does* grow on
 every tool save (one snapshot per PUT, pruned to 200 per stem). It's the recovery path if a session
@@ -848,8 +857,9 @@ Two **different scales**, do not mix:
 These floors were **deliberately separated**: an earlier bug used the calibrated 100000 on the raw
 dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). Keep them separate.
 
-- **`data/freq.json`** — single-char frequency. **gitignored (third-party derived), regenerated by
-  `fetch_data.py`.** Blended ordering = `0.55 × word-appearance-percentile + 0.45 ×
+- **`data/freq.json`** — single-char frequency. **Tracked in git** (it is a build input; see
+  hazard 4). Regenerated by `fetch_data.py`, but a re-run must then be committed, or the machine
+  that ran it silently builds a different weight column from everyone else. Blended ordering = `0.55 × word-appearance-percentile + 0.45 ×
   single-char-percentile`. The blend logic lives *inside* `fetch_data.py` so it's reproducible.
 - `fetch_data.py` downloads the ~30 MB glyph/frequency source data (licensed separately, not in
   git). Run once per machine, before `server.py` — it is **step 5** of *Starting a new session*.
