@@ -74,7 +74,10 @@ def build_glyphs(chars):
 
     這是讓〈字根表〉能像標註工具那樣畫出字根本身的資料：每個字一組 SVG path，
     網站把屬於該字根的筆畫塗深、其餘塗淺（跟 editor.html 的 glyphSvg 同一套做法）。
-    只取 strokes，不取 medians —— medians 是形狀比對用的，畫圖用不到，佔一半體積。
+    收的是 graphics.txt 的 `strokes` 欄。**那一欄就是字形輪廓本身**（SVG path 指令，
+    直接衍生自 Arphic 字型）；沒收的 `medians` 是 makemeahanzi 另外算出來的中線座標。
+    所以「不收 medians」不代表footprint比較小 —— 留下的正好是受授權規範的那一半，
+    這也正是必須遵守 Arphic Public License 的原因。任何說法都不要寫成好像少拿了什麼。
 
     ⚠️ 授權：這份資料源自 makemeahanzi，其 graphics.txt 依 **Arphic Public License**
     散布（該授權允許再散布與格式轉換，條件是隨附授權全文、註明改了什麼，並以同樣
@@ -111,9 +114,9 @@ def build_glyphs(chars):
         "source": "makemeahanzi (https://github.com/skishore/makemeahanzi) graphics.txt",
         "license": "Arphic Public License — 全文見 ARPHICPL.txt，隨網站一併發佈",
         "modifications": (
-            "自 graphics.txt 取出本站用得到的字，只保留 strokes 欄（捨棄 medians／"
-            "character 等其他欄位），並轉存為單一 JSON 物件。未修改任何筆畫路徑本身。"
-            "變更日期 2026-08-17。"
+            "自 graphics.txt 取出本站用得到的 1375 個字元，保留其 strokes 欄（即字形輪廓，"
+            "SVG path 指令），未修改任何路徑資料；捨棄 medians（makemeahanzi 計算的中線）"
+            "與其餘欄位，並將結果轉存為單一 JSON 物件。變更日期 2026-08-17。"
         ),
         "glyphs": out,
     }
@@ -238,8 +241,8 @@ def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label
     """挑例字，並算出每個例字裡哪幾筆屬於這個字根（用來高亮）。
 
     高亮的筆序是**建置時**用 codes.json 的 segments 反查的：取該字裡「字母相同、
-    筆數也對得上」的段。標註工具是用中線做形狀比對，那需要 medians，體積加倍而
-    網站畫圖用不到。同一個字裡有多段都符合時（朋＝D[1-4]D[5-8]，兩個都是同一個
+    筆數也對得上」的段。標註工具是用中線做形狀比對，那需要 medians，而網站畫圖
+    用不到它。同一個字裡有多段都符合時（朋＝D[1-4]D[5-8]，兩個都是同一個
     字根）就**全部**高亮 —— 不必在幾個都對的候選裡挑一個，也就不會挑錯。
     """
     chosen = picked if picked else seen[:limit]
