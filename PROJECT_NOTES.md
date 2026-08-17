@@ -469,7 +469,7 @@ per-shape overrides are for, and why there are so many).
 { "meta": {...}, "letters": { "A": [...zigen...], "B": [...], ... } }
 ```
 - `meta`: version, `max_code_length: 4` nominal (but see 碼長上限 rule → final can be 5),
-  `wildcard_key: "Z"`, `merge_threshold`, tier names, and `distinct` = manually-asserted
+  `merge_threshold`, tier names, and `distinct` = manually-asserted
   "these two zigen are NOT the same" pairs (e.g. 日 vs 曰, 卜 vs 上) that tighten only those pairs.
 - Each letter holds zigen grouped by **取形意圖 (shape-intent group)** and **等級 (tier:
   優/次/三 = primary/secondary/tertiary)**. Tiers feed the 優次等 rule when predicting splits.
@@ -924,7 +924,8 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   四碼快打); **`shortcode` / `leftshort` / `si4`** drive the matching forward lookup.
 - Two order filters (`aiphabi_order.lua` + `aiphabi_order_plus.lua`) — **sync every fix**.
 - Deploy = **`./sync.sh "<msg>"`** only. `fetch_data.py` for third-party data (gitignored outputs).
-- `` ` `` = wildcard *key* while typing (shipped, `aiphabi_wildcard.lua`). `zigen.json`'s
-  `meta.wildcard_key: "Z"` is a **stale early concept** — `Z` is a normal, populated letter
-  (辶-shaped radicals) and this field isn't read by any tool on either side. Don't treat it as
-  live; if Side A wants it removed/repurposed, that's their call on their file.
+- `` ` `` is the wildcard *key* while typing (`aiphabi_wildcard.lua`). There is no wildcard
+  *letter* in the alphabet — `Z` is a normal, populated letter (辶-shaped radicals) like any
+  other. An early design reserved `Z` as a wildcard, but that was superseded by the `` ` `` key;
+  the leftover `meta.wildcard_key: "Z"` field in `zigen.json` wasn't read by any tool on either
+  side, and has been removed (Side A, since it's their file).
