@@ -10,21 +10,35 @@
 #
 # 網址：https://wilsongrchan.github.io/AiPhaBi/ —— 是專案站，網站在 /AiPhaBi/ 底下，
 # 所以 site/ 裡的連結與資源一律用相對路徑，絕對路徑（/assets/…）會全部 404。
+#
+# ⚠️ 2026-08-17：網站已下架，這個 workflow 改成**只能手動觸發**。
+#
+# 原因：Wilson 要先跟 Side C 把網站做到滿意才公開。原本的觸發條件包含 push 到 main 且
+# 動到 data/codes.json、rules.json、freq.json、standards/**——那些是 **Side A 每次取碼
+# 都會動的檔案**。留著的話，Side A 提交幾個新字就會跑這個 workflow，而 configure-pages
+# 會把已經關掉的 Pages 重新開起來、把網站再推上線，誰都沒打算這樣。
+#
+# 要重新公開時，兩件事都要做（缺一不可）：
+#   1. GitHub 網頁：Settings → Pages → Build and deployment → Source 選 GitHub Actions
+#   2. 把下面的 push: 觸發條件解除註解
+# 在那之前要預覽，一律用本機：
+#   python3 site/tools/build_site_data.py && python3 -m http.server 8099 --directory site
 
 name: Deploy site to Pages
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'site/**'
-      - '.github/workflows/pages.yml'
-      # 網站的數字和試打碼表是從這些檔案產生的，它們一動就該重新部署
-      - 'data/codes.json'
-      - 'data/rules.json'
-      - 'data/freq.json'
-      - 'data/opencc.json'
-      - 'data/standards/**'
+  # 網站確定要公開之前，不要解除這一段的註解 —— 見上面的說明。
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'site/**'
+  #     - '.github/workflows/pages.yml'
+  #     # 網站的數字和試打碼表是從這些檔案產生的，它們一動就該重新部署
+  #     - 'data/codes.json'
+  #     - 'data/rules.json'
+  #     - 'data/freq.json'
+  #     - 'data/opencc.json'
+  #     - 'data/standards/**'
   workflow_dispatch:
 
 permissions:
