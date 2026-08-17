@@ -100,6 +100,8 @@
           tr.appendChild(td);
         }
 
+        // 每個字根一個 id，讓〈相近字形辨析〉的「字形」欄連得過來
+        tr.id = 'Z' + L.letter + '-' + (sh.src || '') + '-' + (sh.span || '');
         var sd = el('td', 'zg-shapecell');
         sd.appendChild(describeShape(sh));
         tr.appendChild(sd);
@@ -161,6 +163,57 @@
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(box);
   }
 
+  /* 把「字形」欄連到它在字根表裡的那一列。
+   *
+   * 辨析是手寫的，沒有指明對應哪一個字根，所以用**例字重疊**去猜：辨析那一條列的
+   * 例字（會、時、的）跟字根表裡某個字根的 seen 重疊最多，就是它。猜不到就不連，
+   * 連錯比沒連糟 —— 讀者會跳到一個不相干的字根然後以為自己理解錯了。 */
+  function findZigenRow(letter, examples) {
+    // 取碼欄可能是「DI（D）」，取第一個 A–Z 當字母
+    var m = (letter || '').match(/[A-Z]/);
+    if (!m) return null;
+    var L = null;
+    for (var i = 0; i < DATA.letters.length; i++) {
+      if (DATA.letters[i].letter === m[0]) { L = DATA.letters[i]; break; }
+    }
+    if (!L || !examples || !examples.length) return null;
+
+    // 比對**取形意圖整組**，不是單一個形狀。辨析講的是一類形狀（「日」字及類似字形），
+    // 對應的就是一個意圖組；比單一形狀時，日 會被 提 的第 4–7 筆搶走，因為衍生形
+    // 的例字比原形常用。連到組的第一列（原形）才是讀者想看的。
+    var best = null, bestScore = 0, tie = false;
+    L.groups.forEach(function (g) {
+      var score = 0;
+      examples.forEach(function (c) {
+        for (var i = 0; i < g.shapes.length; i++) {
+          if (g.shapes[i].seen.indexOf(c) >= 0) { score++; return; }
+        }
+      });
+      if (score > bestScore) { bestScore = score; best = g; tie = false; }
+      else if (score === bestScore && score > 0) { tie = true; }
+    });
+
+    // 至少要對到一半的例字，而且不能有並列第一 —— 猜不準就不要連
+    if (!best || tie || bestScore * 2 < examples.length) return null;
+    var sh = best.shapes[0];
+    return 'Z' + L.letter + '-' + (sh.src || '') + '-' + (sh.span || '');
+  }
+
+  /* trait／note 裡允許 [文字](連結) —— Wilson 要把「按原則略過」連到取碼原則頁，
+   * 但那一頁還沒有。與其我猜一個網址，不如讓他自己在 similar.md 裡寫。 */
+  function withLinks(text, into) {
+    var re = /\[([^\]]+)\]\(([^)]+)\)/g, last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) into.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var a = el('a', null, m[1]);
+      a.href = m[2];
+      into.appendChild(a);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) into.appendChild(document.createTextNode(text.slice(last)));
+    return into;
+  }
+
   /* 相近字形辨析 —— 手寫內容，沒寫就整段不出現（空標題比沒有標題難看） */
   function renderSimilar(groups) {
     var sec = document.getElementById('zg-similar');
@@ -189,7 +242,16 @@
         // 「丶」「乚」是字，「石字 1、2 筆」是描述——後者放大會撐爆欄寬
         var sg = glyph(it.shape, 'zg-src');
         if (Array.from(it.shape).length > 2) sg.classList.add('is-desc');
-        c0.appendChild(sg);
+        var target = findZigenRow(it.letter, it.ex);
+        if (target) {
+          var link = el('a', 'zg-simlink');
+          link.href = '#' + target;
+          link.title = '看它在字根表裡的位置';
+          link.appendChild(sg);
+          c0.appendChild(link);
+        } else {
+          c0.appendChild(sg);
+        }
         tr.appendChild(c0);
 
         var c1 = el('td');
@@ -204,12 +266,12 @@
         it.ex.forEach(function (ch) { c2.appendChild(glyph(ch)); });
         tr.appendChild(c2);
 
-        tr.appendChild(el('td', 'zg-trait', it.trait));
+        tr.appendChild(withLinks(it.trait, el('td', 'zg-trait')));
         tb.appendChild(tr);
       });
       t.appendChild(tb); tw.appendChild(t); card.appendChild(tw);
 
-      if (g.note) card.appendChild(el('p', 'zg-simnote', g.note));
+      if (g.note) card.appendChild(withLinks(g.note, el('p', 'zg-simnote')));
       body.appendChild(card);
     });
 

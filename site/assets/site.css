@@ -555,6 +555,21 @@ tbody tr:last-child td { border-bottom: 0; }
 .zg-simtbl th { background: var(--code-bg); }
 .zg-simshape { width: 1%; white-space: nowrap; }
 
+/* 字形欄連到它在字根表裡的那一列 */
+.zg-simlink {
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+  color: inherit;
+}
+.zg-simlink:hover { background: var(--accent-soft); }
+
+/* 跳過去之後標一下，不然 418 列裡根本找不到剛才跳到哪 */
+.zg-tbl tbody tr:target > td {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.zg-tbl tbody tr { scroll-margin-top: 4.5rem; }
+
 .zg-simnote {
   font-size: .88rem;
   color: var(--ink-dim);
