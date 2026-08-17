@@ -265,6 +265,46 @@ li { margin-bottom: .5rem; }
 .card h3 { margin: 0 0 .4rem; font-size: 1rem; }
 .card p  { margin: 0; font-size: .93rem; color: var(--ink-dim); max-width: none; }
 
+/* 九大特點：Wilson 文案的原文，逐條照抄。每條是一整段散文而不是一句短標語，
+ * 所以用單欄編號清單而不是 .cards 的網格 —— 長短不一的段落擠成兩欄很難讀。 */
+.points {
+  list-style: none;
+  padding-inline-start: 0;
+  max-width: var(--measure);
+  margin: 1.6rem 0 0;
+  counter-reset: point;
+}
+
+.points > li {
+  counter-increment: point;
+  position: relative;
+  padding-inline-start: 2.6rem;
+  margin-bottom: 1.8rem;
+}
+
+/* 編號用 ::before 而不是 <ol> 內建標記，才能跟標題對齊並上色 */
+.points > li::before {
+  content: counter(point);
+  position: absolute;
+  inset-inline-start: 0;
+  top: .1rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.points > li > h3 { margin: 0 0 .45rem; font-size: 1.05rem; }
+.points > li > p  { margin: 0; max-width: none; }
+
 /* 數字列 */
 .stats {
   display: grid;
