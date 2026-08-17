@@ -41,19 +41,6 @@
     看懂意圖，就能自己推出沒收錄的字要怎麼拆。
   </p>
 
-  <!-- 相近字形辨析：內容全部來自 site/content/similar.md（Wilson 手寫）。
-       沒有寫任何一組時，zigen.js 會把整段藏起來，不會留一個空標題在頁面上。 -->
-  <section id="zg-similar" class="zg-similar" hidden>
-    <h2>相近字形辨析</h2>
-    <p>
-      有些形狀長得很像，但屬於不同的字母——認錯就會打錯碼。這裡列出容易混的幾組，
-      以及分辨它們的方法。
-    </p>
-    <div id="zg-similar-body"></div>
-  </section>
-
-  <h2>全部字根</h2>
-
   <div class="zg-tools">
     <label class="zg-find">
       <span>找用到某個字的字根</span>
@@ -67,6 +54,18 @@
   <div id="zg-table" class="zg-table">
     <p class="zg-loading">字根表載入中……</p>
   </div>
+
+  <!-- 相近字形辨析放在字根表**後面**：先讓人看完整張表，再談哪幾組容易認錯。
+       內容全部來自 site/content/similar.md（Wilson 手寫）；一組都沒寫時
+       zigen.js 會把整段藏起來，不會在頁面上留一個空標題。 -->
+  <section id="zg-similar" class="zg-similar" hidden>
+    <h2>相近字形辨析</h2>
+    <p>
+      有些形狀長得很像，但屬於不同的字母——認錯就會打錯碼。這裡列出容易混的幾組，
+      以及分辨它們的方法。
+    </p>
+    <div id="zg-similar-body"></div>
+  </section>
 
   <noscript>
     <div class="todo">

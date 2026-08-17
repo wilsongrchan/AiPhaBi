@@ -186,11 +186,16 @@
       g.items.forEach(function (it) {
         var tr = el('tr');
         var c0 = el('td', 'zg-simshape');
-        c0.appendChild(glyph(it.shape, 'zg-src'));
+        // 「丶」「乚」是字，「石字 1、2 筆」是描述——後者放大會撐爆欄寬
+        var sg = glyph(it.shape, 'zg-src');
+        if (Array.from(it.shape).length > 2) sg.classList.add('is-desc');
+        c0.appendChild(sg);
         tr.appendChild(c0);
 
         var c1 = el('td');
+        // 取碼不一定是單一個字母（目 是 DI（D）），所以鍵帽要能長寬
         var k = el('span', 'zg-key zg-key-sm', it.letter);
+        if (Array.from(it.letter).length > 1) k.classList.add('is-wide');
         k.setAttribute('data-keep', '');
         c1.appendChild(k);
         tr.appendChild(c1);
