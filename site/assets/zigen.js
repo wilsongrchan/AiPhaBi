@@ -19,6 +19,7 @@
   if (!box) return;
 
   var DATA = null;
+  var lastFilter = '';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -34,14 +35,59 @@
     return s;
   }
 
-  /* 「取自『名』第 1–3 筆」／「整個『日』字」 */
+  /* ---------- 把字根畫出來 ----------
+   * 做法跟標註工具的 rootIconSvg 一樣：只畫選中的那幾筆，並裁切到它們的範圍，
+   * 免得三筆的字根在整個字身框裡變成一個小點。
+   * makemeahanzi 的路徑是 y 軸朝上的 1024 em 框，所以要套同一個翻轉。 */
+  var SVG_TF = 'scale(1,-1) translate(0,-900)';
+  var ROOT_PAD = 40;
+  var GLYPHS = null;                  // glyphs.json 較大，延後載入；沒有就維持文字版
+
+  function rootIconSvg(strokes, sel) {
+    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
+    for (var k = 0; k < sel.length; k++) {
+      var d = strokes[sel[k]];
+      if (!d) continue;
+      var m;
+      re.lastIndex = 0;
+      while ((m = re.exec(d))) {
+        var x = +m[1], y = 900 - (+m[2]);      // 還原 y 翻轉
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+    if (x1 < x0) return null;
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    var s = Math.max(x1 - x0, y1 - y0) + ROOT_PAD * 2;
+    var paths = '';
+    for (var j = 0; j < sel.length; j++) {
+      if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
+    }
+    return '<svg class="zg-svg" viewBox="' + (cx - s / 2) + ' ' + (cy - s / 2) + ' ' + s + ' ' + s +
+      '" aria-hidden="true"><g transform="' + SVG_TF + '">' + paths + '</g></svg>';
+  }
+
+  /* 「取自『名』第 1–3 筆」／「整個『日』字」——有字形資料時前面再加上畫出來的字根 */
   function describeShape(sh) {
     var wrap = el('span', 'zg-shape');
-    wrap.appendChild(glyph(sh.src, 'zg-src'));
-    var note = sh.span === 'whole'
-      ? '整個字'
-      : '第 ' + sh.span + ' 筆';
-    wrap.appendChild(el('span', 'zg-span', note));
+
+    var drew = false;
+    if (GLYPHS && GLYPHS[sh.src] && sh.st && sh.st.length) {
+      var svg = rootIconSvg(GLYPHS[sh.src], sh.st);
+      if (svg) {
+        var holder = el('span', 'zg-icon');
+        holder.innerHTML = svg;
+        wrap.appendChild(holder);
+        drew = true;
+      }
+    }
+
+    // 畫出來之後，來源字就只是出處，縮小當註記；沒畫出來時它是唯一的線索，維持原樣
+    var src = glyph(sh.src, 'zg-src' + (drew ? ' is-ref' : ''));
+    wrap.appendChild(src);
+    wrap.appendChild(el('span', 'zg-span', sh.span === 'whole' ? '整個字' : '第 ' + sh.span + ' 筆'));
     return wrap;
   }
 
@@ -126,6 +172,7 @@
   }
 
   function render(filter) {
+    lastFilter = filter || '';
     box.textContent = '';
     var shown = 0, letters = [];
     DATA.letters.forEach(function (L) {
@@ -278,12 +325,28 @@
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(body);
   }
 
+  /* 字形資料 1.6MB，比字根表本身大得多，所以先把表畫出來（文字版看得懂），
+   * 拿到之後再重畫一次補上圖。網路慢或抓不到就一直是文字版，不會空白。 */
+  function loadGlyphs() {
+    fetch('assets/glyphs.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (g) {
+        if (!g || !g.glyphs) return;
+        GLYPHS = g.glyphs;
+        render(lastFilter);
+        var credit = document.getElementById('zg-credit');
+        if (credit) credit.hidden = false;
+      })
+      .catch(function () { /* 維持文字版 */ });
+  }
+
   fetch('assets/zigen.json')
     .then(function (r) { return r.json(); })
     .then(function (d) {
       DATA = d;
       renderSimilar(d.similar);
       render('');
+      loadGlyphs();
     })
     .catch(function () {
       box.textContent = '';

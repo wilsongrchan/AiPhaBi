@@ -493,6 +493,36 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 「石字 1、2 筆」這種描述式的形，字太多，放大會撐爆欄寬 */
 .zg-src.is-desc { font-size: .84rem; font-family: inherit; color: var(--ink); }
 
+/* 畫出來的字根本身。有圖之後，來源字退成小字註記——圖才是主角 */
+.zg-icon { display: inline-flex; align-items: center; }
+
+.zg-svg {
+  width: 2rem;
+  height: 2rem;
+  display: block;
+}
+
+.zg-svg path {
+  fill: var(--ink);
+  stroke: none;
+}
+
+.zg-src.is-ref {
+  font-size: .8rem;
+  color: var(--ink-dim);
+  font-family: inherit;
+}
+
+/* 字形資料的出處與授權。Arphic PL 要求隨附授權全文，這一行是給人看的入口。 */
+.zg-credit {
+  font-size: .78rem;
+  color: var(--ink-dim);
+  border-top: 1px solid var(--line);
+  padding-top: .8rem;
+  margin-top: 1.6rem;
+  max-width: none;
+}
+
 .zg-span { font-size: .72rem; color: var(--ink-dim); white-space: nowrap; }
 
 .zg-ex { line-height: 1.55; }

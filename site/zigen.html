@@ -75,10 +75,21 @@
   </noscript>
 
   <div class="todo">
-    <b>這張表目前是純文字的。</b>
-    字根本身還沒畫出來——它存的是「某個字的第幾筆到第幾筆」，筆畫圖形來自第三方字形資料，
-    授權與取得方式還沒決定，所以先用文字說明位置。之後會補上圖形，並在例字上把字根高亮。
+    <b>例字還沒有高亮。</b>
+    「字根」欄的形狀已經畫出來了，但「字例」欄還只是文字——要在每個例字上把字根塗色，
+    還需要另外兩千多個字的筆畫資料（約 4.5&nbsp;MB）。先看這一版的字根圖再決定要不要加。
   </div>
+
+  <!-- Arphic Public License 要求隨附授權全文並註明改動；這一行是給讀者看的出處，
+       授權全文是 site/ARPHICPL.txt，改了什麼寫在 assets/glyphs.json 的 modifications 欄。
+       沒載到字形資料時整段不顯示（那時候頁面上也沒有用到這份資料）。 -->
+  <p class="zg-credit" id="zg-credit" hidden>
+    字根圖形的筆畫資料來自
+    <a href="https://github.com/skishore/makemeahanzi" data-keep>Make Me a Hanzi</a>，
+    源自 Arphic Technology 的 AR PL 字型，依
+    <a href="ARPHICPL.txt" data-keep>Arphic Public License</a> 散布。
+    本站僅取出所需字元的筆畫輪廓並轉存格式，未修改筆畫本身。
+  </p>
 
 </main>
 

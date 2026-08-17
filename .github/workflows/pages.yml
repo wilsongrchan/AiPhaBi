@@ -67,8 +67,18 @@ jobs:
 
       - name: 確認產出存在
         run: |
-          test -s site/assets/dict.json || { echo "dict.json 沒產出來"; exit 1; }
-          test -s site/assets/t2s.json  || { echo "t2s.json 沒產出來";  exit 1; }
+          test -s site/assets/dict.json  || { echo "dict.json 沒產出來";  exit 1; }
+          test -s site/assets/t2s.json   || { echo "t2s.json 沒產出來";   exit 1; }
+          test -s site/assets/zigen.json || { echo "zigen.json 沒產出來"; exit 1; }
+          # glyphs.json 要下載 29MB 的第三方資料，網路出問題就會沒有。
+          # 這不該擋住部署 —— 字根表會自動退回純文字版，其餘頁面完全不受影響。
+          if [ -s site/assets/glyphs.json ]; then
+            echo "字根圖形：有（$(wc -c < site/assets/glyphs.json) bytes）"
+            # 授權要求：散布字形資料就必須隨附授權全文
+            test -s site/ARPHICPL.txt || { echo "有字形資料卻沒有 ARPHICPL.txt，違反授權"; exit 1; }
+          else
+            echo "::warning::glyphs.json 沒產出來，字根表會是純文字版"
+          fi
 
       - uses: actions/configure-pages@v5
 
