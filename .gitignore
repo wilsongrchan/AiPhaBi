@@ -12,8 +12,10 @@ data/tw_strokes.json
 data/predict.db
 data/predict.txt
 
-# 繁簡對照（OpenCC，Apache-2.0）：由 fetch_data.py 下載
-data/opencc.json
+# data/opencc.json（繁簡對照，OpenCC，Apache-2.0）跟 freq.json 一樣收進 git（115K）：
+# 它也是 build_rime.py 的輸入（打繁出簡／打簡出繁的對照表就是它），不進版控就會兩台
+# 機器各有一份、各建各的。授權是 Apache-2.0，隨專案散布沒問題。
+# 收了這份之後，Side B 的建置所需檔案全部在版控裡，新機器 clone 完就能直接建。
 
 # 香港教育局筆順快取：EDB 版權內容，只作個人參考，不上傳。
 data/hk_cache.json
