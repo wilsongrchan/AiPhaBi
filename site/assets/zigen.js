@@ -370,6 +370,9 @@
         if (!g || !g.glyphs) return;
         GLYPHS = g.glyphs;
         render(lastFilter);
+        // 辨析那一節的「字形」欄也要跟著重畫 —— 它一樣要靠 GLYPHS 才畫得出
+        // 「石#1,2」這種打不出來的字根，只重畫表格的話它會永遠停在文字退路上
+        renderSimilar(DATA.similar);
         var credit = document.getElementById('zg-credit');
         if (credit) credit.hidden = false;
       })

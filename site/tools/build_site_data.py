@@ -122,7 +122,7 @@ def build_glyphs(chars):
     return len(out)
 
 
-def build_similar():
+def build_similar(codes):
     """相近字形辨析：全部來自 site/content/similar.md，Wilson 手寫。
 
     資料裡沒有這種東西 —— 「哪兩個形狀容易認錯」是取碼的人腦袋裡的知識，zigen.json
@@ -161,10 +161,24 @@ def build_similar():
             shape, letter, ex, trait = parts[0], parts[1], parts[2], " ".join(parts[3:])
             if shape == "？" or not letter:
                 continue                      # 還沒填的候選
+            # 例字也畫出來並高亮，跟字根表一致。這裡只用**字母**比對（不比筆數）：
+            # 辨析要回答的是「這個字母的字根在這個字的哪裡」，而 目 的取碼寫成
+            # 「DI（D）」這種複合形式時，筆數根本對不上。同字母有多段就全部高亮。
+            items = []
+            for c in ex.split():
+                if not c:
+                    continue
+                m2 = re.search(r"[A-Z]", letter)
+                hi = []
+                if m2:
+                    for seg in (codes.get(c, {}).get("segments") or []):
+                        if seg.get("letter") == m2.group(0):
+                            hi += list(seg.get("strokes") or [])
+                items.append({"c": c, "st": sorted(set(hi))})
             cur["items"].append({
                 "shape": shape,
                 "letter": letter,
-                "ex": [c for c in ex.split() if c],
+                "ex": items,
                 "trait": trait,
             })
         elif line.startswith(">") and cur is not None:
@@ -181,7 +195,46 @@ def build_similar():
 EX_PER_SHAPE = 4
 
 
-def _examples(seen, nstroke, letter, codes, limit):
+def load_example_picks(dupes):
+    """讀 site/content/examples.md —— Wilson 手挑的例字，覆蓋自動挑的結果。
+
+    回傳 {(字母, 來源字): [字…]} 與 {(字母, 來源字, 筆序tuple): [字…]}。
+    後者只有四個字根用得到（同一字母下兩個字根取自同一個來源字：F 學、K 鼎、
+    P 們、R 所），其餘寫「字母 來源字」就夠。
+    """
+    path = ROOT / "site" / "content" / "examples.md"
+    picks = {}
+    if not path.exists():
+        return picks
+    text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, rest = line.partition("=")
+        parts = key.split()
+        if len(parts) != 2:
+            continue
+        letter, src = parts[0].strip(), parts[1].strip()
+        if not re.fullmatch(r"[A-Z]", letter):
+            continue
+        st = None
+        if "#" in src:
+            src, _, nums = src.partition("#")
+            st = tuple(sorted(int(n) - 1 for n in re.findall(r"\d+", nums)))
+        chars = [c for c in rest.split() if c]
+        if not chars:
+            continue
+        key = (letter, src.strip(), st)
+        if key in picks:
+            # 同一個字根寫了兩次，後面的會蓋掉前面的。不出聲的話，改了半天
+            # 卻看不到效果（因為底下還有一行舊的）會很難查。
+            dupes.append(f"{letter} {src.strip()}：寫了不只一次，只有最後一行生效")
+        picks[key] = chars
+    return picks
+
+
+def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label=""):
     """挑例字，並算出每個例字裡哪幾筆屬於這個字根（用來高亮）。
 
     高亮的筆序是**建置時**用 codes.json 的 segments 反查的：取該字裡「字母相同、
@@ -189,17 +242,35 @@ def _examples(seen, nstroke, letter, codes, limit):
     網站畫圖用不到。同一個字裡有多段都符合時（朋＝D[1-4]D[5-8]，兩個都是同一個
     字根）就**全部**高亮 —— 不必在幾個都對的候選裡挑一個，也就不會挑錯。
     """
+    chosen = picked if picked else seen[:limit]
     out = []
-    for c in seen[:limit]:
+    for c in chosen:
         hi = []
         for seg in (codes.get(c, {}).get("segments") or []):
             if seg.get("letter") == letter and len(seg.get("strokes") or []) == nstroke:
                 hi += list(seg["strokes"])
+        # 手挑的字要驗：查不到對應的段，代表這個字沒有用到這個字根（或還沒取碼）。
+        # 它照樣會顯示，但不會高亮 —— 不出聲的話就會悄悄擺一個舉錯的例子在網站上。
+        if picked and not hi and warn is not None:
+            why = "還沒取碼" if c not in codes else f"拆碼裡沒有 {letter} 且筆數為 {nstroke} 的一段"
+            warn.append(f"{label}：例字「{c}」{why}，不會高亮")
         out.append({"c": c, "st": sorted(set(hi))})
     return out
 
 
-def build_zigen(zigen, codes, rank, far):
+
+def _pick_for(picks, letter, src, st, warn):
+    """找這個字根有沒有被手挑例字。先比 (字母, 來源字, 筆序)，再退回 (字母, 來源字)。"""
+    if not picks:
+        return None
+    exact = picks.get((letter, src, tuple(sorted(st))))
+    if exact:
+        return exact
+    loose = picks.get((letter, src, None))
+    return loose or None
+
+
+def build_zigen(zigen, codes, rank, far, picks=None, warn=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
     ⚠️ 純文字版，刻意不畫字根。一個字根存的是「某個字的第幾筆到第幾筆」
@@ -255,7 +326,9 @@ def build_zigen(zigen, codes, rank, far):
                     "seen": seen,
                     # 例字掛在**每個字根**上，不是掛在取形意圖上：一個意圖底下最多有
                     # 13 個形狀（平均 3.6），整組只給 5 個的話每一列都分不到。
-                    "ex": _examples(seen, len(st), L.get("letter"), codes, EX_PER_SHAPE),
+                    "ex": _examples(seen, len(st), L.get("letter"), codes, EX_PER_SHAPE,
+                                    picked=_pick_for(picks, L.get("letter"), src, st, warn),
+                                    warn=warn, label=f"{L.get('letter')} {src}"),
                 })
                 n_shapes += 1
             if not shapes:
@@ -370,8 +443,10 @@ def main():
     t2s = {k: v for k, v in t2s.items() if k != v}
 
     zigen_raw = load("zigen.json")
-    zg = build_zigen(zigen_raw, codes, rank, far)
-    zg["similar"] = build_similar()
+    warn = []
+    picks = load_example_picks(warn)
+    zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn)
+    zg["similar"] = build_similar(codes)
 
     # 字根表要畫出字根本身，需要這些字的筆畫輪廓。先只收字根的**來源字**（含 alts）：
     # 695 字約 1.6MB。例字的高亮還要再 2000 字／+4.5MB，等這一版看過再決定。
@@ -396,6 +471,18 @@ def main():
             m = re.match(r"^(.)#[\d,、\s]+$", item["shape"])
             if m:
                 glyph_chars.add(m.group(1))
+    # 手挑清單裡有沒有寫錯字母／來源字，對不到任何一個字根的要講出來
+    used = set()
+    for L in zg["letters"]:
+        for grp in L["groups"]:
+            for sh in grp["shapes"]:
+                used.add((L["letter"], sh["src"], tuple(sorted(sh["st"]))))
+                used.add((L["letter"], sh["src"], None))
+    for key in picks:
+        if key not in used:
+            st = "#" + ",".join(str(i + 1) for i in key[2]) if key[2] else ""
+            warn.append(f"{key[0]} {key[1]}{st}：找不到這個字根（字母或來源字寫錯？或已被合併）")
+
     n_glyph = build_glyphs(glyph_chars)
 
     OUT.mkdir(parents=True, exist_ok=True)
@@ -411,6 +498,10 @@ def main():
     if n_glyph:
         kb = (OUT / "glyphs.json").stat().st_size / 1024
         print(f"glyphs.json {n_glyph} 字的筆畫輪廓 / {kb:.0f} KB  （Arphic PL，見 site/ARPHICPL.txt）")
+    if picks:
+        print(f"examples.md {len(picks)} 條手挑例字")
+    for w in warn:
+        print(f"  ⚠️ {w}")
     print(f"zigen.json {zg['shapes']} 個字根 / {len(zg['letters'])} 個字母"
           + f" / {len(zg['similar'])} 組相近字形辨析"
           + (f"  ⚠️ {zg['no_desc']} 組還沒寫取形意圖" if zg["no_desc"] else ""))
