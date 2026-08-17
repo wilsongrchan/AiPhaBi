@@ -414,6 +414,37 @@ The threshold belongs to the **candidate** being matched against, not the query
 `seen` list never proves a zigen is unused — use the matcher; and `retune.py`'s `main()` *rewrites*
 `zigen.json` (it recomputes every `thr` from `meta.distinct`), so import from it, don't run it.
 
+#### `meta.distinct` has decayed — running `retune.py` would now loosen 122 zigen
+
+Measured 2026-08-17, after a Side C report. `meta.distinct` is an **adjudication log**: each entry
+says "these two shapes are genuinely different, don't merge them", and its *only* effect is to set
+`thr = max(0.01, dist(a,b) × 0.9)` on both shapes. `retune.py` pops every `thr` and rebuilds them
+from this list, matching entries by the exact string `letter:glyph.src#strokes` — **primary glyph
+only, `alts` not consulted** (`retune.py:118-121`).
+
+Re-coding a character changes that string, and the adjudication silently stops matching:
+
+| | |
+|---|---|
+| adjudications total | 543 |
+| same-letter (dropped by `retune.py:105` — same code, tightening is meaningless) | 12 |
+| cross-letter (the ones that do anything) | 531 |
+| …still matching a primary glyph on **both** ends | **163** |
+| …orphaned, so no longer applied | **368** |
+| orphaned pairs now within the global 0.25 (i.e. mergeable again) | **290** |
+
+**Consequence: `retune.py` today would cut the zigen carrying a tightened `thr` from 279 to 162 —
+122 shapes revert to the loose global threshold**, including pairs adjudicated as distinct at
+d≈0.004 (`A:全#0,1` × `Y:俗#4,5`). The stored `thr` values are still in the file and still working;
+the decay only bites the moment someone regenerates them. This is why "import from it, don't run
+it" above is a hard rule and not a style preference.
+
+Worth knowing before fixing it: the orphaned entries are **not** proof the shapes are gone. Of 59
+tokens that match nothing at all (not even via `alts`), the median matcher still finds a live
+equivalent for 23 — they were merely re-represented under a different source character. A real
+repair means re-resolving each adjudication by geometry, not by string, and that needs
+`data/graphics.txt` — **which only Side A has** (gitignored; Sides B and C cannot do this analysis).
+
 ### Refresh protocol
 
 New characters coded here don't reach the IME by the other session reading the file mid-flight.
