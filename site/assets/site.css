@@ -9,6 +9,11 @@
   --ink:     #23201c;
   --ink-dim: #6b645b;
   --accent:  #d1650a;
+  /* 同一個字根在一個字裡出現第二、第三次時用的色階。用明確色值而不是 color-mix：
+     color-mix 用在 fill 上不是每個瀏覽器都吃，而 @supports 測的是 color 不是 fill，
+     測得過卻畫不出來，結果整個宣告被丟掉、退回原本的橙色 —— 看起來就像沒分色。 */
+  --accent-2: #8a4206;
+  --accent-3: #55290b;
   --accent-soft: #fdf1e4;
   --code-bg: #f4f1ec;
   --radius: 10px;
@@ -23,6 +28,9 @@
     --ink:     #ece8e1;
     --ink-dim: #a29a8e;
     --accent:  #f0913f;
+    /* 深色主題往亮的方向拉開，往暗拉會跟背景糊在一起 */
+    --accent-2: #c9702a;
+    --accent-3: #a4551c;
     --accent-soft: #2c2219;
     --code-bg: #26231f;
   }
@@ -464,13 +472,16 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 三欄寬度釘死，26 個字母的表才會對齊（不然各表依自己的內容決定欄寬，
    A 的「取形意圖」欄跟 B 的不一樣寬，整頁參差不齊）。 */
 .zg-tbl { font-size: .86rem; table-layout: fixed; width: 100%; }
-.zg-c1 { width: 15rem; }    /* 取形意圖 */
-.zg-c2 { width: 8.5rem; }   /* 字根 */
-.zg-c3 { width: auto; }     /* 字例，吃掉剩下的 */
+
+/* 欄寬直接下在表頭儲存格上，不靠 <col>。table-layout: fixed 是看第一列決定欄寬的，
+   下在 th 上最直接；<col class> 那條路在某些瀏覽器上不吃，結果 26 張表又各自為政。 */
+.zg-tbl thead th:nth-child(1) { width: 15rem; }
+.zg-tbl thead th:nth-child(2) { width: 8.5rem; }
+.zg-tbl thead th:nth-child(3) { width: auto; }
 
 @media (max-width: 40rem) {
-  .zg-c1 { width: 9rem; }
-  .zg-c2 { width: 6.5rem; }
+  .zg-tbl thead th:nth-child(1) { width: 9rem; }
+  .zg-tbl thead th:nth-child(2) { width: 6.5rem; }
 }
 
 .zg-tbl th {
@@ -751,14 +762,10 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 /* 同一個字根在一個字裡出現兩次時分色（朋＝月月、夠＝夕夕）：第二次用深一點的橙。
    同色會讀成「這個字根就是整個朋」，分色才看得出是同一個字根出現兩次。 */
 .zg-exsvg path.on    { fill: var(--accent); }
-.zg-exsvg path.on-2  { fill: color-mix(in srgb, var(--accent) 62%, #000); }
-.zg-exsvg path.on-3  { fill: color-mix(in srgb, var(--accent) 40%, #000); }
+.zg-exsvg path.on-2  { fill: var(--accent-2); }
+.zg-exsvg path.on-3  { fill: var(--accent-3); }
 .zg-exsvg path.off   { fill: var(--ink); opacity: .22; }
 
-/* color-mix 不支援時整批退回原本的橙色，總比看不見好 */
-@supports not (color: color-mix(in srgb, red 50%, blue)) {
-  .zg-exsvg path.on-2, .zg-exsvg path.on-3 { fill: var(--accent); }
-}
 
 .zg-exg.is-hit {
   background: var(--accent-soft);
