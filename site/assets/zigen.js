@@ -337,7 +337,7 @@
       var thead = el('thead'), hr = el('tr');
       // 例字放最右邊（Wilson）：形 → 字母 → 特徵 → 例字，
       // 讀的順序是「這個形狀、取什麼碼、怎麼分辨」，例字是佐證放在最後。
-      ['形', '字母', '特徵', '例字'].forEach(function (h) {
+      ['形', '字母', '特徵', '字例'].forEach(function (h) {
         hr.appendChild(el('th', null, h));
       });
       thead.appendChild(hr); t.appendChild(thead);
