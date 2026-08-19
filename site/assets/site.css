@@ -247,7 +247,8 @@ li { margin-bottom: .5rem; }
   margin: 0;
 }
 
-/* 重點卡片 */
+/* 重點卡片 —— ⚠️ 目前沒有頁面用到（首頁九大特點改用 .points，設計原理頁已移除）。
+   留著是因為之後很可能再用到；要清理的話這一段和 .card 一起拿掉。 */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
@@ -305,7 +306,8 @@ li { margin-bottom: .5rem; }
 .points > li > h3 { margin: 0 0 .45rem; font-size: 1.05rem; }
 .points > li > p  { margin: 0; max-width: none; }
 
-/* 數字列 */
+/* 數字列 —— ⚠️ 目前沒有頁面用到（首頁〈目前進度〉移除、設計原理頁移除）。
+   **不要刪**：網站上線時要講「教育部甲表全部收錄」，那個數字就會用回這一組。 */
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
@@ -329,7 +331,7 @@ li { margin-bottom: .5rem; }
 
 .stat span { font-size: .82rem; color: var(--ink-dim); }
 
-/* 引言 / 設計主張 */
+/* 引言 —— ⚠️ 目前沒有頁面用到。留著給之後的內容頁。 */
 blockquote {
   margin: 1.6rem 0;
   padding: .2rem 0 .2rem 1.2rem;
