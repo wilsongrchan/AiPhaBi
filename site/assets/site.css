@@ -804,6 +804,13 @@ footer {
 
 footer p { max-width: none; margin: 0 0 .4rem; }
 
+/* 英文那半句排在中文後面、再淡一級 —— 同一件事講兩次，第二次不該搶注意力 */
+.en-note {
+  margin-inline-start: .5rem;
+  opacity: .7;
+  letter-spacing: .02em;
+}
+
 /* ---------- 線上試打 ---------- */
 
 .typebox {
