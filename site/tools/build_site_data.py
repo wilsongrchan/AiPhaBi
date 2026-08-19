@@ -258,8 +258,9 @@ def _rank_within_src(L, g, it):
 
 
 def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label="",
+              freq=None,
               own=None, claims=None, owners=None, rank=None, primary=None,
-              standard=None):
+              standard=None, nstrokes=None):
     """挑例字，並算出每個例字裡哪幾筆屬於這個字根（用來高亮）。
 
     高亮的筆序是**建置時**用 codes.json 的 segments 反查的：取該字裡「字母相同、
@@ -289,26 +290,48 @@ def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label
         # ⚠️ 只提**主要**來源字（glyph.src），不要連 alts 一起提。alts 是同一個形狀的
         # 其他定義出處，不是好例字：K 跳#12,13 的 alts 是 率／衆／菡，全提上來就把
         # 四個位置佔滿，把 seen 裡的 挑 逃 函 涵 兆 全擠掉了。
-        head = [primary] if primary and primary in codes else []
-        seen_rest = [c for c in seen if c not in head]
+        # 來源字一定要在候選裡（它按定義含有這個字根，seen 不一定收了它），
+        # 但**不再強制排第一**——排序交給下面的「愈單純愈前面」。
+        # 原本強制來源字第一，會讓 A:名 那一列排成 名 夕 外 多，把 夕 壓在 名 後面；
+        # 夕 就是整個字根本身，最能說明這個字根長什麼樣。
+        # 「整個字」型的字根（王）本來就同時是來源字又最單純，照樣排第一。
+        head = []
+        seen_rest = list(seen)
+        if primary and primary in codes and primary not in seen_rest:
+            seen_rest.append(primary)
 
         # 其餘的優先挑「同字母同筆數之下只有這一個字根用到」的字。多個字根都用到的字
         # （等：竹 和 寸 都是 3 筆的 A）分不出哪一段是哪一個，塗下去有一半機率
         # 塗到別人的字根上。字根平均有幾十個例字可選，跳過幾個完全不吃虧。
-        # 異體字往後排。衆 不在教育部甲表（標準寫法是 眾），但字頻排名很前面——
-        # 字頻資料把兩個寫法算在一起了。繁體優先的網站不該拿異體字當示範。
+        # 例字愈單純愈好：字根佔整個字的比例愈大，愈看得出「這個字根長這樣」。
+        # 夕（字根就是整個字）勝過 多、名；兆 勝過 跳、挑；成 勝過 城；貝 勝過 資。
+        # 實作上就是「整個字筆畫少的排前面」—— 字根筆數固定，字愈短佔比就愈高。
+        # 字頻只當同筆畫數時的次要條件：光看字頻會把 跳(13筆) 排在 兆(6筆) 前面。
+        ns = nstrokes or {}
+        fq = freq or {}
         std = standard or set()
+
+        def simplicity(c):
+            # 主要：整個字的筆畫數（少＝字根佔比大）。次要：字頻，同筆畫數時取常見的。
+            return (ns.get(c, 99), fq.get(c, 10 ** 9))
+
         clean, variant, murky = [], [], []
         for c in seen_rest:
             if len(owners.get((letter, nstroke, c), ())) > 1:
                 murky.append(c)
             elif std and c not in std:
-                variant.append(c)
+                variant.append(c)      # 異體字（衆）往後，甲表才是標準寫法
             else:
                 clean.append(c)
-            if len(head) + len(clean) >= limit:
-                break
+        clean.sort(key=simplicity)
+        variant.sort(key=simplicity)
         chosen = (head + clean + variant + murky)[:limit]
+
+        # 「字根」欄寫的是「把 第 4–6 筆」，那個字理當看得到。排序照單純度走之後，
+        # 來源字常常被更單純的字擠出前四名（實測 158 條），欄位指著一個看不到的字
+        # 很奇怪。所以保留一個名額給它 —— 位置仍由單純度決定，只是保證在場。
+        if primary and primary in codes and primary not in chosen:
+            chosen = sorted(chosen[:limit - 1] + [primary], key=simplicity)
     out = []
     for c in chosen:
         if c in own:                      # 規則 1：這個字就是本字根的來源字
@@ -445,7 +468,8 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
                         # claims：同字母下所有字根認領的筆序，扣掉不屬於自己的
                         claims=claimed.get(L.get("letter"), {}),
                         owners=owners, rank=_rank_within_src(L, g, it),
-                        primary=g.get("src"), standard=standard),
+                        primary=g.get("src"), standard=standard,
+                        nstrokes=nstrokes, freq=rank),
                 })
                 n_shapes += 1
             if not shapes:
