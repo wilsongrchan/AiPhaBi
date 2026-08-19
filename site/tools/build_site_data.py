@@ -281,20 +281,24 @@ def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label
     if picked:
         chosen = picked
     else:
-        # 優先挑「同字母同筆數之下只有這一個字根用到」的字。多個字根都用到的字
+        # 來源字排最前面。字根就是從那個字上圈出來的，它是這個字根的定義實例——
+        # 尤其是「整個字」型的字根（王、月、小、夕），把 王 排在 全、主 後面很怪。
+        # 來源字不一定在 seen 裡（seen 是取碼時遇到的字），沒有就補進去。
+        head = [c for c in own if c in codes]
+        seen_rest = [c for c in seen if c not in own]
+
+        # 其餘的優先挑「同字母同筆數之下只有這一個字根用到」的字。多個字根都用到的字
         # （等：竹 和 寸 都是 3 筆的 A）分不出哪一段是哪一個，塗下去有一半機率
         # 塗到別人的字根上。字根平均有幾十個例字可選，跳過幾個完全不吃虧。
         clean, murky = [], []
-        for c in seen:
-            if c in own:
-                clean.append(c)                        # 來源字一定分得清
-            elif len(owners.get((letter, nstroke, c), ())) > 1:
+        for c in seen_rest:
+            if len(owners.get((letter, nstroke, c), ())) > 1:
                 murky.append(c)
             else:
                 clean.append(c)
-            if len(clean) >= limit:
+            if len(head) + len(clean) >= limit:
                 break
-        chosen = (clean + murky)[:limit]
+        chosen = (head + clean + murky)[:limit]
     out = []
     for c in chosen:
         if c in own:                      # 規則 1：這個字就是本字根的來源字
