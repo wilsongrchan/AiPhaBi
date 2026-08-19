@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>線上試打 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="不用安裝，直接在瀏覽器裡試打愛發筆。查的是真正的碼表。">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <nav class="site">
+      <a href="index.html">介紹</a>
+      <a href="design.html">設計原理</a>
+      <a href="try.html">線上試打</a>
+    </nav>
+    <div class="langtoggle" role="group" aria-label="字體切換">
+      <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+      <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h1>線上試打</h1>
+
+  <p class="lede">
+    不用安裝。在下面的框裡打英文字母，候選字會出現在框下面那一列。
+    查的是真正的碼表——跟裝起來之後打出來的結果一致。
+  </p>
+
+  <div class="typebox">
+    <label class="sr-only" for="out">試打區</label>
+    <textarea id="out" placeholder="先試試 bd（明）、jkxq（我）、jba（的）" autocomplete="off"
+              autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="rail" id="rail" aria-live="polite"></div>
+  </div>
+
+  <h2>怎麼打</h2>
+
+  <div class="tablewrap">
+    <table>
+      <tbody>
+        <tr><td><kbd data-keep>a</kbd>–<kbd data-keep>z</kbd></td><td>輸入字根碼</td></tr>
+        <tr><td><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></td><td>選第幾個候選字</td></tr>
+        <tr><td><kbd>空白</kbd> 或 <kbd data-keep>Enter</kbd></td><td>選第一個</td></tr>
+        <tr><td><kbd data-keep>Backspace</kbd></td><td>刪掉剛打的一碼</td></tr>
+        <tr><td><kbd data-keep>Esc</kbd></td><td>清掉還沒選字的碼</td></tr>
+        <tr><td><kbd data-keep>,</kbd> <kbd data-keep>.</kbd> <kbd data-keep>?</kbd> …</td><td>正體全形標點（字母鍵都給字根用了，標點就留在原本的鍵上）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>幾個值得試的例子</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>打這個</th><th>會看到</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>bd</code></td>
+          <td><span data-keep>明</span>——日（<span data-keep>B</span>）＋月（<span data-keep>D</span>），碼是看著字推出來的</td>
+        </tr>
+        <tr>
+          <td><code>jkxq</code></td>
+          <td><span data-keep>我</span> 的主碼，旁邊會小聲提示「簡碼 <span data-keep>JKQ</span>」——這就是它教你的方式</td>
+        </tr>
+        <tr>
+          <td><code>jkq</code></td>
+          <td>同一個 <span data-keep>我</span>，但走簡碼。注意主碼 <code>jkxq</code> 仍然有效，沒有被搶走</td>
+        </tr>
+        <tr>
+          <td><code>j</code></td>
+          <td>只打一碼，會把以 <span data-keep>J</span> 開頭的字先列出來（打到一半就有候選）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="todo">
+    <b>這個試打版是簡化過的。</b>
+    目前支援主碼、完整碼、兼容碼、前綴補全、字頻排序、約定簡碼與標點。
+    真正的輸入法還有三簡碼、左簡碼、詞組連打、輸入容錯、萬用鍵、同類字與偏旁碼提示，
+    這一頁還沒有。
+  </div>
+
+</main>
+
+<footer class="wrap">
+  <p>愛發筆 <span data-keep>AiPhaBi</span> · 自製形碼中文輸入法</p>
+  <p><a href="https://github.com/wilsongrchan/AiPhaBi" data-keep>GitHub</a></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/try.js"></script>
+</body>
+</html>

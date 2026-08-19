@@ -2,14 +2,20 @@
 data/graphics.txt
 data/dictionary.txt
 data/tw_strokes.json
-data/freq.json
+
+# data/freq.json 從這裡拿掉、改成收進 git（139K）。原因：它是 build_rime.py 的輸入，
+# 又不進版控，於是每台機器各有一份，兩台機器輪流建置就會互相蓋掉 8000 多個 weight
+# ——碼表內容一模一樣，只有重碼時誰排前面不一樣（實測 1167 個重碼碼位裡有 15 個會換
+# 順序，例 JTFC 乘/乖）。不進版控就永遠對不齊，而且新機器沒跑 fetch_data.py 根本建不起來。
 
 # 智能聯想資料庫（官方 librime-predict，各自授權）：由 fetch_data.py 下載
 data/predict.db
 data/predict.txt
 
-# 繁簡對照（OpenCC，Apache-2.0）：由 fetch_data.py 下載
-data/opencc.json
+# data/opencc.json（繁簡對照，OpenCC，Apache-2.0）跟 freq.json 一樣收進 git（115K）：
+# 它也是 build_rime.py 的輸入（打繁出簡／打簡出繁的對照表就是它），不進版控就會兩台
+# 機器各有一份、各建各的。授權是 Apache-2.0，隨專案散布沒問題。
+# 收了這份之後，Side B 的建置所需檔案全部在版控裡，新機器 clone 完就能直接建。
 
 # 香港教育局筆順快取：EDB 版權內容，只作個人參考，不上傳。
 data/hk_cache.json
@@ -32,3 +38,10 @@ data/cj_img/
 
 # session side declaration (per-checkout, never committed)
 .aiphabi-side
+
+# 公開網站的產生檔（Side C）：由 site/tools/build_site_data.py 從 data/ 產生，
+# 部署時在 CI 裡重跑。不進版控是刻意的 —— 收進來就會有一份跟 codes.json 不同步的碼表
+# 躺在 repo 裡，而「網站上的字跟輸入法不一樣」是最難發現的那種錯。
+# 本機預覽前先跑：python3 site/tools/build_site_data.py
+site/assets/dict.json
+site/assets/t2s.json

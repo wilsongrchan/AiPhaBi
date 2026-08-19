@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛發筆 AiPhaBi · 字根取形於英文字母的中文輸入法</title>
+<meta name="description" content="愛發筆是一款中文字形輸入法。所有字根都直接取形於英文字母本身——B 像日、D 像月，所以明就是 BD。無需特定鍵盤，也無需硬背鍵位。">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <nav class="site">
+      <a href="index.html">介紹</a>
+      <a href="design.html">設計原理</a>
+      <a href="try.html">線上試打</a>
+    </nav>
+    <div class="langtoggle" role="group" aria-label="字體切換">
+      <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+      <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h1>字根，取形於英文字母本身</h1>
+
+  <p class="lede">
+    愛發筆是一款中文字形輸入法。它最大的特點是所有字根都直接取形於英文字母的形狀——
+    這代表<strong>無需特定的中文鍵盤</strong>，也<strong>無需硬背字根在鍵盤上的位置</strong>。
+  </p>
+
+  <div class="demo-eq">
+    <span class="glyph">明</span>
+    <span class="op">＝</span>
+    <span class="glyph">日</span>
+    <span class="op">＋</span>
+    <span class="glyph">月</span>
+    <span class="op">→</span>
+    <span class="key" data-keep>B</span>
+    <span class="key" data-keep>D</span>
+    <p class="why"><span data-keep>B</span> 形似「日」、<span data-keep>D</span> 形似「月」，所以 <span data-keep>BD</span> 就是「明」的取碼。一學就會。</p>
+  </div>
+
+  <p>
+    <a href="try.html">直接在瀏覽器裡試打</a>——不用安裝，查的是真正的碼表。
+  </p>
+
+  <h2>跟已有的字形輸入法有什麼不同</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>只取形，不取音義</h3>
+      <p>字根只取英文字母的形狀，不取讀音或意義。同類輸入法常常兩種邏輯混用，逼使用者記住哪個字根走哪一套；這裡只有一套。</p>
+    </div>
+    <div class="card">
+      <h3>照筆順，照造字邏輯</h3>
+      <p>取碼次序遵循筆順，拆碼不截斷連續筆劃。平常怎麼認字、怎麼寫字，就可以怎麼打字，不必重學一套拆字邏輯。</p>
+    </div>
+    <div class="card">
+      <h3>重碼率低</h3>
+      <p>首 2000 個常用字裡，只有 <span data-stat="clash.pct">4.4</span>% 的字跟別的字共用同一個碼。比起拼音，大幅減少看螢幕選字的次數。</p>
+    </div>
+    <div class="card">
+      <h3>兼容不同書寫字形</h3>
+      <p>「言」的第一劃是點、是短豎還是短橫？「刃」的最後一劃是右點還是撇？兩岸三地的常見寫法都收，用兼容字根或兼容碼一樣打得出。</p>
+    </div>
+    <div class="card">
+      <h3>萬用鍵與容錯猜測</h3>
+      <p>拆碼卡住就按左上角的 <kbd data-keep>`</kbd>。多打、漏打、打錯、前後打反，系統照樣猜給你選。</p>
+    </div>
+    <div class="card">
+      <h3>簡繁互相兼容</h3>
+      <p>打繁出簡、打簡出繁都支援，各自獨立開關，方便兩岸三地的中文使用者交流。</p>
+    </div>
+  </div>
+
+  <h2>快慢由你調，不是由它決定</h2>
+
+  <p>
+    每個人對「效率」的定義不一樣：有人願意多打幾碼換少選字，有人寧可少打幾碼、不介意看螢幕。
+    愛發筆取碼最多五碼，另外提供三層可以自己開關的加速：
+  </p>
+
+  <ul>
+    <li><strong>約定簡碼</strong>——約六十個常用字，只打首尾兩碼。</li>
+    <li><strong>三簡碼</strong>——所有四碼以上的字都適用，打首兩碼加尾碼，共三碼。</li>
+    <li><strong>詞組連打</strong>——把每個字的碼串起來就是一個詞，碼表裡收了十萬條以上。三字以上的詞還可以四碼快打：每字只取首碼，<code>YWYW</code> 就是「人山人海」。</li>
+  </ul>
+
+  <p>
+    <strong>而這些加速，全都源自主碼，學會原則就推得出來。</strong>
+    有些形碼輸入法為了縮短碼長又不重碼，另外要求你記一大批沒有道理的無理碼；
+    愛發筆的簡碼和三簡碼都不必額外記憶，不增加學習成本。全部功能也都可以自己選擇開或關——
+    對拆碼還沒信心的初學者可以全開，廣撒漁網；有把握的老手可以全關，追求一擊即中。
+  </p>
+
+  <h2>它真正想解決的問題</h2>
+
+  <blockquote>
+    <p>
+      學形碼最挫折的一刻，是因為筆順或拆碼想錯了一兩個碼，選字列<strong>一個字都沒有</strong>，
+      只能整串刪掉重來。
+    </p>
+  </blockquote>
+
+  <p>
+    愛發筆的一大目標就是改善這件事。代價是誠實的：把功能全開之後，它的重碼率未必是最低的，
+    甚至可能更高。但它內建智能字頻排序與使用者字頻排序——常用字詞預設排第一，
+    而你如果經常選另一個字，系統會自動把它提前，慢慢貼合你實際的打字習慣，
+    往「不用看螢幕選字」的盲打靠近。
+  </p>
+
+  <h2>目前進度</h2>
+
+  <div class="stats">
+    <div class="stat"><b data-stat="chars">6334</b><span>已取碼字數</span></div>
+    <div class="stat"><b><span data-stat="tw4808.pct">95.8</span>%</b><span>教育部常用國字 4808</span></div>
+    <div class="stat"><b><span data-stat="gb2312.pct">65.4</span>%</b><span>GB 2312 · 6763</span></div>
+    <div class="stat"><b>5</b><span>一個字最多按幾鍵</span></div>
+  </div>
+
+  <p>
+    取碼目標是兩份官方字表：中華民國教育部《常用國字標準字體表》甲表，以及 GB 2312—80 基本集。
+    以官方字表當分母，「打得出來」才是一句可以驗證的話。上面的數字每次網站更新時自動重算。
+  </p>
+
+  <div class="todo">
+    <b>這個網站還在施工。</b>
+    輸入法本身已經可以用（Rime／鼠鬚管、iOS Hamster），但安裝說明還沒搬上來。
+    目前請看 <a href="https://github.com/wilsongrchan/AiPhaBi" data-keep>GitHub 上的說明</a>。
+  </div>
+
+</main>
+
+<footer class="wrap">
+  <p>愛發筆 <span data-keep>AiPhaBi</span> · 字根取形於英文字母的中文輸入法</p>
+  <p><a href="https://github.com/wilsongrchan/AiPhaBi" data-keep>GitHub</a></p>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

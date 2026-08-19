@@ -1,0 +1,426 @@
+/* 愛發筆公開網站 —— 共用樣式
+   橙色沿用鼠鬚管配色（squirrel.custom.yaml 的高亮色），讓網站跟實際打字畫面看起來是同一套東西。
+   所有路徑都用相對路徑：GitHub Pages 是專案站，網址在 /AiPhaBi/ 底下，絕對路徑會全部失效。 */
+
+:root {
+  --bg:      #fdfcfa;
+  --surface: #ffffff;
+  --line:    #e6e1d8;
+  --ink:     #23201c;
+  --ink-dim: #6b645b;
+  --accent:  #d1650a;
+  --accent-soft: #fdf1e4;
+  --code-bg: #f4f1ec;
+  --radius: 10px;
+  --measure: 34rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      #171614;
+    --surface: #201e1b;
+    --line:    #35322d;
+    --ink:     #ece8e1;
+    --ink-dim: #a29a8e;
+    --accent:  #f0913f;
+    --accent-soft: #2c2219;
+    --code-bg: #26231f;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* 只給螢幕閱讀器看的標籤 */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.85 "Noto Sans TC", "PingFang TC", "Hiragino Sans CNS",
+        "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+/* 中文正文不需要斜體，瀏覽器合成的假斜體很醜 */
+em, i { font-style: normal; font-weight: 600; color: var(--accent); }
+
+a { color: var(--accent); text-underline-offset: .2em; }
+a:hover { text-decoration-thickness: 2px; }
+
+code, kbd, .code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: .9em;
+  letter-spacing: .06em;
+}
+
+code {
+  background: var(--code-bg);
+  padding: .12em .4em;
+  border-radius: 4px;
+}
+
+kbd {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: .1em .45em;
+  font-size: .85em;
+}
+
+/* ---------- 版面 ---------- */
+
+.wrap {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0 1.4rem;
+}
+
+/* ---------- 頁首 ---------- */
+
+.topbar {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar .wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  min-height: 3.4rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.brand .en {
+  color: var(--ink-dim);
+  font-weight: 500;
+  font-size: .8em;
+  margin-inline-start: .45em;
+  letter-spacing: .08em;
+}
+
+nav.site {
+  display: flex;
+  gap: 1.1rem;
+  margin-inline-end: auto;
+  flex-wrap: wrap;
+}
+
+nav.site a {
+  color: var(--ink-dim);
+  text-decoration: none;
+  padding: .2rem 0;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+nav.site a:hover { color: var(--ink); }
+
+nav.site a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* 繁簡切換 */
+.langtoggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: .82rem;
+}
+
+.langtoggle button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  padding: .25rem .7rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.langtoggle button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------- 主體 ---------- */
+
+main { padding: 3rem 0 5rem; }
+
+h1 {
+  font-size: clamp(1.9rem, 5.2vw, 2.7rem);
+  line-height: 1.35;
+  margin: 0 0 .8rem;
+  letter-spacing: .01em;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin: 3.2rem 0 .9rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--line);
+  letter-spacing: .02em;
+}
+
+h3 {
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+}
+
+p { margin: 0 0 1.1rem; max-width: var(--measure); }
+
+.lede {
+  font-size: 1.12rem;
+  color: var(--ink-dim);
+  max-width: var(--measure);
+  margin-bottom: 2.2rem;
+}
+
+ul, ol { max-width: var(--measure); padding-inline-start: 1.3rem; }
+li { margin-bottom: .5rem; }
+
+/* ---------- 元件 ---------- */
+
+/* 拆碼示範：明 ＝ 日 + 月 ＝ BD */
+.demo-eq {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.3rem;
+  margin: 0 0 1.4rem;
+}
+
+.demo-eq .glyph {
+  font-size: 2.4rem;
+  line-height: 1;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+}
+
+.demo-eq .op { color: var(--ink-dim); font-size: 1.1rem; }
+
+.demo-eq .key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+}
+
+.demo-eq .why {
+  color: var(--ink-dim);
+  font-size: .88rem;
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* 重點卡片 */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1.6rem 0 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.3rem;
+}
+
+.card h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.card p  { margin: 0; font-size: .93rem; color: var(--ink-dim); max-width: none; }
+
+/* 數字列 */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 1.6rem 0;
+}
+
+.stat { background: var(--surface); padding: 1rem 1.1rem; }
+
+.stat b {
+  display: block;
+  font-size: 1.6rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+
+.stat span { font-size: .82rem; color: var(--ink-dim); }
+
+/* 引言 / 設計主張 */
+blockquote {
+  margin: 1.6rem 0;
+  padding: .2rem 0 .2rem 1.2rem;
+  border-inline-start: 3px solid var(--accent);
+  color: var(--ink-dim);
+  max-width: var(--measure);
+}
+
+blockquote p:last-child { margin-bottom: 0; }
+
+/* 表格 */
+.tablewrap { overflow-x: auto; margin: 1.4rem 0; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .92rem;
+}
+
+th, td {
+  text-align: start;
+  padding: .55rem .8rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th { font-weight: 600; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* 未完成的段落，Side C 接手時把它拿掉 */
+.todo {
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  font-size: .9rem;
+  color: var(--ink-dim);
+  margin: 1.4rem 0;
+  max-width: var(--measure);
+}
+
+.todo b { color: var(--accent); }
+
+/* ---------- 頁尾 ---------- */
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 2rem 0 3rem;
+  color: var(--ink-dim);
+  font-size: .88rem;
+}
+
+footer p { max-width: none; margin: 0 0 .4rem; }
+
+/* ---------- 線上試打 ---------- */
+
+.typebox {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  margin: 1.4rem 0;
+}
+
+.typebox textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  padding: .8rem;
+  font: 1.25rem/1.8 inherit;
+}
+
+.typebox textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.rail {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-height: 2.9rem;
+  margin-top: .7rem;
+  padding: .35rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow-x: auto;
+}
+
+.rail .buf {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rail .cands { display: flex; gap: .1rem; }
+
+.rail .cand {
+  display: flex;
+  align-items: baseline;
+  gap: .22em;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.15rem;
+  padding: .2rem .5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rail .cand:hover { background: var(--accent-soft); }
+.rail .cand .n { font-size: .72rem; color: var(--ink-dim); }
+
+.rail .hint {
+  margin-inline-start: auto;
+  font-size: .8rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: .15rem .7rem;
+  white-space: nowrap;
+}
+
+.rail .empty { color: var(--ink-dim); font-size: .9rem; }
