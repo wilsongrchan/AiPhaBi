@@ -18,6 +18,10 @@
   --code-bg: #f4f1ec;
   --radius: 10px;
   --measure: 34rem;
+
+  /* 字根表的字級倍率（頁面上的 小／標準／大）。表格內的字級與圖形尺寸
+     全部乘上它，所以三段只要改這一個值。 */
+  --zg-scale: 1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -35,6 +39,9 @@
     --code-bg: #26231f;
   }
 }
+
+:root[data-zg-size="small"] { --zg-scale: .86; }
+:root[data-zg-size="large"] { --zg-scale: 1.2; }
 
 * { box-sizing: border-box; }
 
@@ -377,14 +384,20 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 字根表的說明段：比正文小一級。這一頁的主體是表格，說明只是進場前的一句話，
    用正文大小會跟表格搶注意力。 */
 .zg-intro {
-  font-size: .92rem;
+  font-size: calc(.92rem * var(--zg-scale));
   color: var(--ink-dim);
   max-width: var(--measure);
   margin-bottom: 1rem;
   line-height: 1.6;
 }
 
-.zg-tools { margin: 1.6rem 0 .6rem; }
+.zg-tools {
+  margin: 1.6rem 0 .6rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
 
 .zg-find { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
 .zg-find > span { font-size: .9rem; color: var(--ink-dim); }
@@ -400,6 +413,39 @@ tbody tr:last-child td { border-bottom: 0; }
   color: var(--ink);
 }
 .zg-find input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 字級切換：外觀跟繁簡切換一致，兩個都是「這一頁怎麼呈現」的偏好 */
+.zg-size {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin-inline-start: auto;
+  font-size: .82rem;
+  color: var(--ink-dim);
+}
+
+.zg-size > span { white-space: nowrap; }
+
+.zg-size button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-dim);
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.zg-size button:hover { color: var(--ink); }
+
+.zg-size button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.zg-find { flex: 0 1 auto; }
 
 .zg-status { font-size: .88rem; color: var(--accent); margin: .5rem 0 0; min-height: 1.2em; }
 
@@ -437,7 +483,9 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .zg-jl.is-off { color: var(--ink-dim); background: transparent; opacity: .45; }
 
-.zg-letter { scroll-margin-top: 3.4rem; }
+/* .zg-h / .zg-letter 已不再使用：字母改成表格最左邊的欄，不再每個字母一條標題。
+   保留 .zg-key 的樣式，字母欄和辨析表都還在用。 */
+.zg-tbl tbody tr { scroll-margin-top: 5rem; }
 
 .zg-h {
   display: flex;
@@ -471,22 +519,51 @@ tbody tr:last-child td { border-bottom: 0; }
  * 原本一列佔兩三行、要捲很久才看得完一個字母，資訊密度太低。 */
 /* 三欄寬度釘死，26 個字母的表才會對齊（不然各表依自己的內容決定欄寬，
    A 的「取形意圖」欄跟 B 的不一樣寬，整頁參差不齊）。 */
-.zg-tbl { font-size: .95rem; table-layout: fixed; width: 100%; }
+.zg-tbl { font-size: calc(.95rem * var(--zg-scale)); table-layout: fixed; width: 100%; }
 
 /* 欄寬直接下在表頭儲存格上，不靠 <col>。table-layout: fixed 是看第一列決定欄寬的，
    下在 th 上最直接；<col class> 那條路在某些瀏覽器上不吃，結果 26 張表又各自為政。 */
-.zg-tbl thead th:nth-child(1) { width: 15rem; }
-.zg-tbl thead th:nth-child(2) { width: 8.5rem; }
-.zg-tbl thead th:nth-child(3) { width: auto; }
+.zg-tbl thead th:nth-child(1) { width: calc(3.2rem * var(--zg-scale)); }   /* 字母 */
+.zg-tbl thead th:nth-child(2) { width: calc(13rem * var(--zg-scale)); }   /* 取形意圖 */
+.zg-tbl thead th:nth-child(3) { width: calc(8.5rem * var(--zg-scale)); }  /* 字根 */
+.zg-tbl thead th:nth-child(4) { width: auto; }                            /* 字例 */
 
 @media (max-width: 40rem) {
-  .zg-tbl thead th:nth-child(1) { width: 9rem; }
-  .zg-tbl thead th:nth-child(2) { width: 6.5rem; }
+  .zg-tbl thead th:nth-child(1) { width: 2.6rem; }
+  .zg-tbl thead th:nth-child(2) { width: 8rem; }
+  .zg-tbl thead th:nth-child(3) { width: 6.5rem; }
+}
+
+/* 最左邊的字母欄：跨滿該字母的所有列，字母放大當作分段的視覺錨點 */
+.zg-letterkey {
+  vertical-align: top !important;
+  text-align: center;
+  padding-top: .5rem !important;
+  background: var(--code-bg);
+  border-inline-end: 1px solid var(--line) !important;
+}
+
+.zg-letterkey .zg-key {
+  min-width: calc(2rem * var(--zg-scale));
+  height: calc(2rem * var(--zg-scale));
+  font-size: calc(1.15rem * var(--zg-scale));
+}
+
+.zg-letterkey .zg-n {
+  display: block;
+  margin-top: .25rem;
+  font-size: calc(.7rem * var(--zg-scale));
+}
+
+.zg-tbl thead th {
+  position: sticky;
+  top: 2.4rem;                        /* 讓開 A–Z 跳轉列 */
+  z-index: 4;
 }
 
 .zg-tbl th {
   color: var(--ink-dim);
-  font-size: .84rem;
+  font-size: calc(.84rem * var(--zg-scale));
   padding: .2rem .45rem;
   background: var(--code-bg);
   border: 1px solid var(--line);
@@ -503,7 +580,7 @@ tbody tr:last-child td { border-bottom: 0; }
   overflow-wrap: break-word;
   vertical-align: top !important;
   padding-top: .35rem !important;
-  font-size: .9rem;
+  font-size: calc(.9rem * var(--zg-scale));
   line-height: 1.5;
 }
 
@@ -526,7 +603,7 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 取自哪個字。刻意不放大到像「這就是字根」—— 字根只是它的其中幾筆 */
 .zg-src {
   font-family: "Noto Serif TC", "Songti TC", serif;
-  font-size: 1.15rem;
+  font-size: calc(1.15rem * var(--zg-scale));
   line-height: 1.2;
 }
 
@@ -547,7 +624,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 .zg-src.is-ref {
-  font-size: .84rem;
+  font-size: calc(.84rem * var(--zg-scale));
   color: var(--ink-dim);
   font-family: inherit;
 }
@@ -562,13 +639,13 @@ tbody tr:last-child td { border-bottom: 0; }
   max-width: none;
 }
 
-.zg-span { font-size: .78rem; color: var(--ink-dim); white-space: nowrap; }
+.zg-span { font-size: calc(.78rem * var(--zg-scale)); color: var(--ink-dim); white-space: nowrap; }
 
 .zg-ex { line-height: 1.15; }
 
 .zg-ch {
   font-family: "Noto Serif TC", "Songti TC", serif;
-  font-size: 1.05rem;
+  font-size: calc(1.05rem * var(--zg-scale));
   margin-inline-end: .08rem;
 }
 
@@ -758,7 +835,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
  * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
 .zg-exg { display: inline-block; vertical-align: middle; margin-inline-end: .08rem; }
 
-.zg-exsvg { width: 1.55rem; height: 1.55rem; display: block; }
+.zg-exsvg { width: calc(1.55rem * var(--zg-scale)); height: calc(1.55rem * var(--zg-scale)); display: block; }
 /* 同一個字根在一個字裡出現兩次時分色（朋＝月月、夠＝夕夕）：第二次用深一點的橙。
    同色會讀成「這個字根就是整個朋」，分色才看得出是同一個字根出現兩次。 */
 .zg-exsvg path.on    { fill: var(--accent); }

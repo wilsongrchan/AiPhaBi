@@ -43,6 +43,13 @@
   var ROOT_PAD = 40;
   var GLYPHS = null;                  // glyphs.json 較大，延後載入；沒有就維持文字版
 
+  /* 字級（小／標準／大）。表格裡的字與例字 SVG 由 CSS 的 --zg-scale 處理，
+   * 但字根圖示的尺寸是這支程式逐個算出來寫進 width/height 屬性的，CSS 管不到，
+   * 所以這裡也要乘一次，並在切換時重畫。 */
+  var SIZE_KEY = 'aiphabi-zigen-size';
+  var SCALE = { small: 0.86, normal: 1, large: 1.2 };
+  var sizeName = 'normal';
+
   function rootIconSvg(strokes, sel) {
     var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
     for (var k = 0; k < sel.length; k++) {
@@ -71,6 +78,7 @@
     // 尺寸區間跟著整體密度一起縮（原本 16–40）——列高是這一頁最貴的東西，
     // 倉頡的〈輔助字形列表〉同樣高度可以放 20 列，我們原本只放得下 12 列。
     var px = Math.max(13, Math.min(28, Math.round(1 + 0.78 * Math.sqrt(s))));
+    px = Math.round(px * (SCALE[sizeName] || 1));
     return '<svg class="zg-svg" viewBox="' + (cx - s / 2) + ' ' + (cy - s / 2) + ' ' + s + ' ' + s +
       '" width="' + px + '" height="' + px + '" aria-hidden="true">' +
       '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
@@ -137,103 +145,95 @@
     return wrap;
   }
 
-  function renderLetter(L, filter) {
+  /* 一個字母的所有列。字母本身放在最左邊一欄、跨滿該字母的所有列
+   * （倉頡的〈輔助字形列表〉也是這樣），不再每個字母上面掛一條標題——
+   * 26 條標題各佔一行加留白，是這一頁最浪費的垂直空間。 */
+  function letterRows(L, filter) {
     var groups = L.groups;
     if (filter) {
       groups = groups.map(function (g) {
         var shapes = g.shapes.filter(function (s) {
           return s.seen.indexOf(filter) >= 0 || s.src === filter;
         });
-        return shapes.length ? { desc: g.desc, tier: g.tier, shapes: shapes } : null;
+        return shapes.length ? { desc: g.desc, tier: g.tier, shapes: shapes, ex: g.ex } : null;
       }).filter(Boolean);
     }
     if (!groups.length) return null;
 
-    var sec = el('section', 'zg-letter');
-    sec.id = 'L' + L.letter;
+    var total = groups.reduce(function (a, g) { return a + g.shapes.length; }, 0);
+    var rows = [];
 
-    var h = el('h2', 'zg-h');
-    var key = el('span', 'zg-key', L.letter);
-    key.setAttribute('data-keep', '');
-    h.appendChild(key);
-    var n = groups.reduce(function (a, g) { return a + g.shapes.length; }, 0);
-    h.appendChild(el('span', 'zg-n', n + ' 個字根'));
-    sec.appendChild(h);
+    groups.forEach(function (g, gi) {
+      g.shapes.forEach(function (sh, i) {
+        var tr = el('tr');
+        if (gi === 0 && i === 0) {
+          tr.id = 'L' + L.letter;
+          var kd = el('td', 'zg-letterkey');
+          kd.rowSpan = total;
+          var key = el('span', 'zg-key', L.letter);
+          key.setAttribute('data-keep', '');
+          kd.appendChild(key);
+          kd.appendChild(el('span', 'zg-n', total + ' 個'));
+          tr.appendChild(kd);
+        }
+
+        if (i === 0) {
+          var td = el('td', 'zg-desc');
+          td.rowSpan = g.shapes.length;
+          if (g.desc) td.appendChild(el('span', null, g.desc));
+          else td.appendChild(el('span', 'zg-todo', '（取形意圖待補）'));
+          if (g.tier && g.tier !== 'primary') {
+            td.appendChild(el('span', 'zg-tier', DATA.tiers[g.tier] || g.tier));
+          }
+          tr.appendChild(td);
+        }
+
+        var sd = el('td', 'zg-shapecell');
+        sd.appendChild(describeShape(sh));
+        tr.appendChild(sd);
+
+        var ex = el('td', 'zg-ex');
+        (sh.ex || []).forEach(function (e) { ex.appendChild(exampleGlyph(e, filter)); });
+        tr.appendChild(ex);
+
+        // 每個字根一個 id，讓〈相近字形辨析〉的「字形」欄連得過來
+        if (!tr.id) tr.id = 'Z' + L.letter + '-' + (sh.src || '') + '-' + (sh.span || '');
+        rows.push(tr);
+      });
+    });
+    return { rows: rows, n: total };
+  }
+
+  function render(filter) {
+    lastFilter = filter || '';
+    box.textContent = '';
 
     var tw = el('div', 'tablewrap');
     var t = el('table', 'zg-tbl');
-
-    // 每個字母各自是一個 <table>，瀏覽器會依各自的內容決定欄寬，於是 A 的
-    // 「取形意圖」欄跟 B 的不一樣寬，整頁看起來參差不齊。解法是 table-layout: fixed
-    // ＋ 在表頭儲存格上寫死欄寬（見 site.css），26 張表才會對齊成同一張表的樣子。
-    var thead = el('thead');
-    var hr = el('tr');
-    ['取形意圖', '字根', '字例'].forEach(function (label) {
+    var thead = el('thead'), hr = el('tr');
+    ['字母', '取形意圖', '字根', '字例'].forEach(function (label) {
       hr.appendChild(el('th', null, label));
     });
     thead.appendChild(hr);
     t.appendChild(thead);
 
     var tb = el('tbody');
-    groups.forEach(function (g) {
-      g.shapes.forEach(function (sh, i) {
-        var tr = el('tr');
-        if (i === 0) {
-          // 同一個取形意圖底下的所有形狀共用一格說明
-          var td = el('td', 'zg-desc');
-          td.rowSpan = g.shapes.length;
-          if (g.desc) {
-            td.appendChild(el('span', null, g.desc));
-          } else {
-            // 8 組還沒寫。留白比編一個說法好——這是 Side A 要補的內容。
-            var m = el('span', 'zg-todo', '（取形意圖待補）');
-            td.appendChild(m);
-          }
-          if (g.tier && g.tier !== 'primary') {
-            var tag = DATA.tiers[g.tier] || g.tier;
-            td.appendChild(el('span', 'zg-tier', tag));
-          }
-          tr.appendChild(td);
-        }
-
-        // 每個字根一個 id，讓〈相近字形辨析〉的「字形」欄連得過來
-        tr.id = 'Z' + L.letter + '-' + (sh.src || '') + '-' + (sh.span || '');
-        var sd = el('td', 'zg-shapecell');
-        sd.appendChild(describeShape(sh));
-        tr.appendChild(sd);
-
-        // 例字掛在**每個字根**上：一個取形意圖底下最多 13 個形狀（平均 3.6），
-        // 掛在意圖上整組只給幾個的話，形狀多的那幾組每一列都分不到
-        var ex = el('td', 'zg-ex');
-        (sh.ex || []).forEach(function (e) {
-          ex.appendChild(exampleGlyph(e, filter));
-        });
-        tr.appendChild(ex);
-        tb.appendChild(tr);
-      });
+    var shown = 0, letters = [];
+    DATA.letters.forEach(function (L) {
+      var r = letterRows(L, filter);
+      if (!r) return;
+      letters.push(L.letter);
+      shown += r.n;
+      r.rows.forEach(function (tr) { tb.appendChild(tr); });
     });
     t.appendChild(tb);
     tw.appendChild(t);
-    sec.appendChild(tw);
-    return sec;
-  }
-
-  function render(filter) {
-    lastFilter = filter || '';
-    box.textContent = '';
-    var shown = 0, letters = [];
-    DATA.letters.forEach(function (L) {
-      var sec = renderLetter(L, filter);
-      if (sec) {
-        box.appendChild(sec);
-        letters.push(L.letter);
-        shown += sec.querySelectorAll('tbody tr').length;
-      }
-    });
 
     if (!shown) {
       box.appendChild(el('p', 'zg-loading',
         '沒有字根用到「' + filter + '」。可能是這個字還沒取碼，或它不在例字裡。'));
+    } else {
+      box.appendChild(tw);
     }
 
     if (status) {
@@ -242,7 +242,6 @@
         : '';
     }
 
-    // 跳轉列只點得到有內容的字母
     if (jump) {
       jump.textContent = '';
       DATA.letters.forEach(function (L) {
@@ -253,7 +252,6 @@
       });
     }
 
-    // 新畫上去的內容要跟著目前的繁簡設定走（例字有 data-keep，不會被轉）
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(box);
   }
 
@@ -409,6 +407,26 @@
       })
       .catch(function () { /* 維持文字版 */ });
   }
+
+  /* ---------- 字級 ---------- */
+  function applySize(name, redraw) {
+    sizeName = SCALE[name] ? name : 'normal';
+    document.documentElement.setAttribute('data-zg-size', sizeName);
+    document.querySelectorAll('.zg-size button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.size === sizeName));
+    });
+    try { localStorage.setItem(SIZE_KEY, sizeName); } catch (e) { /* 無痕模式 */ }
+    // 字根圖示的尺寸寫在屬性上，只有重畫才會跟著變
+    if (redraw && DATA) { render(lastFilter); renderSimilar(DATA.similar); }
+  }
+
+  document.querySelectorAll('.zg-size button').forEach(function (b) {
+    b.addEventListener('click', function () { applySize(b.dataset.size, true); });
+  });
+
+  // 先套用（不重畫，因為資料還沒到），這樣第一次繪製就是正確的字級
+  try { applySize(localStorage.getItem(SIZE_KEY) || 'normal', false); }
+  catch (e) { applySize('normal', false); }
 
   fetch('assets/zigen.json')
     .then(function (r) { return r.json(); })
