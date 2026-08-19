@@ -186,6 +186,14 @@ nav.site a[aria-current="page"] {
 
 main { padding: 3rem 0 5rem; }
 
+/* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
+.eyebrow {
+  font-size: .95rem;
+  color: var(--ink-dim);
+  letter-spacing: .08em;
+  margin: 0 0 .2rem;
+}
+
 h1 {
   font-size: clamp(1.9rem, 5.2vw, 2.7rem);
   line-height: 1.35;
@@ -220,7 +228,8 @@ li { margin-bottom: .5rem; }
 
 /* ---------- 元件 ---------- */
 
-/* 拆碼示範：明 ＝ 日 + 月 ＝ BD */
+/* 拆碼示範 —— ⚠️ 目前沒有頁面用到（首頁那塊 2026-08-19 依 Wilson 指示移除）。
+   留著是因為做〈學習取碼〉那類頁面時很可能再用到。 */
 .demo-eq {
   display: flex;
   align-items: center;
