@@ -17,7 +17,9 @@
   --accent-soft: #fdf1e4;
   --code-bg: #f4f1ec;
   --radius: 10px;
-  --measure: 34rem;
+  /* 正文行寬上限。34rem 在桌機上只佔中間一條，看起來像手機版；
+     44rem 在 15px 字級下約 47 個中文字一行，仍在好讀的範圍內。 */
+  --measure: 44rem;
 
   /* 字根表的字級倍率（頁面上的 小／標準／大）。表格內的字級與圖形尺寸
      全部乘上它，所以三段只要改這一個值。 */
@@ -62,7 +64,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.85 "Noto Sans TC", "PingFang TC", "Hiragino Sans CNS",
+  font: 15px/1.8 "Noto Sans TC", "PingFang TC", "Hiragino Sans CNS",
         "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
   text-rendering: optimizeLegibility;
 }
@@ -97,9 +99,9 @@ kbd {
 /* ---------- 版面 ---------- */
 
 .wrap {
-  max-width: 44rem;
+  max-width: 58rem;
   margin: 0 auto;
-  padding: 0 1.4rem;
+  padding: 0 1.6rem;
 }
 
 /* ---------- 頁首 ---------- */
@@ -193,21 +195,21 @@ main.wrap { padding-block: 3rem 2.5rem; }
 
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
-  font-size: .95rem;
+  font-size: .88rem;
   color: var(--ink-dim);
   letter-spacing: .08em;
   margin: 0 0 .45rem;
 }
 
 h1 {
-  font-size: clamp(1.9rem, 5.2vw, 2.7rem);
+  font-size: clamp(1.6rem, 4vw, 2.1rem);
   line-height: 1.35;
   margin: 0 0 .8rem;
   letter-spacing: .01em;
 }
 
 h2 {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   /* 上緣間距由這裡決定 —— 與前一段的 margin-bottom 會合併取大者，加不起來 */
   margin: 2rem 0 .8rem;
   padding-top: 1.1rem;
@@ -216,14 +218,14 @@ h2 {
 }
 
 h3 {
-  font-size: 1.05rem;
-  margin: 2rem 0 .5rem;
+  font-size: 1rem;
+  margin: 1.8rem 0 .5rem;
 }
 
 p { margin: 0 0 1.1rem; max-width: var(--measure); }
 
 .lede {
-  font-size: 1.12rem;
+  font-size: 1.02rem;
   color: var(--ink-dim);
   max-width: var(--measure);
   margin-bottom: 1.4rem;
@@ -333,7 +335,7 @@ li { margin-bottom: .5rem; }
   font-weight: 700;
 }
 
-.points > li > h3 { margin: 0 0 .45rem; font-size: 1.05rem; }
+.points > li > h3 { margin: 0 0 .45rem; font-size: 1rem; }
 .points > li > p  { margin: 0; max-width: none; }
 
 /* 數字列 —— ⚠️ 目前沒有頁面用到（首頁〈目前進度〉移除、設計原理頁移除）。
@@ -552,9 +554,11 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* 欄寬直接下在表頭儲存格上，不靠 <col>。table-layout: fixed 是看第一列決定欄寬的，
    下在 th 上最直接；<col class> 那條路在某些瀏覽器上不吃，結果 26 張表又各自為政。 */
+/* 版面加寬到 58rem 之後重新分配：取形意圖那一欄本來就常常折成三四行，
+   多出來的寬度給它最有用；字例只有四個字，不需要更多空間。 */
 .zg-tbl thead th:nth-child(1) { width: calc(3.2rem * var(--zg-scale)); }   /* 字母 */
-.zg-tbl thead th:nth-child(2) { width: calc(13rem * var(--zg-scale)); }   /* 取形意圖 */
-.zg-tbl thead th:nth-child(3) { width: calc(8.5rem * var(--zg-scale)); }  /* 字根 */
+.zg-tbl thead th:nth-child(2) { width: calc(20rem * var(--zg-scale)); }   /* 取形意圖 */
+.zg-tbl thead th:nth-child(3) { width: calc(9.5rem * var(--zg-scale)); }  /* 字根 */
 .zg-tbl thead th:nth-child(4) { width: auto; }                            /* 字例 */
 
 @media (max-width: 40rem) {
