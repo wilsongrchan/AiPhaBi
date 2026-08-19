@@ -237,27 +237,93 @@ def load_example_picks(dupes):
     return picks
 
 
-def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label=""):
+def _rank_within_src(L, g, it):
+    """這個字根在「同一個來源字、同字母、同筆數」的字根裡排第幾，共有幾個。
+
+    們 底下有兩個 4 筆的 P（第 3–6 與第 7–10，門的左右半），回傳 (0, 2) 和 (1, 2)。
+    只有一個時回傳 (0, 1)，規則 3 就不會啟動。
+    """
+    src, st = g.get("src"), g.get("strokes") or []
+    if not src or not st:
+        return (0, 1)
+    sibs = []
+    for it2 in L.get("intentions", []):
+        for sh2 in it2.get("shapes", []):
+            g2 = sh2.get("glyph") or {}
+            if g2.get("src") == src and len(g2.get("strokes") or []) == len(st):
+                sibs.append(tuple(sorted(g2["strokes"])))
+    sibs = sorted(set(sibs))
+    key = tuple(sorted(st))
+    return (sibs.index(key), len(sibs)) if key in sibs else (0, 1)
+
+
+def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label="",
+              own=None, claims=None, owners=None, rank=None):
     """挑例字，並算出每個例字裡哪幾筆屬於這個字根（用來高亮）。
 
     高亮的筆序是**建置時**用 codes.json 的 segments 反查的：取該字裡「字母相同、
     筆數也對得上」的段。標註工具是用中線做形狀比對，那需要 medians，而網站畫圖
-    用不到它。同一個字裡有多段都符合時（朋＝D[1-4]D[5-8]，兩個都是同一個
-    字根）就**全部**高亮 —— 不必在幾個都對的候選裡挑一個，也就不會挑錯。
+    用不到它。同一個字裡有兩段都符合時，**不能**一律全部高亮 —— 那兩段有可能屬於不同的字根。
+    髻 就是這樣：F(1,2,3) 屬「下」字類、F(11,12,13) 屬「土」字類，兩段都是 3 筆的 F。
+    全部塗會讓「土」那一列看起來像是在宣稱前三筆也是它，那是錯的。
+
+    用兩條規則分辨，都只靠手上的資料，不需要幾何：
+      1. own —— 這個字就是本字根的來源字，直接用字根自己記的筆序，這是權威答案。
+         髻 是「土」類字根的來源字，所以那一列只塗 11–13。
+      2. claims —— 否則扣掉「別的字根以這個字為來源字」所宣告的筆序。髻 出現在
+         「下」類那一列時，11–13 已被「土」類認領，扣掉後剩 1–3，正好正確。
+    兩條都用不上才全部高亮（朋＝D[1-4]D[5-8]，那兩段確實是同一個字根）。
     """
-    chosen = picked if picked else seen[:limit]
+    own = own or {}
+    claims = claims or {}
+    owners = owners or {}
+
+    if picked:
+        chosen = picked
+    else:
+        # 優先挑「同字母同筆數之下只有這一個字根用到」的字。多個字根都用到的字
+        # （等：竹 和 寸 都是 3 筆的 A）分不出哪一段是哪一個，塗下去有一半機率
+        # 塗到別人的字根上。字根平均有幾十個例字可選，跳過幾個完全不吃虧。
+        clean, murky = [], []
+        for c in seen:
+            if c in own:
+                clean.append(c)                        # 來源字一定分得清
+            elif len(owners.get((letter, nstroke, c), ())) > 1:
+                murky.append(c)
+            else:
+                clean.append(c)
+            if len(clean) >= limit:
+                break
+        chosen = (clean + murky)[:limit]
     out = []
     for c in chosen:
-        hi = []
+        if c in own:                      # 規則 1：這個字就是本字根的來源字
+            out.append({"c": c, "st": sorted(own[c]), "segs": [sorted(own[c])]})
+            continue
+        cand = []
         for seg in (codes.get(c, {}).get("segments") or []):
             if seg.get("letter") == letter and len(seg.get("strokes") or []) == nstroke:
-                hi += list(seg["strokes"])
+                cand.append(tuple(sorted(seg["strokes"])))
+        taken = claims.get(c, set())      # 規則 2：扣掉別的字根認領走的段
+        rest = [t for t in cand if t not in taken]
+
+        # 規則 3（位置對應）：同一個來源字底下有好幾個同字母同筆數的字根時
+        # （們 第3–6 是門的左半、第7–10 是右半），它們的先後次序跟例字裡各段的
+        # 先後次序是對得起來的 —— 第 n 個字根對到第 n 段。開＝P(1-4) P(5-8)，
+        # 左半字根拿 1–4、右半字根拿 5–8，而不是兩段都拿。
+        if rank is not None and len(rest) > 1 and rank[1] > 1 and rank[1] == len(rest):
+            rest = [sorted(rest)[rank[0]]]
+        # 同一個字根在一個字裡出現兩次（朋＝月月、夠＝夕夕）時，分開記每一次出現，
+        # 網站才能把第二次塗成深一點的橙色 —— 讓人看出「是這個字根出現兩次」，
+        # 而不是「這個字根就是整個朋」。
+        segs = [list(t) for t in (rest if rest else cand)]
+        hi = [i for t in segs for i in t]
         # 手挑的字要驗：查不到對應的段，代表這個字沒有用到這個字根（或還沒取碼）。
         # 它照樣會顯示，但不會高亮 —— 不出聲的話就會悄悄擺一個舉錯的例子在網站上。
         if picked and not hi and warn is not None:
             why = "還沒取碼" if c not in codes else f"拆碼裡沒有 {letter} 且筆數為 {nstroke} 的一段"
             warn.append(f"{label}：例字「{c}」{why}，不會高亮")
-        out.append({"c": c, "st": sorted(set(hi))})
+        out.append({"c": c, "st": sorted(set(hi)), "segs": segs})
     return out
 
 
@@ -308,6 +374,31 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None):
             return f"{ss[0] + 1}–{ss[-1] + 1}" if len(ss) > 1 else f"{ss[0] + 1}"
         return "、".join(str(s + 1) for s in ss)
 
+    # 每個字根都「認領」它的來源字（含 alts）的某幾筆。同一個字母底下，另一個字根
+    # 若以某個字為來源字，那幾筆就確定不屬於這一個 —— 髻 的 F(11,12,13) 被「土」類
+    # 認領，所以「下」類拿到 髻 當例字時就不該把那幾筆也塗上。
+    claimed = {}     # letter -> char -> set(筆序 tuple)
+    for L in zigen.get("letters", []):
+        d = claimed.setdefault(L.get("letter"), {})
+        for it in L.get("intentions", []):
+            for sh in it.get("shapes", []):
+                for ref in [sh.get("glyph")] + list(sh.get("alts") or []):
+                    if ref and ref.get("src") and ref.get("strokes"):
+                        d.setdefault(ref["src"], set()).add(tuple(sorted(ref["strokes"])))
+
+    # 同字母、同筆數之下，一個字被幾個「不同的字根」列為例字。>1 就代表這個字裡
+    # 有好幾段長得像但屬於不同字根（等 的 竹 和 寸 都是 3 筆的 A），我沒有幾何
+    # 資料分不出哪一段是哪一個 —— 這種字乾脆不要拿來當例字，換下一個就好。
+    owners = {}
+    for L in zigen.get("letters", []):
+        for it in L.get("intentions", []):
+            for sh in it.get("shapes", []):
+                g0 = sh.get("glyph") or {}
+                zid = (g0.get("src"), tuple(g0.get("strokes") or []))
+                key0 = (L.get("letter"), len(g0.get("strokes") or []))
+                for c in (sh.get("seen") or []):
+                    owners.setdefault(key0 + (c,), set()).add(zid)
+
     letters, n_shapes, n_nodesc = [], 0, 0
     for L in zigen.get("letters", []):
         groups = []
@@ -329,9 +420,17 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None):
                     "seen": seen,
                     # 例字掛在**每個字根**上，不是掛在取形意圖上：一個意圖底下最多有
                     # 13 個形狀（平均 3.6），整組只給 5 個的話每一列都分不到。
-                    "ex": _examples(seen, len(st), L.get("letter"), codes, EX_PER_SHAPE,
-                                    picked=_pick_for(picks, L.get("letter"), src, st, warn),
-                                    warn=warn, label=f"{L.get('letter')} {src}"),
+                    "ex": _examples(
+                        seen, len(st), L.get("letter"), codes, EX_PER_SHAPE,
+                        picked=_pick_for(picks, L.get("letter"), src, st, warn),
+                        warn=warn, label=f"{L.get('letter')} {src}",
+                        # own：本字根自己的來源字（含 alts）→ 那幾筆是權威答案
+                        own={r["src"]: r["strokes"]
+                             for r in [g] + list(sh.get("alts") or [])
+                             if r and r.get("src") and r.get("strokes")},
+                        # claims：同字母下所有字根認領的筆序，扣掉不屬於自己的
+                        claims=claimed.get(L.get("letter"), {}),
+                        owners=owners, rank=_rank_within_src(L, g, it)),
                 })
                 n_shapes += 1
             if not shapes:

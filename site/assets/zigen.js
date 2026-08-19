@@ -85,16 +85,28 @@
       if (e.c === filter) plain.classList.add('is-hit');
       return plain;
     }
+    // 同一個字根在一個字裡出現兩次（朋＝月月、夠＝夕夕）時，第二次用深一點的橙色。
+    // 兩次都同色會讓人以為「這個字根就是整個朋」，分色才看得出是同一個字根出現兩次。
+    var segs = e.segs && e.segs.length ? e.segs : [e.st];
+    function shade(i) {
+      for (var k = 0; k < segs.length; k++) {
+        if (segs[k].indexOf(i) >= 0) return 'on on-' + Math.min(k + 1, 3);
+      }
+      return null;
+    }
     // off 先全部畫完，on 才畫 —— 照筆順混著畫的話，序號較後的未選中筆畫會蓋在
     // 高亮的筆畫上面（例如字根是第 1–4 筆、第 5–8 筆從它上面壓過去）。
     var off = '', on = '';
     for (var i = 0; i < strokes.length; i++) {
-      if (e.st.indexOf(i) >= 0) on += '<path class="on" d="' + strokes[i] + '"/>';
+      var cls = shade(i);
+      if (cls) on += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
       else off += '<path class="off" d="' + strokes[i] + '"/>';
     }
     var paths = off + on;
     var holder = el('span', 'zg-exg' + (e.c === filter ? ' is-hit' : ''));
-    holder.title = e.c + '　第 ' + e.st.map(function (k) { return k + 1; }).join('、') + ' 筆';
+    holder.title = e.c + '　' + segs.map(function (g) {
+      return '第 ' + g.map(function (k) { return k + 1; }).join('、') + ' 筆';
+    }).join('、以及 ') + (segs.length > 1 ? '（同一個字根出現 ' + segs.length + ' 次）' : '');
     holder.setAttribute('data-keep', '');
     holder.innerHTML = '<svg class="zg-exsvg" viewBox="0 0 1024 1024" aria-label="' + e.c +
       '"><g transform="' + SVG_TF + '">' + paths + '</g></svg>';
