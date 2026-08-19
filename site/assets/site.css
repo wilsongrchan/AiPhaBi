@@ -764,7 +764,9 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .zg-exsvg path.on    { fill: var(--accent); }
 .zg-exsvg path.on-2  { fill: var(--accent-2); }
 .zg-exsvg path.on-3  { fill: var(--accent-3); }
-.zg-exsvg path.off   { fill: var(--ink); opacity: .22; }
+/* 未高亮的筆畫：要看得出整個字長什麼樣，才知道字根長在字的哪個位置。
+   太淡的話字形認不出來，等於只看到一團橙色。 */
+.zg-exsvg path.off   { fill: var(--ink); opacity: .42; }
 
 
 .zg-exg.is-hit {
