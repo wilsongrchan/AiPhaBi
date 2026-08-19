@@ -359,7 +359,18 @@ blockquote p:last-child { margin-bottom: 0; }
 
 /* 表格 */
 .tablewrap { overflow-x: auto; margin: 1.4rem 0; }
-.zg-letter .tablewrap { margin: .3rem 0 0; }
+.zg-table .tablewrap { margin: .3rem 0 0; }
+
+/* ⚠️ overflow-x: auto 會讓這一層變成捲動容器，裡面的 position: sticky 就會黏在
+   「這個容器」而不是視窗上，表頭因此會飄到內容中間、蓋住字母欄。
+   欄寬是固定的（3.2+13+8.5rem ＋ 字例），寬螢幕本來就放得下，所以不需要橫向捲；
+   只有窄螢幕才開，那時表頭改成不黏（sticky 在捲動容器裡沒有意義）。 */
+.zg-table .tablewrap { overflow-x: visible; }
+
+@media (max-width: 40rem) {
+  .zg-table .tablewrap { overflow-x: auto; }
+  .zg-tbl thead th { position: static; }
+}
 
 table {
   border-collapse: collapse;
@@ -452,9 +463,12 @@ tbody tr:last-child td { border-bottom: 0; }
 /* A–Z 跳轉列：黏在頂端，但要讓開 .topbar */
 /* A–Z 一整列不換行：26 個字母分兩行會讓「跳到某個字母」這件事變得要先找。
    欄寬不夠時讓它自己橫向捲，而不是折行。 */
+/* 三層黏頂，由上往下：頁首(3.4rem, z10) → A–Z 列 → 表頭。
+   top 要各自讓開上面那層的高度，不然會互相疊在一起；z-index 也要照這個順序，
+   不然下面的會蓋到上面的。 */
 .zg-jump {
   position: sticky;
-  top: 0;
+  top: 3.4rem;                        /* 讓開頁首 */
   z-index: 5;
   display: flex;
   flex-wrap: nowrap;
@@ -485,7 +499,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* .zg-h / .zg-letter 已不再使用：字母改成表格最左邊的欄，不再每個字母一條標題。
    保留 .zg-key 的樣式，字母欄和辨析表都還在用。 */
-.zg-tbl tbody tr { scroll-margin-top: 5rem; }
+.zg-tbl tbody tr { scroll-margin-top: 8.5rem; }   /* 跳轉時讓開三層黏頂 */
 
 .zg-h {
   display: flex;
@@ -567,8 +581,9 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .zg-tbl thead th {
   position: sticky;
-  top: 2.4rem;                        /* 讓開 A–Z 跳轉列 */
-  z-index: 4;
+  top: 5.9rem;                        /* 讓開頁首 3.4rem ＋ A–Z 列約 2.5rem */
+  z-index: 3;                         /* 低於 A–Z 列（5），高於內容 */
+  background: var(--code-bg);         /* 不透明，否則捲動時會透出下面的列 */
 }
 
 .zg-tbl th {
