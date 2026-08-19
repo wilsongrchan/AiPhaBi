@@ -189,7 +189,7 @@ nav.site a[aria-current="page"] {
 /* ⚠️ 一定要寫成 main.wrap：<main> 同時掛著 class="wrap"，而 .wrap 有
    padding: 0 1.4rem。類別選擇器的權重高過元素選擇器，所以單寫 main { padding }
    會被 .wrap 的 0 蓋掉，怎麼調都沒反應 —— 這個坑踩過一次。 */
-main.wrap { padding-block: 4rem 3rem; }
+main.wrap { padding-block: 5.5rem 3rem; }
 
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
@@ -208,8 +208,9 @@ h1 {
 
 h2 {
   font-size: 1.3rem;
-  margin: 3.2rem 0 .9rem;
-  padding-top: 1.6rem;
+  /* 上緣間距由這裡決定 —— 與前一段的 margin-bottom 會合併取大者，加不起來 */
+  margin: 2rem 0 .8rem;
+  padding-top: 1.1rem;
   border-top: 1px solid var(--line);
   letter-spacing: .02em;
 }
@@ -225,7 +226,7 @@ p { margin: 0 0 1.1rem; max-width: var(--measure); }
   font-size: 1.12rem;
   color: var(--ink-dim);
   max-width: var(--measure);
-  margin-bottom: 2.2rem;
+  margin-bottom: 1.4rem;
 }
 
 ul, ol { max-width: var(--measure); padding-inline-start: 1.3rem; }
