@@ -184,14 +184,16 @@ nav.site a[aria-current="page"] {
 
 /* ---------- 主體 ---------- */
 
-main { padding: 3rem 0 4rem; }   /* 下方留白主要由 footer 提供，見檔案下方 footer */
+/* 上方留白要撐開頁首與內容 —— 3rem 時眉標幾乎貼著導覽列的底線。
+   下方主要交給 footer 的 margin/padding，見檔案下方 footer。 */
+main { padding: 4.5rem 0 4rem; }
 
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
   font-size: .95rem;
   color: var(--ink-dim);
   letter-spacing: .08em;
-  margin: 0 0 .2rem;
+  margin: 0 0 .45rem;
 }
 
 h1 {
