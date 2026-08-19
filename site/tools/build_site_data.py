@@ -655,12 +655,18 @@ def main():
             if m:
                 glyph_chars.add(m.group(1))
     # 手挑清單裡有沒有寫錯字母／來源字，對不到任何一個字根的要講出來
+    # 代表字可能已經被「顯示層改用第一個例字」換過（提 → 旦），而手挑清單是照
+    # **原本的**代表字比對的。所以兩個都算數，否則會誤報「找不到這個字根」。
     used = set()
     for L in zg["letters"]:
         for grp in L["groups"]:
             for sh in grp["shapes"]:
-                used.add((L["letter"], sh["src"], tuple(sorted(sh["st"]))))
-                used.add((L["letter"], sh["src"], None))
+                for src, st in [(sh["src"], sh["st"]),
+                                (sh.get("src0"), sh.get("st0"))]:
+                    if not src:
+                        continue
+                    used.add((L["letter"], src, tuple(sorted(st or []))))
+                    used.add((L["letter"], src, None))
     for key in picks:
         if key not in used:
             st = "#" + ",".join(str(i + 1) for i in key[2]) if key[2] else ""
