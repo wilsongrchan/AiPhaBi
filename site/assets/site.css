@@ -8,6 +8,7 @@
   --line:    #e6e1d8;
   --ink:     #23201c;
   --ink-dim: #6b645b;
+  --ink-faint: #948d83;   /* 比 --ink-dim 再淡一階，給附註類的文字 */
   --accent:  #d1650a;
   /* 同一個字根在一個字裡出現第二、第三次時用的色階。用明確色值而不是 color-mix：
      color-mix 用在 fill 上不是每個瀏覽器都吃，而 @supports 測的是 color 不是 fill，
@@ -34,6 +35,7 @@
     --line:    #35322d;
     --ink:     #ece8e1;
     --ink-dim: #a29a8e;
+    --ink-faint: #837b70;   /* 深色主題往背景靠，一樣是「更不搶眼」 */
     --accent:  #f0913f;
     /* 深色主題往亮的方向拉開，往暗拉會跟背景糊在一起 */
     --accent-2: #c9702a;
@@ -666,7 +668,7 @@ tbody tr:last-child td { border-bottom: 0; }
   margin-top: .45rem;
   padding-top: .4rem;
   border-top: 1px dotted var(--line);
-  color: var(--ink-dim);
+  color: var(--ink-faint);
   font-size: calc(.8rem * var(--zg-scale));
   line-height: 1.5;
 }
