@@ -376,7 +376,30 @@ def _pick_for(picks, letter, src, st, warn):
     return loose or None
 
 
-def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
+def load_intent_notes(warn):
+    """讀 site/content/intent_notes.md —— 少數取形意圖的額外說明，Wilson 手寫。
+
+    key 是「字母＋該字母底下取形意圖的順序」（A3 ＝ A 的第三個意圖），跟字根表上
+    看到的順序一致。序號會隨 Side A 合併意圖而移動，所以建置時把每一條對到的意圖
+    原文印出來，對不上一眼就看得到。
+    """
+    path = ROOT / "site" / "content" / "intent_notes.md"
+    if not path.exists():
+        return {}
+    text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
+    notes = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        m = re.fullmatch(r"([A-Z])\s*(\d+)", k.strip())
+        if m and v.strip():
+            notes[(m.group(1), int(m.group(2)))] = v.strip()
+    return notes
+
+
+def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, notes=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
     ⚠️ 純文字版，刻意不畫字根。一個字根存的是「某個字的第幾筆到第幾筆」
@@ -522,7 +545,8 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
 
             shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
-                           "shapes": shapes})
+                           "shapes": shapes,
+                           "note": (notes or {}).get((L.get("letter"), len(groups) + 1), "")})
         letters.append({"letter": L.get("letter", ""), "groups": groups})
 
     return {
@@ -633,7 +657,23 @@ def main():
     if std_path.exists():
         standard = {c for line in std_path.read_text("utf-8").splitlines()
                     if not line.startswith("#") for c in line.strip()}
-    zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn, standard=standard)
+    notes = load_intent_notes(warn)
+    zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
+                     standard=standard, notes=notes)
+
+    # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
+    # 印出來才看得出有沒有對錯位置。找不到的直接警告。
+    if notes:
+        idx = {}
+        for L in zg["letters"]:
+            for i, g in enumerate(L["groups"], 1):
+                idx[(L["letter"], i)] = g["desc"] or "（沒有取形意圖）"
+        for k in sorted(notes):
+            d = idx.get(k)
+            if d is None:
+                warn.append(f"意圖說明 {k[0]}{k[1]}：{k[0]} 底下沒有第 {k[1]} 個取形意圖")
+            else:
+                print(f"  意圖說明 {k[0]}{k[1]} → 「{d[:30]}」")
     zg["similar"] = build_similar(codes)
 
     # 字根表要畫出字根本身，需要這些字的筆畫輪廓。先只收字根的**來源字**（含 alts）：

@@ -659,6 +659,18 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .zg-todo { color: var(--ink-dim); font-style: italic; }
 
+/* 取形意圖底下的額外說明：為什麼這一類形狀算是像這個字母。
+   只有少數意圖有，所以要看得出是附註而不是意圖本身。 */
+.zg-note {
+  display: block;
+  margin-top: .45rem;
+  padding-top: .4rem;
+  border-top: 1px dotted var(--line);
+  color: var(--ink-dim);
+  font-size: calc(.8rem * var(--zg-scale));
+  line-height: 1.5;
+}
+
 .zg-tier {
   display: inline-block;
   margin-top: .3rem;
