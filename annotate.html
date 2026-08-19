@@ -1002,8 +1002,14 @@ function subSvg(list) {
   const p = 70, w = x1 - x0 + p * 2, h = y1 - y0 + p * 2, m = Math.max(w, h);
   const box = x1 < x0 ? '0 0 1024 1024'
     : `${x0 - p - (m - w) / 2} ${y0 - p - (m - h) / 2} ${m} ${m}`;
+  /* off 全部先畫完，on 才畫 —— 照筆順一路 on/off 交錯畫的話，索引較後的未選筆畫會蓋在
+     已選筆畫上面（.off 有填色、只是 opacity .3），交叉處的高亮就被灰掉。漢字筆畫交叉是常態，
+     所以這個順序不是可有可無的。與 editor.html:623-629 的 glyphSvg 一致。 */
+  const on = [], off = [];
+  strokes.forEach((d, i) => (list.includes(i) ? on : off).push(d));
   return `<svg viewBox="${box}"><g transform="${Shape.SVG_TF}">` +
-    strokes.map((d, i) => `<path class="${list.includes(i) ? 'on' : 'off'}" d="${d}"/>`).join('') +
+    off.map(d => `<path class="off" d="${d}"/>`).join('') +
+    on.map(d => `<path class="on" d="${d}"/>`).join('') +
     '</g></svg>';
 }
 
