@@ -54,3 +54,6 @@ python3 -m http.server 8099 --directory site
 #
 # B 日 = 明 時 春 早
 # D 月 = 朋 朗 肝 期
+
+# Wilson 指定：這個字根用 兆／函 這類單純的字，不要用 率、衆 那種筆畫多又是異體的
+K 跳 = 跳 兆 函 涵

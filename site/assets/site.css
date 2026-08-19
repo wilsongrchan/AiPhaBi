@@ -369,7 +369,7 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 字根表的說明段：比正文小一級。這一頁的主體是表格，說明只是進場前的一句話，
    用正文大小會跟表格搶注意力。 */
 .zg-intro {
-  font-size: .84rem;
+  font-size: .78rem;
   color: var(--ink-dim);
   max-width: var(--measure);
   margin-bottom: 1rem;
@@ -396,27 +396,33 @@ tbody tr:last-child td { border-bottom: 0; }
 .zg-status { font-size: .88rem; color: var(--accent); margin: .5rem 0 0; min-height: 1.2em; }
 
 /* A–Z 跳轉列：黏在頂端，但要讓開 .topbar */
+/* A–Z 一整列不換行：26 個字母分兩行會讓「跳到某個字母」這件事變得要先找。
+   欄寬不夠時讓它自己橫向捲，而不是折行。 */
 .zg-jump {
   position: sticky;
   top: 0;
   z-index: 5;
   display: flex;
-  flex-wrap: wrap;
-  gap: .25rem;
-  padding: .6rem 0;
-  margin-bottom: .6rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: .12rem;
+  padding: .45rem 0;
+  margin-bottom: .5rem;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
+.zg-jump::-webkit-scrollbar { display: none; }
 
 .zg-jl {
   font-family: ui-monospace, Menlo, monospace;
   font-weight: 700;
-  font-size: .85rem;
-  min-width: 1.7rem;
+  font-size: .78rem;
+  min-width: 1.3rem;
+  flex: 0 0 auto;
   text-align: center;
-  padding: .2rem .1rem;
-  border-radius: 5px;
+  padding: .15rem .05rem;
+  border-radius: 4px;
   text-decoration: none;
   color: var(--accent);
   background: var(--accent-soft);
@@ -455,7 +461,17 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* 密度參考倉頡的〈輔助字形列表〉：完整格線、字級小、列高緊。
  * 原本一列佔兩三行、要捲很久才看得完一個字母，資訊密度太低。 */
-.zg-tbl { font-size: .86rem; }
+/* 三欄寬度釘死，26 個字母的表才會對齊（不然各表依自己的內容決定欄寬，
+   A 的「取形意圖」欄跟 B 的不一樣寬，整頁參差不齊）。 */
+.zg-tbl { font-size: .86rem; table-layout: fixed; width: 100%; }
+.zg-c1 { width: 15rem; }    /* 取形意圖 */
+.zg-c2 { width: 8.5rem; }   /* 字根 */
+.zg-c3 { width: auto; }     /* 字例，吃掉剩下的 */
+
+@media (max-width: 40rem) {
+  .zg-c1 { width: 9rem; }
+  .zg-c2 { width: 6.5rem; }
+}
 
 .zg-tbl th {
   color: var(--ink-dim);
@@ -472,8 +488,8 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 .zg-desc {
-  max-width: 14rem;
   color: var(--ink);
+  overflow-wrap: break-word;
   vertical-align: top !important;
   padding-top: .35rem !important;
   font-size: .78rem;
@@ -558,7 +574,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .zg-loading { color: var(--ink-dim); font-size: .92rem; }
 
 @media (max-width: 34rem) {
-  .zg-desc { max-width: 9rem; font-size: .78rem; }
+  .zg-desc { font-size: .74rem; }
   .zg-ch { font-size: .98rem; }
   .zg-tbl { font-size: .8rem; }
 }

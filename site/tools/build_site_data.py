@@ -258,7 +258,8 @@ def _rank_within_src(L, g, it):
 
 
 def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label="",
-              own=None, claims=None, owners=None, rank=None):
+              own=None, claims=None, owners=None, rank=None, primary=None,
+              standard=None):
     """挑例字，並算出每個例字裡哪幾筆屬於這個字根（用來高亮）。
 
     高亮的筆序是**建置時**用 codes.json 的 segments 反查的：取該字裡「字母相同、
@@ -284,21 +285,30 @@ def _examples(seen, nstroke, letter, codes, limit, picked=None, warn=None, label
         # 來源字排最前面。字根就是從那個字上圈出來的，它是這個字根的定義實例——
         # 尤其是「整個字」型的字根（王、月、小、夕），把 王 排在 全、主 後面很怪。
         # 來源字不一定在 seen 裡（seen 是取碼時遇到的字），沒有就補進去。
-        head = [c for c in own if c in codes]
-        seen_rest = [c for c in seen if c not in own]
+        #
+        # ⚠️ 只提**主要**來源字（glyph.src），不要連 alts 一起提。alts 是同一個形狀的
+        # 其他定義出處，不是好例字：K 跳#12,13 的 alts 是 率／衆／菡，全提上來就把
+        # 四個位置佔滿，把 seen 裡的 挑 逃 函 涵 兆 全擠掉了。
+        head = [primary] if primary and primary in codes else []
+        seen_rest = [c for c in seen if c not in head]
 
         # 其餘的優先挑「同字母同筆數之下只有這一個字根用到」的字。多個字根都用到的字
         # （等：竹 和 寸 都是 3 筆的 A）分不出哪一段是哪一個，塗下去有一半機率
         # 塗到別人的字根上。字根平均有幾十個例字可選，跳過幾個完全不吃虧。
-        clean, murky = [], []
+        # 異體字往後排。衆 不在教育部甲表（標準寫法是 眾），但字頻排名很前面——
+        # 字頻資料把兩個寫法算在一起了。繁體優先的網站不該拿異體字當示範。
+        std = standard or set()
+        clean, variant, murky = [], [], []
         for c in seen_rest:
             if len(owners.get((letter, nstroke, c), ())) > 1:
                 murky.append(c)
+            elif std and c not in std:
+                variant.append(c)
             else:
                 clean.append(c)
             if len(head) + len(clean) >= limit:
                 break
-        chosen = (head + clean + murky)[:limit]
+        chosen = (head + clean + variant + murky)[:limit]
     out = []
     for c in chosen:
         if c in own:                      # 規則 1：這個字就是本字根的來源字
@@ -343,7 +353,7 @@ def _pick_for(picks, letter, src, st, warn):
     return loose or None
 
 
-def build_zigen(zigen, codes, rank, far, picks=None, warn=None):
+def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
     ⚠️ 純文字版，刻意不畫字根。一個字根存的是「某個字的第幾筆到第幾筆」
@@ -434,7 +444,8 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None):
                              if r and r.get("src") and r.get("strokes")},
                         # claims：同字母下所有字根認領的筆序，扣掉不屬於自己的
                         claims=claimed.get(L.get("letter"), {}),
-                        owners=owners, rank=_rank_within_src(L, g, it)),
+                        owners=owners, rank=_rank_within_src(L, g, it),
+                        primary=g.get("src"), standard=standard),
                 })
                 n_shapes += 1
             if not shapes:
@@ -551,7 +562,14 @@ def main():
     zigen_raw = load("zigen.json")
     warn = []
     picks = load_example_picks(warn)
-    zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn)
+    # 教育部常用國字甲表 —— 用來把異體字（衆、丽）往後排，繁體優先的網站
+    # 不該拿異體字當示範。檔案不在就退回原本純字頻的排法。
+    std_path = DATA / "standards" / "tw_common_4808.txt"
+    standard = set()
+    if std_path.exists():
+        standard = {c for line in std_path.read_text("utf-8").splitlines()
+                    if not line.startswith("#") for c in line.strip()}
+    zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn, standard=standard)
     zg["similar"] = build_similar(codes)
 
     # 字根表要畫出字根本身，需要這些字的筆畫輪廓。先只收字根的**來源字**（含 alts）：

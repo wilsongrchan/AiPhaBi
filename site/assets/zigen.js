@@ -162,6 +162,16 @@
 
     var tw = el('div', 'tablewrap');
     var t = el('table', 'zg-tbl');
+
+    // 每個字母各自是一個 <table>，瀏覽器會依各自的內容決定欄寬，於是 A 的
+    // 「取形意圖」欄跟 B 的不一樣寬，整頁看起來參差不齊。用 colgroup ＋
+    // table-layout: fixed 把三欄寬度釘死，26 張表才會對齊成同一張表的樣子。
+    var cg = el('colgroup');
+    ['zg-c1', 'zg-c2', 'zg-c3'].forEach(function (c) {
+      cg.appendChild(el('col', c));
+    });
+    t.appendChild(cg);
+
     var thead = el('thead');
     var hr = el('tr');
     ['取形意圖', '字根', '字例'].forEach(function (label) {
