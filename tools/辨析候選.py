@@ -15,8 +15,11 @@
    （PROJECT_NOTES →「Checking a zigen offline」）。這裡照 `reconcile.py` 的規則重跑：
    同字母、同筆數、`min(dist) < thr`。
 
-3. **例字優先給繁體。** 網站是繁體優先，而 `codes.json` 涵蓋 GB 2312，所以例字裡會混進
-   簡體專屬字（迟 绿 错 钅 丽 俪）。判別法不能只看 opencc —— 家（傢→家）、困（睏→困）、
+3. **例字分三層排序：甲表字 > 非甲表異體字 > 簡體專屬字，同層內才照字頻。**
+   純字頻挑例字會挑到異體字——衆不在甲表，字頻卻排 611，遠高於正字 眾 的 4759
+   （Side C 回報，2026-08-19 查實）；丽／麗同樣情形。字頻表顯然沒有分辨正字與異體，
+   兩種寫法的計次被算在一起，異體字因此繼承了正字的高排名。
+   簡體專屬字（迟 绿 错 钅 丽 俪）的判別法不能只看 opencc —— 家（傢→家）、困（睏→困）、
    台、后、里 都是 t2s 的「值」，卻也都是正當的繁體字。要三個條件同時成立：
    **是 t2s 的值、不在教育部甲表、且本身不是 t2s 的鍵。**（判別法由 Side C 提出並驗證。）
 
@@ -37,12 +40,15 @@ OUT = ROOT / "字根辨析候選.md"
 N_EXAMPLES = 6
 
 
-def simplified_only(codes):
+def load_tw():
+    return {c for ln in (DATA / "standards" / "tw_common_4808.txt").read_text("utf-8").splitlines()
+            if not ln.startswith("#") for c in ln.strip()}
+
+
+def simplified_only(codes, tw):
     """簡體專屬字：打繁出簡的產物，不該當繁體頁面的例字。"""
     t2s = json.loads((DATA / "opencc.json").read_text("utf-8"))["t2s"]
     vals = {v[0] if isinstance(v, list) else v for v in t2s.values()}
-    tw = {c for ln in (DATA / "standards" / "tw_common_4808.txt").read_text("utf-8").splitlines()
-          if not ln.startswith("#") for c in ln.strip()}
     return {c for c in codes if c in vals and c not in tw and c not in t2s}
 
 
@@ -51,7 +57,8 @@ def build():
     codes = json.loads((DATA / "codes.json").read_text("utf-8"))
     rank = {c: i for i, c in enumerate(json.loads((DATA / "freq.json").read_text("utf-8"))["order"])}
     gthr = z["meta"]["merge_threshold"]
-    simp = simplified_only(codes)
+    tw = load_tw()
+    simp = simplified_only(codes, tw)
 
     key = lambda L, s, st: f"{L}:{s}#{','.join(map(str, st))}"        # noqa: E731
     entries, tok2e = [], {}
@@ -107,11 +114,21 @@ def build():
             if best:
                 best["users"].append(ch)
 
+    # 例字排序：先字頻，再照「有沒有問題」分層——甲表字排最前，非甲表的異體字
+    # （衆、丽…）次之，簡體專屬字排最後。字頻表不分辨異體與正字，衆比眾常用
+    # 排名高出一大截（611 vs 4759），純用字頻挑會把異體字誤當代表例字。
+    def tier(c):
+        if c in simp:
+            return 2
+        if c not in tw:
+            return 1
+        return 0
+
     for e in entries:
-        us = sorted(set(e["users"]), key=lambda c: rank.get(c, 10 ** 9))
-        trad = [c for c in us if c not in simp]
-        e["examples"] = (trad + [c for c in us if c in simp])[:N_EXAMPLES]
+        us = sorted(set(e["users"]), key=lambda c: (tier(c), rank.get(c, 10 ** 9)))
+        e["examples"] = us[:N_EXAMPLES]
         e["simp_flag"] = [c for c in e["examples"] if c in simp]
+        e["variant_flag"] = [c for c in e["examples"] if tier(c) == 1]
         e["total"] = len(us)
 
     rows, seen = [], set()
@@ -140,7 +157,8 @@ def span(e):
 
 def main():
     rows = build()
-    flagged = sum(1 for _, a, b in rows if a["simp_flag"] or b["simp_flag"])
+    simp_flagged = sum(1 for _, a, b in rows if a["simp_flag"] or b["simp_flag"])
+    var_flagged = sum(1 for _, a, b in rows if a["variant_flag"] or b["variant_flag"])
     L = [
         "# 相近字形辨析 —— 候選配對（Side A → Side C）\n",
         f"由 `tools/辨析候選.py` 於 {datetime.date.today()} 產生。**這是給人挑的清單，不是網站內容**；",
@@ -152,21 +170,23 @@ def main():
         "本來就丟掉這種）。日／曰 正是這類：有名，但在這裡沒意義。\n",
         f"**{len(rows)} 組**，依中線幾何距離 `d` 由近到遠排 —— d 越小越容易混淆，從最上面看起。",
         "`thr` 欄標示該字根是否帶收緊過的門檻（由這些裁決自動設定）。\n",
-        "例字由**比對器**算出（不是 `seen`，那個上限 24 筆會漏），依現代字頻排序，"
-        "**優先給繁體字**：",
-        f"簡體專屬字（迟 绿 错 钅 丽 俪 之類）只在繁體例字不夠時才補上，補到的會標 ⚠️（目前 {flagged} 組）。\n",
+        "例字由**比對器**算出（不是 `seen`，那個上限 24 筆會漏），排序分三層：先教育部甲表字，",
+        "再非甲表的異體字，簡體專屬字排最後，同層內才照現代字頻排。字頻表不分正字與異體，",
+        "衆比眾字頻排名高出一大截（611 vs 4759），純用字頻挑例字會把異體字誤當代表。\n",
+        f"補到非甲表異體字的標 ✱（目前 {var_flagged} 組），補到簡體專屬字的標 ⚠️（目前 {simp_flagged} 組）。\n",
         "> ⚠️ 取碼會變。任何要放上網站的碼，發布前對 `rime/aiphabi.dict.yaml` 再查一次。\n",
         "| # | d | 字母 | 字形位置 | 取形意圖 | 例字 | 用到 | thr |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for i, (d, a, b) in enumerate(rows, 1):
         for first, e in ((True, a), (False, b)):
-            ex = "".join(e["examples"]) + (" ⚠️" if e["simp_flag"] else "")
+            flag = (" ⚠️" if e["simp_flag"] else "") + (" ✱" if e["variant_flag"] else "")
+            ex = "".join(e["examples"]) + flag
             L.append(f"| {i if first else ''} | {f'`{d:.5f}`' if first else ''} | **{e['letter']}** "
                      f"| {span(e)} | {e['desc'] or '（取形意圖待補）'} | {ex} | {e['total']} "
                      f"| {'✔' if e['has_thr'] else '—'} |")
     OUT.write_text("\n".join(L) + "\n", encoding="utf-8")
-    print(f"{len(rows)} 組 → {OUT.name}（含簡體例字的 {flagged} 組）")
+    print(f"{len(rows)} 組 → {OUT.name}（簡體例字 {simp_flagged} 組、非甲表異體 {var_flagged} 組）")
 
 
 if __name__ == "__main__":
