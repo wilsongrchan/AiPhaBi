@@ -168,6 +168,7 @@
         var tr = el('tr');
         if (gi === 0 && i === 0) {
           tr.id = 'L' + L.letter;
+          tr.className = 'is-letter-start';   // 字母之間留一道視覺分隔，見 site.css
           var kd = el('td', 'zg-letterkey');
           kd.rowSpan = total;
           var key = el('span', 'zg-key', L.letter);

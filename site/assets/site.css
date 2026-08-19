@@ -534,6 +534,16 @@ tbody tr:last-child td { border-bottom: 0; }
   .zg-tbl thead th:nth-child(3) { width: 6.5rem; }
 }
 
+/* 字母與字母之間留一道分隔：整張表連在一起雖然省空間，但 A 的最後一列和 B 的
+   第一列黏在一起會看不出換字母了。用加粗的上框線＋一點額外留白，比整條標題省得多。
+   （第一列不用，表頭底下不需要再來一道。） */
+.zg-tbl tbody tr.is-letter-start > td {
+  border-top: 2px solid var(--ink-dim);
+  padding-top: calc(.45rem * var(--zg-scale));
+}
+
+.zg-tbl tbody tr:first-child > td { border-top-width: 1px; padding-top: .15rem; }
+
 /* 最左邊的字母欄：跨滿該字母的所有列，字母放大當作分段的視覺錨點 */
 .zg-letterkey {
   vertical-align: top !important;
