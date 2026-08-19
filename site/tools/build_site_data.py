@@ -488,26 +488,31 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
             # 原本的來源字保留在 src0 欄，需要時查得回去。
             for sh in shapes:
                 first = (sh["ex"] or [None])[0]
-                if not first or len(first.get("segs") or []) != 1:
+                if not first or not (first.get("segs") or []):
                     continue
+                # 字根在這個字裡出現不只一次時（笑 的竹頭是兩個「个」、羽 是兩個「习」、
+                # 回 是口中有口），取**第一次出現**當代表 —— 「笑 第 1–3 筆」指得很明確，
+                # 不會有歧義。先前這種情況整個跳過，結果 笑、羽、回 這些好代表字都用不上。
                 if first["c"] == sh["src"]:
                     continue
 
-                # ⚠️ 第一個例字是**筆畫最少**的，那不等於**最能代表這個形狀**。
-                # 直接換會產生 第→汽（竹字頭找不到人會想到 汽）、的→芍、岛→鸟（簡體）。
-                # 所以加兩道門檻，只換真正更好的：
-                #   1. 新的代表字要在教育部甲表 —— 不要拿異體字或簡體專屬字當代表
-                #   2. 字根要佔新代表字的 60% 以上 —— 「這個字大致上就是這個形狀」。
-                #      目 4/5=80% 過；汽 3/7=43%、芍 3/6=50% 不過。
+                # 一律用第一個例字當代表字（Wilson 2026-08-19：「for all the description,
+                # use the first characters of the 4 samples」）。第一個例字要嘛是他手挑的、
+                # 要嘛是照單純度排出來的，兩者都比 zigen.json 原本的代表字適合。
+                #
+                # 只留一道門檻：**代表字不能是異體字或簡體專屬字**（不在教育部甲表的）。
+                # 那不是品味問題而是正確性問題 —— 這是繁體優先的網站，拿 鸟 當「島」類
+                # 字根的代表字是錯的。擋掉的話就維持原本的代表字。
+                #
+                # 先前還有一道「字根要佔代表字 60% 以上」的門檻，已移除：它會擋掉
+                # 衣（3/6）、初（4/7）、逐（5/10）、笑（3/10），而那些正是 Wilson 要的
+                # ——尤其 豬→逐、第→笑 是他手挑的例字，門檻等於推翻他的決定。
                 cand, cst = first["c"], list(first["segs"][0])
-                tot = nstrokes.get(cand)
-                if standard and cand not in standard:
-                    continue
-                if not tot or len(cst) / tot < 0.6:
-                    continue
-                # 也要比現在的代表字更「像」才換
-                cur_tot = nstrokes.get(sh["src"])
-                if cur_tot and len(sh["st"]) / cur_tot >= len(cst) / tot:
+                # 唯一的門檻：**不要把繁體代表字換成簡體／異體字**。
+                # 但如果現在的代表字本來就不是甲表字（岛、错、给、师…那些字根本來就
+                # 取自簡體字），那換成另一個同樣是簡體的第一個例字並不會更糟，
+                # 照 Wilson 的規則走即可 —— 門檻是防降級，不是防平移。
+                if standard and cand not in standard and sh["src"] in standard:
                     continue
 
                 sh["src0"], sh["st0"] = sh["src"], sh["st"]
