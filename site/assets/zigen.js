@@ -187,14 +187,16 @@
         if (i === 0) {
           var td = el('td', 'zg-desc');
           td.rowSpan = g.shapes.length;
+          // 等級（次等／三等）放在意圖**之前**：它是這一整組的分類標籤，
+          // 先看到標籤再讀意圖才順；接在意圖後面會像是意圖的一部分。
+          if (g.tier && g.tier !== 'primary') {
+            td.appendChild(el('span', 'zg-tier', DATA.tiers[g.tier] || g.tier));
+          }
           if (g.desc) td.appendChild(el('span', null, g.desc));
           else td.appendChild(el('span', 'zg-todo', '（取形意圖待補）'));
           // 少數意圖有額外說明（為什麼這一類形狀算是像這個字母），來自
           // site/content/intent_notes.md，顯示在意圖底下
           if (g.note) td.appendChild(el('span', 'zg-note', g.note));
-          if (g.tier && g.tier !== 'primary') {
-            td.appendChild(el('span', 'zg-tier', DATA.tiers[g.tier] || g.tier));
-          }
           tr.appendChild(td);
         }
 

@@ -673,14 +673,17 @@ tbody tr:last-child td { border-bottom: 0; }
   line-height: 1.55;
 }
 
+/* 等級標籤（次等／三等）自成一行、排在取形意圖上面 —— 它是整組的分類，
+   不是意圖的一部分。接在意圖後面會被讀成句子的尾巴。 */
 .zg-tier {
-  display: inline-block;
-  margin-top: .3rem;
-  font-size: .72rem;
-  color: var(--ink-dim);
+  display: block;
+  width: fit-content;
+  margin: 0 0 .35rem;
+  font-size: calc(.68rem * var(--zg-scale));
+  color: var(--ink-faint);
   background: var(--code-bg);
   border-radius: 4px;
-  padding: .05rem .35rem;
+  padding: .05rem .4rem;
 }
 
 /* 非連續筆序的標籤很長（東 第 1、6、7、8 筆 有 11 個字），nowrap 會直接溢出到
