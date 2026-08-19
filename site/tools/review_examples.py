@@ -66,9 +66,22 @@ def main():
                     "ex": [e["c"] for e in sh["ex"]],
                 })
 
+    # 「哪幾筆已經被別的字根認領走」——編輯頁要用它才不會把同一個字裡屬於別的
+    # 取形意圖的那一段也塗上。兜＝C(1,2)…C(8,9)，兩段都是 2 筆的 C 但屬於不同意圖；
+    # 沒有這份資料的話打 兜 進去會兩段一起亮。跟 build_site_data.py 的規則 2 同源。
+    zraw = json.loads((ROOT / "data" / "zigen.json").read_text("utf-8"))
+    claims = {}
+    for L in zraw.get("letters", []):
+        d = claims.setdefault(L.get("letter"), {})
+        for it in L.get("intentions", []):
+            for sh in it.get("shapes", []):
+                for ref in [sh.get("glyph")] + list(sh.get("alts") or []):
+                    if ref and ref.get("src") and ref.get("strokes"):
+                        d.setdefault(ref["src"], []).append(sorted(ref["strokes"]))
+
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "data.json").write_text(json.dumps(
-        {"rows": rows, "segs": segs, "glyphs": glyphs},
+        {"rows": rows, "segs": segs, "glyphs": glyphs, "claims": claims},
         ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     (OUT / "examples.html").write_text(PAGE, "utf-8")
@@ -96,6 +109,8 @@ body { padding: 1.5rem 1.4rem 8rem; }
 .ed:focus { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); border-radius: 4px; }
 .ed[data-dirty="1"] { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 4px; }
 .bad { color: #b00; font-size: .72rem; margin-inline-start: .3rem; }
+/* 這個字裡有不只一段同字母同筆數的形狀，標出來的是推測的 —— 底下畫虛線提醒 */
+.guess { border-bottom: 2px dotted var(--accent); }
 .out { position: fixed; inset-inline: 0; bottom: 0; background: var(--surface);
        border-top: 2px solid var(--accent); padding: .6rem 1.4rem; z-index: 20; }
 .out textarea { width: 100%; height: 5.5rem; font: 12px/1.5 ui-monospace,Menlo,monospace;

@@ -11,12 +11,28 @@
   function el(t, c, x) { var n = document.createElement(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; }
   function key(r) { return r.L + ' ' + r.src + '#' + r.st.map(function (i) { return i + 1; }).join(','); }
 
-  /* 這個字裡哪幾段屬於這個字根：字母相同、筆數相同。回傳每一段的筆序陣列。 */
-  function hit(ch, letter, n) {
-    var out = [], segs = D.segs[ch] || [];
+  /* 這個字裡哪幾段屬於**這一列的**字根。跟 build_site_data.py 同一套消歧規則：
+   *   1. 打的字就是這一列的來源字 → 直接用這一列自己的筆序
+   *   2. 否則扣掉「別的字根以這個字為來源字」認領走的段
+   * 兜 = C(1,2) … C(8,9)，兩段都是 2 筆的 C 但屬於不同取形意圖；
+   * 沒有這兩條規則就會兩段一起亮，等於宣稱這一列的字根也包含另一段。 */
+  function hit(ch, r) {
+    var letter = r.L, n = r.st.length;
+    if (ch === r.src) return [r.st];                       // 規則 1
+
+    var cand = [];
+    var segs = D.segs[ch] || [];
     for (var i = 0; i < segs.length; i++) {
-      if (segs[i][0] === letter && segs[i][1].length === n) out.push(segs[i][1]);
+      if (segs[i][0] === letter && segs[i][1].length === n) cand.push(segs[i][1]);
     }
+    if (cand.length < 2) return cand;
+
+    var taken = ((D.claims[letter] || {})[ch] || []).map(function (a) { return a.join(','); });
+    var rest = cand.filter(function (t) { return taken.indexOf(t.join(',')) < 0; });  // 規則 2
+    var out = rest.length ? rest : cand;
+    // 扣完還是不只一段，或本來就分不出是哪一段：標記「這一段是推的」。
+    // 沒有中線幾何就只能推到這裡 —— 與其假裝確定，不如講出來讓人自己看一眼。
+    if (out.length > 1 || cand.length > 1) out.guess = true;
     return out;
   }
 
@@ -62,12 +78,14 @@
     var wrap = el('span');
     var bad = [];
     chars.split(/\s+/).filter(Boolean).forEach(function (c) {
-      var segs = hit(c, r.L, r.st.length);
+      var segs = hit(c, r);
       var svg = segs.length ? glyphSvg(c, segs, '1.55rem') : null;
       if (svg) {
-        var s = el('span', 'zg-exg');
+        var s = el('span', 'zg-exg' + (segs.guess ? ' guess' : ''));
         s.innerHTML = svg;
-        s.title = c;
+        s.title = segs.guess
+          ? c + '：這個字裡有不只一段同字母同筆數的形狀，標出來的是推測的那一段，請自己確認'
+          : c;
         wrap.appendChild(s);
       } else {
         bad.push(c);
