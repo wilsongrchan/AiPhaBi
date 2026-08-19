@@ -107,25 +107,41 @@ kbd {
 
 /* ---------- 頁首 ---------- */
 
+/* ---------- 側邊導覽（寬螢幕）／頂部導覽（窄螢幕） ----------
+ * 導覽固定在左側，內容往右讓開。窄螢幕會在檔案後面的 media query 改回頂部橫列，
+ * 因為手機上左側欄會吃掉一半的可用寬度。 */
+:root { --nav-w: 12.5rem; }
+
 .topbar {
-  border-bottom: 1px solid var(--line);
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--nav-w);
+  border-inline-end: 1px solid var(--line);
   background: var(--surface);
-  position: sticky;
-  top: 0;
   z-index: 10;
+  overflow-y: auto;
 }
 
 .topbar .wrap {
+  max-width: none;
+  margin: 0;
+  padding: 1.6rem 1.2rem;
   display: flex;
-  align-items: center;
-  gap: 1.4rem;
-  min-height: 3.4rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.6rem;
 }
+
+/* 用 body 的 padding 讓開側邊欄，而不是給 main 加 margin-inline-start ——
+   後者會破壞 .wrap 的 margin: 0 auto，內容會貼著側邊欄、右邊空一大片。
+   讓開之後 main 仍然是在「剩下的空間」裡置中。 */
+body { padding-inline-start: var(--nav-w); }
 
 .brand {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1.4;
   color: var(--ink);
   text-decoration: none;
   letter-spacing: .04em;
@@ -133,33 +149,37 @@ kbd {
 }
 
 .brand .en {
+  display: block;
   color: var(--ink-dim);
   font-weight: 500;
-  font-size: .8em;
-  margin-inline-start: .45em;
+  font-size: .78em;
+  margin-inline-start: 0;
   letter-spacing: .08em;
 }
 
 nav.site {
   display: flex;
-  gap: 1.1rem;
-  margin-inline-end: auto;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: .1rem;
+  width: 100%;
 }
 
 nav.site a {
   color: var(--ink-dim);
   text-decoration: none;
-  padding: .2rem 0;
-  border-bottom: 2px solid transparent;
+  padding: .35rem .6rem;
+  border-radius: 6px;
+  border-inline-start: 2px solid transparent;
   white-space: nowrap;
 }
 
-nav.site a:hover { color: var(--ink); }
+nav.site a:hover { color: var(--ink); background: var(--code-bg); }
 
 nav.site a[aria-current="page"] {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+  font-weight: 600;
+  border-inline-start-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* 繁簡切換 */
@@ -486,7 +506,7 @@ tbody tr:last-child td { border-bottom: 0; }
    不然下面的會蓋到上面的。 */
 .zg-jump {
   position: sticky;
-  top: 3.4rem;                        /* 讓開頁首 */
+  top: 0;                             /* 導覽在左側，上方沒有東西要讓開 */
   z-index: 5;
   display: flex;
   flex-wrap: nowrap;
@@ -517,7 +537,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* .zg-h / .zg-letter 已不再使用：字母改成表格最左邊的欄，不再每個字母一條標題。
    保留 .zg-key 的樣式，字母欄和辨析表都還在用。 */
-.zg-tbl tbody tr { scroll-margin-top: 8.5rem; }   /* 跳轉時讓開三層黏頂 */
+.zg-tbl tbody tr { scroll-margin-top: 5rem; }   /* 讓開 A–Z 列 ＋ 表頭 */
 
 .zg-h {
   display: flex;
@@ -601,7 +621,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .zg-tbl thead th {
   position: sticky;
-  top: 5.9rem;                        /* 讓開頁首 3.4rem ＋ A–Z 列約 2.5rem */
+  top: 2.5rem;                        /* 只需讓開上面那條 A–Z 列 */
   z-index: 3;                         /* 低於 A–Z 列（5），高於內容 */
   background: var(--code-bg);         /* 不透明，否則捲動時會透出下面的列 */
 }
@@ -930,4 +950,40 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 @media (max-width: 34rem) {
   .zg-exsvg { width: 1.8rem; height: 1.8rem; }
+}
+
+
+/* ---------- 窄螢幕：導覽改回頂部橫列 ----------
+   側邊欄在手機上會吃掉一半可用寬度，所以在這個斷點還原成原本的橫列。
+   字根表那幾層黏頂的 top 也要跟著改回讓開頁首的值。 */
+@media (max-width: 52rem) {
+  .topbar {
+    position: sticky;
+    inset: 0 auto auto 0;
+    width: auto;
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: visible;
+  }
+
+  .topbar .wrap {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.1rem;
+    padding: .5rem 1.4rem;
+    min-height: 3.4rem;
+    flex-wrap: wrap;
+  }
+
+  nav.site { flex-direction: row; width: auto; gap: 1rem; margin-inline-end: auto; }
+  nav.site a { padding: .2rem 0; border-radius: 0; border-inline-start: 0;
+               border-bottom: 2px solid transparent; }
+  nav.site a[aria-current="page"] { background: none; border-bottom-color: var(--accent); }
+  .brand .en { display: inline; margin-inline-start: .45em; }
+
+  body { padding-inline-start: 0; }
+
+  .zg-jump { top: 3.4rem; }
+  .zg-tbl thead th { top: 5.9rem; }
+  .zg-tbl tbody tr { scroll-margin-top: 8.5rem; }
 }
