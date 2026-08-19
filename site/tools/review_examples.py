@@ -105,11 +105,11 @@ body { padding: 1.5rem 1.4rem 6rem; }
 <h1>例字編輯</h1>
 <p class="hint">點任何一列的「字例」欄就可以直接打字，用空格分隔。每個字會即時畫出來並把
 該字根的筆畫標成橙色 —— 沒標到色就代表<b>那個字沒有用到這個字根</b>，旁邊會標紅字。
-改過的列會框起來。改完把底下那一格的內容貼進 <code>site/content/examples.md</code>。</p>
+改過的列會框起來。改完按<b>儲存</b>就會直接寫進 <code>site/content/examples.md</code>（要用 <code>preview.py</code> 開這一頁才有這個功能）。</p>
 <div id="t"></div></div>
 <div class="out"><div class="row"><b>examples.md</b>
 <span id="cnt" class="hint"></span>
-<button id="copy">複製</button><button id="reset">全部還原</button></div>
+<button id="save"><b>儲存到 examples.md</b></button><button id="copy">複製</button><button id="reset">全部還原</button></div>
 <textarea id="out" readonly></textarea></div>
 <script src="examples.js"></script></body></html>"""
 

@@ -480,6 +480,41 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
 
             # 原形先、衍生後（倉頡的輔助字形表也是這個順序）。整個字構成的字根就是原形，
             # 先看到「日」再看到「提 的第 4–7 筆」才讀得懂；純照 count 排會把衍生形頂到最前面。
+            # 「字根」欄改用**第一個例字**當代表字（Wilson 2026-08-19）。
+            # 例字已經照單純度排過，第一個就是最能說明這個形狀的字：zigen.json 說
+            # 「資 第 7–10 筆」，但例字第一個是 目，寫成「目 第 1–4 筆」好懂得多。
+            #
+            # 只在**該例字裡這個字根只出現一次**時改（segs 長度為 1），否則筆序不唯一。
+            # 原本的來源字保留在 src0 欄，需要時查得回去。
+            for sh in shapes:
+                first = (sh["ex"] or [None])[0]
+                if not first or len(first.get("segs") or []) != 1:
+                    continue
+                if first["c"] == sh["src"]:
+                    continue
+
+                # ⚠️ 第一個例字是**筆畫最少**的，那不等於**最能代表這個形狀**。
+                # 直接換會產生 第→汽（竹字頭找不到人會想到 汽）、的→芍、岛→鸟（簡體）。
+                # 所以加兩道門檻，只換真正更好的：
+                #   1. 新的代表字要在教育部甲表 —— 不要拿異體字或簡體專屬字當代表
+                #   2. 字根要佔新代表字的 60% 以上 —— 「這個字大致上就是這個形狀」。
+                #      目 4/5=80% 過；汽 3/7=43%、芍 3/6=50% 不過。
+                cand, cst = first["c"], list(first["segs"][0])
+                tot = nstrokes.get(cand)
+                if standard and cand not in standard:
+                    continue
+                if not tot or len(cst) / tot < 0.6:
+                    continue
+                # 也要比現在的代表字更「像」才換
+                cur_tot = nstrokes.get(sh["src"])
+                if cur_tot and len(sh["st"]) / cur_tot >= len(cst) / tot:
+                    continue
+
+                sh["src0"], sh["st0"] = sh["src"], sh["st"]
+                sh["src"] = cand
+                sh["st"] = cst
+                sh["span"] = span(cand, cst)
+
             shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
                            "shapes": shapes})

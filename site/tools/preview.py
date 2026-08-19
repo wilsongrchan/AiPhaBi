@@ -17,6 +17,27 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class NoCache(http.server.SimpleHTTPRequestHandler):
+    def do_POST(self):
+        """例字編輯頁的「儲存」：直接寫回 site/content/examples.md。
+
+        瀏覽器不能寫檔，但這台伺服器可以 —— 省掉「複製再貼回檔案」那一步。
+        只接受這一個路徑、只寫這一個檔，不做別的。
+        """
+        if self.path != "/_review/save":
+            self.send_error(404)
+            return
+        n = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(n).decode("utf-8")
+        target = ROOT / "content" / "examples.md"
+        text = target.read_text("utf-8")
+        marker = "# ↓↓↓ 寫在這裡 ↓↓↓"
+        head = text.split(marker)[0] + marker + "\n"
+        target.write_text(head + "\n" + body.rstrip() + "\n", "utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(f"已寫入 {target}".encode("utf-8"))
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store, must-revalidate")
         self.send_header("Pragma", "no-cache")

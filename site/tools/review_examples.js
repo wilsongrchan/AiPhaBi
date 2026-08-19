@@ -138,6 +138,23 @@
     document.getElementById('cnt').textContent = lines.length ? lines.length + ' 列已改' : '還沒有改動';
   }
 
+  /* 儲存：直接 POST 回本機的 preview.py，由它寫進 site/content/examples.md。
+   * 瀏覽器不能寫檔，但那台伺服器可以 —— 省掉「複製再貼回檔案」那一步。 */
+  document.getElementById('save').addEventListener('click', function () {
+    var b = this, body = document.getElementById('out').value;
+    b.textContent = '儲存中…';
+    fetch('/_review/save', { method: 'POST', body: body })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function () {
+        b.textContent = '已儲存 ✓';
+        setTimeout(function () { b.textContent = '儲存到 examples.md'; }, 1800);
+      })
+      .catch(function () {
+        b.textContent = '儲存失敗（是用 preview.py 開的嗎？）';
+        setTimeout(function () { b.textContent = '儲存到 examples.md'; }, 2600);
+      });
+  });
+
   document.getElementById('copy').addEventListener('click', function () {
     var ta = document.getElementById('out');
     ta.select(); document.execCommand('copy');
