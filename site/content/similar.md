@@ -9,7 +9,7 @@
 
 ```bash
 python3 site/tools/build_site_data.py
-python3 -m http.server 8099 --directory site
+python3 site/tools/preview.py
 ```
 
 **下面八組是從 Google Doc 抓下來的原文**（前四組 2026-08-17，後四組同日稍晚更新），
