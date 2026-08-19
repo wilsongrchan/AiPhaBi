@@ -184,7 +184,7 @@ nav.site a[aria-current="page"] {
 
 /* ---------- 主體 ---------- */
 
-main { padding: 3rem 0 5rem; }
+main { padding: 3rem 0 4rem; }   /* 下方留白主要由 footer 提供，見下方 */
 
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
@@ -794,10 +794,13 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* 頁尾只剩一行版權，但仍然要留白 —— 內容緊貼視窗底端會像是被裁掉的。
    上面的分隔線改成淡一點，一行字不需要被框起來。 */
+/* 頁尾只有一行字，所以留白要自己撐起來，不然整頁會像被裁掉。
+   分隔線上方 4rem（＋ main 自己的 4rem）＝ 內容與線之間 8rem；
+   線到文字 2.5rem；文字之下 7rem，捲到底時字不會黏在視窗邊緣。 */
 footer {
   border-top: 1px solid var(--line);
-  margin-top: 3.5rem;
-  padding: 1.4rem 0 4rem;
+  margin-top: 4rem;
+  padding: 2.5rem 0 7rem;
   color: var(--ink-dim);
   font-size: .82rem;
 }
