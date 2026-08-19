@@ -68,7 +68,9 @@
     // 顯示尺寸取 bbox 的平方根，不是固定值也不是線性：viewBox 已經裁到字根本身，
     // 固定 2rem 會把一筆的「點」撐得又大又粗、把六筆的部件縮得又小又細。線性縮放
     // 則會讓兩者差到三倍。開根號把差距壓到肉眼可接受，又保留「筆畫多的略大」。
-    var px = Math.max(16, Math.min(40, Math.round(1 + 0.98 * Math.sqrt(s))));
+    // 尺寸區間跟著整體密度一起縮（原本 16–40）——列高是這一頁最貴的東西，
+    // 倉頡的〈輔助字形列表〉同樣高度可以放 20 列，我們原本只放得下 12 列。
+    var px = Math.max(13, Math.min(28, Math.round(1 + 0.78 * Math.sqrt(s))));
     return '<svg class="zg-svg" viewBox="' + (cx - s / 2) + ' ' + (cy - s / 2) + ' ' + s + ' ' + s +
       '" width="' + px + '" height="' + px + '" aria-hidden="true">' +
       '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
