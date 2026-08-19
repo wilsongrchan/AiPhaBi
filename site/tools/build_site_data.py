@@ -693,12 +693,18 @@ def main():
             for sh in g["shapes"]:
                 for e in sh["ex"]:
                     glyph_chars.add(e["c"])
-    # 辨析表裡寫成「石#1,2」的字根也要畫得出來
+    # 辨析表用到的字全部收進來 —— 形、例字都要能畫。先前只收了寫成「石#1,2」
+    # 那種的來源字，於是只出現在辨析表裡的字（朋、涯、督、俱…）沒有字形資料，
+    # 在頁面上退回用系統字型顯示，跟旁邊畫出來的字混在一起很不一致。
     for grp in zg["similar"]:
         for item in grp["items"]:
             m = re.match(r"^(.)#[\d,、\s]+$", item["shape"])
             if m:
                 glyph_chars.add(m.group(1))
+            elif len(item["shape"]) == 1:
+                glyph_chars.add(item["shape"])      # 形本身就是一個字（日、月、丶…）
+            for e in item["ex"]:
+                glyph_chars.add(e["c"])
     # 手挑清單裡有沒有寫錯字母／來源字，對不到任何一個字根的要講出來
     # 代表字可能已經被「顯示層改用第一個例字」換過（提 → 旦），而手挑清單是照
     # **原本的**代表字比對的。所以兩個都算數，否則會誤報「找不到這個字根」。

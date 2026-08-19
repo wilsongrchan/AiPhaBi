@@ -335,7 +335,9 @@
       var tw = el('div', 'tablewrap');
       var t = el('table', 'zg-simtbl');
       var thead = el('thead'), hr = el('tr');
-      ['形', '字母', '例字', '特徵'].forEach(function (h) {
+      // 例字放最右邊（Wilson）：形 → 字母 → 特徵 → 例字，
+      // 讀的順序是「這個形狀、取什麼碼、怎麼分辨」，例字是佐證放在最後。
+      ['形', '字母', '特徵', '例字'].forEach(function (h) {
         hr.appendChild(el('th', null, h));
       });
       thead.appendChild(hr); t.appendChild(thead);
@@ -356,6 +358,16 @@
             sg = el('span', 'zg-icon');
             sg.innerHTML = svg;
             sg.title = ref[1] + '　第 ' + ref[2] + ' 筆';
+          }
+        } else if (!ref && GLYPHS && GLYPHS[it.shape] && Array.from(it.shape).length === 1) {
+          // 形本身就是一個字（日、月、丶、乚…）：也用 makemeahanzi 畫，
+          // 不要一半用畫的一半用系統字型 —— 兩種字形混在同一欄很不一致。
+          var all = GLYPHS[it.shape].map(function (_, i) { return i; });
+          var svg2 = rootIconSvg(GLYPHS[it.shape], all);
+          if (svg2) {
+            sg = el('span', 'zg-icon');
+            sg.innerHTML = svg2;
+            sg.title = it.shape;
           }
         }
         if (!sg) {
@@ -387,11 +399,11 @@
 
         // 例字是 {c, st} 物件（st = 該字裡屬於這個字母的筆畫），不是純字串——
         // 交給 exampleGlyph 畫成有高亮的字，跟字根表那邊同一個函式。
+        tr.appendChild(withLinks(it.trait, el('td', 'zg-trait')));
+
         var c2 = el('td', 'zg-ex');
         it.ex.forEach(function (e) { c2.appendChild(exampleGlyph(e, '')); });
         tr.appendChild(c2);
-
-        tr.appendChild(withLinks(it.trait, el('td', 'zg-trait')));
         tb.appendChild(tr);
       });
       t.appendChild(tb); tw.appendChild(t); card.appendChild(tw);
