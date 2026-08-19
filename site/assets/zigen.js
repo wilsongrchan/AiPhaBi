@@ -66,21 +66,25 @@
       }
     }
     if (x1 < x0) return null;
+
+    // viewBox 的**大小固定成整個字身框（1024）**，只移動位置把字根置中。
+    // 這樣字根欄的黑色字根，跟字例欄裡同一個形狀的橙色部分是**同一個比例**——
+    // 先前是裁切到字根自己的邊界再放大，於是每個字根各自放大不同倍率：
+    // 兩筆的字根被撐得很大、六筆的偏小（然 明顯比 月 小就是這樣來的），
+    // 而且跟字例欄裡的大小完全對不上。置中則解決「貓 的字根偏在上方」。
+    // 框的大小預設就是整個字身框（1024），字根因此跟字例欄裡同一個形狀等比例。
+    // 唯一的例外是**很小的字根**（一點、一撇）：照原比例畫只有 4px，等於看不見。
+    // 所以設一個下限——不足 45% 的才放大到 45%，其餘（含 月，佔 5–9 成）完全不動，
+    // 維持與字例欄一模一樣的大小。
     var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    var s = Math.max(x1 - x0, y1 - y0) + ROOT_PAD * 2;
+    var span = Math.max(x1 - x0, y1 - y0);
+    var BOX = Math.min(1024, span / 0.45) || 1024;
     var paths = '';
     for (var j = 0; j < sel.length; j++) {
       if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
     }
-    // 顯示尺寸取 bbox 的平方根，不是固定值也不是線性：viewBox 已經裁到字根本身，
-    // 固定 2rem 會把一筆的「點」撐得又大又粗、把六筆的部件縮得又小又細。線性縮放
-    // 則會讓兩者差到三倍。開根號把差距壓到肉眼可接受，又保留「筆畫多的略大」。
-    // 尺寸區間跟著整體密度一起縮（原本 16–40）——列高是這一頁最貴的東西，
-    // 倉頡的〈輔助字形列表〉同樣高度可以放 20 列，我們原本只放得下 12 列。
-    var px = Math.max(13, Math.min(28, Math.round(1 + 0.78 * Math.sqrt(s))));
-    px = Math.round(px * (SCALE[sizeName] || 1));
-    return '<svg class="zg-svg" viewBox="' + (cx - s / 2) + ' ' + (cy - s / 2) + ' ' + s + ' ' + s +
-      '" width="' + px + '" height="' + px + '" aria-hidden="true">' +
+    return '<svg class="zg-svg" viewBox="' + (cx - BOX / 2) + ' ' + (cy - BOX / 2) +
+      ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
       '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
   }
 
@@ -417,8 +421,7 @@
       b.setAttribute('aria-pressed', String(b.dataset.size === sizeName));
     });
     try { localStorage.setItem(SIZE_KEY, sizeName); } catch (e) { /* 無痕模式 */ }
-    // 字根圖示的尺寸寫在屬性上，只有重畫才會跟著變
-    if (redraw && DATA) { render(lastFilter); renderSimilar(DATA.similar); }
+    // 尺寸現在全由 CSS 的 --zg-scale 決定（圖示不再寫死 px），不必重畫
   }
 
   document.querySelectorAll('.zg-size button').forEach(function (b) {

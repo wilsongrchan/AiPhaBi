@@ -624,6 +624,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .zg-shapecell { white-space: nowrap; width: 1%; }
 
 .zg-shape { display: inline-flex; align-items: center; gap: .28rem; }
+/* 圖示欄固定寬度，字根才會垂直對齊成一直排，而不是隨形狀寬窄左右跳 */
+.zg-shape > .zg-icon { flex: 0 0 calc(1.55rem * var(--zg-scale)); }
 
 /* 取自哪個字。刻意不放大到像「這就是字根」—— 字根只是它的其中幾筆 */
 .zg-src {
@@ -636,12 +638,15 @@ tbody tr:last-child td { border-bottom: 0; }
 .zg-src.is-desc { font-size: .84rem; font-family: inherit; color: var(--ink); }
 
 /* 畫出來的字根本身。有圖之後，來源字退成小字註記——圖才是主角 */
-.zg-icon { display: inline-flex; align-items: center; }
+.zg-icon { display: inline-flex; align-items: center; justify-content: center; }
 
-/* 尺寸由 zigen.js 逐個算好寫在 width/height 屬性上（開根號縮放），
- * 這裡不要再寫死 —— 寫死就等於把裁切過的 viewBox 全部拉成同一個大小，
- * 一筆的「點」會變得又大又粗、六筆的部件又小又細。 */
-.zg-svg { display: block; }
+/* 跟字例欄的字**同尺寸**：兩邊都是 1024 的字身框畫在同樣大小的方框裡，
+ * 所以同一個形狀在兩欄看起來一樣大。字根欄只是把該字根置中而已。 */
+.zg-svg {
+  display: block;
+  width: calc(1.55rem * var(--zg-scale));
+  height: calc(1.55rem * var(--zg-scale));
+}
 
 .zg-svg path {
   fill: var(--ink);
