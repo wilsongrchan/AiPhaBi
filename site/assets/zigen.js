@@ -334,7 +334,9 @@
           sg = glyph(ref ? ref[1] + ' 第 ' + ref[2] + ' 筆' : it.shape, 'zg-src');
           if (Array.from(sg.textContent).length > 2) sg.classList.add('is-desc');
         }
-        var target = findZigenRow(it.letter, it.ex);
+        // it.ex 是 {c, st} 物件，findZigenRow 比對的是字元 —— 要先取出 c，
+        // 不然每次比對都不相等，連結會全部靜靜地失效
+        var target = findZigenRow(it.letter, it.ex.map(function (e) { return e.c; }));
         if (target) {
           var link = el('a', 'zg-simlink');
           link.href = '#' + target;
@@ -354,8 +356,10 @@
         c1.appendChild(k);
         tr.appendChild(c1);
 
+        // 例字是 {c, st} 物件（st = 該字裡屬於這個字母的筆畫），不是純字串——
+        // 交給 exampleGlyph 畫成有高亮的字，跟字根表那邊同一個函式。
         var c2 = el('td', 'zg-ex');
-        it.ex.forEach(function (ch) { c2.appendChild(glyph(ch)); });
+        it.ex.forEach(function (e) { c2.appendChild(exampleGlyph(e, '')); });
         tr.appendChild(c2);
 
         tr.appendChild(withLinks(it.trait, el('td', 'zg-trait')));
