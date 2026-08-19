@@ -189,7 +189,7 @@ nav.site a[aria-current="page"] {
 /* ⚠️ 一定要寫成 main.wrap：<main> 同時掛著 class="wrap"，而 .wrap 有
    padding: 0 1.4rem。類別選擇器的權重高過元素選擇器，所以單寫 main { padding }
    會被 .wrap 的 0 蓋掉，怎麼調都沒反應 —— 這個坑踩過一次。 */
-main.wrap { padding-block: 5.5rem 3rem; }
+main.wrap { padding-block: 3rem 2.5rem; }
 
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
@@ -806,8 +806,8 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 同上：footer 也掛著 wrap，所以要寫 footer.wrap 才蓋得過 .wrap 的 padding: 0 */
 footer.wrap {
   border-top: 1px solid var(--line);
-  margin-top: 5rem;
-  padding-block: 2.5rem 7rem;
+  margin-top: 3.5rem;
+  padding-block: 1.8rem 5rem;
   color: var(--ink-dim);
   font-size: .82rem;
 }
