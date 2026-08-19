@@ -782,11 +782,14 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* ---------- 頁尾 ---------- */
 
+/* 頁尾只剩一行版權，但仍然要留白 —— 內容緊貼視窗底端會像是被裁掉的。
+   上面的分隔線改成淡一點，一行字不需要被框起來。 */
 footer {
   border-top: 1px solid var(--line);
-  padding: 2rem 0 3rem;
+  margin-top: 3.5rem;
+  padding: 1.4rem 0 4rem;
   color: var(--ink-dim);
-  font-size: .88rem;
+  font-size: .82rem;
 }
 
 footer p { max-width: none; margin: 0 0 .4rem; }
