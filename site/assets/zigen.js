@@ -323,8 +323,9 @@
     body.textContent = '';
 
     groups.forEach(function (g) {
+      // 各組不再顯示標題（Wilson）——表格本身已經說明是在比什麼，
+      // 標題只是重複一次字母組合。
       var card = el('div', 'zg-sim');
-      card.appendChild(el('h3', null, g.title));
 
       var tw = el('div', 'tablewrap');
       var t = el('table', 'zg-simtbl');
