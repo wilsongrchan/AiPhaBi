@@ -672,7 +672,20 @@ def main():
                         continue
                     used.add((L["letter"], src, tuple(sorted(st or []))))
                     used.add((L["letter"], src, None))
+    # 手挑的鍵必須是 zigen.json **原本的**代表字。用顯示用的代表字寫（例如把
+    # 「A 會」寫成「A 太」）雖然在 used 裡找得到、不會報「找不到字根」，但比對是在
+    # 換代表字之前做的，那條手挑其實不會生效 —— 靜靜地沒作用是最糟的失敗方式。
+    display_only = set()
+    for L in zg["letters"]:
+        for grp in L["groups"]:
+            for sh in grp["shapes"]:
+                if sh.get("src0") and sh["src0"] != sh["src"]:
+                    display_only.add((L["letter"], sh["src"]))
     for key in picks:
+        if (key[0], key[1]) in display_only:
+            warn.append(f"{key[0]} {key[1]}：這是**顯示用**的代表字，手挑要寫原本的那個"
+                        f"（這一條不會生效）")
+            continue
         if key not in used:
             st = "#" + ",".join(str(i + 1) for i in key[2]) if key[2] else ""
             warn.append(f"{key[0]} {key[1]}{st}：找不到這個字根（字母或來源字寫錯？或已被合併）")
