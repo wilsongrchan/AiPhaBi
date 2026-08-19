@@ -64,6 +64,12 @@ def main():
                     "L": L["letter"], "desc": g["desc"], "src": sh["src"],
                     "st": sh["st"], "span": sh["span"],
                     "ex": [e["c"] for e in sh["ex"]],
+                    # ⚠️ key 一定要用 zigen.json 原本的代表字（src0），不能用顯示用的 src。
+                    # 顯示用的代表字會隨「改用第一個例字」而變（第 → 笑），一變
+                    # localStorage 和 examples.md 的鍵就對不上，先前存的挑選會整批
+                    # 變成「沒改過」，再存一次就把它們洗掉。2026-08-19 真的發生過。
+                    "key_src": sh.get("src0") or sh["src"],
+                    "key_st": sh.get("st0") or sh["st"],
                 })
 
     # 「哪幾筆已經被別的字根認領走」——編輯頁要用它才不會把同一個字裡屬於別的

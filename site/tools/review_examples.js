@@ -9,7 +9,13 @@
   try { edits = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { edits = {}; }
 
   function el(t, c, x) { var n = document.createElement(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; }
-  function key(r) { return r.L + ' ' + r.src + '#' + r.st.map(function (i) { return i + 1; }).join(','); }
+  /* key 用 zigen.json 原本的代表字，不用畫面上顯示的那個 —— 顯示用的會隨
+   * 「改用第一個例字」而變（第 → 笑），一變就跟先前存的挑選對不上，
+   * 存檔時會把它們洗掉。examples.md 的比對也是照原本的代表字做的。 */
+  function key(r) {
+    return r.L + ' ' + (r.key_src || r.src) + '#' +
+      (r.key_st || r.st).map(function (i) { return i + 1; }).join(',');
+  }
 
   /* 這個字裡哪幾段屬於**這一列的**字根。跟 build_site_data.py 同一套消歧規則：
    *   1. 打的字就是這一列的來源字 → 直接用這一列自己的筆序
@@ -149,8 +155,9 @@
       var k = key(r);
       if (edits[k] === undefined) return;
       // 同一字母下來源字唯一時就不用寫筆序，跟 examples.md 的格式一致
-      var same = D.rows.filter(function (o) { return o.L === r.L && o.src === r.src; });
-      lines.push((same.length > 1 ? k : r.L + ' ' + r.src) + ' = ' + edits[k]);
+      var ks = r.key_src || r.src;
+      var same = D.rows.filter(function (o) { return o.L === r.L && (o.key_src || o.src) === ks; });
+      lines.push((same.length > 1 ? k : r.L + ' ' + ks) + ' = ' + edits[k]);
     });
     document.getElementById('out').value = lines.join('\n');
     document.getElementById('cnt').textContent = lines.length ? lines.length + ' 列已改' : '還沒有改動';
