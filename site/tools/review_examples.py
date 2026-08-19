@@ -86,7 +86,10 @@ PAGE = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <title>例字編輯 · 字根表</title>
 <link rel="stylesheet" href="../assets/site.css">
 <style>
-body { padding: 1.5rem 1.4rem 6rem; }
+body { padding: 1.5rem 1.4rem 8rem; }
+/* 這一頁沒有頁首、也沒有 A–Z 列，但 site.css 的表頭 top 是照那兩層算的（5.9rem），
+   照抄會讓表頭黏在畫面往下 5.9rem 的地方。這裡蓋掉成 0。 */
+.zg-tbl thead th { top: 0 !important; z-index: 6; }
 .wrap { max-width: 62rem; }
 .hint { color: var(--ink-dim); font-size: .88rem; max-width: 40rem; }
 .ed { min-width: 8rem; outline: none; }
