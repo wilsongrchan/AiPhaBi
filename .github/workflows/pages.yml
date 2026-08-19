@@ -80,6 +80,11 @@ jobs:
             echo "::warning::glyphs.json 沒產出來，字根表會是純文字版"
           fi
 
+      # _review/ 是內部審查工具（代表字對照頁），不該出現在公開網站上。
+      # 它已經 gitignore，CI 上本來就不會有；這一步是保險，避免哪天有人不小心提交進來。
+      - name: 移除內部審查頁
+        run: rm -rf site/_review
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

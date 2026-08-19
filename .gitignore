@@ -58,3 +58,6 @@ site/assets/zigen.json
 # 授權三項義務見 site/tools/build_site_data.py 的 build_glyphs()，以及 site/ARPHICPL.txt。
 site/.cache/
 site/assets/glyphs.json
+
+# 內部審查用的對照頁（site/tools/review_sources.py 產生），不進版控也不發佈
+site/_review/
