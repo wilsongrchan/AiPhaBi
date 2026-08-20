@@ -75,7 +75,6 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `xq` → 戈叉弋处
 * `ye` → 全任仨钅
 * `yfvjt` → 鎳銖鑠釺
-* `a` → 夕勺亼
 * `b` → 日曰㠯
 * `bt` → 果早杲
 * `cj` → 力刀尸
@@ -84,6 +83,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `ej` → 尹丰玎
 * `ekz` → 退逮逯
 * `gma` → 約紂紈
+* `h` → 廿艹廾
 
 ## iOS（仓／Hamster）
 
