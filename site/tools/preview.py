@@ -48,11 +48,32 @@ class NoCache(http.server.SimpleHTTPRequestHandler):
         pass                                  # 安靜一點，只在啟動時印一行
 
 
+def lan_ip():
+    """本機在區域網路上的位址，給同一個 Wi-Fi 的手機用。"""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))          # 不會真的送封包，只是問路由要用哪個介面
+        return s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8099
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    lan = "--lan" in sys.argv                # 開放給同網段的手機看
+    port = int(args[0]) if args else 8099
+    host = "0.0.0.0" if lan else "127.0.0.1"
     handler = functools.partial(NoCache, directory=str(ROOT))
-    with http.server.ThreadingHTTPServer(("127.0.0.1", port), handler) as httpd:
+    with http.server.ThreadingHTTPServer((host, port), handler) as httpd:
         print(f"預覽： http://localhost:{port}/zigen.html   （Ctrl-C 停止）")
+        if lan:
+            ip = lan_ip()
+            print(f"手機： http://{ip}:{port}/zigen.html   （同一個 Wi-Fi）"
+                  if ip else "  找不到區域網路位址")
+            print("  ⚠️ --lan 會讓同網段的裝置都連得到，用完就關掉")
         print("已關閉快取，一般的重新整理就會拿到最新的 CSS／JS")
         httpd.serve_forever()
 
