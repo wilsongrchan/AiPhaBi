@@ -820,6 +820,18 @@ tbody tr:last-child td { border-bottom: 0; }
 .zg-simtbl .zg-trait { overflow-wrap: break-word; }
 .zg-simtbl .zg-ex { line-height: 1.3; }
 
+/* 說明文字裡就地畫出來的字根（{目#1,2,3,4}）—— 跟文字對齊、大小相稱 */
+.zg-inline {
+  display: inline-block;
+  vertical-align: -.28em;
+  margin: 0 .1em;
+}
+.zg-inline .zg-svg {
+  width: 1.35em;
+  height: 1.35em;
+}
+.zg-inline svg path { fill: var(--ink); }
+
 @media (max-width: 40rem) {
   .zg-simtbl thead th:nth-child(1) { width: 3.4rem; }
   .zg-simtbl thead th:nth-child(2) { width: 4rem; }

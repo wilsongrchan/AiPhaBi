@@ -272,6 +272,69 @@
    * 辨析是手寫的，沒有指明對應哪一個字根，所以用**例字重疊**去猜：辨析那一條列的
    * 例字（會、時、的）跟字根表裡某個字根的 seen 重疊最多，就是它。猜不到就不連，
    * 連錯比沒連糟 —— 讀者會跳到一個不相干的字根然後以為自己理解錯了。 */
+  /* 直接用「形」欄本身去找字根表那一列 —— 形若寫成「石#1,2」就直接指明了
+   * (字母, 來源字, 筆序)，比拿例字去猜可靠得多；形若是單一個字（日、月）則
+   * 找該字母底下以那個字為代表字的列。找不到才退回例字重疊的猜法。 */
+  function rowByShape(letter, shape) {
+    var m = (letter || '').match(/[A-Z]/);
+    if (!m || !DATA) return null;
+    var L = null;
+    for (var i = 0; i < DATA.letters.length; i++) {
+      if (DATA.letters[i].letter === m[0]) { L = DATA.letters[i]; break; }
+    }
+    if (!L) return null;
+
+    var ref = /^(.)#([\d,、\s]+)$/.exec(shape);
+    var src = ref ? ref[1] : shape;
+    var st = ref ? ref[2].split(/[,、\s]+/).filter(Boolean).map(function (n) { return +n - 1; }) : null;
+
+    var loose = null;
+    for (var gi = 0; gi < L.groups.length; gi++) {
+      var shapes = L.groups[gi].shapes;
+      for (var si = 0; si < shapes.length; si++) {
+        var sh = shapes[si];
+        var hit = sh.src === src || (sh.src0 && sh.src0 === src);
+        if (!hit) continue;
+        // 有寫筆序就要對得上；沒寫就取第一個同來源字的
+        if (st && sh.st && st.join(',') === sh.st.join(',')) {
+          return 'Z' + L.letter + '-' + sh.src + '-' + sh.span;
+        }
+        if (!loose) loose = 'Z' + L.letter + '-' + sh.src + '-' + sh.span;
+      }
+    }
+    return loose;
+  }
+
+  /* 第二順位：特徵文字裡是否含有某個取形意圖的敘述。辨析的特徵常常就是照著
+   * 意圖敘述寫的（「不能寫成捺的點劃」），比拿例字去猜準得多。 */
+  function rowByTrait(letter, trait) {
+    var m = (letter || '').match(/[A-Z]/);
+    if (!m || !DATA || !trait) return null;
+    var L = null;
+    for (var i = 0; i < DATA.letters.length; i++) {
+      if (DATA.letters[i].letter === m[0]) { L = DATA.letters[i]; break; }
+    }
+    if (!L) return null;
+    // 兩個方向都比：意圖敘述的開頭出現在特徵裡，或特徵的開頭出現在意圖敘述裡。
+    // 乚 的特徵是「豎彎鉤，收筆…」，而 L1 是「豎折、豎彎鉤、或豎提…」——
+    // 只比前者的方向會漏掉，因為關鍵詞在敘述的中間。取最長的相符當結果。
+    var head = trait.replace(/^[^\u4e00-\u9fff]*/, '').slice(0, 6);
+    var best = null, bestLen = 0;
+    L.groups.forEach(function (g) {
+      var d = (g.desc || '').replace(/[，。]$/, '');
+      if (d.length < 3) return;
+      for (var n = Math.min(6, d.length); n >= 3; n--) {
+        if (trait.indexOf(d.slice(0, n)) >= 0 && n > bestLen) { bestLen = n; best = g; break; }
+      }
+      for (var k = Math.min(6, head.length); k >= 3; k--) {
+        if (d.indexOf(head.slice(0, k)) >= 0 && k > bestLen) { bestLen = k; best = g; break; }
+      }
+    });
+    if (!best) return null;
+    var sh = best.shapes[0];
+    return 'Z' + L.letter + '-' + sh.src + '-' + sh.span;
+  }
+
   function findZigenRow(letter, examples) {
     // 取碼欄可能是「DI（D）」，取第一個 A–Z 當字母
     var m = (letter || '').match(/[A-Z]/);
@@ -306,12 +369,31 @@
   /* trait／note 裡允許 [文字](連結) —— Wilson 要把「按原則略過」連到取碼原則頁，
    * 但那一頁還沒有。與其我猜一個網址，不如讓他自己在 similar.md 裡寫。 */
   function withLinks(text, into) {
-    var re = /\[([^\]]+)\]\(([^)]+)\)/g, last = 0, m;
+    // 支援兩種內嵌語法：
+    //   [文字](連結)   —— 一般連結
+    //   {字#筆序}      —— 就地畫出那幾筆的字根（例如 {目#1,2,3,4}）
+    // 後者是為了讓說明可以直接指著形狀講，而不是留一對空引號讓人猜。
+    var re = /\[([^\]]+)\]\(([^)]+)\)|\{(.)#([\d,、\s]+)\}/g, last = 0, m;
     while ((m = re.exec(text))) {
       if (m.index > last) into.appendChild(document.createTextNode(text.slice(last, m.index)));
-      var a = el('a', null, m[1]);
-      a.href = m[2];
-      into.appendChild(a);
+      if (m[1]) {
+        var a = el('a', null, m[1]);
+        a.href = m[2];
+        into.appendChild(a);
+      } else {
+        var src = m[3];
+        var sel = m[4].split(/[,、\s]+/).filter(Boolean).map(function (n) { return +n - 1; });
+        var svg = GLYPHS && GLYPHS[src] ? rootIconSvg(GLYPHS[src], sel) : null;
+        if (svg) {
+          var sp = el('span', 'zg-inline');
+          sp.innerHTML = svg;
+          sp.title = src + '　第 ' + m[4] + ' 筆';
+          sp.setAttribute('data-keep', '');
+          into.appendChild(sp);
+        } else {
+          into.appendChild(document.createTextNode(src + '第' + m[4] + '筆'));
+        }
+      }
       last = m.index + m[0].length;
     }
     if (last < text.length) into.appendChild(document.createTextNode(text.slice(last)));
@@ -377,7 +459,11 @@
         }
         // it.ex 是 {c, st} 物件，findZigenRow 比對的是字元 —— 要先取出 c，
         // 不然每次比對都不相等，連結會全部靜靜地失效
-        var target = findZigenRow(it.letter, it.ex.map(function (e) { return e.c; }));
+        // 先用形本身找（精確），找不到才退回例字重疊的猜法
+        // 三段式，依可靠度排序：形本身（精確）→ 特徵文字對意圖敘述 → 例字重疊
+        var target = rowByShape(it.letter, it.shape) ||
+                     rowByTrait(it.letter, it.trait) ||
+                     findZigenRow(it.letter, it.ex.map(function (e) { return e.c; }));
         if (target) {
           var link = el('a', 'zg-simlink');
           link.href = '#' + target;
