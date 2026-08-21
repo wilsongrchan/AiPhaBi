@@ -2,8 +2,8 @@
    ⚠️ 主色原本是橙色，刻意沿用鼠鬚管配色（squirrel.custom.yaml 的高亮色），讓網站跟
    實際打字畫面看起來是同一套東西。2026-08-21 依 Wilson 決定改成深青 #0e7c73（理由見
    --accent 旁邊的註解），**這條對應關係就斷了** —— 網站是青的、輸入法候選窗還是橙的。
-   要接回去得改 rime/ 底下的 squirrel.custom.yaml，那是 Side B 的檔案，Side C 不能動，
-   得回報給 Side B。在那之前兩邊顏色不一致是已知的、Wilson 知情的狀態。
+   Wilson 決定就這樣：網站和輸入法不必同色 —— 鼠鬚管只是承載愛發筆的一個介面，
+   不是這個專案的一部分。**所以這不是待辦事項，不用回報給 Side B、也不要「修好」它。**
    所有路徑都用相對路徑：GitHub Pages 是專案站，網址在 /AiPhaBi/ 底下，絕對路徑會全部失效。 */
 
 :root {
@@ -32,6 +32,22 @@
   --accent-3: #06322e;
   --accent-soft: #eef6f5;
   --code-bg: #ecf4f3;
+  /* 字例圖示專用的一組：高亮的筆畫、和沒高亮的底色筆畫。
+     跟 --accent 分開，因為兩者的需求相反 —— --accent 要當標題和連結的文字色，
+     必須夠深才讀得清楚；這裡是又細又小的筆畫，要的是「一眼看出哪幾筆是字根」，
+     靠的是跟灰筆畫的差距。
+
+     ⚠️ 調這一組的時候，兩個值要一起看：把綠調亮會**縮小**它跟灰的明度差。
+     實測 #14b8aa 配原本的灰只剩 1.04:1，等於兩者亮度一樣、只剩色相差得出來，
+     比沒調還糟。現在這組是綠往亮＋飽和推一階、灰同時往淺推並且改成中性灰：
+       舊  #0e7c73 ／ ink@.42（#a0a3a2，帶青）   兩者 1.99:1
+       新  #0d9488 ／ #c4c4c4（中性灰）          兩者 2.13:1
+     綠更亮更飽和、灰更灰更淡，而且分得更開（Wilson 要的兩件事其實可以同時成立，
+     但只調其中一個就會反效果）。 */
+  --zg-on:   #0d9488;
+  --zg-on-2: #09625a;
+  --zg-on-3: #06413c;
+  --zg-off:  #c4c4c4;
   --radius: 10px;
   /* 正文行寬上限。原本 34rem 在桌機上只佔中間一條，像手機版。
      現在設成跟版面內容寬一樣（.wrap 58rem 減去左右各 1.6rem），
@@ -81,6 +97,10 @@
     --accent-3: #26736a;
     --accent-soft: #1d2f2b;
     --code-bg: #1f2625;
+    --zg-on:   #2fd6c4;
+    --zg-on-2: #22aa9b;
+    --zg-on-3: #197e74;
+    --zg-off:  #6f6f6f;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
@@ -1097,12 +1117,12 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .zg-exsvg { width: 1.55rem; height: 1.55rem; display: block; }
 /* 同一個字根在一個字裡出現兩次時分色（朋＝月月、夠＝夕夕）：第二次用深一點的橙。
    同色會讀成「這個字根就是整個朋」，分色才看得出是同一個字根出現兩次。 */
-.zg-exsvg path.on    { fill: var(--accent); }
-.zg-exsvg path.on-2  { fill: var(--accent-2); }
-.zg-exsvg path.on-3  { fill: var(--accent-3); }
+.zg-exsvg path.on    { fill: var(--zg-on); }
+.zg-exsvg path.on-2  { fill: var(--zg-on-2); }
+.zg-exsvg path.on-3  { fill: var(--zg-on-3); }
 /* 未高亮的筆畫：要看得出整個字長什麼樣，才知道字根長在字的哪個位置。
    太淡的話字形認不出來，等於只看到一團橙色。 */
-.zg-exsvg path.off   { fill: var(--ink); opacity: .42; }
+.zg-exsvg path.off   { fill: var(--zg-off); }
 
 
 .zg-exg.is-hit {
@@ -1145,7 +1165,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .zg-altsvg path.rb-3 { fill: var(--rb-3); }
 .zg-altsvg path.rb-4 { fill: var(--rb-4); }
 .zg-altsvg path.rb-5 { fill: var(--rb-5); }
-.zg-altsvg path.off  { fill: var(--ink); opacity: .3; }
+.zg-altsvg path.off  { fill: var(--zg-off); }
 
 .zg-altminimark {
   font-size: .8rem;
@@ -1206,7 +1226,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .pr-legend-dot.rb-3 { background: var(--rb-3); }
 .pr-legend-dot.rb-4 { background: var(--rb-4); }
 .pr-legend-dot.rb-5 { background: var(--rb-5); }
-.pr-legend-dot.off  { background: var(--ink); opacity: .3; }
+.pr-legend-dot.off  { background: var(--zg-off); }
 
 /* 例字拆法對照，同一套 .zg-altsvg／rb-* 色階，只是放大成正文裡的插圖尺寸，
    不是表格小圖示。見 assets/principles.js。
