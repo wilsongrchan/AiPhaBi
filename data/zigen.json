@@ -6415,7 +6415,7 @@
                 ]
               },
               "ex": "用",
-              "count": 128,
+              "count": 129,
               "seen": [
                 "用",
                 "通",
@@ -6451,6 +6451,14 @@
                     5,
                     6,
                     7
+                  ]
+                },
+                {
+                  "src": "騖",
+                  "strokes": [
+                    11,
+                    12,
+                    13
                   ]
                 }
               ]
@@ -6693,24 +6701,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "騖",
-                "strokes": [
-                  11,
-                  12,
-                  13
-                ]
-              },
-              "ex": "騖",
-              "count": 1,
-              "seen": [
-                "騖"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -11107,7 +11098,7 @@
                 ]
               },
               "ex": "最",
-              "count": 89,
+              "count": 90,
               "seen": [
                 "最",
                 "聯",
@@ -11134,7 +11125,17 @@
                 "耶",
                 "聰"
               ],
-              "learned": true
+              "learned": true,
+              "alts": [
+                {
+                  "src": "鼾",
+                  "strokes": [
+                    11,
+                    12,
+                    13
+                  ]
+                }
+              ]
             },
             {
               "glyph": {
@@ -11196,24 +11197,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "鼾",
-                "strokes": [
-                  11,
-                  12,
-                  13
-                ]
-              },
-              "ex": "鼾",
-              "count": 1,
-              "seen": [
-                "鼾"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -13016,6 +13000,22 @@
             },
             {
               "glyph": {
+                "src": "騖",
+                "strokes": [
+                  9,
+                  10,
+                  14
+                ]
+              },
+              "ex": "騖",
+              "count": 1,
+              "seen": [
+                "騖"
+              ],
+              "learned": true
+            },
+            {
+              "glyph": {
                 "src": "場",
                 "strokes": [
                   7,
@@ -13521,24 +13521,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "騖",
-                "strokes": [
-                  9,
-                  10,
-                  14
-                ]
-              },
-              "ex": "騖",
-              "count": 1,
-              "seen": [
-                "騖"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -16462,7 +16445,7 @@
                 ]
               },
               "ex": "代",
-              "count": 45,
+              "count": 46,
               "seen": [
                 "代",
                 "民",
@@ -16490,7 +16473,16 @@
                 "暋"
               ],
               "learned": true,
-              "thr": 0.141
+              "thr": 0.141,
+              "alts": [
+                {
+                  "src": "鳶",
+                  "strokes": [
+                    0,
+                    1
+                  ]
+                }
+              ]
             },
             {
               "glyph": {
@@ -16780,23 +16772,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "鳶",
-                "strokes": [
-                  0,
-                  1
-                ]
-              },
-              "ex": "鳶",
-              "count": 1,
-              "seen": [
-                "鳶"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
