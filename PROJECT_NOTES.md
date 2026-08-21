@@ -838,8 +838,8 @@ works in local preview and 404s in production — the worst kind of bug to ship.
 
 ### The generated files (this is the important part)
 
-`site/assets/dict.json`, `t2s.json`, `zigen.json`, `glyphs.json`, and `principles.json` are all
-**generated and gitignored** (the same reasoning as the first two, below):
+`site/assets/dict.json`, `t2s.json`, `zigen.json`, `glyphs.json`, `principles.json`, and
+`jianma.json` are all **generated and gitignored** (the same reasoning as the first two, below):
 
 ```bash
 python3 site/tools/build_site_data.py       # 本機預覽前先跑一次
@@ -865,11 +865,22 @@ value inline (so they read correctly without JS) and `site.js` overwrites it fro
 
 ### What is built and what is not
 
-Built and verified: four pages (`index.html` 簡介, `zigen.html` 字根表, `principles.html`
-取碼原則, `try.html` 線上試打), the shared shell (side nav, 繁簡 toggle, 字級 small/normal/large —
-the last two are site-wide via `site.js`, not per-page), the deploy workflow, the generator, and a
-working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion, frequency ordering, 約定簡碼
-with the reverse hint, digit/space selection, 正體 punctuation.
+Built and verified: five pages (`index.html` 簡介, `zigen.html` 字根表, `principles.html`
+取碼原則, `jianma.html` 簡碼, `try.html` 線上試打), the shared shell (side nav, 繁簡 toggle,
+字級 small/normal/large — the last two are site-wide via `site.js`, not per-page), the deploy
+workflow, the generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion,
+frequency ordering, 約定簡碼 with the reverse hint, digit/space selection, 正體 punctuation.
+
+`jianma.html` (2026-08-21) is a plain reference page for the three code-shortening mechanisms —
+no stroke diagrams, just tables, per Wilson's call to keep this one auto-generated-only rather than
+full explanatory prose. `build_jianma()` in `build_site_data.py` derives all three straight from
+`data/rules.json` + `data/codes.json`: 約定簡碼 lists all 63 hand-picked `short_code` entries with
+their real 主碼; 三簡碼 has no fixed list (it's a blanket rule over any 主碼 ≥4 字, `code[0]+code[1]
++code[-1]`) so the page just demos 5 picked chars (`SHORT3_DEMO_CHARS`, deliberately none from the
+63 約定簡碼 list, to avoid the two mechanisms reading as one) plus a live-counted eligible total;
+左簡碼 reproduces the 8 component families straight from `rules.json`'s `left_short.entries`
+(comp/code/short/ok/no/members), which is Wilson's own vetted table, not computed. The page states
+plainly that 左簡碼 is design-only, not shipped — see below.
 
 `zigen.html` also carries a 相近字形辨析 section (from `content/similar.md`, hand-written) and
 `principles.html` is new (2026-08-21): the nine 取碼原則 with worked examples. Both pages can
@@ -884,9 +895,13 @@ once the known groups are subtracted, or it matches an actual shape already cata
 letter in `zigen.json`. Where none of those held, the page shows the wrong code as plain text with
 no diagram rather than guessing a stroke split.
 
-**Not built** (the demo says so on the page, and it must keep saying so): 三簡碼, 左簡碼, 詞組連打,
-四碼快打, 輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞. Also not built: the 下載安裝 page
-(Wilson deferred it — the site currently points at GitHub instead).
+**Not usable in the 試打 demo** (it must keep saying so there): 三簡碼, 左簡碼, 詞組連打, 四碼快打,
+輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞 — typing those codes in `try.html` still won't
+resolve. 三簡碼 and 左簡碼 now have *reference tables* on `jianma.html` (rules + real data), which is
+a different claim from "usable here" — 三簡碼 actually ships in `rime/` behind a default-off switch
+(`aiphabi_short3`), 左簡碼 does not ship anywhere yet (`rules.json`'s own note says so; it's a
+Side B build task). Neither is wired into the `try.html` lookup regardless. Also not built: the
+下載安裝 page (Wilson deferred it — the site currently points at GitHub instead).
 
 ### Copy
 

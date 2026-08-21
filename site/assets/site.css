@@ -163,6 +163,20 @@ kbd {
   gap: 1.6rem;
 }
 
+/* 繁簡切換／字級切換：擺在品牌名下面、導覽連結上面，兩組左右並排 */
+.topbar-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.topbar-controls .zg-size { flex-direction: row; align-items: center; gap: .35rem; }
+
+/* 「字級」文字標籤只留給 role="group" aria-label 用，並排在繁簡切換旁邊時不重複顯示 */
+.topbar-controls .zg-size > span { display: none; }
+
 /* 用 body 的 padding 讓開側邊欄，而不是給 main 加 margin-inline-start ——
    後者會破壞 .wrap 的 margin: 0 auto，內容會貼著側邊欄、右邊空一大片。
    讓開之後 main 仍然是在「剩下的空間」裡置中。 */
@@ -212,20 +226,30 @@ nav.site a[aria-current="page"] {
   background: var(--accent-soft);
 }
 
+/* .pr-sidenav 的錨點連結（#pr-1 之類）跟「取碼原則」共用同一個網址路徑，
+   site.js 判斷目前頁面只看路徑、不看 hash，所以九條連結全部會被標成
+   aria-current="page"——這裡取消粗體／橙色框線／橙色底色，這組樣式是給
+   四個主連結分辨「在哪一頁」用的，不是給這幾條錨點連結用的。 */
+nav.site .pr-sidenav a[aria-current="page"] {
+  font-weight: 400;
+  border-inline-start-color: transparent;
+  background: none;
+}
+
 /* 繁簡切換 */
 .langtoggle {
   display: flex;
   border: 1px solid var(--line);
   border-radius: 999px;
   overflow: hidden;
-  font-size: .72rem;
+  font-size: .66rem;
 }
 
 .langtoggle button {
   border: 0;
   background: transparent;
   color: var(--ink-dim);
-  padding: .18rem .6rem;
+  padding: .12rem .45rem;
   cursor: pointer;
   font: inherit;
 }
@@ -499,7 +523,7 @@ tbody tr:last-child td { border-bottom: 0; }
   flex-direction: column;
   align-items: flex-start;
   gap: .3rem;
-  font-size: .68rem;
+  font-size: .66rem;
   color: var(--ink-dim);
 }
 
@@ -517,7 +541,7 @@ tbody tr:last-child td { border-bottom: 0; }
   border-inline-start: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-dim);
-  padding: .16rem .5rem;
+  padding: .12rem .4rem;
   cursor: pointer;
   font: inherit;
   line-height: 1.5;
@@ -1112,23 +1136,28 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 /* ---------- 〈取碼原則〉頁 ---------- */
 
-/* 頁首下面的跳轉列，同一頁內的錨點連結，做法照抄字根表的 .zg-jump——
-   側邊導覽是直排在左邊，這一列橫排在內容區上方，捲動時黏住。 */
-.pr-subnav {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+/* 九條原則的錨點連結，掛在側邊導覽「取碼原則」那個連結底下、縮排一階——
+   跟 shurufa.app 那類文件站的側邊欄同一個做法（章節底下掛小節），
+   不是另外開一條跳轉列。只有 principles.html 自己的 nav.site 裡有這段 <ul>，
+   其他三頁的側邊欄不需要看到這九條連結。 */
+.pr-sidenav {
+  list-style: none;
+  margin: 0 0 .15rem;
+  padding-inline-start: 1.1rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: .3rem .5rem;
-  padding: .6rem 1.6rem;
-  margin-inline-start: var(--nav-w);
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
-  font-size: .82rem;
+  flex-direction: column;
+  gap: .05rem;
 }
-.pr-subnav a { text-decoration: none; color: var(--ink-dim); white-space: nowrap; }
-.pr-subnav a:hover { color: var(--accent); }
+/* 選擇器要比 nav.site a 更明確才贏得過它的 padding／font-size
+  （nav.site a 是「一個類＋一個元素」，.pr-sidenav a 只有「兩個類」還不夠，
+  這裡直接把 nav.site 也寫進來）。 */
+nav.site .pr-sidenav a {
+  display: block;
+  padding: .15rem .6rem;
+  font-size: .68rem;
+  color: var(--ink-dim);
+}
+nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 
 /* 顏色圖例：紅／黃／綠／藍／紫依序對應拆碼順序第一到第五組，跟例字圖示同一套色階
    （見 .zg-altsvg 的 rb-* class），放在頁面最上面，讀圖之前先講清楚顏色的意思。 */
@@ -1244,6 +1273,92 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   .pr-icon { width: 2.6rem; height: 2.6rem; }
 }
 
+/* ---------- 簡碼頁（jianma.html） ---------- */
+
+.jm-conditions {
+  font-size: .92rem;
+  color: var(--ink-dim);
+  line-height: 1.6;
+  max-width: var(--measure);
+  margin: 0 0 1.4rem;
+}
+
+.jm-tbl { font-size: .92rem; }
+.jm-tbl th { color: var(--ink-dim); font-size: .82rem; }
+.jm-tbl td, .jm-tbl th { white-space: nowrap; }
+
+.jm-char { font-size: 1.2em; font-weight: 600; }
+
+.jm-sortbar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  margin: .8rem 0 0;
+}
+
+.jm-sortbar-btns {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.jm-sortbar-btns button {
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-dim);
+  padding: .2rem .7rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.jm-sortbar-btns button:first-child { border-inline-start: 0; }
+.jm-sortbar-btns button:hover { color: var(--ink); }
+
+.jm-sortbar-btns button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 約定簡碼：63 個字擠在一欄要捲很久，橫向空間卻用不完——拆兩欄並排，
+   行距同時收緊，兩欄各自完整連續（不是逐行交錯），比較好找字。 */
+.jm-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* start，不是預設的 stretch：63 是奇數，兩欄一定差一行，不要為了湊齊高度把
+     矮的那欄的列高拉伸——寧可矮一行，也不要兩欄的行距對不上（Wilson）。 */
+  align-items: start;
+  column-gap: 2rem;
+  margin: 1.4rem 0;
+  overflow-x: auto;
+}
+.jm-compact th, .jm-compact td { padding: .28rem .5rem; }
+
+@media (max-width: 40rem) {
+  .jm-cols { grid-template-columns: 1fr; row-gap: 0; }
+}
+
+/* 左簡碼表的欄位比較擠：偏旁／字母碼／簡碼窄，例字欄放寬並允許換行 */
+.jm-leftshort td:nth-child(4),
+.jm-leftshort td:nth-child(5) { white-space: normal; }
+
+.jm-leftshort summary {
+  cursor: pointer;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.jm-members {
+  margin-top: .4rem;
+  max-width: 28rem;
+  font-size: .88rem;
+  line-height: 1.7;
+  color: var(--ink-dim);
+}
+
 
 /* ---------- 窄螢幕：導覽改回頂部橫列 ----------
    側邊欄在手機上會吃掉一半可用寬度，所以在這個斷點還原成原本的橫列。
@@ -1259,6 +1374,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   }
 
   .topbar .wrap {
+    display: flex;
     flex-direction: row;
     align-items: center;
     gap: 1.1rem;
@@ -1267,12 +1383,17 @@ footer p { max-width: none; margin: 0 0 .4rem; }
     flex-wrap: wrap;
   }
 
-  nav.site { flex-direction: row; width: auto; gap: 1rem; margin-inline-end: auto; }
+  /* 窄螢幕：品牌 → 導覽連結 → 繁簡／字級，橫排。桌面版的 DOM 順序是品牌／控制項／
+     導覽（控制項擺在「AiPhaBi」下面），這裡用 order 把控制項挪到橫列最右側，
+     不用改 HTML 順序。 */
+  nav.site { flex-direction: row; width: auto; gap: 1rem; margin-inline-end: auto; order: 1; }
   nav.site a { padding: .2rem 0; border-radius: 0; border-inline-start: 0;
                border-bottom: 2px solid transparent; }
   nav.site a[aria-current="page"] { background: none; border-bottom-color: var(--accent); }
   .brand .en { display: inline; margin-inline-start: .45em; }
-  .zg-size { flex-direction: row; align-items: center; gap: .35rem; }
+
+  .topbar-controls { order: 2; flex-direction: row; align-items: center; gap: .7rem; }
+  .zg-size, .topbar-controls .zg-size { flex-direction: row; align-items: center; gap: .35rem; }
 
   body { padding-inline-start: 0; }
 
@@ -1280,5 +1401,4 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   .zg-tbl thead th { top: 5.9rem; }
   .zg-tbl tbody tr { scroll-margin-top: 8.5rem; }
 
-  .pr-subnav { margin-inline-start: 0; top: 3.4rem; }
 }
