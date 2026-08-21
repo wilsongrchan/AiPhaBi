@@ -20,22 +20,16 @@ python3 site/tools/preview.py
 原文裡有幾處是圖片（純文字複製過來只剩一對空引號），改用 `{目#1,2,3,4}` 這種寫法
 就地把那個形狀畫出來，見下面〈格式〉。
 
-取碼主張全部對過 `data/codes.json`，只有一處不符 —— **午**，見下。相符的：
-眼 DEK、相 TDI、尤 XLQ、余 YIM、目 DI、矢 YK、失 JIY、牛 JH、几 N、儿 JL、匕 C、
-七 IL、且 UE、貝 DV、具 UEV、豕 JK、豖 JJXJK、气 AZ。
+取碼主張全部對過 `data/codes.json`：眼 DEK、相 TDI、尤 XLQ、余 YIM、目 DI、矢 YK、
+失 JIY、午 YT、牛 JH、几 N、儿 JL、匕 C、七 IL、且 UE、貝 DV、具 UEV、豕 JK、
+豖 JJXJK、气 AZ。
 
-**⚠️ 一處不符：午。** 這個檔（依 Wilson 2026-08-21 的原文）寫 **YT**，
-但 `data/codes.json` 與 `rules.json` 目前都是 **JF** —— 而且 午 還收在 rules.json
-〈約定表〉的「土字類」裡（`"c": "午", "code": "JF"`，沒有 compCode，即獨立成字與
-作偏旁都取 JF）。三個字例也都跟著資料走：許 IOJF、忤 MJF、杵 TJF。
-
-  後果：**午 那一列的字例不會高亮**（程式在 許／忤／杵 的分段裡找不到 YT，
-  也找不到 Y，就整段放棄）。文字照樣顯示，碼寫的是 YT。
-
-  這是取碼決定，**Side C 不能改** —— 要動的是 `codes.json` 的 午（連帶 許 忤 杵 迕…）
-  和 `rules.json` 約定表裡的那一條，兩個都是 Side A 的檔，而且動了 codes.json／rules.json
-  就要 Side B 重建。已回報給 Wilson。等 Side A 落地之後，這一列會自己開始高亮，
-  這個檔不用再改。網站公開前要先確認這件事已經一致。
+（**午 = YT** 一度跟資料對不上 —— 這個檔照原文寫 YT 的時候，`codes.json` 還是 JF，
+午 也還收在 `rules.json` 的約定表「土字類」裡。Side A 在同一天用
+`63456e5 [rebuild] 耂／午 兩組字根重新分配字母` 落地了，現在 午 YT、許 IOYT、
+忤 MYT、杵 TYT，那一列的字例照樣高亮。留這一段是為了記住當時的處理方式：
+取碼決定不歸 Side C，照原文寫下去、把不一致寫在這裡、等 Side A 落地就好，
+不要為了讓畫面好看而在這個檔裡改碼。）
 
 例字全部查過分段：鬱、督、寶 乍看沒有該字母，其實有，只是被「頭四尾一」截碼截掉了
 （鬱 完整碼 TYWTUXQQQQUCE → TYWTE），字裡確實含有那個字根，可以當例字。
@@ -136,9 +130,6 @@ python3 site/tools/preview.py
 #
 # 這一組的字例全部對過 codes.json：知智痴 都是 Y＋K、跌秩佚 都含 JIY、
 # 牟牢物 都是 J＋H、氣氧汽 都含 A＋Z。
-#
-#   ⚠️ 午 這一列的碼（YT）跟 codes.json（JF）不一致，所以許忤杵不會高亮 ——
-#      理由與後續處理寫在本檔開頭，那是 Side A 要落地的取碼決定，不要在這裡改。
 #
 #   （2026-08-21：牛 的字例原本是「牟 牢 告」，Wilson 改成「牟 牢 物」。
 #     告 取 JFO（J＋F），跟 codes.json 裡的 午（JF）一致而不是 牛（JH），
