@@ -9,7 +9,7 @@
   var slots = document.querySelectorAll('.pr-example[data-char]');
   if (!slots.length) return;
 
-  var RAINBOW = ['rb-0', 'rb-1', 'rb-2', 'rb-3', 'rb-4'];
+  var RAINBOW = ['rb-0', 'rb-1', 'rb-2', 'rb-3', 'rb-4', 'rb-5'];
   var GLYPHS = null;
   var DATA = null;
 
@@ -39,18 +39,73 @@
       icon.textContent = ch;
       icon.setAttribute('data-keep', '');
     }
-    var mark = el('span', 'pr-mark');
-    mark.textContent = ok ? '✓' : '✕';
-    mark.setAttribute('aria-hidden', 'true');
-    icon.appendChild(mark);
     c.appendChild(icon);
+    // 打勾／打叉放在碼的右邊，不疊在圖示上——疊上去會蓋住角落的筆畫（Wilson）。
+    var row = el('span', 'pr-coderow');
     var code = el('span', 'pr-code');
     code.textContent = breakdown.code;
     code.setAttribute('data-keep', '');
-    c.appendChild(code);
+    row.appendChild(code);
+    var mark = el('span', 'pr-mark');
+    mark.textContent = ok ? '✓' : '✕';
+    mark.setAttribute('aria-hidden', 'true');
+    row.appendChild(mark);
+    c.appendChild(row);
     c.title = ch + '　' + breakdown.code + (ok ? '（正確）' : '（不取，示範用）');
     c.setAttribute('data-keep', '');
     return c;
+  }
+
+  /* 說明文字裡的「V（第 1、2 筆）」這種文字描述，換成就地畫出來的字根小圖——
+   * 用法跟 zigen.js 的 {字#筆序} 一樣，但那支程式的函式沒有對外開放，這裡另外
+   * 寫一份（裁切／置中算法照抄 zigen.js 的 rootIconSvg，見那邊的註解）。
+   * 標記寫法：<span class="pr-inline" data-char="美" data-st="1,2"></span> */
+  var ROOT_PAD = 40;
+
+  function rootIconSvg(strokes, sel) {
+    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
+    for (var k = 0; k < sel.length; k++) {
+      var d = strokes[sel[k]];
+      if (!d) continue;
+      var m;
+      re.lastIndex = 0;
+      while ((m = re.exec(d))) {
+        var x = +m[1], y = 900 - (+m[2]);
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+    if (x1 < x0) return null;
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    var span = Math.max(x1 - x0, y1 - y0);
+    var BOX = Math.min(1024, span / 0.85) || 1024;
+    var paths = '';
+    for (var j = 0; j < sel.length; j++) {
+      if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
+    }
+    return '<svg class="zg-svg" viewBox="' + (cx - BOX / 2) + ' ' + (cy - BOX / 2) +
+      ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
+      '<g transform="scale(1,-1) translate(0,-900)">' + paths + '</g></svg>';
+  }
+
+  function renderInline() {
+    document.querySelectorAll('.pr-inline[data-char]').forEach(function (span) {
+      if (span.dataset.done) return;
+      var ch = span.getAttribute('data-char');
+      var strokes = GLYPHS && GLYPHS[ch];
+      var sel = (span.getAttribute('data-st') || '').split(',')
+        .filter(Boolean).map(function (n) { return +n - 1; });
+      if (!strokes || !sel.length) return;
+      var svg = rootIconSvg(strokes, sel);
+      if (!svg) return;
+      span.innerHTML = svg;
+      span.className = 'zg-inline';
+      span.title = ch + '　第 ' + sel.map(function (i) { return i + 1; }).join('、') + ' 筆';
+      span.setAttribute('data-keep', '');
+      span.dataset.done = '1';
+    });
   }
 
   function render() {
@@ -65,8 +120,10 @@
       }
       cards.textContent = '';
       cards.appendChild(card(ch, entry.correct, true));
-      if (entry.wrong) cards.appendChild(card(ch, entry.wrong, false));
+      // 有些字（天）文件裡「不取 X 或 Y」列了不只一個錯誤示範，全部畫出來。
+      (entry.wrongs || []).forEach(function (w) { cards.appendChild(card(ch, w, false)); });
     });
+    renderInline();
   }
 
   fetch('assets/principles.json')

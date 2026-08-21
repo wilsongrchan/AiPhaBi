@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>取碼原則 · 愛發筆 AiPhaBi</title>
-<meta name="description" content="愛發筆輸入法取碼時遵循的九條原則：筆順、能合不分、孤筆略過、優次等字根、先取外框、先取主幹、主碼碼長上限、約定，以及拆碼不明確時的檢驗順序。">
+<meta name="description" content="愛發筆輸入法取碼時遵循的八條原則：筆順、能合不分、孤筆略過、優次等字根、先取外框、先取主幹、主碼碼長上限、約定，以及原則套用順序。">
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
@@ -34,13 +34,37 @@
   </div>
 </header>
 
-<main class="wrap">
+<nav class="pr-subnav" aria-label="原則跳轉">
+  <a href="#pr-1">1. 筆順</a>
+  <a href="#pr-2">2. 能合不分</a>
+  <a href="#pr-3">3. 孤筆略過</a>
+  <a href="#pr-4">4. 優次等字根</a>
+  <a href="#pr-5">5. 先取外框</a>
+  <a href="#pr-6">6. 先取主幹</a>
+  <a href="#pr-7">7. 主碼碼長上限</a>
+  <a href="#pr-8">8. 約定</a>
+  <a href="#pr-order">原則套用順序</a>
+</nav>
+
+<main class="wrap pr-page">
 
 <h1>取碼原則</h1>
 
 <p class="lede">愛發筆輸入法在取碼時遵循以下原則：</p>
 
-<h2>筆順原則</h2>
+<p class="pr-legend">
+  <span>下面例字圖示的顏色代表拆碼順序：</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-0"></span>第一組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-1"></span>第二組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-2"></span>第三組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-3"></span>第四組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-4"></span>第五組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-5"></span>第六組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot off"></span>略過</span>
+</p>
+
+<h2 id="pr-1"><span class="pr-num">1.</span> 筆順原則</h2>
+<div class="pr-body">
 <p>取碼時按照筆順先後取碼。</p>
 <p>筆順資料參考以下網站：</p>
 <ul>
@@ -53,22 +77,31 @@
   <div class="pr-cards"></div>
   <p class="pr-text">例：「火」按照筆順取 <code>VY</code>，不取 <code>YK</code> 或 <code>QYJ</code>。</p>
 </div>
+</div>
 
-<h2>能合不分原則</h2>
+<h2 id="pr-2"><span class="pr-num">2.</span> 能合不分原則</h2>
+<div class="pr-body">
 <p>可以用一個字根取盡的字形，不拆成兩個字根。</p>
 
 <div class="pr-example" data-char="雨">
   <div class="pr-cards"></div>
   <p class="pr-text">例：「雨」取 <code>MII</code>，不取 <code>MQQQQ</code>，因上下連續兩點是屬於 I 的字根，不應分拆成兩個點劃。</p>
 </div>
+</div>
 
-<h2>孤筆略過原則</h2>
+<h2 id="pr-3"><span class="pr-num">3.</span> 孤筆略過原則</h2>
+<div class="pr-body">
 <p>
   取碼中途如有一橫（包括一提）或一豎無法與其他筆畫組成字根時，則略過不取碼。除非該孤立橫劃或豎劃是第一筆或最後一筆，則不略過。孤立一橫取 I；孤立一豎取 J。
 </p>
 <p>
-  但在認定該橫劃或豎劃為孤立之前，應首先嘗試將該筆劃和其他筆劃組成為可取字根，如「文」字不應取 <code>Q_X</code>（點劃、略過橫劃、兩劃交叉），而是應該優先將點劃和橫劃組成為屬於 I 的字根<strong>「言」的第 1、2 筆</strong>，取 <code>IX</code>。有些三等字根正是優等字根上或下附帶橫劃，讓該橫劃免被略過。
+  但在認定該橫劃或豎劃為孤立之前，應首先嘗試將該筆劃和其他筆劃組成為可取字根，如「文」字不應取 <code>Q_X</code>（點劃、略過橫劃、兩劃交叉），而是應該優先將點劃和橫劃組成為屬於 I 的字根<strong><span class="pr-inline" data-char="言" data-st="1,2">第 1、2 筆</span></strong>，取 <code>IX</code>。有些三等字根正是優等字根上或下附帶橫劃，讓該橫劃免被略過。
 </p>
+
+<div class="pr-example" data-char="文">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「文」取 <code>IX</code>，不取 <code>Q_X</code>。</p>
+</div>
 
 <div class="pr-example" data-char="子">
   <div class="pr-cards"></div>
@@ -82,20 +115,24 @@
 
 <div class="pr-example" data-char="石">
   <div class="pr-cards"></div>
-  <p class="pr-text">例：「石」取 <code>JO</code>，不取 <code>IJO</code>，因一橫和一撇的組合正是屬於 J 的字根，應優先取 J，而非認定該第一筆為孤立的橫劃。</p>
+  <p class="pr-text">例：「石」取 <code>JO</code>，不取 <code>IJO</code>，因<span class="pr-inline" data-char="石" data-st="1,2">一橫和一撇的組合</span>正是屬於 J 的字根，應優先取 J，而非認定該第一筆為孤立的橫劃。</p>
+</div>
 </div>
 
-<h2>優次等字根原則</h2>
+<h2 id="pr-4"><span class="pr-num">4.</span> 優次等字根原則</h2>
+<div class="pr-body">
 <p>
   取碼時，可取優等字根不取二等字根，可取二等字根不取三等字根。大部分二等字根為橫劃和豎劃之外孤立的筆劃，如單獨一撇取 J；而大部分的三等字根為優等字根上或下附帶橫劃，讓該橫劃免被略過。
 </p>
 
 <div class="pr-example" data-char="美">
   <div class="pr-cards"></div>
-  <p class="pr-text">例：「美」取 <code>VEK</code>，不取 <code>VFK</code>，因取 <code>VEK</code> 時，V（第 1、2 筆）和 E（第 3–6 筆）都是優等字根；相反，取 <code>VFK</code> 時，V（第 1–3 筆）是三等字根，F（第 4–6 筆）是優等字根，所以對比字根等級之後，應取 <code>VEK</code>。</p>
+  <p class="pr-text">例：「美」取 <code>VEK</code>，不取 <code>VFK</code>，因取 <code>VEK</code> 時，V（<span class="pr-inline" data-char="美" data-st="1,2">第 1、2 筆</span>）和 E（<span class="pr-inline" data-char="美" data-st="3,4,5,6">第 3–6 筆</span>）都是優等字根；相反，取 <code>VFK</code> 時，V（<span class="pr-inline" data-char="美" data-st="1,2,3">第 1–3 筆</span>）是三等字根，F（<span class="pr-inline" data-char="美" data-st="4,5,6">第 4–6 筆</span>）是優等字根，所以對比字根等級之後，應取 <code>VEK</code>。</p>
+</div>
 </div>
 
-<h2>先取外框原則</h2>
+<h2 id="pr-5"><span class="pr-num">5.</span> 先取外框原則</h2>
+<div class="pr-body">
 <p>
   為有「囗」或「匚」字形的字取碼時，應凌駕筆順先取「囗」或「匚」，再按筆順取內部字型。內部筆劃必須被外框完整包圍。
 </p>
@@ -109,8 +146,10 @@
   <div class="pr-cards"></div>
   <p class="pr-text">例：「樞」取 <code>TCOOO</code>，不取 <code>COOOT</code>，因木字旁並非被「匚」包圍，所以應該先按筆順為其取碼，之後才為餘下的「區」按此原則取碼。</p>
 </div>
+</div>
 
-<h2>先取主幹原則</h2>
+<h2 id="pr-6"><span class="pr-num">6.</span> 先取主幹原則</h2>
+<div class="pr-body">
 <p>
   為有長主幹形的「木」或「大」字形的字取碼時，應凌駕筆順先取「木」或「大」，再按筆順取疊在主幹之上的字型。但不疊在主幹之外的字形，應照樣按照筆順取碼。
 </p>
@@ -124,8 +163,10 @@
   <div class="pr-cards"></div>
   <p class="pr-text">例：「陳」取 <code>PTB</code>，不取 <code>TBP</code> 或 <code>TPB</code>，因左耳旁並非疊在「木」字之上，所以應該先按筆順為其取碼，之後才為餘下的「東」按此原則取碼。</p>
 </div>
+</div>
 
-<h2>主碼碼長上限</h2>
+<h2 id="pr-7"><span class="pr-num">7.</span> 主碼碼長上限</h2>
+<div class="pr-body">
 <p>
   一個字最多為其取 5 碼作為主碼。如果拆碼後發現超過 5 碼，則只取其前 4 碼和尾碼作為主碼。但其完整碼亦作為兼容碼予以收容。
 </p>
@@ -134,8 +175,10 @@
   <div class="pr-cards"></div>
   <p class="pr-text">例：「藍」取 <code>HCKAI</code> 為主碼，兼容完整碼 <code>HCKAMI</code>。輸入兩者皆出此字。</p>
 </div>
+</div>
 
-<h2>約定原則</h2>
+<h2 id="pr-8"><span class="pr-num">8.</span> 約定原則</h2>
+<div class="pr-body">
 <p>
   特定字不套用以上原則，以約定俗成方式取碼，詳見約定表。大多數約定表內字都是筆劃少，字形簡單，但又有多個相近字形的獨體字，唯用約定表解決重碼問題。
 </p>
@@ -144,8 +187,10 @@
   <div class="pr-cards"></div>
   <p class="pr-text">例：「天」按約定表取 <code>IXR</code>，不取 <code>IK</code> 或 <code>IY</code>。但作為偏旁時，按約定表取 <code>IY</code>，所以「昊」取 <code>BIY</code>，不取 <code>BIXR</code>。</p>
 </div>
+</div>
 
-<h2>取碼不明確時</h2>
+<h2 id="pr-order">原則套用順序</h2>
+<div class="pr-body">
 <p>取碼不明確時，應按以下順序用逐項原則檢驗比對。</p>
 <ol class="pr-checklist">
   <li><strong>約定原則</strong>：該字是否約定表內字？如果是，則直接依表取碼，不需自行拆碼。</li>
@@ -156,6 +201,7 @@
   <li><strong>優次等字根原則</strong>：如果多於一種拆法拆出同樣碼數之餘，亦沒有違反任何字根意圖的說明，則應對比各種拆法所用的字根等級，儘量不用低等字根。</li>
   <li><strong>兼容</strong>：如果比對到此項原則依然有多於一種拆碼方法，不分勝負，則通常這些拆法所拆出的編碼都予以收容，任選其一輸入都能打出該字。候選列會提示何者為主碼，何者為兼容碼。</li>
 </ol>
+</div>
 
 </main>
 

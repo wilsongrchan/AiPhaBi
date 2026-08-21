@@ -803,7 +803,8 @@ works in local preview and 404s in production — the worst kind of bug to ship.
 
 ### The generated files (this is the important part)
 
-`site/assets/dict.json` and `site/assets/t2s.json` are **generated and gitignored**:
+`site/assets/dict.json`, `t2s.json`, `zigen.json`, `glyphs.json`, and `principles.json` are all
+**generated and gitignored** (the same reasoning as the first two, below):
 
 ```bash
 python3 site/tools/build_site_data.py       # 本機預覽前先跑一次
@@ -829,14 +830,28 @@ value inline (so they read correctly without JS) and `site.js` overwrites it fro
 
 ### What is built and what is not
 
-Built and verified: the three pages, the shared shell (nav + 繁簡 toggle), the deploy workflow, the
-generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion, frequency
-ordering, 約定簡碼 with the reverse hint, digit/space selection, 正體 punctuation.
+Built and verified: four pages (`index.html` 簡介, `zigen.html` 字根表, `principles.html`
+取碼原則, `try.html` 線上試打), the shared shell (side nav, 繁簡 toggle, 字級 small/normal/large —
+the last two are site-wide via `site.js`, not per-page), the deploy workflow, the generator, and a
+working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion, frequency ordering, 約定簡碼
+with the reverse hint, digit/space selection, 正體 punctuation.
+
+`zigen.html` also carries a 相近字形辨析 section (from `content/similar.md`, hand-written) and
+`principles.html` is new (2026-08-21): the nine 取碼原則 with worked examples. Both pages can
+render a "正確 vs 錯誤拆法" colour diagram per example — each stroke-group gets one of six
+rainbow colours (`--rb-0`…`--rb-5`, deliberately skipping orange: red/orange/yellow read as one
+blur at small icon sizes) plus a background-coloured stroke outline so adjacent same-colour
+strokes still separate. The "correct" side is always derived from `data/codes.json` at build time
+(never hand-typed); the "wrong" side is authored by hand in `build_site_data.py`
+(`WRONG_BREAKDOWN` for `zigen.html`, `PRINCIPLE_WRONG` for `principles.html`) **only** when there's
+a real basis for the stroke split — either Wilson states it directly, or it's the unique remainder
+once the known groups are subtracted, or it matches an actual shape already catalogued under that
+letter in `zigen.json`. Where none of those held, the page shows the wrong code as plain text with
+no diagram rather than guessing a stroke split.
 
 **Not built** (the demo says so on the page, and it must keep saying so): 三簡碼, 左簡碼, 詞組連打,
 四碼快打, 輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞. Also not built: the 下載安裝 page
-(Wilson deferred it — the site currently points at GitHub instead), the 字根表 overview, and the
-取碼原則 page.
+(Wilson deferred it — the site currently points at GitHub instead).
 
 ### Copy
 
@@ -855,7 +870,9 @@ the inward-facing one. Two things it records that matter:
 - Codes do genuinely get revised (福 `QMIOOT`→`QMOOT`), so any code printed on the site still has
   to be generated or re-checked against the shipped dict at the moment it is written.
 
-Its 取碼原則 section is unfinished in the source doc (stroke-order references are still `XXX`).
+Its 取碼原則 section was left unfinished in the source doc (stroke-order references were still
+`XXX`) — Wilson gave the complete nine-principle text directly in chat instead on 2026-08-21,
+now built into `principles.html`. `blurb.md` points at that page rather than re-quoting it.
 
 ### Reference sites (content, not visual)
 

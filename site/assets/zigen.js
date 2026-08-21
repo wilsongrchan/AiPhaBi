@@ -128,7 +128,7 @@
    * 所以另外開一組 class，不要混進 exampleGlyph 那一套。
    * 放在「字母」欄、碼底下那一行，小圖示＋打勾／打叉，不佔一整列。
    * 勾／叉是圖示旁邊的字，不疊在圖示上面——疊上去會蓋住角落的筆畫（Wilson）。 */
-  var RAINBOW = ['rb-0', 'rb-1', 'rb-2', 'rb-3', 'rb-4'];
+  var RAINBOW = ['rb-0', 'rb-1', 'rb-2', 'rb-3', 'rb-4', 'rb-5'];
 
   function altMiniCard(ch, breakdown, ok) {
     var pair = el('span', 'zg-altpair' + (ok ? ' is-ok' : ' is-bad'));

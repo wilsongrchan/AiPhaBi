@@ -37,6 +37,8 @@
   --rb-2: #1f9d52;   /* 綠 */
   --rb-3: #1f66c2;   /* 藍 */
   --rb-4: #7a3fb0;   /* 紫 */
+  --rb-5: #c23b7a;   /* 粉紅——超過五組筆畫的字（藍 HCKAMI 六組）才用得到，
+                         不然照 RAINBOW.length 循環到第六組會撞回紅色，跟第一組分不出來 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -60,6 +62,7 @@
     --rb-2: #2fd47a;
     --rb-3: #4da3ff;
     --rb-4: #c084fc;
+    --rb-5: #f472b6;
   }
 }
 
@@ -1091,6 +1094,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .zg-altsvg path.rb-2 { fill: var(--rb-2); }
 .zg-altsvg path.rb-3 { fill: var(--rb-3); }
 .zg-altsvg path.rb-4 { fill: var(--rb-4); }
+.zg-altsvg path.rb-5 { fill: var(--rb-5); }
 .zg-altsvg path.off  { fill: var(--ink); opacity: .3; }
 
 .zg-altminimark {
@@ -1106,41 +1110,115 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   .zg-altmini { width: 1.4rem; height: 1.4rem; }
 }
 
-/* ---------- 〈取碼原則〉頁：例字拆法對照，同一套 .zg-altsvg／rb-* 色階，
-   只是放大成正文裡的插圖尺寸，不是表格小圖示。見 assets/principles.js。 ---------- */
+/* ---------- 〈取碼原則〉頁 ---------- */
+
+/* 頁首下面的跳轉列，同一頁內的錨點連結，做法照抄字根表的 .zg-jump——
+   側邊導覽是直排在左邊，這一列橫排在內容區上方，捲動時黏住。 */
+.pr-subnav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem .5rem;
+  padding: .6rem 1.6rem;
+  margin-inline-start: var(--nav-w);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  font-size: .82rem;
+}
+.pr-subnav a { text-decoration: none; color: var(--ink-dim); white-space: nowrap; }
+.pr-subnav a:hover { color: var(--accent); }
+
+/* 顏色圖例：紅／黃／綠／藍／紫依序對應拆碼順序第一到第五組，跟例字圖示同一套色階
+   （見 .zg-altsvg 的 rb-* class），放在頁面最上面，讀圖之前先講清楚顏色的意思。 */
+.pr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .9rem;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  margin: 0 0 1rem;
+}
+.pr-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
+.pr-legend-dot { width: .65rem; height: .65rem; border-radius: 50%; display: inline-block; }
+.pr-legend-dot.rb-0 { background: var(--rb-0); }
+.pr-legend-dot.rb-1 { background: var(--rb-1); }
+.pr-legend-dot.rb-2 { background: var(--rb-2); }
+.pr-legend-dot.rb-3 { background: var(--rb-3); }
+.pr-legend-dot.rb-4 { background: var(--rb-4); }
+.pr-legend-dot.rb-5 { background: var(--rb-5); }
+.pr-legend-dot.off  { background: var(--ink); opacity: .3; }
+
+/* 例字拆法對照，同一套 .zg-altsvg／rb-* 色階，只是放大成正文裡的插圖尺寸，
+   不是表格小圖示。見 assets/principles.js。
+   密度參考 shurufa.app 那類文件站：字級、留白、圖示都比照小圖示表格再縮一點，
+   一屏能看到更多內容，不用一直捲。 */
+/* 掛式縮排：text-indent 把整行拉回去，讓「1.」永遠貼齊 padding 讓出來的最左邊，
+   標題本身的字接在數字後面往右排，跟下面 .pr-body 的內容切齊。改用 text-indent
+   而不是 position: absolute——後者要另外處理直排位置，前者是本來就給這種
+   「掛式縮排」用的標準寫法，數字寬度不一致時也不會跳來跳去。 */
+.pr-page h2 {
+  font-size: 1rem;
+  margin: 1.3rem 0 .5rem;
+  padding-top: .7rem;
+  padding-inline-start: 1.1rem;
+  text-indent: -1.1rem;
+}
+.pr-num { color: var(--ink-dim); }
+/* body 的 line-height 是 1.8，正文用還好，但這一頁短句子多、例字方塊本身
+   又有留白，1.8 疊起來行距、段落間距都顯得鬆散——這裡另外收緊。 */
+.pr-page p, .pr-page ul, .pr-page ol { font-size: .92rem; line-height: 1.5; }
+.pr-page p { margin: 0 0 .45rem; }
+.pr-page li { margin-bottom: .2rem; }
+
+/* 條文本身（原則說明、例字方塊）縮排一階，跟標題分出主從——原則的名字是標題，
+   說明和例字是它底下的內容，不該跟標題齊頭。 */
+.pr-body { padding-inline-start: 1.1rem; }
+
 .pr-example {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1.2rem;
+  gap: .8rem;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 1rem 1.3rem;
-  margin: 0 0 1.4rem;
+  padding: .55rem .8rem;
+  /* margin-top 跟 h2 的 margin-bottom 一樣（.5rem）——上面段落文字到例字方塊的
+     距離，要跟標題到段落文字的距離一樣，兩邊的留白節奏才一致（Wilson）。 */
+  margin: .5rem 0 .7rem;
 }
 
-.pr-cards { display: flex; gap: 1.3rem; flex: none; }
+.pr-cards { display: flex; gap: .8rem; flex: none; }
 
-.pr-card { display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+.pr-card { display: flex; flex-direction: column; align-items: center; gap: .25rem; }
 
-.pr-icon { position: relative; width: 5rem; height: 5rem; }
+.pr-icon { position: relative; width: 3.1rem; height: 3.1rem; }
 .pr-icon .zg-altsvg { width: 100%; height: 100%; display: block; }
 
+/* 描邊在字根表的小圖示（1.6rem）上是細細一圈分隔線，但這裡的圖示放大到
+   3rem 多，同一個 stroke-width（SVG 座標，viewBox 1024）換算成螢幕像素就跟著
+   變粗，一堆筆畫疊在一起反而變成惹眼的黑框（Wilson）。改用細很多的描邊，
+   放大之後看起來還是一條分隔線，不是一圈黑邊。 */
+.pr-icon .zg-altsvg path { stroke-width: 8; }
+
+/* 碼和打勾／打叉放同一行，勾叉在碼右邊——不疊在圖示上，疊上去會蓋住
+   角落的筆畫（Wilson，跟辨析表 .zg-altpair 同一個修法）。 */
+.pr-coderow { display: flex; align-items: center; gap: .3rem; }
+
 .pr-mark {
-  position: absolute;
-  right: -.3rem;
-  bottom: -.3rem;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.05rem;
+  height: 1.05rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: .85rem;
+  font-size: .62rem;
   font-weight: 700;
   color: #fff;
-  border: 2px solid var(--surface);
+  flex: none;
 }
 .pr-card.is-ok .pr-mark  { background: #2f9e44; }
 .pr-card.is-bad .pr-mark { background: #d1382c; }
@@ -1148,13 +1226,13 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .pr-code {
   font-family: ui-monospace, Menlo, monospace;
   font-weight: 700;
-  font-size: .95rem;
+  font-size: .82rem;
   letter-spacing: .03em;
   color: var(--ink-dim);
 }
 .pr-card.is-bad .pr-code { color: var(--ink-faint); text-decoration: line-through; }
 
-.pr-text { flex: 1 1 16rem; min-width: 0; margin: 0; color: var(--ink); }
+.pr-text { flex: 1 1 16rem; min-width: 0; margin: 0 !important; color: var(--ink); }
 .pr-text code {
   font-family: ui-monospace, Menlo, monospace;
   background: var(--code-bg);
@@ -1163,7 +1241,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 }
 
 @media (max-width: 34rem) {
-  .pr-icon { width: 4rem; height: 4rem; }
+  .pr-icon { width: 2.6rem; height: 2.6rem; }
 }
 
 
@@ -1201,4 +1279,6 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   .zg-jump { top: 3.4rem; }
   .zg-tbl thead th { top: 5.9rem; }
   .zg-tbl tbody tr { scroll-margin-top: 8.5rem; }
+
+  .pr-subnav { margin-inline-start: 0; top: 3.4rem; }
 }
