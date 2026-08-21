@@ -33,13 +33,13 @@
      刻意跳過橙色（Wilson）：紅／橙／黃三色色相太近，小圖示的尺寸下橙會同時貼著
      紅和黃分不清楚，不如直接跳過，換成色相間距大很多的紅／黃／綠／藍／紫。 */
   --rb-0: #cc2b1e;   /* 紅 */
-  /* 黃分成兩個值。原本只有一個，壓得很暗（#a68a00）才能兼顧「填色的筆畫」和
-     「小小的碼字母」兩種用法，結果筆畫看起來偏土黃／咖啡色，不像黃（Wilson）。
-     兩者對比度的需求差很多：填色的是又粗又大的筆畫塊，白底上 1.8:1 就看得很清楚；
-     碼是 .82rem 的粗體等寬字母，同樣的顏色會糊掉。所以填色用亮檸檬黃，
-     文字用同色相壓暗一階的版本 —— 色相一樣（都是 55°），仍讀得出是「黃色那一組」。 */
-  --rb-1: #d8c600;       /* 黃：填色用（筆畫、圖例圓點）*/
-  --rb-1-ink: #b0a100;   /* 黃：文字用（碼的字母）*/
+  /* 黃：檸檬黃，色相 55°（原本是壓暗的 #a68a00、色相 50°，看起來偏土黃／咖啡色）。
+     上一版我把它拆成「填色用」和「文字用」兩個值，文字那個壓暗一階想保住小字母的
+     可讀性 —— 但那樣碼的字母看起來就還是舊的暗黃，跟筆畫對不起來（Wilson）。
+     筆畫和字母是同一組，就該同一個顏色，所以收回來只留一個值。
+     代價是碼的字母在白底上只有 1.75:1；真的覺得糊，要調的是字級或字重，不是顏色
+     —— 一改顏色就又跟筆畫分家了。 */
+  --rb-1: #d8c600;
   --rb-2: #1f9d52;   /* 綠 */
   --rb-3: #1f66c2;   /* 藍 */
   --rb-4: #7a3fb0;   /* 紫 */
@@ -65,7 +65,6 @@
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff6b52;
     --rb-1: #f0dc00;
-    --rb-1-ink: #e8d400;   /* 暗背景上不必壓暗，兩個值差一點點就夠 */
     --rb-2: #2fd47a;
     --rb-3: #4da3ff;
     --rb-4: #c084fc;
@@ -1275,7 +1274,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    調暗（opacity，不是換成灰色），刪除線＋調暗兩個線索一起說「這是不取的示範」，
    但字母顏色仍看得出跟圖示哪一組對應。 */
 .pr-code .rb-0 { color: var(--rb-0); }
-.pr-code .rb-1 { color: var(--rb-1-ink); }
+.pr-code .rb-1 { color: var(--rb-1); }
 .pr-code .rb-2 { color: var(--rb-2); }
 .pr-code .rb-3 { color: var(--rb-3); }
 .pr-code .rb-4 { color: var(--rb-4); }
@@ -1426,7 +1425,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .cv-icon .zg-altsvg { width: 100%; height: 100%; display: block; }
 
 .cv-color .jm-tbl code .rb-0 { color: var(--rb-0); }
-.cv-color .jm-tbl code .rb-1 { color: var(--rb-1-ink); }
+.cv-color .jm-tbl code .rb-1 { color: var(--rb-1); }
 .cv-color .jm-tbl code .rb-2 { color: var(--rb-2); }
 .cv-color .jm-tbl code .rb-3 { color: var(--rb-3); }
 .cv-color .jm-tbl code .rb-4 { color: var(--rb-4); }
