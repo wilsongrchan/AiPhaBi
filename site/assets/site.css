@@ -1098,6 +1098,29 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .rail .cand:hover { background: var(--accent-soft); }
 .rail .cand .n { font-size: .72rem; color: var(--ink-dim); }
 
+/* 打中的字（你打的這幾碼就是它的碼）用主色標出來 —— 一眼看出哪個是真打中的，
+ * 哪些只是「開頭一樣、還要再補幾碼」。跟標註站那個試打頁同一條規則。 */
+.rail .cand.is-exact .g { color: var(--accent); }
+
+/* 碼欄：標籤（簡碼）在上、碼在下，疊成一欄。align-self:flex-end 是必要的 ——
+ * 讓這一欄自己底部對齊，不要參與那一排的 baseline 計算，否則基準線會算到
+ * 「簡碼」那一行，把候選字整個往上頂，跟旁邊沒有標籤的候選字對不齊。 */
+.rail .cand .c {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: flex-end;
+  line-height: 1.35;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  position: relative;
+  top: -.1rem;
+}
+
+.rail .cand .c .tag { color: var(--accent); font-size: .62rem; }
+
 .rail .hint {
   margin-inline-start: auto;
   font-size: .8rem;

@@ -945,6 +945,7 @@ def main():
     far = len(rank) + 1
 
     table = {}          # code(lower) -> [chars]
+    main = {}           # char -> 主碼(lower)，萬用鍵的候選標註要用
 
     def add(code, ch):
         if not code:
@@ -960,6 +961,7 @@ def main():
         # display：makemeahanzi 偶爾把字形畫成別的通行體（為 → 爲），碼表輸出的是那個字形。
         out = rec.get("display") or ch
         add(shorten(full, max_rule), out)       # 主碼：實際要按的
+        main.setdefault(out, shorten(full, max_rule).lower())
         add(full, out)                          # 完整碼：拆完每一碼也一律接受
         for alt in rec.get("alts", []):         # 兼容碼：手動收的另一條路（連它的完整碼）
             ac = alt.get("code")
@@ -1014,6 +1016,16 @@ def main():
         "short": short,
         "short_rev": short_rev,
         "short_enabled": bool(sc and sc.get("enabled")),
+        # 下面兩欄是萬用鍵 ` 要用的，其餘功能用不到：
+        #   main  —— 字 → 主碼。候選旁邊標的一律是主碼，不是比對到的那個碼，
+        #            因為萬用鍵很常比對到長得看不完的完整碼（跟 rime/lua/
+        #            aiphabi_wildcard.lua 的 data.char2code 同一個東西、同一個理由）。
+        #   order —— 字頻順序的字串，rank = 在字串裡的位置。萬用鍵是掃全表比對，
+        #            命中的字散在各個碼底下，沒有這個就只能照碼的字母順序排，
+        #            結果是候選列開頭一堆罕見字。codes 各桶內部已經照字頻排了，
+        #            但桶跟桶之間沒有順序，所以那個排序救不了萬用鍵。
+        "main": main,
+        "order": "".join(c for c in freq_order if c in codes),
     }
 
     # 值是候選陣列，取第一個（標準簡化字）；51 個多候選字的其餘寫法用不到。
