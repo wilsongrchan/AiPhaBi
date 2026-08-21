@@ -1,4 +1,9 @@
-# 第三方字形資料 —— 各有授權，不隨本專案散布。跑 fetch_data.py 重建。
+# 第三方字形資料 —— 各有授權，**不進版控**。跑 fetch_data.py 重建。
+#
+# ⚠️ 「不進版控」不等於「不對外散布」：公開網站會把 graphics.txt 裡約 1,375 個字的
+# 筆畫輪廓抽出來，隨 GitHub Pages 發佈出去（Wilson 於 2026-08-17 決定接受 Arphic
+# Public License 的義務）。完整說明見本檔下方 site/.cache/ 那一段。
+# 這一行原本寫的是「不隨本專案散布」，在 side-c 併進 main 之前是對的，之後就不是了。
 data/graphics.txt
 data/dictionary.txt
 data/tw_strokes.json
