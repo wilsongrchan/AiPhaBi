@@ -1083,23 +1083,58 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ 5432 characters coded (`codes.json`, end of 2026-08-14). Against the official lists (see
-  *取碼目標：官方字表*): **教育部常用國字 4169 / 4808 = 86.7%**, **GB 2312 3730 / 6763 = 55.2%**.
-  Quote those, not the raw total.
+- ✅ 6559 characters coded (`codes.json`, 2026-08-21). Against the official lists (see
+  *取碼目標：官方字表*): **教育部常用國字 4763 / 4808 = 99.1%** (45 left — nearly done),
+  **GB 2312 4513 / 6763 = 66.7%** (2250 left, the larger remaining job). Quote those, not the raw
+  total.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
 - ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
 - ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
 - ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
   collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
-- 🔄 Ongoing: keep coding toward the two official lists — 639 left for 教育部常用國字, 3033 for
-  GB 2312 (most of those have no already-coded traditional counterpart, so GB 2312 is the far
-  larger job). The `/annotate` 未取碼 queue sorts by those tables directly (**國字表 / GB表**,
+- ✅ **Zigen consolidation, ongoing**: 418 → 355 shapes as of 2026-08-21 (re-sourcing to simpler
+  representative characters + merging duplicate clusters). Every 取形意圖 with real shapes now has
+  a description; the 18 remaining blanks are empty per-letter placeholder buckets, not stragglers.
+  See *Zigen curation tools* below for the three generators driving this.
+- 🔄 Ongoing: keep coding toward GB 2312 (2250 left; most have no already-coded traditional
+  counterpart, which is why it's the far larger remaining job now that 教育部常用國字 is nearly
+  closed out). The `/annotate` 未取碼 queue sorts by those tables directly (**國字表 / GB表**,
   replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so working top-down *is*
   working down the official list. `data/todo_chars.txt` is the older frequency-ordered queue and
   its header counts are stale; `/progress` is the authority. Also: refine tiers/groups;
   `kind:"manual"` rules not yet enforced.
 - ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
+
+### Zigen curation tools (`tools/*.py`, Side A only — need `data/graphics.txt`)
+
+Three generators produce **review lists, never auto-applied changes**. Each measures against the
+real glyph geometry (median matching, same as `retune.py`) so a candidate is never just "looks
+similar" — but "geometrically close" still isn't the same as "good judgement", so all three stop at
+generating a shortlist. Wilson (or a session acting on his explicit picks) chooses; the tool only
+narrows 350+ zigen down to a few dozen worth a human look.
+
+| tool | output | finds |
+|---|---|---|
+| `tools/辨析候選.py` | `字根辨析候選.md` | cross-letter pairs from `meta.distinct` worth explaining to a reader (feeds Side C's 相近字形辨析) — excludes same-letter pairs (no code difference, no reader-visible confusion) and ranks example characters 甲表 > non-甲表 variant > simplified-only, since `freq.json` doesn't distinguish variants from standard forms (衆 outranks 眾 611 vs 4759) |
+| `tools/簡化候選.py` | `字根簡化候選.md` | zigen whose representative character is more complex than an already-matching example (資→目, 把→巴 style) — stroke count alone can't judge "reads as natural", so this is candidates only |
+| `tools/合併候選.py` | `字根合併候選.md` | same-intention same-stroke-count shape pairs that may really be one shape, split into 乾淨 (distance passes both shapes' own thresholds) and 臨界 (passes only the looser one — a tight threshold with no `meta.distinct` entry isn't necessarily accidental, since `editor.html:1013-1021` lets a threshold be hand-set with no adjudication record) |
+
+Re-run whichever is relevant after any zigen restructure; all three are cheap (seconds) and their
+`.md` outputs are committed so anyone can read the current shortlist without running Python.
+
+### A correction worth keeping in mind: `AiPhaBi-C`'s branch name is misleading
+
+`git worktree add -b side-c ../AiPhaBi-C origin/main` (setup step 2) means the branch is *called*
+`side-c`, but per step 3 it **tracks `origin/main`** — same mechanism as `side-b`. A bare `git push`
+from the `AiPhaBi-C` folder lands directly on `main`, with no merge step and no PR. This is not a
+bug; it's documented at setup time (line 35 above). But it bit this project once (2026-08-20–21):
+many Side C status updates said things like "18 commits on `side-c`, `main` untouched, Pages
+disabled" as if that were a stable, reviewable state — until Wilson ran a plain `git push` from that
+folder and all of it landed on `main` in one step, `origin/side-c` and `origin/main` now pointing at
+the identical commit. Nothing was lost (Pages was independently confirmed still disabled via the
+API), but **don't read "N commits on side-c" as "not on main yet"** — it can become the same thing
+the moment anyone in that folder pushes.
 
 ### B · User side
 - ✅ Two macOS schemas (pure `aiphabi` + `aiphabi_plus` with F4 pinyin toggle), installed via
