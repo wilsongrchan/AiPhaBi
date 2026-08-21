@@ -1587,3 +1587,13 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    方塊不會忽然抽高一截 —— 它是黏在頂端的，抽高會把整段內文往下推。 */
 .zg-altsvg path.ink { fill: var(--ink); }
 .pr-card.is-plain { padding-block: .9rem; }
+
+/* 〈原則套用順序〉：原則名稱自成一行、說明另起一行（Wilson）。
+   名稱後面的「：」跟著拿掉 —— 冒號掛在行尾沒有東西接，看起來像斷句斷掉了。
+   顏色比照〈完整示範〉那邊逐條原則的 dt，兩處講的是同一批原則。 */
+.pr-order > li > .pr-rule {
+  display: block;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: .1rem;
+}
