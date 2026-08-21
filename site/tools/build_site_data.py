@@ -178,6 +178,13 @@ PRINCIPLE_WRONG = {
     "雨": [{"code": "MQQQQ", "groups": [[0, 1, 2, 3], [4], [5], [6], [7]]}],
     "孔": [{"code": "PIL", "groups": [[0, 1], [2], [3]]}],
     "美": [{"code": "VFK", "groups": [[0, 1, 2], [3, 4, 5], [6, 7, 8]]}],
+    # 川 是〈原則套用順序〉那一節的完整示範：三種拆法逐條原則比下來。
+    # A JJJ 三筆各自取碼；B NJ 把第 1、2 筆組成 N（違反 N2「豎劃不比撇劃短」，
+    # 川 的第二筆明顯較短）；正解是 C JN，第 2、3 筆組成 N1「兩豎並立，右豎比左豎長」。
+    "川": [
+        {"code": "JJJ", "groups": [[0], [1], [2]]},
+        {"code": "NJ", "groups": [[0, 1], [2]]},
+    ],
     "東": [{"code": "IBM", "groups": [[0], [1, 2, 3, 4], [5, 6, 7]]}],
     # 字根表裡 J 底下有一條獨立的單筆字根「撇劃」（例字：白、力），跟「一橫加一撇」
     # 那條是分開的兩個字根，同一個字母。錯誤拆法就是把石的第 1 筆（橫）當孤立橫劃
@@ -213,7 +220,7 @@ PRINCIPLE_WRONG = {
 
 # 這一頁提到的所有例字，不管有沒有畫錯誤拆法對照圖，正確拆法都要能畫出來。
 PRINCIPLE_CHARS = [
-    "火", "雨", "子", "孔", "石", "美", "區", "樞", "東", "陳", "藍", "天", "昊", "文",
+    "火", "雨", "子", "孔", "石", "美", "區", "樞", "東", "陳", "藍", "天", "昊", "文", "川",
 ]
 
 
@@ -311,20 +318,38 @@ def build_similar(codes):
             # 抓出來給網站畫一個淡化＋刪除線的對照，不用另外在格式裡加一欄。
             m_wrong = re.search(r"不取\s*([A-Z]{1,8})", trait)
             wrong = m_wrong.group(1) if m_wrong else None
-            # 例字也畫出來並高亮，跟字根表一致。這裡只用**字母**比對（不比筆數）：
-            # 辨析要回答的是「這個字母的字根在這個字的哪裡」，而 目 的取碼寫成
-            # 「DI（D）」這種複合形式時，筆數根本對不上。同字母有多段就全部高亮。
+            # 例字畫出來並高亮。比對的是**整串取碼**，不是只比第一個字母：
+            # 目 的取碼是 DI，那 相 裡要亮的是 D 段加 I 段（＝整個目），不是只有 D。
+            # 做法是在例字的分段裡找「連續一段、字母串起來剛好等於取碼」的區間。
+            #
+            # 這樣同時解掉一個舊問題：秩 = J T J I Y，取碼 JIY 只會對到後面那三段
+            # （＝失），不會把前面「禾」的那個 J 也一起亮起來。
+            # 「DI（D）」→「DI」：括號裡是「作偏旁時的碼」，要先整段拿掉，
+            # 只留非括號的字母；否則會變成「DID」，什麼都對不上。
+            wanted = re.sub(r"[^A-Z]", "", re.sub(r"[（(].*?[）)]", "", letter))
             items = []
             for c in ex.split():
                 if not c:
                     continue
-                m2 = re.search(r"[A-Z]", letter)
-                hi = []
-                if m2:
-                    for seg in (codes.get(c, {}).get("segments") or []):
-                        if seg.get("letter") == m2.group(0):
-                            hi += list(seg.get("strokes") or [])
-                items.append({"c": c, "st": sorted(set(hi))})
+                segs = codes.get(c, {}).get("segments") or []
+                letters = [sg.get("letter") for sg in segs]
+                # 找不到完整的碼時，逐步砍掉尾巴再找。這是必要的，因為取碼原則本來就
+                # 會讓某些筆劃在特定字裡被略過：目 是 DI，但 眼 取 DEK ——「目」的末筆
+                # 橫劃因為不再是全字末筆而略過，所以 眼 裡只找得到 D。整串對不上就
+                # 退而求其次，仍然標出那個字裡真正對應的部分。
+                runs = []
+                probe = wanted
+                while probe and not runs:
+                    n = len(probe)
+                    for i in range(len(letters) - n + 1):
+                        if "".join(letters[i:i + n]) == probe:
+                            runs.append([k for sg in segs[i:i + n]
+                                         for k in (sg.get("strokes") or [])])
+                    if not runs:
+                        probe = probe[:-1]
+                items.append({"c": c,
+                              "st": sorted({k for r in runs for k in r}),
+                              "segs": [sorted(r) for r in runs]})
             alt = WRONG_BREAKDOWN.get((shape, letter))
             cur["items"].append({
                 "shape": shape,

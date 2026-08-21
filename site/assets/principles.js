@@ -19,8 +19,15 @@
     return n;
   }
 
-  function card(ch, breakdown, ok) {
+  function card(ch, breakdown, ok, label) {
     var c = el('div', 'pr-card ' + (ok ? 'is-ok' : 'is-bad'));
+    // 有些例子（川）正文會用「拆法A／B／C」指名討論，卡片上要標出來才對得起來
+    if (label) {
+      var lb = el('span', 'pr-label');
+      lb.textContent = label;
+      lb.setAttribute('data-keep', '');
+      c.appendChild(lb);
+    }
     var icon = el('span', 'pr-icon');
     var strokes = GLYPHS && GLYPHS[ch];
     if (strokes) {
@@ -129,9 +136,22 @@
         slot.insertBefore(cards, slot.firstChild);
       }
       cards.textContent = '';
-      cards.appendChild(card(ch, entry.correct, true));
-      // 有些字（天）文件裡「不取 X 或 Y」列了不只一個錯誤示範，全部畫出來。
-      (entry.wrongs || []).forEach(function (w) { cards.appendChild(card(ch, w, false)); });
+
+      // 預設「正確在前、示範在後」。但正文若要按特定順序討論（川 的 A→B→C），
+      // 可用 data-order 指定要照哪個碼的順序排、data-labels 給每張卡片一個標籤。
+      var all = [{ b: entry.correct, ok: true }]
+        .concat((entry.wrongs || []).map(function (w) { return { b: w, ok: false }; }));
+      var order = (slot.getAttribute('data-order') || '').split(',').filter(Boolean);
+      if (order.length) {
+        all.sort(function (x, y) {
+          var a = order.indexOf(x.b.code), b2 = order.indexOf(y.b.code);
+          return (a < 0 ? 99 : a) - (b2 < 0 ? 99 : b2);
+        });
+      }
+      var labels = (slot.getAttribute('data-labels') || '').split(',').filter(Boolean);
+      all.forEach(function (x, i) {
+        cards.appendChild(card(ch, x.b, x.ok, labels[i] || ''));
+      });
     });
     renderInline();
   }

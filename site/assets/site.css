@@ -1467,3 +1467,39 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   .zg-tbl tbody tr { scroll-margin-top: 8.5rem; }
 
 }
+
+
+/* 〈取碼原則〉：卡片左上角的拆法標籤（川 的 A／B／C），讓正文指名討論時對得上 */
+.pr-label {
+  position: absolute;
+  top: .3rem;
+  inset-inline-start: .45rem;
+  font: 700 .72rem ui-monospace, Menlo, monospace;
+  color: var(--ink-faint);
+}
+.pr-card { position: relative; }
+
+
+/* 〈取碼原則〉的完整示範：逐條原則的檢驗過程 */
+.pr-walk { margin: 1.4rem 0; }
+.pr-walk dt {
+  font-weight: 600;
+  margin-top: 1rem;
+  color: var(--accent);
+  font-size: .95rem;
+}
+.pr-walk dd { margin: .3rem 0 0; padding-inline-start: 0; }
+
+.pr-order { counter-reset: none; }
+.pr-order > li { margin-bottom: .6rem; }
+
+/* 補充討論：比正文淡一階，是「有人可能會問」那種旁註 */
+.pr-aside {
+  margin-top: 1.6rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-inline-start: 3px solid var(--line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--ink-dim);
+  font-size: .92rem;
+}
