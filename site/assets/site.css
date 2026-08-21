@@ -1048,7 +1048,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   background: var(--bg);
   color: var(--ink);
   padding: .8rem;
-  font: 1.25rem/1.8 inherit;
+  font: 1.5rem/1.7 inherit;
 }
 
 .typebox textarea:focus {
@@ -1711,8 +1711,8 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   margin-top: .8rem;
   max-height: 11.5rem;
   overflow-y: auto;
-  line-height: 2.1;
-  font-size: 1.05rem;
+  line-height: 1.95;
+  font-size: .88rem;
   padding: .6rem .7rem;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1773,3 +1773,46 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   .practice-cell { order: -1; }
   .tianzi { max-width: 10rem; }
 }
+
+/* 田字格的提示：被提示到的筆畫用取碼原則頁那一套彩虹分組色 —— 同一條字根
+ * 同一個顏色。沒按 / 之前整個字是黑的（.tz-ink）。 */
+.tianzi .tz-z0 { fill: var(--rb-0); }
+.tianzi .tz-z1 { fill: var(--rb-1); }
+.tianzi .tz-z2 { fill: var(--rb-2); }
+.tianzi .tz-z3 { fill: var(--rb-3); }
+.tianzi .tz-z4 { fill: var(--rb-4); }
+.tianzi .tz-z5 { fill: var(--rb-5); }
+
+.tz-hint {
+  margin-top: .5rem;
+  display: flex; flex-direction: column; align-items: center; gap: .35rem;
+}
+.tz-hintcodes { display: flex; gap: .25rem; flex-wrap: wrap; justify-content: center; }
+.tz-chip {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700; font-size: .82rem;
+  min-width: 1.5rem; text-align: center;
+  padding: .1rem .35rem;
+  border-radius: 4px;
+  color: var(--surface);
+}
+.tz-chip.z0 { background: var(--rb-0); }
+.tz-chip.z1 { background: var(--rb-1); }
+.tz-chip.z2 { background: var(--rb-2); }
+.tz-chip.z3 { background: var(--rb-3); }
+.tz-chip.z4 { background: var(--rb-4); }
+.tz-chip.z5 { background: var(--rb-5); }
+/* 還沒揭曉字母的那一格：留著它那一條字根的顏色（對得上格子裡剛標出來的那幾筆），
+ * 但字母還是問號 —— 灰掉的話就看不出這一格講的是哪幾筆了。 */
+.tz-chip.is-blank { background: none; border: 1px dashed currentColor; }
+.tz-chip.z0.is-blank { color: var(--rb-0); }
+.tz-chip.z1.is-blank { color: var(--rb-1); }
+.tz-chip.z2.is-blank { color: var(--rb-2); }
+.tz-chip.z3.is-blank { color: var(--rb-3); }
+.tz-chip.z4.is-blank { color: var(--rb-4); }
+.tz-chip.z5.is-blank { color: var(--rb-5); }
+
+.tz-intent {
+  font-size: .78rem; line-height: 1.5; color: var(--ink-dim); text-align: center;
+}
+.tz-more { font-size: .72rem; color: var(--ink-faint); }

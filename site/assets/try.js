@@ -16,7 +16,8 @@
   // 字母鍵全給字根用了，標點落在原本的標點鍵上（跟 rime/README.md 那張表一致）
   var PUNCT = {
     ',': '，', '.': '。', '?': '？', '!': '！', ';': '；', ':': '：',
-    '\\': '、', '/': '、', '(': '（', ')': '）', '[': '「', ']': '」',
+    // ⚠️ '/' 不在這裡 —— 它是提示鍵（見 hintStep）。、 還是打得出來，用 \ 那一顆。
+    '\\': '、', '(': '（', ')': '）', '[': '「', ']': '」',
     '{': '『', '}': '』', '<': '《', '>': '》', '^': '……', '_': '——',
     '~': '～', '-': '－'
   };
@@ -191,8 +192,12 @@
    * site/content/practice.md）。抓不到就整塊拿掉，試打框本身不受影響 ——
    * 這一頁的主要功能是試打，參考文章是加分項，不該把它拖下水。 */
   var P = {
-    on: false, chars: [], pos: 0, glyphs: null, main: null,
-    text: null, cell: null, next: null, prog: null
+    on: false, chars: [], pos: 0, glyphs: null, main: null, segs: null,
+    text: null, cell: null, next: null, prog: null, hintbox: null,
+    // 提示鏈：seg = 現在講到第幾個字根，step = 講到哪一步
+    //   0 還沒開始 · 1 標出筆畫 · 2 說取形意圖 · 3 給字母
+    // 按一次 / 往前一步，走完一個字根就換下一個。字換了就整個歸零。
+    hseg: 0, hstep: 0
   };
 
   // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
@@ -210,14 +215,28 @@
 
   function isHan(c) { return c >= '\u4e00' && c <= '\u9fff'; }
 
+  /* 預設整個字都是黑的 —— 這裡講的是「這個字長這樣」，不是在講字根，
+     上色會讓人以為顏色有意思。只有按了 / 之後，被提示到的那幾筆才上色，
+     用的是取碼原則頁那一套彩虹分組色（同一條字根同一個顏色）。 */
+  function strokeColours(ch) {
+    var segs = P.segs && P.segs[ch];
+    if (!segs || !P.hstep) return null;
+    var map = {};
+    for (var i = 0; i <= P.hseg && i < segs.length; i++) {
+      for (var k = 0; k < segs[i].st.length; k++) map[segs[i].st[k]] = i;
+    }
+    return map;
+  }
+
   function drawCell(ch) {
     var strokes = ch && P.glyphs ? P.glyphs[ch] : null;
     if (strokes) {
-      // 筆畫一律用 --ink（黑／深灰）—— 這裡不是在講字根，是在講「這個字長這樣」，
-      // 上色會讓人以為顏色有意思。彩色的分組留給字根表和取碼原則那兩頁。
+      var colour = strokeColours(ch);
       var paths = '';
       for (var i = 0; i < strokes.length; i++) {
-        paths += '<path class="tz-ink" d="' + strokes[i] + '"/>';
+        var gi = colour && colour[i] != null ? colour[i] : -1;
+        var cls = gi >= 0 ? 'tz-z' + (gi % 6) : 'tz-ink';
+        paths += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
       }
       P.cell.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
         GRID + '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
@@ -258,6 +277,8 @@
     }
 
     // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
+    renderHint(now);
+
     var done = P.typedBefore[P.pos] || 0, total = P.total;
     P.prog.textContent = done + ' / ' + total +
       '　' + Math.round(done * 100 / total) + '%';
@@ -281,6 +302,54 @@
     if (P.chars[P.pos] !== ch) return;
     P.pos++;
     while (P.chars[P.pos] === '\n') P.pos++;
+    P.hseg = 0; P.hstep = 0;          // 換字了，提示從頭來
+    renderPractice();
+  }
+
+
+  /* 提示面板：已經揭曉的字根排成一列（字母），現在講到的那一條另外把取形意圖
+     寫出來。沒按過 / 就整塊不出現 —— 這一頁的預設是「自己想」。 */
+  function renderHint(ch) {
+    var box = P.hintbox;
+    box.innerHTML = '';
+    var segs = P.segs && P.segs[ch];
+    if (!P.hstep || !segs || !segs.length) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+
+    var row = el('span', 'tz-hintcodes');
+    for (var i = 0; i <= P.hseg && i < segs.length; i++) {
+      var known = i < P.hseg || P.hstep >= 3;
+      var chip = el('span', 'tz-chip z' + (i % 6) + (known ? '' : ' is-blank'),
+                    known ? segs[i].L : '？');
+      row.appendChild(chip);
+    }
+    box.appendChild(row);
+
+    var cur = segs[Math.min(P.hseg, segs.length - 1)];
+    if (P.hstep >= 2 && cur.d) box.appendChild(el('span', 'tz-intent', cur.d));
+
+    var more = P.hseg < segs.length - 1 || P.hstep < 3;
+    box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '這個字的碼全給了'));
+  }
+
+  /* 按 / 往前一步。走完一條字根（標筆畫 → 說意圖 → 給字母）才換下一條。
+     比對不到字根的那幾段沒有取形意圖（建置時會印出來），中間那一步直接跳過，
+     不要留一個空白的提示讓人以為壞掉了。 */
+  function hintStep() {
+    if (!P.on || P.pos >= P.chars.length) return;
+    var ch = P.chars[P.pos];
+    var segs = P.segs && P.segs[ch];
+    if (!segs || !segs.length) return;
+    if (P.hstep < 3) {
+      P.hstep++;
+      if (P.hstep === 2 && !segs[P.hseg].d) P.hstep = 3;
+    } else if (P.hseg < segs.length - 1) {
+      P.hseg++;
+      P.hstep = 1;
+    }
     renderPractice();
   }
 
@@ -289,6 +358,7 @@
     if (!host || !pd || !pd.paras || !pd.paras.length) return;
     P.on = true;
     P.glyphs = pd.glyphs || null;
+    P.segs = pd.segs || null;
     P.main = dict.main;
     P.chars = pd.paras.join('\n').split('');
     // typedBefore[i] = 第 i 格之前有幾個「真的要打」的字元（換行不算）
@@ -304,16 +374,18 @@
     P.cell = document.getElementById('tianzi');
     P.next = document.getElementById('practice-next');
     P.prog = document.getElementById('practice-prog');
+    P.hintbox = document.getElementById('practice-hint');
 
     var src = document.getElementById('practice-src');
     src.textContent = pd.title + '　' + pd.author + '　' + pd.license;
 
     document.getElementById('practice-skip').addEventListener('click', function () {
       if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
+      P.hseg = 0; P.hstep = 0;
       renderPractice(); out.focus();
     });
     document.getElementById('practice-reset').addEventListener('click', function () {
-      P.pos = 0; renderPractice(); out.focus();
+      P.pos = 0; P.hseg = 0; P.hstep = 0; renderPractice(); out.focus();
     });
 
     host.hidden = false;
@@ -366,6 +438,9 @@
     }
 
     if (/^[a-zA-Z]$/.test(k)) { e.preventDefault(); setBuf(state.buf + k.toLowerCase()); return; }
+
+    // 提示鍵。放在標點之前 —— / 原本是 、 的鍵，現在讓給提示，、 還在 \\ 上面。
+    if (k === '/') { e.preventDefault(); hintStep(); return; }
 
     // 萬用鍵。放在標點之前判斷 —— ` 在 PUNCT 裡沒有對應，但將來要是加了，
     // 萬用鍵也必須贏，否則這一顆鍵就打不進碼裡了。
