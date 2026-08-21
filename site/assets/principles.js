@@ -76,6 +76,29 @@
     return c;
   }
 
+  /* 逐步示範的第 1、2 步（約定原則、外框／主幹原則）還沒開始拆碼，看的就是這個字
+   * 本身 —— 所以擺一個沒有上色、沒有碼的原字（Wilson）。走到筆順原則、三種拆法
+   * 登場時它就退場。用 .pr-card 而不是自成一格，好讓它跟後面三張卡片對齊同寬同高。 */
+  function plainCard(ch) {
+    var c = el('div', 'pr-card is-plain');
+    c.setAttribute('data-plain', '');
+    var icon = el('span', 'pr-icon');
+    var strokes = GLYPHS && GLYPHS[ch];
+    if (strokes) {
+      var paths = '';
+      for (var i = 0; i < strokes.length; i++) paths += '<path class="ink" d="' + strokes[i] + '"/>';
+      icon.innerHTML = '<svg class="zg-altsvg" viewBox="0 0 1024 1024" aria-hidden="true">' +
+        '<g transform="scale(1,-1) translate(0,-900)">' + paths + '</g></svg>';
+    } else {
+      icon.textContent = ch;
+      icon.setAttribute('data-keep', '');
+    }
+    c.appendChild(icon);
+    c.title = ch + '（尚未拆碼）';
+    c.setAttribute('data-keep', '');
+    return c;
+  }
+
   /* 說明文字裡的「V（第 1、2 筆）」這種文字描述，換成就地畫出來的字根小圖——
    * 用法跟 zigen.js 的 {字#筆序} 一樣，但那支程式的函式沒有對外開放，這裡另外
    * 寫一份（裁切／置中算法照抄 zigen.js 的 rootIconSvg，見那邊的註解）。
@@ -155,6 +178,7 @@
       // 逐步示範的卡片一開始不掛勾叉——先掛等於先講答案（Wilson）。真正的 ok
       // 還是留在 title／CSS 之外的地方：由 setupSteppers 依步驟一張張填上去。
       var stepped = slot.hasAttribute('data-stepped');
+      if (stepped) cards.appendChild(plainCard(ch));
       all.forEach(function (x, i) {
         var c = card(ch, x.b, stepped ? null : x.ok, labels[i] || '');
         c.dataset.verdict = x.ok ? 'ok' : 'bad';
@@ -250,8 +274,11 @@
           list(dts[k], 'data-out').forEach(function (L) { mark(L, false); });
           list(dts[k], 'data-in').forEach(function (L) { mark(L, true); });
         }
-        // 一張都還沒登場時，整個方塊收起來——留一個空框在那裡只是雜訊
-        slot.classList.toggle('is-unborn', staged && !shown);
+        // 三張拆法還沒登場前，方塊裡放沒上色的原字（Wilson）；沒有原字可放的
+        // 例子（沒附 plainCard）才把整個方塊收起來，免得留一個空框。
+        var plain = slot.querySelector('.pr-card[data-plain]');
+        if (plain) plain.classList.toggle('is-unborn', shown > 0);
+        slot.classList.toggle('is-unborn', staged && !shown && !plain);
         dts.forEach(function (dt, k) {
           dt.classList.toggle('is-now', k === at);
           dt.classList.toggle('is-later', k > at);

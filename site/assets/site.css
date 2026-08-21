@@ -1570,16 +1570,14 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    讀者「等一下會有三個東西」。 */
 .pr-card.is-unborn, .pr-example.is-unborn { display: none; }
 
-/* 判定為錯的拆法：**連筆畫一起轉灰**，不是只有底下的碼變灰（Wilson：要更一眼看出來）。
-   碼和圖示一起轉，兩邊才不會一個彩色一個灰色。
+/* 判定為錯的拆法：**筆畫也一起淡掉**，不是只有底下的碼淡掉（Wilson）。
+   用的就是碼那邊本來已經在用的手法（.pr-code span 的 opacity: .55），同一個值，
+   兩邊看起來才是同一件事。顏色留著不動 —— 分組是靠顏色看的，而「哪幾筆併成
+   一組」正是這張卡片要講的事（拆法 B 被否掉就是因為它把第 1、2 筆併成一組）。 */
+.pr-card.is-bad .pr-icon { opacity: .55; }
 
-   只轉灰有個問題：相鄰兩組的灰階可能幾乎一樣（黃 #a68a00 和綠 #1f9d52 轉成灰階
-   只差 9 階），而「哪幾筆併成一組」正是這張卡片要講的事——拆法 B 被否掉的理由
-   就是它把第 1、2 筆併成一組。所以再依組序交錯壓一次透明度，保證相鄰兩組的深淺
-   一定看得出差別。用 grayscale 而不是寫死灰色，深淺色主題都不必各寫一套。 */
-.pr-card.is-bad .pr-icon,
-.pr-card.is-bad .pr-code { filter: grayscale(1); }
-.pr-card.is-bad .pr-icon { opacity: .62; }
-.pr-card.is-bad .zg-altsvg path.rb-1,
-.pr-card.is-bad .zg-altsvg path.rb-3,
-.pr-card.is-bad .zg-altsvg path.rb-5 { opacity: .5; }
+/* 逐步示範第 1、2 步的原字：沒上色、沒有碼，就是這個字本身。
+   高度比後面三張卡片矮（少了標籤和碼那兩行），補上等高的留白，換到第 3 步時
+   方塊不會忽然抽高一截 —— 它是黏在頂端的，抽高會把整段內文往下推。 */
+.zg-altsvg path.ink { fill: var(--ink); }
+.pr-card.is-plain { padding-block: .9rem; }
