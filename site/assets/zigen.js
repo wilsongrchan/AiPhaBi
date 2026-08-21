@@ -344,13 +344,19 @@
       if (DATA.letters[i].letter === m[0]) { L = DATA.letters[i]; break; }
     }
     if (!L) return null;
+    // 比對前先把引號正規化掉：similar.md 是 Wilson 手寫的（用 “”），而 zigen.json
+    // 的敘述由 Side A 維護（2026-08-21 起改用 「」）。兩邊講同一件事卻對不上字面，
+    // 連結就會無聲消失 —— 七 就是這樣掉的。標點不該影響語意比對。
+    var strip = function (t) { return (t || '').replace(/[“”「」『』"'‘’]/g, ''); };
+    trait = strip(trait);
+
     // 兩個方向都比：意圖敘述的開頭出現在特徵裡，或特徵的開頭出現在意圖敘述裡。
     // 乚 的特徵是「豎彎鉤，收筆…」，而 L1 是「豎折、豎彎鉤、或豎提…」——
     // 只比前者的方向會漏掉，因為關鍵詞在敘述的中間。取最長的相符當結果。
     var head = trait.replace(/^[^\u4e00-\u9fff]*/, '').slice(0, 6);
     var best = null, bestLen = 0;
     L.groups.forEach(function (g) {
-      var d = (g.desc || '').replace(/[，。]$/, '');
+      var d = strip(g.desc).replace(/[，。]$/, '');
       if (d.length < 3) return;
       for (var n = Math.min(6, d.length); n >= 3; n--) {
         if (trait.indexOf(d.slice(0, n)) >= 0 && n > bestLen) { bestLen = n; best = g; break; }
