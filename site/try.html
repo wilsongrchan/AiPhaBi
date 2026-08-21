@@ -48,6 +48,28 @@
     查的是真正的碼表——跟裝起來之後打出來的結果一致。
   </p>
 
+  <!-- 參考文章＋田字格。practice.json 沒產出來時 try.js 會把整塊拿掉，
+       試打框照常能用（見 try.js 的 setupPractice）。 -->
+  <section class="practice" id="practice" hidden>
+    <div class="practice-main">
+      <div class="practice-head">
+        <h2>跟著打</h2>
+        <p class="practice-src" id="practice-src"></p>
+      </div>
+      <div class="practice-text" id="practice-text" aria-live="off"></div>
+      <div class="practice-bar">
+        <span class="practice-prog" id="practice-prog"></span>
+        <button type="button" class="practice-btn" id="practice-skip">跳過這個字</button>
+        <button type="button" class="practice-btn" id="practice-reset">從頭開始</button>
+      </div>
+    </div>
+
+    <aside class="practice-cell">
+      <div class="tianzi" id="tianzi"></div>
+      <p class="practice-next" id="practice-next"></p>
+    </aside>
+  </section>
+
   <div class="typebox">
     <label class="sr-only" for="out">試打區</label>
     <textarea id="out" placeholder="先試試 bd（明）、jkxq（我）、jba（的）" autocomplete="off"

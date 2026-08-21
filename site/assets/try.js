@@ -185,6 +185,141 @@
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(rail);
   }
 
+
+  /* ---- 跟著打：參考文章 + 田字格 -------------------------------------
+   * 資料是 assets/practice.json（文章本文＋它用得到的字形，見
+   * site/content/practice.md）。抓不到就整塊拿掉，試打框本身不受影響 ——
+   * 這一頁的主要功能是試打，參考文章是加分項，不該把它拖下水。 */
+  var P = {
+    on: false, chars: [], pos: 0, glyphs: null, main: null,
+    text: null, cell: null, next: null, prog: null
+  };
+
+  // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
+  // 字形的 y 軸要翻過來 —— graphics.txt 的座標系原點在左下，位移是 900 不是 1024。
+  // 字形本身正好填滿 0–1024，直接畫會頂到格線。縮到 86% 置中，看起來才像
+  // 練習簿上的田字格（標註頁不縮是因為那裡要看字跟框的關係，這裡不用）。
+  var INSET = 0.86;
+  var SVG_TF = 'translate(' + (1024 * (1 - INSET) / 2).toFixed(1) + ',' +
+               (1024 * (1 - INSET) / 2).toFixed(1) + ') scale(' + INSET + ') ' +
+               'scale(1,-1) translate(0,-900)';
+  var GRID =
+    '<rect class="tz-grid" x="2" y="2" width="1020" height="1020" rx="20"/>' +
+    '<line class="tz-grid" x1="512" y1="2" x2="512" y2="1022"/>' +
+    '<line class="tz-grid" x1="2" y1="512" x2="1022" y2="512"/>';
+
+  function isHan(c) { return c >= '\u4e00' && c <= '\u9fff'; }
+
+  function drawCell(ch) {
+    var strokes = ch && P.glyphs ? P.glyphs[ch] : null;
+    if (strokes) {
+      // 筆畫一律用 --ink（黑／深灰）—— 這裡不是在講字根，是在講「這個字長這樣」，
+      // 上色會讓人以為顏色有意思。彩色的分組留給字根表和取碼原則那兩頁。
+      var paths = '';
+      for (var i = 0; i < strokes.length; i++) {
+        paths += '<path class="tz-ink" d="' + strokes[i] + '"/>';
+      }
+      P.cell.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
+        GRID + '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
+    } else {
+      // 標點、或者沒有字形資料的字：照樣放進格子裡，只是用系統字型
+      P.cell.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + (ch || '') + '">' +
+        GRID + '</svg>' +
+        '<span class="tz-fallback">' + (ch || '') + '</span>';
+    }
+  }
+
+  function renderPractice() {
+    if (!P.on) return;
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < P.chars.length; i++) {
+      var c = P.chars[i];
+      if (c === '\n') { frag.appendChild(document.createElement('br')); continue; }
+      var cls = i < P.pos ? 'pc is-done' : i === P.pos ? 'pc is-now' : 'pc';
+      frag.appendChild(el('span', cls, c));
+    }
+    P.text.innerHTML = '';
+    P.text.appendChild(frag);
+
+    var now = P.chars[P.pos];
+    drawCell(now === '\n' ? '' : now);
+
+    // 沒取碼的字打不出來 —— 直說，並且讓人跳過去，不要讓人卡在那一格試半天
+    var uncoded = now && isHan(now) && P.main && !P.main[now];
+    P.next.innerHTML = '';
+    if (P.pos >= P.chars.length) {
+      P.next.appendChild(el('span', 'ok', '整篇打完了。'));
+    } else if (uncoded) {
+      P.next.appendChild(el('b', null, now));
+      P.next.appendChild(el('span', 'warn', '尚未取碼，按「跳過這個字」'));
+    } else if (now) {
+      P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
+      P.next.appendChild(el('span', null, '下一個'));
+    }
+
+    // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
+    var done = P.typedBefore[P.pos] || 0, total = P.total;
+    P.prog.textContent = done + ' / ' + total +
+      '　' + Math.round(done * 100 / total) + '%';
+
+    // 目前這個字捲進視野：只捲文章那個框，不要動整頁
+    var cur = P.text.querySelector('.is-now');
+    if (cur) {
+      var box = P.text.getBoundingClientRect(), r = cur.getBoundingClientRect();
+      if (r.top < box.top + 4 || r.bottom > box.bottom - 4) {
+        P.text.scrollTop += (r.top - box.top) - box.height / 2;
+      }
+    }
+    if (window.AiPhaBiSite) window.AiPhaBiSite.localize(P.text);
+  }
+
+  /* 打出來的字跟目前這一格一樣就往前走。不一樣不做事 —— 字照樣進了試打框
+     （那是使用者自己打的東西，不該被吃掉），只是進度不動。 */
+  function advance(ch) {
+    if (!P.on || P.pos >= P.chars.length) return;
+    while (P.chars[P.pos] === '\n') P.pos++;      // 換行不用打
+    if (P.chars[P.pos] !== ch) return;
+    P.pos++;
+    while (P.chars[P.pos] === '\n') P.pos++;
+    renderPractice();
+  }
+
+  function setupPractice(pd, dict) {
+    var host = document.getElementById('practice');
+    if (!host || !pd || !pd.paras || !pd.paras.length) return;
+    P.on = true;
+    P.glyphs = pd.glyphs || null;
+    P.main = dict.main;
+    P.chars = pd.paras.join('\n').split('');
+    // typedBefore[i] = 第 i 格之前有幾個「真的要打」的字元（換行不算）
+    P.typedBefore = [];
+    var n = 0;
+    for (var i = 0; i < P.chars.length; i++) {
+      P.typedBefore[i] = n;
+      if (P.chars[i] !== '\n') n++;
+    }
+    P.typedBefore[P.chars.length] = n;
+    P.total = n;
+    P.text = document.getElementById('practice-text');
+    P.cell = document.getElementById('tianzi');
+    P.next = document.getElementById('practice-next');
+    P.prog = document.getElementById('practice-prog');
+
+    var src = document.getElementById('practice-src');
+    src.textContent = pd.title + '　' + pd.author + '　' + pd.license;
+
+    document.getElementById('practice-skip').addEventListener('click', function () {
+      if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
+      renderPractice(); out.focus();
+    });
+    document.getElementById('practice-reset').addEventListener('click', function () {
+      P.pos = 0; renderPractice(); out.focus();
+    });
+
+    host.hidden = false;
+    renderPractice();
+  }
+
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     n.className = cls;
@@ -203,6 +338,7 @@
     state.buf = '';
     state.cands = [];
     render();
+    advance(ch);
   }
 
   function setBuf(b) {
@@ -235,12 +371,26 @@
     // 萬用鍵也必須贏，否則這一顆鍵就打不進碼裡了。
     if (k === WILD) { e.preventDefault(); setBuf(state.buf + WILD); return; }
 
-    if (PUNCT[k]) { e.preventDefault(); insert(PUNCT[k]); if (state.buf) setBuf(''); return; }
+    if (PUNCT[k]) {
+      e.preventDefault();
+      insert(PUNCT[k]);
+      if (state.buf) setBuf('');
+      advance(PUNCT[k]);        // 標點也是文章的一部分，打對了一樣往前一格
+      return;
+    }
   });
 
   fetch('assets/dict.json')
     .then(function (r) { return r.json(); })
-    .then(ready)
+    .then(function (d) {
+      ready(d);
+      // 參考文章另外抓：它帶著自己的字形（約 830KB），抓失敗或還沒回來，
+      // 試打框都已經可以用了 —— 所以放在 dict.json 之後，而且不接進同一條鏈。
+      fetch('assets/practice.json')
+        .then(function (r) { return r.json(); })
+        .then(function (pd) { setupPractice(pd, d); })
+        .catch(function () { /* 沒有就沒有，那一塊不出現 */ });
+    })
     .catch(function () {
       rail.innerHTML = '';
       rail.appendChild(el('span', 'empty',
