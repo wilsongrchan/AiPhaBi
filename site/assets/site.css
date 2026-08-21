@@ -1469,15 +1469,17 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 }
 
 
-/* 〈取碼原則〉：卡片左上角的拆法標籤（川 的 A／B／C），讓正文指名討論時對得上 */
+/* 〈取碼原則〉：拆法標籤（川 的 A／B／C），讓正文指名討論時對得上。
+   排在字的**上方**、不疊在圖示上 —— 絕對定位會蓋住角落的筆畫，
+   跟打勾／打叉當初移到碼旁邊是同一個理由。 */
 .pr-label {
-  position: absolute;
-  top: .3rem;
-  inset-inline-start: .45rem;
-  font: 700 .72rem ui-monospace, Menlo, monospace;
+  display: block;
+  text-align: center;
+  margin-bottom: .25rem;
+  font: 700 .74rem ui-monospace, Menlo, monospace;
   color: var(--ink-faint);
+  letter-spacing: .04em;
 }
-.pr-card { position: relative; }
 
 
 /* 〈取碼原則〉的完整示範：逐條原則的檢驗過程 */
