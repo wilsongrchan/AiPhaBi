@@ -204,9 +204,11 @@ PRINCIPLE_WRONG = {
     # 中間三個「囗」框不受影響，一樣是三個 O。
     "區": [{"code": "IOOOL", "groups": [[0], [1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]}],
     # 孤筆略過原則本身舉的反例：文字說明白寫了每一組是什麼——點劃取 Q、橫劃當成
-    # 「沒辦法跟其他筆畫組成字根」略過不取、撇捺交叉取 X。skip 是這裡專屬的欄位，
-    # 表示這幾筆在錯誤拆法裡連字根都沒有、整筆消失（用灰色畫出來，不是隨便漏收）。
-    "文": [{"code": "Q_X", "groups": [[0], [2, 3]], "skip": [1]}],
+    # 「沒辦法跟其他筆畫組成字根」略過不取、撇捺交叉取 X。code 只寫兩個真的字母
+    # （Q、X），略過的那一筆不佔位——skip 這個欄位仍然要留著：build_principles() 用它
+    # 驗證正確／錯誤兩側涵蓋的筆畫是同一組，圖示也是靠它（不在任何 group 裡）把那一筆
+    # 畫成灰色，只是不會在 code 字串裡另外放一個佔位字元。
+    "文": [{"code": "QX", "groups": [[0], [2, 3]], "skip": [1]}],
 }
 
 # 這一頁提到的所有例字，不管有沒有畫錯誤拆法對照圖，正確拆法都要能畫出來。
@@ -215,7 +217,29 @@ PRINCIPLE_CHARS = [
 ]
 
 
-def build_principles(codes):
+def _code_groups(segs, max_rule):
+    """groups／codeGroups 的共用算法（principles.json 跟 conventional.json 都要用）。
+
+    groups 一律是完整未砍的段（圖示要照真正的取碼順序上色，包括超過上限、顯示碼裡
+    沒印出來的那幾段——例如「藍」的圖示仍然要畫出「M」那一段的紫色，「裊」也是同一
+    情況：完整碼 JSEIJK 六段，顯示碼 JSEIK 砍掉第 5 段「J」只留第 6 段「K」）。
+    rec["final"] 才是砍過的碼，字母個數可能少於 groups 的段數——codeGroups 記每個
+    字母對應 groups 裡第幾段，讓被砍過的碼，最後一個字母仍然對到它真正的段（而不是
+    誤認成緊鄰它、其實已經被砍掉的那一段）——Wilson 2026-08-21 抓到「藍」HCKAI 的
+    「I」被塗成第 5 段（紫）的顏色，其實它是第 6 段（該是粉）。
+    """
+    groups = [s["strokes"] for s in segs]
+    code_groups = list(range(len(segs)))
+    if max_rule:
+        p = max_rule.get("params", {})
+        mx, head, tail = p.get("max", 5), p.get("head", 4), p.get("tail", 1)
+        if len(segs) > mx:
+            code_groups = list(range(head)) + (
+                list(range(len(segs) - tail, len(segs))) if tail else [])
+    return groups, code_groups
+
+
+def build_principles(codes, max_rule=None):
     """〈取碼原則〉頁的例字拆法對照——見 PRINCIPLE_WRONG 上面的註解。"""
     out = {}
     for ch in PRINCIPLE_CHARS:
@@ -223,7 +247,8 @@ def build_principles(codes):
         if not rec:
             continue
         segs = rec["segments"]
-        correct = {"code": rec["final"], "groups": [s["strokes"] for s in segs]}
+        groups, code_groups = _code_groups(segs, max_rule)
+        correct = {"code": rec["final"], "groups": groups, "codeGroups": code_groups}
         entry = {"correct": correct}
         wrongs = PRINCIPLE_WRONG.get(ch)
         if wrongs:
@@ -627,13 +652,12 @@ CONVENTIONAL_SKIP_GROUPS = {"偏旁另有取法"}
 CONVENTIONAL_GROUP_ORDER = ["數字類", "木字類", "土字類", "大字類", "甲字類", "馬字類", "己字類"]
 
 
-def build_conventional(codes, rules):
+def build_conventional(codes, rules, max_rule=None):
     """〈約定字〉頁：rules.json「約定原則」表內的字——不照筆順拆碼，直接照表給碼。
 
     這跟 build_jianma() 的「約定簡碼」是兩回事：約定簡碼是**額外多一條**更短的路，
     主碼不變；約定字是這個字的**主碼本身**就是手動指定的（凌駕孤筆略過／能合不分／
-    筆順等原則），跟 codes.json 的 segments 反查沒有關係——這些字很多根本沒有 segments
-    （見 codes.json 的 conventional／notComponent 欄）。
+    筆順等原則）。
 
     每個字的「單獨成字」碼一律從 codes.json 現查（不信任 rules.json 自己抄的 code
     欄，那欄只是給人看的備註，真正出貨的碼一律以 codes.json 為準）；「作為偏旁」碼
@@ -659,10 +683,18 @@ def build_conventional(codes, rules):
             if not ch or not rec:
                 warn.append(f"約定字：「{ch}」查不到 codes.json 紀錄，跳過")
                 continue
+            segs = rec.get("segments") or []
+            grp, code_grp = _code_groups(segs, max_rule)
             chars.append({
                 "c": ch,
                 "code": rec["final"],
                 "comp": c.get("compCode"),
+                # 逐字上色用，跟 build_principles() 共用 _code_groups()：groups 是
+                # 完整未砍的段，codeGroups 記 code 每個字母對應 groups 裡第幾段——
+                # 53 個字裡「裊」的碼超過上限（完整碼 JSEIJK 六段，顯示碼 JSEIK
+                # 砍掉第 5 段只留第 6 段），沒有這條就會跟「藍」同樣的方式塗錯色。
+                "groups": grp,
+                "codeGroups": code_grp,
             })
         if chars:
             groups.append({"name": name, "note": g.get("note") or "", "chars": chars})
@@ -990,10 +1022,12 @@ def main():
             if item.get("alt"):
                 glyph_chars.add(item["alt"]["correct"]["char"])
                 glyph_chars.add(item["alt"]["wrong"]["char"])
-    principles = build_principles(codes)
+    principles = build_principles(codes, max_rule)
     glyph_chars.update(principles.keys())
     jianma = build_jianma(codes, rules)
-    conventional = build_conventional(codes, rules)
+    conventional = build_conventional(codes, rules, max_rule)
+    for g in conventional["groups"]:
+        glyph_chars.update(c["c"] for c in g["chars"])
     # 孤筆略過原則說明裡就地畫出來的字（「言」的第 1、2 筆），不是例字本身。
     glyph_chars.add("言")
     # 手挑清單裡有沒有寫錯字母／來源字，對不到任何一個字根的要講出來

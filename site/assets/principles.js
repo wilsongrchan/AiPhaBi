@@ -43,8 +43,18 @@
     // 打勾／打叉放在碼的右邊，不疊在圖示上——疊上去會蓋住角落的筆畫（Wilson）。
     var row = el('span', 'pr-coderow');
     var code = el('span', 'pr-code');
-    code.textContent = breakdown.code;
     code.setAttribute('data-keep', '');
+    // 每個字母對應 groups 裡的哪一段，優先看 codeGroups（碼被砍過時，字母個數會
+    // 少於 groups 的段數，例：藍 HCKAI 只有 5 個字母卻對到 6 段真正的取碼——見
+    // build_principles() 的註解）；沒有 codeGroups 就退回「第幾個字母就是第幾段」
+    // 這個一般情況。顏色跟圖示的分組上色一一對應——正確、錯誤拆法都上色，錯誤那邊
+    // 靠 CSS（.pr-card.is-bad .pr-code）調暗＋加刪除線，區分「這是不取的示範」。
+    for (var ci = 0; ci < breakdown.code.length; ci++) {
+      var gi = breakdown.codeGroups ? breakdown.codeGroups[ci] : ci;
+      var letter = el('span', gi != null && gi < breakdown.groups.length ? RAINBOW[gi % RAINBOW.length] : 'off');
+      letter.textContent = breakdown.code[ci];
+      code.appendChild(letter);
+    }
     row.appendChild(code);
     var mark = el('span', 'pr-mark');
     mark.textContent = ok ? '✓' : '✕';

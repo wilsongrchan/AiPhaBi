@@ -1259,7 +1259,20 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   letter-spacing: .03em;
   color: var(--ink-dim);
 }
-.pr-card.is-bad .pr-code { color: var(--ink-faint); text-decoration: line-through; }
+.pr-card.is-bad .pr-code { text-decoration: line-through; }
+
+/* 拆法的碼逐字上色，跟圖示的分組顏色對應（見 principles.js 的 card()）——
+   rb-N 原本只定義給 SVG fill／圖例圓點用，這裡另外接上文字顏色。錯誤拆法的字母
+   調暗（opacity，不是換成灰色），刪除線＋調暗兩個線索一起說「這是不取的示範」，
+   但字母顏色仍看得出跟圖示哪一組對應。 */
+.pr-code .rb-0 { color: var(--rb-0); }
+.pr-code .rb-1 { color: var(--rb-1); }
+.pr-code .rb-2 { color: var(--rb-2); }
+.pr-code .rb-3 { color: var(--rb-3); }
+.pr-code .rb-4 { color: var(--rb-4); }
+.pr-code .rb-5 { color: var(--rb-5); }
+.pr-code .off  { color: var(--ink-faint); }
+.pr-card.is-bad .pr-code span { opacity: .55; }
 
 .pr-text { flex: 1 1 16rem; min-width: 0; margin: 0 !important; color: var(--ink); }
 .pr-text code {
@@ -1339,14 +1352,35 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   /* start，不是預設的 stretch：63 是奇數，兩欄一定差一行，不要為了湊齊高度把
      矮的那欄的列高拉伸——寧可矮一行，也不要兩欄的行距對不上（Wilson）。 */
   align-items: start;
-  column-gap: 2rem;
+  column-gap: 1.8rem;
   margin: 1.4rem 0;
   overflow-x: auto;
 }
-.jm-compact th, .jm-compact td { padding: .28rem .5rem; }
+.jm-compact th, .jm-compact td { padding: .28rem 1.5rem; }
+
+/* 大／甲、馬／己兩對字數少的組並排放，省掉上下堆疊的空間（見 conventional.js 的
+   SIDE_BY_SIDE_PAIRS）。align-items: start 理由跟 .jm-cols 一樣：兩組字數不同，
+   高度本來就不會一樣，不要為了湊高度拉伸列高。 */
+.cv-grouppair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  column-gap: 2.5rem;
+}
+
+/* 約定字表的表格（.cv-tbl，見 conventional.js 的 table()）寬度交給內容自己撐開，
+   不要撐滿容器：table { width: 100% } 是全站預設，這裡蓋掉。用 max-content 而不是
+   auto——.jm-cols／.cv-grouppair 底下表格是 grid 子項（或子項裡的內容），grid 預設
+   的 stretch 對齊會把 auto 寬度撐滿整條軌道，max-content 是明確指定的寬度，
+   不會被 stretch 蓋過去。（試過 table-layout: fixed 配猜的固定欄寬，兩種版面撐開
+   的方式不一樣，一邊還是撐太寬、一邊又擠到表頭要折兩行，改回讓瀏覽器照實際內容
+   自己算才穩。） */
+.cv-tbl { width: max-content; max-width: 100%; }
+.cv-tbl th:nth-child(4), .cv-tbl td:nth-child(4) { padding-inline-start: 0; }
 
 @media (max-width: 40rem) {
   .jm-cols { grid-template-columns: 1fr; row-gap: 0; }
+  .cv-grouppair { grid-template-columns: 1fr; row-gap: 1.4rem; }
 }
 
 /* 左簡碼表的欄位比較擠：偏旁／字母碼／簡碼窄，例字欄放寬並允許換行 */
@@ -1366,6 +1400,29 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   line-height: 1.7;
   color: var(--ink-dim);
 }
+
+/* ---------- 約定字表頁（conventional.html） ---------- *
+ * 字形圖示欄跟「單獨成字」碼的逐字上色是同一個開關：#cv-groups 有沒有 .cv-color
+ * 這個 class，由 conventional.js 的顏色開關按鈕控制（見該檔開頭註解）。 */
+
+.cv-icon-col { display: none; }
+.cv-color .cv-icon-col { display: table-cell; }
+
+.cv-icon {
+  display: inline-block;
+  width: 1.6rem;
+  height: 1.6rem;
+  vertical-align: middle;
+}
+.cv-icon .zg-altsvg { width: 100%; height: 100%; display: block; }
+
+.cv-color .jm-tbl code .rb-0 { color: var(--rb-0); }
+.cv-color .jm-tbl code .rb-1 { color: var(--rb-1); }
+.cv-color .jm-tbl code .rb-2 { color: var(--rb-2); }
+.cv-color .jm-tbl code .rb-3 { color: var(--rb-3); }
+.cv-color .jm-tbl code .rb-4 { color: var(--rb-4); }
+.cv-color .jm-tbl code .rb-5 { color: var(--rb-5); }
+.cv-color .jm-tbl code .off  { color: var(--ink-faint); }
 
 
 /* ---------- 窄螢幕：導覽改回頂部橫列 ----------
