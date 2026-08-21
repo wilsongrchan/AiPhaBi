@@ -1,14 +1,23 @@
 /* 愛發筆公開網站 —— 共用樣式
-   橙色沿用鼠鬚管配色（squirrel.custom.yaml 的高亮色），讓網站跟實際打字畫面看起來是同一套東西。
+   ⚠️ 主色原本是橙色，刻意沿用鼠鬚管配色（squirrel.custom.yaml 的高亮色），讓網站跟
+   實際打字畫面看起來是同一套東西。2026-08-21 依 Wilson 決定改成深青 #0e7c73（理由見
+   --accent 旁邊的註解），**這條對應關係就斷了** —— 網站是青的、輸入法候選窗還是橙的。
+   要接回去得改 rime/ 底下的 squirrel.custom.yaml，那是 Side B 的檔案，Side C 不能動，
+   得回報給 Side B。在那之前兩邊顏色不一致是已知的、Wilson 知情的狀態。
    所有路徑都用相對路徑：GitHub Pages 是專案站，網址在 /AiPhaBi/ 底下，絕對路徑會全部失效。 */
 
 :root {
-  --bg:      #fdfcfa;
+  /* 中性色（底色、線、文字灰、程式碼底色）全部帶一點主色的色相（青 175°）。
+     原本帶的是暖米色，配的是舊的橙主色；主色換成深青之後那層米色就變成「泛黃」
+     （Wilson 指出底色和導覽 hover 都偏黃）。作法是保留每個值原本的明度和飽和度，
+     只把色相換成 175° —— 深淺關係完全不變，只是冷暖翻面。
+     ⚠️ 這一組跟 --accent 綁在一起：換主色時要一起換，不然又會一冷一暖。 */
+  --bg:      #fcfefe;   /* 只留一絲青，再多就整頁泛綠（Wilson）*/
   --surface: #ffffff;
-  --line:    #e6e1d8;
-  --ink:     #23201c;
-  --ink-dim: #6b645b;
-  --ink-faint: #948d83;   /* 比 --ink-dim 再淡一階，給附註類的文字 */
+  --line:    #d8e6e5;
+  --ink:     #1c2322;
+  --ink-dim: #5b6b6a;
+  --ink-faint: #839493;   /* 比 --ink-dim 再淡一階，給附註類的文字 */
   /* 主色：深青 #0e7c73（色相 175°）。原本是那個橙（色相 27°）——它離分組色的
      橘黃 #ffb732（39°）只有 11°，而主色不只是品牌色：〈字根表〉highlight 的字根
      筆畫就是用它填色，跟六個分組色出現在同一頁，撞在一起會讓人以為是同一件事。
@@ -22,7 +31,7 @@
   --accent-2: #094d47;
   --accent-3: #06322e;
   --accent-soft: #eef6f5;
-  --code-bg: #f4f1ec;
+  --code-bg: #ecf4f3;
   --radius: 10px;
   /* 正文行寬上限。原本 34rem 在桌機上只佔中間一條，像手機版。
      現在設成跟版面內容寬一樣（.wrap 58rem 減去左右各 1.6rem），
@@ -60,18 +69,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg:      #171614;
-    --surface: #201e1b;
-    --line:    #35322d;
-    --ink:     #ece8e1;
-    --ink-dim: #a29a8e;
-    --ink-faint: #837b70;   /* 深色主題往背景靠，一樣是「更不搶眼」 */
+    --bg:      #141717;
+    --surface: #1b2020;
+    --line:    #2d3534;
+    --ink:     #e1eceb;
+    --ink-dim: #8ea2a0;
+    --ink-faint: #708381;   /* 深色主題往背景靠，一樣是「更不搶眼」 */
     --accent:  #3fc0b0;
     /* 深色主題往亮的方向拉開，往暗拉會跟背景糊在一起 */
     --accent-2: #319689;
     --accent-3: #26736a;
     --accent-soft: #1d2f2b;
-    --code-bg: #26231f;
+    --code-bg: #1f2625;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
@@ -1144,7 +1153,9 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   font-weight: 700;
   flex: none;
 }
-.zg-altpair.is-ok .zg-altminimark  { color: #2f9e44; }
+/* 打勾用主色（深青），不另外挑一個綠——網站已經有一個主色，再多一個綠只是多一種
+   顏色要記（Wilson）。打叉維持自己的紅：它跟主色是相反的意思，不該同色系。 */
+.zg-altpair.is-ok .zg-altminimark  { color: var(--accent); }
 .zg-altpair.is-bad .zg-altminimark { color: #d1382c; }
 
 @media (max-width: 40rem) {
@@ -1270,7 +1281,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   color: #fff;
   flex: none;
 }
-.pr-card.is-ok .pr-mark  { background: #2f9e44; }
+.pr-card.is-ok .pr-mark  { background: var(--accent); }
 .pr-card.is-bad .pr-mark { background: #d1382c; }
 /* 還沒判定：留一個虛線空圈佔位。不留的話，勾叉出現的那一刻整張卡片會橫向跳一下 */
 .pr-card.is-pending .pr-mark { background: none; border: 1px dashed var(--line); }
