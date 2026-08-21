@@ -130,8 +130,11 @@
    * 勾／叉是圖示旁邊的字，不疊在圖示上面——疊上去會蓋住角落的筆畫（Wilson）。 */
   var RAINBOW = ['rb-0', 'rb-1', 'rb-2', 'rb-3', 'rb-4', 'rb-5'];
 
-  function altMiniCard(ch, breakdown, ok) {
-    var pair = el('span', 'zg-altpair' + (ok ? ' is-ok' : ' is-bad'));
+  /* solo＝這一列只有正確拆法、沒有錯誤示範（例：豕）。這種時候不畫勾——
+   * 勾是拿來跟旁邊的叉對比的，旁邊沒有叉的時候一個孤零零的勾等於在回答
+   * 一個沒有人問的問題，圖本身就是「這個字這樣分」。 */
+  function altMiniCard(ch, breakdown, ok, solo) {
+    var pair = el('span', 'zg-altpair' + (solo ? ' is-solo' : ok ? ' is-ok' : ' is-bad'));
     var icon = el('span', 'zg-altmini');
     var strokes = GLYPHS && GLYPHS[ch];
     if (strokes) {
@@ -150,10 +153,12 @@
       icon.appendChild(glyph(ch));
     }
     pair.appendChild(icon);
-    var mark = el('span', 'zg-altminimark', ok ? '✓' : '✕');
-    mark.setAttribute('aria-hidden', 'true');
-    pair.appendChild(mark);
-    pair.title = breakdown.code + (ok ? '（正確）' : '（不取，示範用）');
+    if (!solo) {
+      var mark = el('span', 'zg-altminimark', ok ? '✓' : '✕');
+      mark.setAttribute('aria-hidden', 'true');
+      pair.appendChild(mark);
+    }
+    pair.title = breakdown.code + (solo ? '' : ok ? '（正確）' : '（不取，示範用）');
     pair.setAttribute('data-keep', '');
     return pair;
   }
@@ -538,8 +543,12 @@
           var iconRow = el('div', 'zg-codepair-row');
           // 兩邊各畫各的字（例：合#1,2,3 這一列，正確畫合、錯誤畫余對照
           // 「根 A 站不站得住」，不是同一個字的兩種拆法）——見 alt.correct/wrong.char
-          iconRow.appendChild(altMiniCard(it.alt.correct.char, it.alt.correct, true));
-          iconRow.appendChild(altMiniCard(it.alt.wrong.char, it.alt.wrong, false));
+          // wrong 是選配的 —— 只描述怎麼分、沒說「不取」什麼的列（豕）只有一張圖
+          iconRow.appendChild(altMiniCard(it.alt.correct.char, it.alt.correct,
+                                          true, !it.alt.wrong));
+          if (it.alt.wrong) {
+            iconRow.appendChild(altMiniCard(it.alt.wrong.char, it.alt.wrong, false));
+          }
           codeWrap.appendChild(iconRow);
         }
         c1.appendChild(codeWrap);

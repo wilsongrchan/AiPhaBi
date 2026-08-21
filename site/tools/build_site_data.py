@@ -152,6 +152,43 @@ WRONG_BREAKDOWN = {
         "correct": {"char": "余", "code": "YIM", "groups": [[0, 1], [2, 3], [4, 5, 6]]},
         "wrong":   {"char": "余", "code": "AT",  "groups": [[0, 1, 2], [3, 4, 5, 6]]},
     },
+    # 矢：「注意，因第三筆的橫劃被其他筆劃觸碰，所以不能將首三筆取為 A，全字不取 AY。」
+    # 錯誤那邊推得回去：A 的筆數由原文直接指定（首三筆），剩下的第 4、5 筆是一撇一捺
+    # ＝「人」，Y 底下真的收了這個形狀（人 whole、化 1–2…），筆數也對得上。
+    ("矢", "YK"): {
+        "correct": {"char": "矢", "code": "YK", "groups": [[0, 1], [2, 3, 4]]},
+        "wrong":   {"char": "矢", "code": "AY", "groups": [[0, 1, 2], [3, 4]]},
+    },
+    # 午：「首兩筆可以取為 Y，全字取 YT，不取 AJ。」同樣是首三筆取 A 的那個誘惑，
+    # 剩下的第 4 筆是末劃的一豎——J 底下確實有「首劃或末劃的豎劃，沒有鉤」這個
+    # 單筆字根（卜 1、凸 1），筆數也對得上，所以 AJ 畫得出來。
+    ("午", "YT"): {
+        "correct": {"char": "午", "code": "YT", "groups": [[0, 1], [2, 3]]},
+        "wrong":   {"char": "午", "code": "AJ", "groups": [[0, 1, 2], [3]]},
+    },
+    # 豕 沒有錯誤示範可畫——原文沒說它「不取」什麼，只描述怎麼分（J 1–2、K 其餘）。
+    # 這種只有正確拆法的列 wrong 就留空，渲染那邊會只畫一張圖、不加勾也不加叉
+    # （硬湊一個錯誤示範等於自己發明一條原文沒講的規則）。groups 對過 codes.json。
+    ("豕", "JK"): {
+        "correct": {"char": "豕", "code": "JK", "groups": [[0, 1], [2, 3, 4, 5, 6]]},
+    },
+    # 豖：分組一律照 data/codes.json，**不照原文的筆序**，兩者差一筆——
+    # makemeahanzi 的 豖 第 5 筆是那一長撇、第 6 筆才是那一點（量過每一筆的外框：
+    # 第 6 筆只有 152×145，全字最小的一筆就是點），所以 codes.json 的
+    # X＝第 4、6 筆（撇與點相交）、J＝第 5 筆（孤筆一撇）是對著字形來的。
+    # 原文寫的是「第四、五筆…取 X，第六筆孤筆一撇」，數字剛好相反。
+    # 圖一定要跟著字形畫，不然顏色會塗在錯的筆畫上；文字照 Wilson 的原文，
+    # 已回報給他。等他決定要不要改文字，這裡不用動。
+    #
+    # 錯誤示範 JKQ 就是原文說的「不可取 KQ」：K 想整段吃下 豕 的那五筆
+    # （第 3、4、5、7、8 筆），剩下那一點另外取 Q——但點是第 6 筆，夾在 K 中間，
+    # 碼排成 J→K→Q 就跟筆順對不上，正是原文要說的「否則違反筆順」。
+    ("豖", "JJXJK"): {
+        "correct": {"char": "豖", "code": "JJXJK",
+                    "groups": [[0, 1], [2], [3, 5], [4], [6, 7]]},
+        "wrong":   {"char": "豖", "code": "JKQ",
+                    "groups": [[0, 1], [2, 3, 4, 6, 7], [5]]},
+    },
 }
 
 # 〈取碼原則〉頁的例字對照圖。正確拆法一律從 data/codes.json 的 segments 直接算，
@@ -1045,8 +1082,10 @@ def main():
             # 是余，不是合）——漏收就會沒有筆畫資料，畫面上悄悄退回系統字型純文字，
             # 顏色和分組全部不見，看起來像這個功能沒做，其實是資料沒收全。
             if item.get("alt"):
-                glyph_chars.add(item["alt"]["correct"]["char"])
-                glyph_chars.add(item["alt"]["wrong"]["char"])
+                # wrong 是選配的（豕 只有正確拆法），用 .get 才不會少一邊就整個爆掉
+                for side in ("correct", "wrong"):
+                    if item["alt"].get(side):
+                        glyph_chars.add(item["alt"][side]["char"])
     principles = build_principles(codes, max_rule)
     glyph_chars.update(principles.keys())
     jianma = build_jianma(codes, rules)
