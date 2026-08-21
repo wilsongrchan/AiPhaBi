@@ -30,16 +30,15 @@
   /* 「正確拆法 vs 錯誤拆法」小圖對照專用（見字母欄底下的 .zg-altmini）。跟上面的
      --accent-* 刻意不同一套：那組色階表示「同一個字根」，這裡要表示「筆畫分成幾組」，
      混在一起讀者會誤會兩件事是同一個系統。
-     刻意跳過橙色（Wilson）：紅／橙／黃三色色相太近，小圖示的尺寸下橙會同時貼著
-     紅和黃分不清楚，不如直接跳過，換成色相間距大很多的紅／黃／綠／藍／紫。 */
-  --rb-0: #cc2b1e;   /* 紅 */
-  /* 黃：檸檬黃，色相 55°（原本是壓暗的 #a68a00、色相 50°，看起來偏土黃／咖啡色）。
-     上一版我把它拆成「填色用」和「文字用」兩個值，文字那個壓暗一階想保住小字母的
-     可讀性 —— 但那樣碼的字母看起來就還是舊的暗黃，跟筆畫對不起來（Wilson）。
-     筆畫和字母是同一組，就該同一個顏色，所以收回來只留一個值。
-     代價是碼的字母在白底上只有 1.75:1；真的覺得糊，要調的是字級或字重，不是顏色
-     —— 一改顏色就又跟筆畫分家了。 */
-  --rb-1: #d8c600;
+     配色調整過三輪（Wilson）：原本刻意跳過橙色，因為紅／橙／黃色相太近，小圖示的
+     尺寸下橙會同時貼著紅和黃。後來黃調亮成檸檬黃（#d8c600）解決了「看起來像土黃」
+     的問題，但太淺、讀起來吃力。現在改成橘黃 #ffb732、紅 #ed2939（兩個都是
+     Wilson 指定的值）：色相差 44°（355° vs 39°），比當初擔心的距離開一些，明度也
+     差很開（白底對比 4.2:1 vs 1.7:1），一個深一個亮，不會認錯。
+     也就是說：**這兩個顏色是靠明度分開的，不是靠色相**——之後要動其中一個，
+     得把另一個一起看，不然又會撞在一起。 */
+  --rb-0: #ed2939;   /* 紅（Wilson 指定的值）*/
+  --rb-1: #ffb732;   /* 黃（橘黃，Wilson 指定的值）*/
   --rb-2: #1f9d52;   /* 綠 */
   --rb-3: #1f66c2;   /* 藍 */
   --rb-4: #7a3fb0;   /* 紫 */
@@ -63,8 +62,8 @@
     --code-bg: #26231f;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
-    --rb-0: #ff6b52;
-    --rb-1: #f0dc00;
+    --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
+    --rb-1: #ffb732;
     --rb-2: #2fd47a;
     --rb-3: #4da3ff;
     --rb-4: #c084fc;
@@ -1195,6 +1194,10 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    而不是 position: absolute——後者要另外處理直排位置，前者是本來就給這種
    「掛式縮排」用的標準寫法，數字寬度不一致時也不會跳來跳去。 */
 .pr-page h2 {
+  /* 原則名稱一律用 accent 橘（Wilson）——〈原則套用順序〉那七條改成橘色之後，
+     上面八條標題也要一起，同一批東西不該兩種顏色。編號 .pr-num 維持淡灰，
+     它是序號不是名字。 */
+  color: var(--accent);
   font-size: 1rem;
   margin: 1.3rem 0 .5rem;
   padding-top: .7rem;
@@ -1500,8 +1503,29 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 }
 .pr-walk dd { margin: .3rem 0 0; padding-inline-start: 0; }
 
-.pr-order { counter-reset: none; }
-.pr-order > li { margin-bottom: .6rem; }
+/* 編號改用 counter ＋ 絕對定位，不用瀏覽器的 list marker。
+   原因：這個 li 的第一個子元素是 block（橘色的原則名稱），而「marker 遇到 block
+   子元素要怎麼擺」各家瀏覽器不一樣 —— Chrome 量到名稱和說明都切齊 li 的內容左緣，
+   Wilson 那邊看到的卻是名稱被 marker 往右推、說明留在左緣，兩行對不齊。
+   自己畫編號就沒有這個問題：名稱和說明都是正常的區塊，左緣一定一致。 */
+.pr-order {
+  list-style: none;
+  counter-reset: pr-order;
+  padding-inline-start: 2rem;
+}
+.pr-order > li {
+  counter-increment: pr-order;
+  position: relative;
+  margin-bottom: .6rem;
+}
+.pr-order > li::before {
+  content: counter(pr-order) ".";
+  position: absolute;
+  inset-inline-start: -2rem;
+  width: 1.6rem;
+  text-align: end;
+  color: var(--ink-dim);
+}
 
 /* 補充討論：比正文淡一階，是「有人可能會問」那種旁註 */
 .pr-aside {
