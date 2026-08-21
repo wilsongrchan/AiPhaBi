@@ -1288,6 +1288,14 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .jm-tbl td, .jm-tbl th { white-space: nowrap; }
 
 .jm-char { font-size: 1.2em; font-weight: 600; }
+.jm-same { color: var(--ink-faint); cursor: help; }
+
+.jm-groupcount {
+  font-size: .68em;
+  font-weight: 400;
+  color: var(--ink-dim);
+  margin-inline-start: .4em;
+}
 
 .jm-sortbar {
   display: flex;
