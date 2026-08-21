@@ -1251,6 +1251,8 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 }
 .pr-card.is-ok .pr-mark  { background: #2f9e44; }
 .pr-card.is-bad .pr-mark { background: #d1382c; }
+/* 還沒判定：留一個虛線空圈佔位。不留的話，勾叉出現的那一刻整張卡片會橫向跳一下 */
+.pr-card.is-pending .pr-mark { background: none; border: 1px dashed var(--line); }
 
 .pr-code {
   font-family: ui-monospace, Menlo, monospace;
@@ -1504,4 +1506,61 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   border-radius: 0 var(--radius) var(--radius) 0;
   color: var(--ink-dim);
   font-size: .92rem;
+}
+
+
+/* ---------- 〈取碼原則〉的逐步示範（川） ----------
+   三張拆法卡片一開始不掛勾叉，走到淘汰它的那一條原則時才打叉（Wilson：先掛好
+   等於先把答案講了）。卡片黏在頂端，因為讀到第 5 條原則時卡片早就捲出畫面，
+   而每一步要看的正是卡片上的變化。 */
+.pr-walkbox { margin: .5rem 0 1.6rem; }
+
+/* 黏頂的是外層而不是 .pr-example 本身：外層鋪一層底色，把捲到底下的內文遮住，
+   不然文字會從卡片邊框和圓角的縫隙裡透出來（跟 .zg-jump 同一個做法）。 */
+.pr-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--bg);
+  padding-block: .5rem;
+}
+.pr-sticky .pr-example { margin: 0; }
+
+.pr-steps {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: .45rem;
+  font-size: .85rem;
+}
+.pr-stepbtn {
+  font: inherit;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: .2rem .6rem;
+  cursor: pointer;
+}
+.pr-stepbtn:hover:not(:disabled) { border-color: var(--accent); }
+.pr-stepbtn:disabled { color: var(--ink-faint); cursor: default; opacity: .6; }
+.pr-stepnow { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+/* 目前這一步：左邊一條 accent 直線。還沒走到的步驟調淡——調淡而不是收起來，
+   想整頁讀完或列印的人還是看得到全文。 */
+.pr-walk[data-stepper] dt { cursor: pointer; }
+.pr-walk dt.is-now {
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: .55rem;
+  margin-inline-start: -.58rem;
+}
+.pr-walk .is-later { opacity: .45; }
+.pr-walk dt, .pr-walk dd { transition: opacity .18s ease; }
+
+@media (max-width: 52rem) {
+  .pr-sticky { top: 3.4rem; }     /* 窄螢幕的導覽改回黏在頂端，要讓開它 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-walk dt, .pr-walk dd { transition: none; }
 }

@@ -216,11 +216,17 @@
 <h2 id="pr-walk">完整示範：「川」字</h2>
 <div class="pr-body">
 
-<div class="pr-example" data-char="川" data-order="JJJ,NJ,JN" data-labels="A,B,C">
-  <div class="pr-cards"></div>
-</div>
+<!-- 逐步示範：三張卡片一開始都不帶勾叉，只有走到「淘汰它的那一條原則」時才打叉
+     （Wilson：先掛好勾叉等於先把答案講了，就不像一步一步推）。
+     dt 上的 data-out／data-in 說明那一步淘汰誰、判定誰為正解；步進器見 principles.js。 -->
+<div class="pr-walkbox">
+  <div class="pr-sticky">
+    <div class="pr-example" data-char="川" data-order="JJJ,NJ,JN" data-labels="A,B,C" data-stepped="1">
+      <div class="pr-cards"></div>
+    </div>
+  </div>
 
-<dl class="pr-walk">
+<dl class="pr-walk" data-stepper="1">
   <dt>約定原則</dt>
   <dd>並非約定表內字。</dd>
 
@@ -230,16 +236,17 @@
   <dt>筆順原則</dt>
   <dd>按筆順從左至右取碼，取得上面三種拆碼方法：A 取 <code>JJJ</code>、B 取 <code>NJ</code>、C 取 <code>JN</code>。</dd>
 
-  <dt>字根意圖</dt>
+  <dt data-out="B">字根意圖</dt>
   <dd>注意拆法 B，將第一筆的撇劃和第二筆的豎劃組成 <code>N</code>，即「一撇和一豎並立」，但該字根意圖指出，「通常豎劃不比撇劃短」。而在「川」字中，絕大多數的寫法和電腦字體都將第二筆的豎劃寫得比第一筆的撇劃短（對比「弗」字中，豎劃通常不比撇劃短），所以將「川」字的第一、二筆組成 <code>N</code>，違反字根意圖，應該捨棄。</dd>
 
-  <dt>能合不分原則</dt>
+  <dt data-out="A" data-in="C">能合不分原則</dt>
   <dd>餘下的 A、C 拆法中，A 拆法將每一劃單獨取碼，最後取 3 碼；而 C 拆法將第二、三筆的兩個豎劃組成 <code>N</code>，即「兩豎並立」，而且字形亦符合字根意圖「通常右豎比左豎長」。所以應優先使用較少的碼數拆碼，捨棄 A 拆法，使用 C 拆法。</dd>
 </dl>
 
 <p class="pr-aside">
   有人可能會指出，根據「孤筆略過原則」，A 拆法應當略過第二筆的豎，而只取 <code>JJ</code>，這樣就和 <code>JN</code> 同樣碼數。但注意，這樣會違背「孤筆略過原則」中「在認定該橫劃或豎劃為孤立之前，應首先嘗試將該筆劃和其他筆劃組成為可取字根」的要求。而且，如果取 <code>JJ</code>，即是將最後一筆的豎取形為「首劃或末劃的豎劃」，是三等字根，但 <code>N</code> 的「兩豎並立」是優等字根，應該優先取 <code>N</code> 不取 <code>J</code>。
 </p>
+</div><!-- /.pr-walkbox -->
 </div>
 
 </main>
