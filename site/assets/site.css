@@ -1564,3 +1564,22 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 @media (prefers-reduced-motion: reduce) {
   .pr-walk dt, .pr-walk dd { transition: none; }
 }
+
+/* 還沒「登場」的拆法：三種拆法是〈筆順原則〉那一步才推出來的，在那之前整個方塊
+   都不出現（Wilson）。用 display:none 而不是 visibility——留著空位等於還是先告訴
+   讀者「等一下會有三個東西」。 */
+.pr-card.is-unborn, .pr-example.is-unborn { display: none; }
+
+/* 判定為錯的拆法：**連筆畫一起轉灰**，不是只有底下的碼變灰（Wilson：要更一眼看出來）。
+   碼和圖示一起轉，兩邊才不會一個彩色一個灰色。
+
+   只轉灰有個問題：相鄰兩組的灰階可能幾乎一樣（黃 #a68a00 和綠 #1f9d52 轉成灰階
+   只差 9 階），而「哪幾筆併成一組」正是這張卡片要講的事——拆法 B 被否掉的理由
+   就是它把第 1、2 筆併成一組。所以再依組序交錯壓一次透明度，保證相鄰兩組的深淺
+   一定看得出差別。用 grayscale 而不是寫死灰色，深淺色主題都不必各寫一套。 */
+.pr-card.is-bad .pr-icon,
+.pr-card.is-bad .pr-code { filter: grayscale(1); }
+.pr-card.is-bad .pr-icon { opacity: .62; }
+.pr-card.is-bad .zg-altsvg path.rb-1,
+.pr-card.is-bad .zg-altsvg path.rb-3,
+.pr-card.is-bad .zg-altsvg path.rb-5 { opacity: .5; }

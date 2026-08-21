@@ -186,10 +186,16 @@
         return (dt.getAttribute(attr) || '').split(',').filter(Boolean);
       }
 
+      // 有沒有任何一步宣告 data-show？有的話卡片就是「逐步登場」——在宣告它的那一步
+      // 之前完全不出現（Wilson：三種拆法是筆順原則推出來的，在那之前不該先擺著）。
+      // 沒有任何 data-show 的例子維持原樣，一開始就全部顯示。
+      var staged = dts.some(function (dt) { return dt.hasAttribute('data-show'); });
+
       function mark(label, ok) {
         var c = slot.querySelector('.pr-card[data-label="' + label + '"]');
         if (!c) return;
-        c.className = 'pr-card ' + (ok ? 'is-ok' : 'is-bad');
+        c.className = 'pr-card ' + (ok ? 'is-ok' : 'is-bad') +
+          (c.classList.contains('is-unborn') ? ' is-unborn' : '');
         c.querySelector('.pr-mark').textContent = ok ? '✓' : '✕';
         c.title = c.title.replace(/（[^（）]*）$/, ok ? '（正確）' : '（不取，示範用）');
       }
@@ -231,14 +237,21 @@
         var at = Math.max(0, Math.min(dts.length - 1, i || 0));
         dl.dataset.at = at;
         slot.querySelectorAll('.pr-card[data-label]').forEach(function (c) {
-          c.className = 'pr-card is-pending';
+          c.className = 'pr-card is-pending' + (staged ? ' is-unborn' : '');
           c.querySelector('.pr-mark').textContent = '';
           c.title = c.title.replace(/（[^（）]*）$/, '（尚未判定）');
         });
+        var shown = 0;
         for (var k = 0; k <= at; k++) {
+          list(dts[k], 'data-show').forEach(function (L) {
+            var c = slot.querySelector('.pr-card[data-label="' + L + '"]');
+            if (c) { c.classList.remove('is-unborn'); shown++; }
+          });
           list(dts[k], 'data-out').forEach(function (L) { mark(L, false); });
           list(dts[k], 'data-in').forEach(function (L) { mark(L, true); });
         }
+        // 一張都還沒登場時，整個方塊收起來——留一個空框在那裡只是雜訊
+        slot.classList.toggle('is-unborn', staged && !shown);
         dts.forEach(function (dt, k) {
           dt.classList.toggle('is-now', k === at);
           dt.classList.toggle('is-later', k > at);
