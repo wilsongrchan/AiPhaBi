@@ -23,9 +23,20 @@
      等於不再另外限制，正文與標題、分隔線同寬。 */
   --measure: 54.8rem;
 
-  /* 字根表的字級倍率（頁面上的 小／標準／大）。表格內的字級與圖形尺寸
-     全部乘上它，所以三段只要改這一個值。 */
+  /* 全站字級倍率（頁面上的 小／標準／大，每一頁的頁首都有）。html 的 font-size
+     乘上它，rem 全部跟著縮放，三段只要改這一個值。 */
   --zg-scale: 1;
+
+  /* 「正確拆法 vs 錯誤拆法」小圖對照專用（見字母欄底下的 .zg-altmini）。跟上面的
+     --accent-* 刻意不同一套：那組色階表示「同一個字根」，這裡要表示「筆畫分成幾組」，
+     混在一起讀者會誤會兩件事是同一個系統。
+     刻意跳過橙色（Wilson）：紅／橙／黃三色色相太近，小圖示的尺寸下橙會同時貼著
+     紅和黃分不清楚，不如直接跳過，換成色相間距大很多的紅／黃／綠／藍／紫。 */
+  --rb-0: #cc2b1e;   /* 紅 */
+  --rb-1: #a68a00;   /* 黃（壓暗，不然在淺色背景上太亮） */
+  --rb-2: #1f9d52;   /* 綠 */
+  --rb-3: #1f66c2;   /* 藍 */
+  --rb-4: #7a3fb0;   /* 紫 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,6 +53,13 @@
     --accent-3: #a4551c;
     --accent-soft: #2c2219;
     --code-bg: #26231f;
+
+    /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
+    --rb-0: #ff6b52;
+    --rb-1: #e8cc00;
+    --rb-2: #2fd47a;
+    --rb-3: #4da3ff;
+    --rb-4: #c084fc;
   }
 }
 
@@ -61,13 +79,20 @@
   border: 0;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+/* rem 全部相對 html 的字級，所以字級（小／標準／大）在這裡一次縮放整頁，
+   不必再到每條規則各自乘一次 --zg-scale。 */
+html {
+  -webkit-text-size-adjust: 100%;
+  font-size: calc(100% * var(--zg-scale));
+}
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.8 "Noto Sans TC", "PingFang TC", "Hiragino Sans CNS",
+  /* body 自己吃固定 px，不是 rem，所以子層直接繼承 body 字級的段落文字
+     （沒另外寫 font-size 的 <p> 等）也要在這裡乘一次，字級才管得到它們。 */
+  font: calc(15px * var(--zg-scale))/1.8 "Noto Sans TC", "PingFang TC", "Hiragino Sans CNS",
         "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
   text-rendering: optimizeLegibility;
 }
@@ -435,7 +460,7 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 字根表的說明段：比正文小一級。這一頁的主體是表格，說明只是進場前的一句話，
    用正文大小會跟表格搶注意力。 */
 .zg-intro {
-  font-size: calc(.92rem * var(--zg-scale));
+  font-size: .92rem;
   color: var(--ink-dim);
   max-width: var(--measure);
   margin-bottom: 1rem;
@@ -465,7 +490,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .zg-find input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* 字級切換：在側邊欄裡直排，比繁簡切換再小一點 —— 它只影響字根表，不是主要功能 */
+/* 字級切換：在側邊欄裡直排，比繁簡切換再小一點 —— 每一頁的頁首都有，不是字根表專屬 */
 .zg-size {
   display: flex;
   flex-direction: column;
@@ -577,25 +602,50 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .zg-n { font-size: .88rem; color: var(--ink-dim); font-weight: 400; }
 
+/* 相近字形辨析：說明文字裡點名「不取哪個碼」時，淡化＋刪除線放在正確碼旁邊對照
+   （失 該取 JIY 不取 YK 那一類）—— 錯的碼不搶眼，但一眼就對得出差在哪。
+   直排兩行：碼在上，正確/錯誤拆法的小圖對照（若有）在下——同一欄，不另外開欄。
+   靠上對齊，跟字根表的 .zg-letterkey 同理：說明欄一長，鍵帽垂直置中就會浮在
+   一大塊空白正中間，格線離鍵帽老遠，像多了一條沒作用的線、一格空的。
+   vertical-align 只對「還是表格儲存格」的盒子有效，所以下在 <td> 本身（.zg-codecell），
+   flex 排版另外包一層 <div>（.zg-codepair）——兩件事各自的盒子分開，才不會互相打架。 */
+/* !important 是必要的：.zg-simtbl th, .zg-simtbl td 那條泛用規則的權重（一個類＋一個
+   元素）比只有一個類的 .zg-codecell 高，光靠選擇器順序贏不了它——跟字根表的
+   .zg-desc/.zg-letterkey 用 !important 是同一個原因，不是隨手加的。 */
+.zg-codecell { vertical-align: top !important; }
+.zg-codepair { display: flex; flex-direction: column; gap: .35rem; }
+.zg-codepair-row { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+
+.zg-key-wrong {
+  color: var(--ink-faint);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: .8rem;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--ink-faint);
+}
+
 /* 密度參考倉頡的〈輔助字形列表〉：完整格線、字級小、列高緊。
  * 原本一列佔兩三行、要捲很久才看得完一個字母，資訊密度太低。 */
 /* 三欄寬度釘死，26 個字母的表才會對齊（不然各表依自己的內容決定欄寬，
    A 的「取形意圖」欄跟 B 的不一樣寬，整頁參差不齊）。 */
-.zg-tbl { font-size: calc(.95rem * var(--zg-scale)); table-layout: fixed; width: 100%; }
+.zg-tbl { font-size: .95rem; table-layout: fixed; width: 100%; }
 
 /* 欄寬直接下在表頭儲存格上，不靠 <col>。table-layout: fixed 是看第一列決定欄寬的，
    下在 th 上最直接；<col class> 那條路在某些瀏覽器上不吃，結果 26 張表又各自為政。 */
 /* 版面加寬到 58rem 之後重新分配：取形意圖那一欄本來就常常折成三四行，
    多出來的寬度給它最有用；字例只有四個字，不需要更多空間。 */
-.zg-tbl thead th:nth-child(1) { width: calc(3.2rem * var(--zg-scale)); }   /* 字母 */
-.zg-tbl thead th:nth-child(2) { width: calc(20rem * var(--zg-scale)); }   /* 取形意圖 */
-.zg-tbl thead th:nth-child(3) { width: calc(9.5rem * var(--zg-scale)); }  /* 字根 */
+.zg-tbl thead th:nth-child(1) { width: 3.2rem; }   /* 字母 */
+.zg-tbl thead th:nth-child(2) { width: 20rem; }   /* 取形意圖 */
+/* 9.5rem 對「來源字＋第 X 筆」大多夠用，但來源字筆序多的時候（東 用到「來」
+   第 1、6、7、8 筆）會斷成兩行，字例欄（auto）那邊明明還有得是餘裕，加寬這欄。 */
+.zg-tbl thead th:nth-child(3) { width: 11.5rem; } /* 字根 */
 .zg-tbl thead th:nth-child(4) { width: auto; }                            /* 字例 */
 
 @media (max-width: 40rem) {
   .zg-tbl thead th:nth-child(1) { width: 2.6rem; }
   .zg-tbl thead th:nth-child(2) { width: 8rem; }
-  .zg-tbl thead th:nth-child(3) { width: 6.5rem; }
+  .zg-tbl thead th:nth-child(3) { width: 7.6rem; }
 }
 
 /* 字母與字母之間留一道分隔：整張表連在一起雖然省空間，但 A 的最後一列和 B 的
@@ -603,7 +653,7 @@ tbody tr:last-child td { border-bottom: 0; }
    （第一列不用，表頭底下不需要再來一道。） */
 .zg-tbl tbody tr.is-letter-start > td {
   border-top: 2px solid var(--ink-dim);
-  padding-top: calc(.45rem * var(--zg-scale));
+  padding-top: .45rem;
 }
 
 .zg-tbl tbody tr:first-child > td { border-top-width: 1px; padding-top: .15rem; }
@@ -618,15 +668,15 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 .zg-letterkey .zg-key {
-  min-width: calc(2rem * var(--zg-scale));
-  height: calc(2rem * var(--zg-scale));
-  font-size: calc(1.15rem * var(--zg-scale));
+  min-width: 2rem;
+  height: 2rem;
+  font-size: 1.15rem;
 }
 
 .zg-letterkey .zg-n {
   display: block;
   margin-top: .25rem;
-  font-size: calc(.7rem * var(--zg-scale));
+  font-size: .7rem;
 }
 
 .zg-tbl thead th {
@@ -638,7 +688,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .zg-tbl th {
   color: var(--ink-dim);
-  font-size: calc(.84rem * var(--zg-scale));
+  font-size: .84rem;
   padding: .2rem .45rem;
   background: var(--code-bg);
   border: 1px solid var(--line);
@@ -655,7 +705,7 @@ tbody tr:last-child td { border-bottom: 0; }
   overflow-wrap: break-word;
   vertical-align: top !important;
   padding-top: .35rem !important;
-  font-size: calc(.9rem * var(--zg-scale));
+  font-size: .9rem;
   line-height: 1.5;
 }
 
@@ -669,7 +719,7 @@ tbody tr:last-child td { border-bottom: 0; }
   padding-top: .4rem;
   border-top: 1px dotted var(--line);
   color: var(--ink-faint);
-  font-size: calc(.72rem * var(--zg-scale));
+  font-size: .72rem;
   line-height: 1.55;
 }
 
@@ -679,7 +729,7 @@ tbody tr:last-child td { border-bottom: 0; }
   display: block;
   width: fit-content;
   margin: 0 0 .35rem;
-  font-size: calc(.68rem * var(--zg-scale));
+  font-size: .68rem;
   color: var(--ink-faint);
   background: var(--code-bg);
   border-radius: 4px;
@@ -693,12 +743,12 @@ tbody tr:last-child td { border-bottom: 0; }
 /* 圖示固定不縮，文字自己換行 */
 .zg-shape { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
 /* 圖示欄固定寬度，字根才會垂直對齊成一直排，而不是隨形狀寬窄左右跳 */
-.zg-shape > .zg-icon { flex: 0 0 calc(1.55rem * var(--zg-scale)); }
+.zg-shape > .zg-icon { flex: 0 0 1.55rem; }
 
 /* 取自哪個字。刻意不放大到像「這就是字根」—— 字根只是它的其中幾筆 */
 .zg-src {
   font-family: "Noto Serif TC", "Songti TC", serif;
-  font-size: calc(1.15rem * var(--zg-scale));
+  font-size: 1.15rem;
   line-height: 1.2;
 }
 
@@ -712,8 +762,8 @@ tbody tr:last-child td { border-bottom: 0; }
  * 所以同一個形狀在兩欄看起來一樣大。字根欄只是把該字根置中而已。 */
 .zg-svg {
   display: block;
-  width: calc(1.55rem * var(--zg-scale));
-  height: calc(1.55rem * var(--zg-scale));
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 .zg-svg path {
@@ -722,7 +772,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 .zg-src.is-ref {
-  font-size: calc(.84rem * var(--zg-scale));
+  font-size: .84rem;
   color: var(--ink-dim);
   font-family: inherit;
 }
@@ -737,13 +787,13 @@ tbody tr:last-child td { border-bottom: 0; }
   max-width: none;
 }
 
-.zg-span { font-size: calc(.78rem * var(--zg-scale)); color: var(--ink-dim); }
+.zg-span { font-size: .78rem; color: var(--ink-dim); }
 
 .zg-ex { line-height: 1.15; }
 
 .zg-ch {
   font-family: "Noto Serif TC", "Songti TC", serif;
-  font-size: calc(1.05rem * var(--zg-scale));
+  font-size: 1.05rem;
   margin-inline-end: .08rem;
 }
 
@@ -806,7 +856,7 @@ tbody tr:last-child td { border-bottom: 0; }
    跟字根表一樣用 table-layout: fixed ＋ 表頭寫死欄寬，所有組對齊。 */
 .zg-simtbl { table-layout: fixed; width: 100%; }
 .zg-simtbl thead th:nth-child(1) { width: 4.5rem; }    /* 形 */
-.zg-simtbl thead th:nth-child(2) { width: 5rem; }      /* 字母 */
+.zg-simtbl thead th:nth-child(2) { width: 6.2rem; }    /* 字母（正確/錯誤拆法小圖也放這欄） */
 .zg-simtbl thead th:nth-child(3) { width: auto; }      /* 特徵，吃掉剩下的 */
 .zg-simtbl thead th:nth-child(4) { width: 9rem; }      /* 例字 */
 
@@ -817,7 +867,10 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .zg-simtbl th { background: var(--code-bg); }
 .zg-simshape { white-space: nowrap; text-align: center; }
-.zg-simtbl .zg-trait { overflow-wrap: break-word; }
+/* 說明欄常常是全列最長的內容，垂直置中會讓短短一個字母鍵帽浮在很大一塊空白正中間，
+   底下那條格線因此離鍵帽很遠、像是斷開的一條線——跟字根表的 .zg-desc 同一個修法：
+   長文字那一欄靠上對齊，讓整列的視覺起點對齊在頂端。 */
+.zg-simtbl .zg-trait { overflow-wrap: break-word; vertical-align: top; }
 .zg-simtbl .zg-ex { line-height: 1.3; }
 
 /* 說明文字裡就地畫出來的字根（{目#1,2,3,4}）—— 跟文字對齊、大小相稱 */
@@ -834,7 +887,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 @media (max-width: 40rem) {
   .zg-simtbl thead th:nth-child(1) { width: 3.4rem; }
-  .zg-simtbl thead th:nth-child(2) { width: 4rem; }
+  .zg-simtbl thead th:nth-child(2) { width: 5rem; }
   .zg-simtbl thead th:nth-child(4) { width: 6rem; }
 }
 
@@ -988,7 +1041,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
  * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
 .zg-exg { display: inline-block; vertical-align: middle; margin-inline-end: .08rem; }
 
-.zg-exsvg { width: calc(1.55rem * var(--zg-scale)); height: calc(1.55rem * var(--zg-scale)); display: block; }
+.zg-exsvg { width: 1.55rem; height: 1.55rem; display: block; }
 /* 同一個字根在一個字裡出現兩次時分色（朋＝月月、夠＝夕夕）：第二次用深一點的橙。
    同色會讀成「這個字根就是整個朋」，分色才看得出是同一個字根出現兩次。 */
 .zg-exsvg path.on    { fill: var(--accent); }
@@ -1007,6 +1060,110 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 @media (max-width: 34rem) {
   .zg-exsvg { width: 1.8rem; height: 1.8rem; }
+}
+
+/* 「正確拆法 vs 錯誤拆法」小圖對照，見 zigen.js 的 altMiniCard／
+ * build_site_data.py 的 WRONG_BREAKDOWN。彩虹色跟表格其餘地方「同一個字根」
+ * 用的橙色系不是同一套語言 —— 這裡要凸顯的是「筆畫怎麼分組」，不是「這是哪個字根」。
+ * 放在「字母」欄、碼底下那一行（見 .zg-codepair-row），不另外開一欄。
+ * 打勾／打叉是圖示旁邊的字，不疊在圖示上面 —— 疊上去會蓋住角落的筆畫（Wilson）。 */
+/* 兩組（正確／錯誤）不能各自換行 —— 字母欄本來就窄，換行會比並排更難比較 */
+.zg-codepair-row:has(.zg-altpair) { flex-wrap: nowrap; gap: .35rem; }
+
+.zg-altpair { display: inline-flex; align-items: center; gap: .12rem; flex: none; }
+
+.zg-altmini {
+  display: inline-block;
+  width: 1.6rem;
+  height: 1.6rem;
+  vertical-align: middle;
+  flex: none;
+}
+
+.zg-altmini .zg-altsvg { width: 100%; height: 100%; display: block; }
+
+/* 描邊：同色系的紅／橙／黃在小尺寸下光靠色相不夠分，每一筆畫加一圈背景色窄邊，
+   筆畫之間才有實際的分隔線，不是只能靠顏色本身分。 */
+.zg-altsvg path { stroke: var(--surface); stroke-width: 26; paint-order: stroke; }
+
+.zg-altsvg path.rb-0 { fill: var(--rb-0); }
+.zg-altsvg path.rb-1 { fill: var(--rb-1); }
+.zg-altsvg path.rb-2 { fill: var(--rb-2); }
+.zg-altsvg path.rb-3 { fill: var(--rb-3); }
+.zg-altsvg path.rb-4 { fill: var(--rb-4); }
+.zg-altsvg path.off  { fill: var(--ink); opacity: .3; }
+
+.zg-altminimark {
+  font-size: .8rem;
+  line-height: 1;
+  font-weight: 700;
+  flex: none;
+}
+.zg-altpair.is-ok .zg-altminimark  { color: #2f9e44; }
+.zg-altpair.is-bad .zg-altminimark { color: #d1382c; }
+
+@media (max-width: 40rem) {
+  .zg-altmini { width: 1.4rem; height: 1.4rem; }
+}
+
+/* ---------- 〈取碼原則〉頁：例字拆法對照，同一套 .zg-altsvg／rb-* 色階，
+   只是放大成正文裡的插圖尺寸，不是表格小圖示。見 assets/principles.js。 ---------- */
+.pr-example {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.3rem;
+  margin: 0 0 1.4rem;
+}
+
+.pr-cards { display: flex; gap: 1.3rem; flex: none; }
+
+.pr-card { display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+
+.pr-icon { position: relative; width: 5rem; height: 5rem; }
+.pr-icon .zg-altsvg { width: 100%; height: 100%; display: block; }
+
+.pr-mark {
+  position: absolute;
+  right: -.3rem;
+  bottom: -.3rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid var(--surface);
+}
+.pr-card.is-ok .pr-mark  { background: #2f9e44; }
+.pr-card.is-bad .pr-mark { background: #d1382c; }
+
+.pr-code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: .95rem;
+  letter-spacing: .03em;
+  color: var(--ink-dim);
+}
+.pr-card.is-bad .pr-code { color: var(--ink-faint); text-decoration: line-through; }
+
+.pr-text { flex: 1 1 16rem; min-width: 0; margin: 0; color: var(--ink); }
+.pr-text code {
+  font-family: ui-monospace, Menlo, monospace;
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: .05rem .3rem;
+}
+
+@media (max-width: 34rem) {
+  .pr-icon { width: 4rem; height: 4rem; }
 }
 
 

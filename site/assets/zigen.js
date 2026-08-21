@@ -43,13 +43,6 @@
   var ROOT_PAD = 40;
   var GLYPHS = null;                  // glyphs.json 較大，延後載入；沒有就維持文字版
 
-  /* 字級（小／標準／大）。表格裡的字與例字 SVG 由 CSS 的 --zg-scale 處理，
-   * 但字根圖示的尺寸是這支程式逐個算出來寫進 width/height 屬性的，CSS 管不到，
-   * 所以這裡也要乘一次，並在切換時重畫。 */
-  var SIZE_KEY = 'aiphabi-zigen-size';
-  var SCALE = { small: 0.86, normal: 1, large: 1.2 };
-  var sizeName = 'normal';
-
   function rootIconSvg(strokes, sel) {
     var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
     for (var k = 0; k < sel.length; k++) {
@@ -127,6 +120,42 @@
     holder.innerHTML = '<svg class="zg-exsvg" viewBox="0 0 1024 1024" aria-label="' + e.c +
       '"><g transform="' + SVG_TF + '">' + paths + '</g></svg>';
     return holder;
+  }
+
+  /* 「正確拆法 vs 錯誤拆法」小圖對照，只有 build_site_data.py 的 WRONG_BREAKDOWN
+   * 有指定的少數幾條才會有 it.alt（見那邊的註解）。彩虹色只是要讓「筆畫怎麼分組」
+   * 一眼看出來，跟表格其餘地方「同一個字根」用的橙色系不是同一套語言，
+   * 所以另外開一組 class，不要混進 exampleGlyph 那一套。
+   * 放在「字母」欄、碼底下那一行，小圖示＋打勾／打叉，不佔一整列。
+   * 勾／叉是圖示旁邊的字，不疊在圖示上面——疊上去會蓋住角落的筆畫（Wilson）。 */
+  var RAINBOW = ['rb-0', 'rb-1', 'rb-2', 'rb-3', 'rb-4'];
+
+  function altMiniCard(ch, breakdown, ok) {
+    var pair = el('span', 'zg-altpair' + (ok ? ' is-ok' : ' is-bad'));
+    var icon = el('span', 'zg-altmini');
+    var strokes = GLYPHS && GLYPHS[ch];
+    if (strokes) {
+      var paths = '';
+      for (var i = 0; i < strokes.length; i++) {
+        var gi = -1;
+        for (var k = 0; k < breakdown.groups.length; k++) {
+          if (breakdown.groups[k].indexOf(i) >= 0) { gi = k; break; }
+        }
+        var cls = gi >= 0 ? RAINBOW[gi % RAINBOW.length] : 'off';
+        paths += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
+      }
+      icon.innerHTML = '<svg class="zg-altsvg" viewBox="0 0 1024 1024" aria-hidden="true">' +
+        '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
+    } else {
+      icon.appendChild(glyph(ch));
+    }
+    pair.appendChild(icon);
+    var mark = el('span', 'zg-altminimark', ok ? '✓' : '✕');
+    mark.setAttribute('aria-hidden', 'true');
+    pair.appendChild(mark);
+    pair.title = breakdown.code + (ok ? '（正確）' : '（不取，示範用）');
+    pair.setAttribute('data-keep', '');
+    return pair;
   }
 
   /* 「取自『名』第 1–3 筆」／「整個『日』字」——有字形資料時前面再加上畫出來的字根 */
@@ -417,9 +446,11 @@
       var tw = el('div', 'tablewrap');
       var t = el('table', 'zg-simtbl');
       var thead = el('thead'), hr = el('tr');
-      // 例字放最右邊（Wilson）：形 → 字母 → 特徵 → 例字，
+      // 例字放最右邊（Wilson）：字形 → 取碼 → 說明 → 字例，
       // 讀的順序是「這個形狀、取什麼碼、怎麼分辨」，例字是佐證放在最後。
-      ['形', '字母', '特徵', '字例'].forEach(function (h) {
+      // 正確/錯誤拆法的小圖對照（見 it.alt）放在「取碼」欄底下，不另外開一欄——
+      // 只有少數列有，獨立一欄大部分是空的，看起來很怪（Wilson）。
+      ['字形', '取碼', '說明', '字例'].forEach(function (h) {
         hr.appendChild(el('th', null, h));
       });
       thead.appendChild(hr); t.appendChild(thead);
@@ -475,12 +506,37 @@
         }
         tr.appendChild(c0);
 
-        var c1 = el('td');
+        // <td> 本身保持單純的表格儲存格（不設 display:flex）——直排兩行的 flex
+        // 排版放在裡面另包一層 <div>，vertical-align: top 才確定吃得到，不會因為
+        // <td> 自己被改了 display 而失效。
+        var c1 = el('td', 'zg-codecell');
+        var codeWrap = el('div', 'zg-codepair');
+        var codeRow = el('div', 'zg-codepair-row');
         // 取碼不一定是單一個字母（目 是 DI（D）），所以鍵帽要能長寬
         var k = el('span', 'zg-key zg-key-sm', it.letter);
         if (Array.from(it.letter).length > 1) k.classList.add('is-wide');
         k.setAttribute('data-keep', '');
-        c1.appendChild(k);
+        codeRow.appendChild(k);
+        // 說明文字裡點名的「不取哪個碼」，淡化＋刪除線放在正確碼旁邊對照
+        // （這一欄只認得到 similar.md 的說明有沒有寫「不取 X」，見 build_site_data.py）
+        if (it.wrong) {
+          var wrong = el('span', 'zg-key-wrong', it.wrong);
+          wrong.title = '不取 ' + it.wrong;
+          wrong.setAttribute('data-keep', '');
+          codeRow.appendChild(wrong);
+        }
+        codeWrap.appendChild(codeRow);
+        // 正確/錯誤拆法小圖對照，只有 it.alt 有資料的列才有，放在碼底下同一欄——
+        // 另外開一欄「圖例」在大部分列都是空的，看起來很怪（Wilson）。
+        if (it.alt) {
+          var iconRow = el('div', 'zg-codepair-row');
+          // 兩邊各畫各的字（例：合#1,2,3 這一列，正確畫合、錯誤畫余對照
+          // 「根 A 站不站得住」，不是同一個字的兩種拆法）——見 alt.correct/wrong.char
+          iconRow.appendChild(altMiniCard(it.alt.correct.char, it.alt.correct, true));
+          iconRow.appendChild(altMiniCard(it.alt.wrong.char, it.alt.wrong, false));
+          codeWrap.appendChild(iconRow);
+        }
+        c1.appendChild(codeWrap);
         tr.appendChild(c1);
 
         // 例字是 {c, st} 物件（st = 該字裡屬於這個字母的筆畫），不是純字串——
@@ -519,24 +575,8 @@
       .catch(function () { /* 維持文字版 */ });
   }
 
-  /* ---------- 字級 ---------- */
-  function applySize(name, redraw) {
-    sizeName = SCALE[name] ? name : 'normal';
-    document.documentElement.setAttribute('data-zg-size', sizeName);
-    document.querySelectorAll('.zg-size button').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.dataset.size === sizeName));
-    });
-    try { localStorage.setItem(SIZE_KEY, sizeName); } catch (e) { /* 無痕模式 */ }
-    // 尺寸現在全由 CSS 的 --zg-scale 決定（圖示不再寫死 px），不必重畫
-  }
-
-  document.querySelectorAll('.zg-size button').forEach(function (b) {
-    b.addEventListener('click', function () { applySize(b.dataset.size, true); });
-  });
-
-  // 先套用（不重畫，因為資料還沒到），這樣第一次繪製就是正確的字級
-  try { applySize(localStorage.getItem(SIZE_KEY) || 'normal', false); }
-  catch (e) { applySize('normal', false); }
+  // 字級（小／標準／大）現在是全站共用行為，見 site.js —— 那支程式在這支之前載入，
+  // 頁面畫出來的時候字級已經套好了，這裡不必再管。
 
   fetch('assets/zigen.json')
     .then(function (r) { return r.json(); })

@@ -94,6 +94,28 @@
 
   apply(current());
 
+  /* ---------- 字級（小／標準／大） ----------
+   * 每一頁的頁首都有這組按鈕（原本只在字根表頁），縮放全站套用 —— 見 site.css
+   * 的 html { font-size: calc(100% * var(--zg-scale)) }。這裡只負責讀、存、切換。 */
+  var SIZE_KEY = 'aiphabi-zigen-size';
+  var VALID_SIZES = ['small', 'normal', 'large'];
+
+  function applySize(name) {
+    var sizeName = VALID_SIZES.indexOf(name) === -1 ? 'normal' : name;
+    document.documentElement.setAttribute('data-zg-size', sizeName);
+    document.querySelectorAll('.zg-size button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.size === sizeName));
+    });
+    try { localStorage.setItem(SIZE_KEY, sizeName); } catch (e) { /* 無痕模式 */ }
+  }
+
+  document.querySelectorAll('.zg-size button').forEach(function (b) {
+    b.addEventListener('click', function () { applySize(b.dataset.size); });
+  });
+
+  try { applySize(localStorage.getItem(SIZE_KEY) || 'normal'); }
+  catch (e) { applySize('normal'); }
+
   /* ---------- 進度數字：從 dict.json 填，HTML 裡寫的是離線後備值 ----------
    * 頁面在沒有 JS／抓不到檔案時仍然顯示得出數字，只是可能舊一點；有 JS 時一律以
    * 產生當下的 codes.json 為準。手抄的數字撐不過幾天取碼。 */

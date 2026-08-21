@@ -125,6 +125,83 @@ def build_glyphs(chars):
     return len(out)
 
 
+# 少數辨析想額外畫一張「正確拆法 vs 錯誤拆法」的大圖對照（例：失 該拆 JIY，
+# 不是 YK）。兩邊都整段手寫，不從 data/codes.json 自動推——錯的那邊 codes.json
+# 當然沒有（失根本不是那樣取碼），對的那邊也乾脆一起手寫，兩邊格式才會一致，
+# 也才有辦法處理「對照的不是同一個字」這種情況（合 vs 余：討論的是根 A 站不站得住，
+# 不是同一個字的兩種拆法，所以兩邊各畫各的字，其餘筆畫不畫、不假裝是完整拆法）。
+# key 是 (shape, 正確的字母)，跟 similar.md 那一列對得上就會畫圖，其餘列不受影響。
+WRONG_BREAKDOWN = {
+    ("失", "JIY"): {
+        "correct": {"char": "失", "code": "JIY", "groups": [[0], [1, 2], [3, 4]]},
+        "wrong":   {"char": "失", "code": "YK",  "groups": [[0, 1], [2, 3, 4]]},
+    },
+    # similar.md 原文：「與失字同理，因為第二筆的橫被豎劃相交，所以不能取 Y，只能
+    # 分開先取一撇為 J…全字取 JH，不取 YT」——跟失一樣是「撇+橫」想取 Y 沒取成，
+    # 剩下的橫、豎湊成 T，所以錯誤分組直接比照失的 YK（1-2 / 3-4-…）。
+    ("牛", "JH"): {
+        "correct": {"char": "牛", "code": "JH", "groups": [[0], [1, 2, 3]]},
+        "wrong":   {"char": "牛", "code": "YT", "groups": [[0, 1], [2, 3]]},
+    },
+    # 合#1,2,3 這一列舉余當反例：余的頭三筆乍看像合、可以整段取 A，但第三筆的橫劃
+    # 碰到豎劃，所以那個假設是錯的——真正的拆法是 YIM（Y 1-2、I 3-4、M 5-7，
+    # 對過 data/codes.json）。畫的是余自己的「對 vs 錯」兩種拆法，不是余跟合對照
+    # （Wilson：不用畫合）。AT 是示範用的錯誤假設，不是真的存在的碼。
+    ("合#1,2,3", "A"): {
+        "correct": {"char": "余", "code": "YIM", "groups": [[0, 1], [2, 3], [4, 5, 6]]},
+        "wrong":   {"char": "余", "code": "AT",  "groups": [[0, 1, 2], [3, 4, 5, 6]]},
+    },
+}
+
+# 〈取碼原則〉頁的例字對照圖。正確拆法一律從 data/codes.json 的 segments 直接算，
+# 不手寫——手寫兩次同一個字的碼，遲早會有一次跟出貨的碼對不上。
+#
+# 錯誤拆法**只**收錄 Wilson 的說明文字裡已經把每一組筆畫講清楚、或者用剩法能唯一
+# 推回去的那幾個（雨、孔、美——說明本身就寫了筆序；東是 IBM 三段扣掉已知的
+# B（跟正確拆法同一段 1-4）、I（孤筆略過原則：孤立一橫取 I，只能是第 1 筆）之後，
+# 剩下的筆畫只有一種分法）。其餘例字（火、石、區、樞、陳、天、昊）的錯誤拆法
+# 需要的筆畫分組沒有寫在說明裡，用猜的可能連筆畫數都不對，所以只畫正確拆法，
+# 錯誤的碼照樣用文字列出（不需要圖）。
+PRINCIPLE_WRONG = {
+    "雨": {"code": "MQQQQ", "groups": [[0, 1, 2, 3], [4], [5], [6], [7]]},
+    "孔": {"code": "PIL", "groups": [[0, 1], [2], [3]]},
+    "美": {"code": "VFK", "groups": [[0, 1, 2], [3, 4, 5], [6, 7, 8]]},
+    "東": {"code": "IBM", "groups": [[0], [1, 2, 3, 4], [5, 6, 7]]},
+}
+
+# 這一頁提到的所有例字，不管有沒有畫錯誤拆法對照圖，正確拆法都要能畫出來。
+PRINCIPLE_CHARS = [
+    "火", "雨", "子", "孔", "石", "美", "區", "樞", "東", "陳", "藍", "天", "昊",
+]
+
+
+def build_principles(codes):
+    """〈取碼原則〉頁的例字拆法對照——見 PRINCIPLE_WRONG 上面的註解。"""
+    out = {}
+    for ch in PRINCIPLE_CHARS:
+        rec = codes.get(ch)
+        if not rec:
+            continue
+        segs = rec["segments"]
+        correct = {"code": rec["final"], "groups": [s["strokes"] for s in segs]}
+        entry = {"correct": correct}
+        wrong = PRINCIPLE_WRONG.get(ch)
+        if wrong:
+            # 兩邊涵蓋的筆畫必須是同一組，不然錯誤拆法多算或漏算了幾筆自己都不知道。
+            # 正確拆法自己不一定涵蓋全部筆畫——孤筆略過原則跳過的那一筆（孔的第 3 筆）
+            # 不屬於任何字根，但仍然是這個字真實存在的一筆，要算進「這個字有幾筆」，
+            # 所以正確側另外加上 codes.json 的 skipped 清單，兩側筆畫集合才比得起來。
+            skipped = set(rec.get("skipped") or [])
+            correct_idx = {i for g in correct["groups"] for i in g} | skipped
+            wrong_idx = {i for g in wrong["groups"] for i in g}
+            assert correct_idx == wrong_idx, (
+                f"principles: {ch} 正確拆法筆畫 {sorted(correct_idx)}，"
+                f"錯誤拆法筆畫 {sorted(wrong_idx)}，對不上")
+            entry["wrong"] = wrong
+        out[ch] = entry
+    return out
+
+
 def build_similar(codes):
     """相近字形辨析：全部來自 site/content/similar.md，Wilson 手寫。
 
@@ -164,6 +241,10 @@ def build_similar(codes):
             shape, letter, ex, trait = parts[0], parts[1], parts[2], " ".join(parts[3:])
             if shape == "？" or not letter:
                 continue                      # 還沒填的候選
+            # Wilson 的說明文字裡經常會點名「不取哪個碼」（不取 YK、不取 DIV…），
+            # 抓出來給網站畫一個淡化＋刪除線的對照，不用另外在格式裡加一欄。
+            m_wrong = re.search(r"不取\s*([A-Z]{1,8})", trait)
+            wrong = m_wrong.group(1) if m_wrong else None
             # 例字也畫出來並高亮，跟字根表一致。這裡只用**字母**比對（不比筆數）：
             # 辨析要回答的是「這個字母的字根在這個字的哪裡」，而 目 的取碼寫成
             # 「DI（D）」這種複合形式時，筆數根本對不上。同字母有多段就全部高亮。
@@ -178,11 +259,14 @@ def build_similar(codes):
                         if seg.get("letter") == m2.group(0):
                             hi += list(seg.get("strokes") or [])
                 items.append({"c": c, "st": sorted(set(hi))})
+            alt = WRONG_BREAKDOWN.get((shape, letter))
             cur["items"].append({
                 "shape": shape,
                 "letter": letter,
                 "ex": items,
                 "trait": trait,
+                "wrong": wrong,
+                "alt": alt,
             })
         elif line.startswith(">") and cur is not None:
             cur["note"] = (cur["note"] + " " + line[1:].strip()).strip()
@@ -705,6 +789,14 @@ def main():
                 glyph_chars.add(item["shape"])      # 形本身就是一個字（日、月、丶…）
             for e in item["ex"]:
                 glyph_chars.add(e["c"])
+            # 正確/錯誤拆法大圖對照用的字，不一定是「形」本身（合#1,2,3 那一列畫的
+            # 是余，不是合）——漏收就會沒有筆畫資料，畫面上悄悄退回系統字型純文字，
+            # 顏色和分組全部不見，看起來像這個功能沒做，其實是資料沒收全。
+            if item.get("alt"):
+                glyph_chars.add(item["alt"]["correct"]["char"])
+                glyph_chars.add(item["alt"]["wrong"]["char"])
+    principles = build_principles(codes)
+    glyph_chars.update(principles.keys())
     # 手挑清單裡有沒有寫錯字母／來源字，對不到任何一個字根的要講出來
     # 代表字可能已經被「顯示層改用第一個例字」換過（提 → 旦），而手挑清單是照
     # **原本的**代表字比對的。所以兩個都算數，否則會誤報「找不到這個字根」。
@@ -745,6 +837,8 @@ def main():
         json.dumps(t2s, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "zigen.json").write_text(
         json.dumps(zg, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    (OUT / "principles.json").write_text(
+        json.dumps(principles, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
     print(f"t2s.json   {len(t2s)} 組繁簡對照")
@@ -758,6 +852,9 @@ def main():
     print(f"zigen.json {zg['shapes']} 個字根 / {len(zg['letters'])} 個字母"
           + f" / {len(zg['similar'])} 組相近字形辨析"
           + (f"  ⚠️ {zg['no_desc']} 組還沒寫取形意圖" if zg["no_desc"] else ""))
+    n_wrong = sum(1 for v in principles.values() if "wrong" in v)
+    print(f"principles.json {len(principles)} 個取碼原則例字"
+          + f"（{n_wrong} 個有正確/錯誤拆法對照圖）")
 
 
 if __name__ == "__main__":
