@@ -430,7 +430,7 @@
       box.appendChild(el('span', 'tz-more', '這個字打完了'));
     } else {
       var more = P.hseg < segs.length - 1 || P.hstep < 3;
-      box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '這個字的碼全給了'));
+      box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '已顯示全部編碼'));
     }
   }
 
