@@ -1041,14 +1041,16 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 .typebox textarea {
   width: 100%;
-  min-height: 7rem;
+  min-height: 8.5rem;
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
   color: var(--ink);
-  padding: .8rem;
-  font: 1.5rem/1.7 inherit;
+  padding: .9rem;
+  /* 打出來的字要大 —— 這一格是「你打了什麼」，練習的時候眼睛一直在這裡。
+     參考文章反而可以小（.88rem），它是照著抄的來源，不是成果。 */
+  font: 1.9rem/1.6 inherit;
 }
 
 .typebox textarea:focus {
@@ -1783,11 +1785,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tianzi .tz-z4 { fill: var(--rb-4); }
 .tianzi .tz-z5 { fill: var(--rb-5); }
 
-.tz-hint {
-  margin-top: .5rem;
-  display: flex; flex-direction: column; align-items: center; gap: .35rem;
-}
-.tz-hintcodes { display: flex; gap: .25rem; flex-wrap: wrap; justify-content: center; }
+/* 提示的文字住在候選列裡（.rail），所以是橫排、靠左，跟候選字同一條線上 */
+.rail .tz-hint { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.tz-hintcodes { display: flex; gap: .25rem; }
 .tz-chip {
   font-family: ui-monospace, Menlo, monospace;
   font-weight: 700; font-size: .82rem;
@@ -1812,7 +1812,5 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-chip.z4.is-blank { color: var(--rb-4); }
 .tz-chip.z5.is-blank { color: var(--rb-5); }
 
-.tz-intent {
-  font-size: .78rem; line-height: 1.5; color: var(--ink-dim); text-align: center;
-}
-.tz-more { font-size: .72rem; color: var(--ink-faint); }
+.tz-intent { font-size: .85rem; line-height: 1.5; color: var(--ink); }
+.tz-more { font-size: .75rem; color: var(--ink-faint); margin-inline-start: auto; }

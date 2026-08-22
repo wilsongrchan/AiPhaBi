@@ -153,7 +153,10 @@
       return;
     }
     if (!state.buf) {
-      rail.appendChild(el('span', 'empty', '在上面的框裡打英文字母，這裡會出現候選字。'));
+      var hn = hintNodes();
+      if (hn) { rail.appendChild(hn); return; }
+      rail.appendChild(el('span', 'empty',
+        '在上面的框裡打英文字母，這裡會出現候選字。' + (P.on ? '　想不出來就按 / 給提示。' : '')));
       return;
     }
 
@@ -193,7 +196,7 @@
    * 這一頁的主要功能是試打，參考文章是加分項，不該把它拖下水。 */
   var P = {
     on: false, chars: [], pos: 0, glyphs: null, main: null, segs: null,
-    text: null, cell: null, next: null, prog: null, hintbox: null,
+    text: null, cell: null, next: null, prog: null,
     // 提示鏈：seg = 現在講到第幾個字根，step = 講到哪一步
     //   0 還沒開始 · 1 標出筆畫 · 2 說取形意圖 · 3 給字母
     // 按一次 / 往前一步，走完一個字根就換下一個。字換了就整個歸零。
@@ -277,8 +280,6 @@
     }
 
     // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
-    renderHint(now);
-
     var done = P.typedBefore[P.pos] || 0, total = P.total;
     P.prog.textContent = done + ' / ' + total +
       '　' + Math.round(done * 100 / total) + '%';
@@ -304,21 +305,21 @@
     while (P.chars[P.pos] === '\n') P.pos++;
     P.hseg = 0; P.hstep = 0;          // 換字了，提示從頭來
     renderPractice();
+    render();
   }
 
 
-  /* 提示面板：已經揭曉的字根排成一列（字母），現在講到的那一條另外把取形意圖
-     寫出來。沒按過 / 就整塊不出現 —— 這一頁的預設是「自己想」。 */
-  function renderHint(ch) {
-    var box = P.hintbox;
-    box.innerHTML = '';
+  /* 提示的**文字**放在候選列裡，跟「這裡會出現候選字」同一個位置（Wilson）——
+     打字的時候眼睛就在那一列，提示放田字格底下等於要人把視線移開再移回來。
+     格子裡的筆畫上色留在格子裡，那本來就是字的一部分。
+     沒按過 / 就回傳 null，候選列照常顯示原本那句話。 */
+  function hintNodes() {
+    if (!P.on || P.pos >= P.chars.length) return null;
+    var ch = P.chars[P.pos];
     var segs = P.segs && P.segs[ch];
-    if (!P.hstep || !segs || !segs.length) {
-      box.hidden = true;
-      return;
-    }
-    box.hidden = false;
+    if (!P.hstep || !segs || !segs.length) return null;
 
+    var box = el('span', 'tz-hint');
     var row = el('span', 'tz-hintcodes');
     for (var i = 0; i <= P.hseg && i < segs.length; i++) {
       var known = i < P.hseg || P.hstep >= 3;
@@ -333,6 +334,7 @@
 
     var more = P.hseg < segs.length - 1 || P.hstep < 3;
     box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '這個字的碼全給了'));
+    return box;
   }
 
   /* 按 / 往前一步。走完一條字根（標筆畫 → 說意圖 → 給字母）才換下一條。
@@ -351,6 +353,7 @@
       P.hstep = 1;
     }
     renderPractice();
+    render();                  // 提示的文字在候選列裡
   }
 
   function setupPractice(pd, dict) {
@@ -374,7 +377,6 @@
     P.cell = document.getElementById('tianzi');
     P.next = document.getElementById('practice-next');
     P.prog = document.getElementById('practice-prog');
-    P.hintbox = document.getElementById('practice-hint');
 
     var src = document.getElementById('practice-src');
     src.textContent = pd.title + '　' + pd.author + '　' + pd.license;
@@ -382,14 +384,15 @@
     document.getElementById('practice-skip').addEventListener('click', function () {
       if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
       P.hseg = 0; P.hstep = 0;
-      renderPractice(); out.focus();
+      renderPractice(); render(); out.focus();
     });
     document.getElementById('practice-reset').addEventListener('click', function () {
-      P.pos = 0; P.hseg = 0; P.hstep = 0; renderPractice(); out.focus();
+      P.pos = 0; P.hseg = 0; P.hstep = 0; renderPractice(); render(); out.focus();
     });
 
     host.hidden = false;
     renderPractice();
+    render();
   }
 
   function el(tag, cls, text) {
