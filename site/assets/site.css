@@ -1153,7 +1153,8 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   white-space: nowrap;
 }
 
-.rail .empty { color: var(--ink-dim); font-size: .9rem; }
+/* 候選列沒東西時那句說明：比候選字小一階，它是說明不是內容 */
+.rail .empty { color: var(--ink-dim); font-size: .78rem; }
 
 /* 例字：整個字畫出來，屬於該字根的筆畫塗深、其餘塗淺。
  * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
