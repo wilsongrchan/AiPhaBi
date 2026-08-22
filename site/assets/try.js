@@ -364,19 +364,30 @@
 
   /* 按 / 往前一步。走完一條字根（標筆畫 → 說意圖 → 給字母）才換下一條。
      比對不到字根的那幾段沒有取形意圖（建置時會印出來），中間那一步直接跳過，
-     不要留一個空白的提示讓人以為壞掉了。 */
+     不要留一個空白的提示讓人以為壞掉了。
+
+     ⚠️ 提示的進度要跟著**打對的碼**走（Wilson）：自己打對到第 n 條了，就別再
+     回頭講第 n 條。例：我 = JKXQ，打了 J → 按 / 亮 K 那幾筆 → 自己想出 K 打了
+     → 再按 / 應該直接亮 X 那幾筆，而不是回來解釋 K 是什麼。所以每次按 / 都先
+     看打到哪了，已經被打過去的就整段跳掉。 */
   function hintStep() {
     if (!P.on || P.pos >= P.chars.length) return;
     var ch = P.chars[P.pos];
     var segs = P.segs && P.segs[ch];
     if (!segs || !segs.length) return;
-    if (P.hstep < 3) {
+
+    var typed = typedSegs(ch, segs);        // 自己打對到第幾條（-1 = 還沒打）
+    if (P.hseg <= typed) {
+      // 提示落後於實際進度：跳到還沒打的第一條，從「標筆畫」開始
+      P.hseg = Math.min(typed + 1, segs.length - 1);
+      P.hstep = typed + 1 > segs.length - 1 ? 3 : 1;
+    } else if (P.hstep < 3) {
       P.hstep++;
-      if (P.hstep === 2 && !segs[P.hseg].d) P.hstep = 3;
     } else if (P.hseg < segs.length - 1) {
       P.hseg++;
       P.hstep = 1;
     }
+    if (P.hstep === 2 && !segs[P.hseg].d) P.hstep = 3;   // 沒有取形意圖就跳過那一步
     renderPractice();
   }
 
