@@ -1048,9 +1048,15 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   background: var(--bg);
   color: var(--ink);
   padding: .9rem;
-  /* 打出來的字要大 —— 這一格是「你打了什麼」，練習的時候眼睛一直在這裡。
+  /* ⚠️ 不要寫成 `font: 1.9rem/1.6 inherit` —— inherit 是 CSS 全域關鍵字，
+     不能當簡寫的其中一段，整條宣告會被瀏覽器直接丟掉。這個框從一開始就是這樣
+     寫的，所以字級一直是瀏覽器預設的 13.3px monospace，改幾次都沒有反應
+     （Wilson 連講三次「還是太小」才查出來）。要分開寫。
+     打出來的字要大 —— 這一格是「你打了什麼」，練習的時候眼睛一直在這裡；
      參考文章反而可以小（.88rem），它是照著抄的來源，不是成果。 */
-  font: 1.9rem/1.6 inherit;
+  font-family: inherit;
+  font-size: 1.9rem;
+  line-height: 1.6;
 }
 
 .typebox textarea:focus {
