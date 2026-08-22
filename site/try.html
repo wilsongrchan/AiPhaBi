@@ -67,12 +67,15 @@
     <aside class="practice-cell">
       <div class="tianzi" id="tianzi"></div>
       <p class="practice-next" id="practice-next"></p>
+      <div class="tz-hint" id="practice-hint" hidden></div>
     </aside>
   </section>
 
   <div class="typebox">
     <label class="sr-only" for="out">試打區</label>
-    <textarea id="out" placeholder="先試試 bd（明）、jkxq（我）、jba（的）" autocomplete="off"
+    <!-- 不放 placeholder：上面的〈跟著打〉已經指定了要打哪個字，框裡再擺一串
+         灰色的示範碼只是雜訊（Wilson）。 -->
+    <textarea id="out" autocomplete="off"
               autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
     <div class="rail" id="rail" aria-live="polite"></div>
   </div>

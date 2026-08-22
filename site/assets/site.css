@@ -1055,8 +1055,8 @@ footer p { max-width: none; margin: 0 0 .4rem; }
      打出來的字要大 —— 這一格是「你打了什麼」，練習的時候眼睛一直在這裡；
      參考文章反而可以小（.88rem），它是照著抄的來源，不是成果。 */
   font-family: inherit;
-  font-size: 1.9rem;
-  line-height: 1.6;
+  font-size: 1.4rem;
+  line-height: 1.7;
 }
 
 .typebox textarea:focus {
@@ -1791,9 +1791,13 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tianzi .tz-z4 { fill: var(--rb-4); }
 .tianzi .tz-z5 { fill: var(--rb-5); }
 
-/* 提示的文字住在候選列裡（.rail），所以是橫排、靠左，跟候選字同一條線上 */
-.rail .tz-hint { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
-.tz-hintcodes { display: flex; gap: .25rem; }
+/* 提示貼著田字格底下 —— 講的是格子裡那個字的哪幾筆，就該貼著那個字。
+ * 直排置中，跟上面的格子對齊。 */
+.tz-hint {
+  margin-top: .55rem;
+  display: flex; flex-direction: column; align-items: center; gap: .35rem;
+}
+.tz-hintcodes { display: flex; gap: .25rem; flex-wrap: wrap; justify-content: center; }
 .tz-chip {
   font-family: ui-monospace, Menlo, monospace;
   font-weight: 700; font-size: .82rem;
@@ -1818,5 +1822,5 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-chip.z4.is-blank { color: var(--rb-4); }
 .tz-chip.z5.is-blank { color: var(--rb-5); }
 
-.tz-intent { font-size: .85rem; line-height: 1.5; color: var(--ink); }
-.tz-more { font-size: .75rem; color: var(--ink-faint); margin-inline-start: auto; }
+.tz-intent { font-size: .8rem; line-height: 1.5; color: var(--ink); text-align: center; }
+.tz-more { font-size: .72rem; color: var(--ink-faint); }

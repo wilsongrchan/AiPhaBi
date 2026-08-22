@@ -153,8 +153,6 @@
       return;
     }
     if (!state.buf) {
-      var hn = hintNodes();
-      if (hn) { rail.appendChild(hn); return; }
       rail.appendChild(el('span', 'empty',
         '在上面的框裡打英文字母，這裡會出現候選字。' + (P.on ? '　想不出來就按 / 給提示。' : '')));
       return;
@@ -196,7 +194,7 @@
    * 這一頁的主要功能是試打，參考文章是加分項，不該把它拖下水。 */
   var P = {
     on: false, chars: [], pos: 0, glyphs: null, main: null, segs: null,
-    text: null, cell: null, next: null, prog: null,
+    text: null, cell: null, next: null, prog: null, hintbox: null,
     // 提示鏈：seg = 現在講到第幾個字根，step = 講到哪一步
     //   0 還沒開始 · 1 標出筆畫 · 2 說取形意圖 · 3 給字母
     // 按一次 / 往前一步，走完一個字根就換下一個。字換了就整個歸零。
@@ -218,14 +216,35 @@
 
   function isHan(c) { return c >= '\u4e00' && c <= '\u9fff'; }
 
+  /* 已經「講到」第幾條字根 —— 兩個來源取大的：
+       1. 按 / 給的提示（P.hseg）
+       2. 自己打對的碼：打了幾碼就亮幾條字根，不用等打完整個字
+     第 2 條是為了讓人邊打邊看到進度（Wilson）。判斷方式是拿目前打的這幾碼
+     去比對這個字的**完整碼**（每一條字根一個字母）：是它的前綴，就表示前面
+     那幾條字根都打對了。打完整個主碼（可能被「頭四尾一」截短過，跟完整碼
+     不一樣）就整個字亮起來。比不上就不亮 —— 那表示打的是別條路（約定簡碼、
+     兼容碼）或根本打錯，硬亮會亮在錯的筆畫上。 */
+  function typedSegs(ch, segs) {
+    var buf = state.buf;
+    if (!buf || !segs.length) return -1;
+    var full = '';
+    for (var i = 0; i < segs.length; i++) full += segs[i].L.toLowerCase();
+    if (full.indexOf(buf) === 0) return Math.min(buf.length, segs.length) - 1;
+    var mc = P.main && P.main[ch];
+    if (mc && buf === mc) return segs.length - 1;      // 主碼打完＝整個字
+    return -1;
+  }
+
   /* 預設整個字都是黑的 —— 這裡講的是「這個字長這樣」，不是在講字根，
-     上色會讓人以為顏色有意思。只有按了 / 之後，被提示到的那幾筆才上色，
+     上色會讓人以為顏色有意思。被提示到、或自己打對的那幾條字根才上色，
      用的是取碼原則頁那一套彩虹分組色（同一條字根同一個顏色）。 */
   function strokeColours(ch) {
     var segs = P.segs && P.segs[ch];
-    if (!segs || !P.hstep) return null;
+    if (!segs) return null;
+    var upto = Math.max(P.hstep ? P.hseg : -1, typedSegs(ch, segs));
+    if (upto < 0) return null;
     var map = {};
-    for (var i = 0; i <= P.hseg && i < segs.length; i++) {
+    for (var i = 0; i <= upto && i < segs.length; i++) {
       for (var k = 0; k < segs[i].st.length; k++) map[segs[i].st[k]] = i;
     }
     return map;
@@ -251,6 +270,28 @@
     }
   }
 
+
+  /* 田字格那一塊（格子＋下一個字＋提示）。打字時只重畫這裡 —— 參考文章有一千
+     三百多個 span，每按一鍵重建一次太浪費，而它的內容只在換字時才會變。 */
+  function renderCell() {
+    if (!P.on) return;
+    var now = P.chars[P.pos];
+    drawCell(now === '\n' ? '' : now);
+
+    var uncoded = now && isHan(now) && P.main && !P.main[now];
+    P.next.innerHTML = '';
+    if (P.pos >= P.chars.length) {
+      P.next.appendChild(el('span', 'ok', '整篇打完了。'));
+    } else if (uncoded) {
+      P.next.appendChild(el('b', null, now));
+      P.next.appendChild(el('span', 'warn', '尚未取碼，按「跳過這個字」'));
+    } else if (now) {
+      P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
+      P.next.appendChild(el('span', null, '下一個'));
+    }
+    renderHint(now);
+  }
+
   function renderPractice() {
     if (!P.on) return;
     var frag = document.createDocumentFragment();
@@ -263,21 +304,7 @@
     P.text.innerHTML = '';
     P.text.appendChild(frag);
 
-    var now = P.chars[P.pos];
-    drawCell(now === '\n' ? '' : now);
-
-    // 沒取碼的字打不出來 —— 直說，並且讓人跳過去，不要讓人卡在那一格試半天
-    var uncoded = now && isHan(now) && P.main && !P.main[now];
-    P.next.innerHTML = '';
-    if (P.pos >= P.chars.length) {
-      P.next.appendChild(el('span', 'ok', '整篇打完了。'));
-    } else if (uncoded) {
-      P.next.appendChild(el('b', null, now));
-      P.next.appendChild(el('span', 'warn', '尚未取碼，按「跳過這個字」'));
-    } else if (now) {
-      P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
-      P.next.appendChild(el('span', null, '下一個'));
-    }
+    renderCell();
 
     // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
     var done = P.typedBefore[P.pos] || 0, total = P.total;
@@ -309,17 +336,16 @@
   }
 
 
-  /* 提示的**文字**放在候選列裡，跟「這裡會出現候選字」同一個位置（Wilson）——
-     打字的時候眼睛就在那一列，提示放田字格底下等於要人把視線移開再移回來。
-     格子裡的筆畫上色留在格子裡，那本來就是字的一部分。
-     沒按過 / 就回傳 null，候選列照常顯示原本那句話。 */
-  function hintNodes() {
-    if (!P.on || P.pos >= P.chars.length) return null;
-    var ch = P.chars[P.pos];
+  /* 提示的文字放在田字格底下 —— 講的是格子裡那個字的哪幾筆，就該貼著那個字
+     （Wilson）。候選列那一行只留一句「想不出來就按 / 給提示」當入口，
+     真正給出來的提示不放那裡。沒按過 / 就整塊不出現。 */
+  function renderHint(ch) {
+    var box = P.hintbox;
+    box.innerHTML = '';
     var segs = P.segs && P.segs[ch];
-    if (!P.hstep || !segs || !segs.length) return null;
+    if (!P.hstep || !segs || !segs.length) { box.hidden = true; return; }
+    box.hidden = false;
 
-    var box = el('span', 'tz-hint');
     var row = el('span', 'tz-hintcodes');
     for (var i = 0; i <= P.hseg && i < segs.length; i++) {
       var known = i < P.hseg || P.hstep >= 3;
@@ -334,7 +360,6 @@
 
     var more = P.hseg < segs.length - 1 || P.hstep < 3;
     box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '這個字的碼全給了'));
-    return box;
   }
 
   /* 按 / 往前一步。走完一條字根（標筆畫 → 說意圖 → 給字母）才換下一條。
@@ -353,7 +378,6 @@
       P.hstep = 1;
     }
     renderPractice();
-    render();                  // 提示的文字在候選列裡
   }
 
   function setupPractice(pd, dict) {
@@ -377,6 +401,7 @@
     P.cell = document.getElementById('tianzi');
     P.next = document.getElementById('practice-next');
     P.prog = document.getElementById('practice-prog');
+    P.hintbox = document.getElementById('practice-hint');
 
     var src = document.getElementById('practice-src');
     src.textContent = pd.title + '　' + pd.author + '　' + pd.license;
@@ -414,12 +439,14 @@
     state.cands = [];
     render();
     advance(ch);
+    renderCell();          // 打錯的時候 advance 不會動，格子的顏色要自己收掉
   }
 
   function setBuf(b) {
     state.buf = b;
     state.cands = lookup(b);
     render();
+    renderCell();          // 打對幾碼就亮幾條字根
   }
 
   out.addEventListener('keydown', function (e) {
