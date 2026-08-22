@@ -1045,9 +1045,8 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 .typebox textarea {
   width: 100%;
-  /* 跟上面的參考文章框同高（Wilson 的草圖是兩塊一樣大）—— 這一欄由上而下是
-     「文本 → 試打框 → 候選列」，兩塊一樣大看起來才像一組，不是主從。 */
-  min-height: 9.5rem;
+  /* 比參考文章框高一點就好 —— 打出來的字要看得清楚，但也不用佔掉半個畫面 */
+  min-height: 7.5rem;
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1724,8 +1723,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 1.2rem;
-  margin: 1.4rem 0;
+  /* 上緣收窄（Wilson）：標題到面板、面板到「試打文本」都少一點空白 */
+  padding: .85rem 1.2rem 1.2rem;
+  margin: .85rem 0 1.4rem;
 }
 
 /* practice.json 沒產出來時 JS 會加這個 —— 收成單欄，只剩試打框 */
@@ -1741,8 +1741,10 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .practice-text {
   margin-top: .8rem;
   /* 固定高度（Wilson）：試打框現在就在同一欄的下面，文章框不再吃掉剩餘空間，
-     不然試打框會被擠到看不見。要多讀幾行就捲這一格。 */
-  height: 9.5rem;
+     不然試打框會被擠到看不見。要多讀幾行就捲這一格。
+     6.5rem 剛好三行（行高 27.5px × 3 ＋ 上下 padding .6rem ＋ 框線）—— 從五行收成
+     三行是為了讓底下的按鍵指南在同一畫面上多露一點。 */
+  height: 6.5rem;
   overflow-y: auto;
   line-height: 1.95;
   font-size: .88rem;
