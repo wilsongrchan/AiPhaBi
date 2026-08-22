@@ -1045,7 +1045,9 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 .typebox textarea {
   width: 100%;
-  min-height: 6.5rem;
+  /* 跟上面的參考文章框同高（Wilson 的草圖是兩塊一樣大）—— 這一欄由上而下是
+     「文本 → 試打框 → 候選列」，兩塊一樣大看起來才像一組，不是主從。 */
+  min-height: 9.5rem;
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: 6px;
