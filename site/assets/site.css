@@ -1732,7 +1732,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 
 /* 左欄是直排的 flex，文章框吃掉中間所有剩餘高度，標題與底下那一列各自佔自己的 */
 .practice-main { display: flex; flex-direction: column; min-height: 0; }
-.practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+.practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; flex: none; }
 .practice-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
 .practice-src { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 
@@ -1769,6 +1769,22 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   font-size: .8rem; color: var(--ink-dim); margin-inline-end: auto;
 }
 .practice-tip { font-size: .75rem; color: var(--ink-faint); }
+
+/* 篇目選單：一篇一顆，現在這篇用主色實心標出來 */
+.practice-pick { display: inline-flex; gap: .3rem; margin-inline-start: auto; }
+.practice-pickbtn {
+  font: inherit; font-size: .78rem;
+  padding: .18rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.practice-pickbtn:hover { border-color: var(--accent); color: var(--accent); }
+.practice-pickbtn[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: var(--surface);
+}
 .practice-btn {
   font: inherit; font-size: .82rem;
   padding: .25rem .8rem;

@@ -210,6 +210,7 @@
    * 這一頁的主要功能是試打，參考文章是加分項，不該把它拖下水。 */
   var P = {
     on: false, chars: [], pos: 0, glyphs: null, main: null, segs: null,
+    texts: null, ti: 0, pick: null,
     text: null, cell: null, next: null, prog: null, hintbox: null,
     // 提示鏈：seg = 現在講到第幾個字根，step = 講到哪一步
     //   0 還沒開始 · 1 標出筆畫 · 2 說取形意圖 · 3 給字母
@@ -463,33 +464,59 @@
     renderPractice();
   }
 
+  /* 換一篇文章。字形與字根分段是所有篇共用的（practice.json 只存一份），
+     所以換篇只要重算「要打的那一串字元」跟進度表就好。 */
+  function setText(i) {
+    var t = P.texts[i];
+    if (!t) return;
+    P.ti = i;
+    P.chars = t.paras.join('\n').split('');
+    // typedBefore[i] = 第 i 格之前有幾個「真的要打」的字元（換行不算）
+    P.typedBefore = [];
+    var n = 0;
+    for (var k = 0; k < P.chars.length; k++) {
+      P.typedBefore[k] = n;
+      if (P.chars[k] !== '\n') n++;
+    }
+    P.typedBefore[P.chars.length] = n;
+    P.total = n;
+    P.pos = 0; P.hseg = 0; P.hstep = 0;
+    setBuf('');
+    document.getElementById('practice-src').textContent = '《' + t.title + '》' + t.author;
+    [].forEach.call(P.pick.children, function (b, k) {
+      b.setAttribute('aria-pressed', k === i ? 'true' : 'false');
+    });
+    P.text.scrollTop = 0;
+    renderPractice();
+  }
+
   function setupPractice(pd, dict) {
     var host = document.getElementById('practice');
-    if (!host || !pd || !pd.paras || !pd.paras.length) return;
+    if (!host || !pd || !pd.texts || !pd.texts.length) return;
     P.on = true;
     P.glyphs = pd.glyphs || null;
     P.segs = pd.segs || null;
     P.main = dict.main;
-    P.chars = pd.paras.join('\n').split('');
-    // typedBefore[i] = 第 i 格之前有幾個「真的要打」的字元（換行不算）
-    P.typedBefore = [];
-    var n = 0;
-    for (var i = 0; i < P.chars.length; i++) {
-      P.typedBefore[i] = n;
-      if (P.chars[i] !== '\n') n++;
-    }
-    P.typedBefore[P.chars.length] = n;
-    P.total = n;
+    P.texts = pd.texts;
     P.text = document.getElementById('practice-text');
     P.cell = document.getElementById('tianzi');
     P.next = document.getElementById('practice-next');
     P.prog = document.getElementById('practice-prog');
     P.hintbox = document.getElementById('practice-hint');
 
-    // 只署名，不在版面上講授權（Wilson）—— 公有領域本來就不需要標示，
-    // 完整的來源與授權留在 site/content/practice.md 和 practice.json 裡。
-    var src = document.getElementById('practice-src');
-    src.textContent = '《' + pd.title + '》' + pd.author;
+    // 篇目選單：一篇一顆。只有一篇的時候整排不出現（按了也沒事發生的按鈕是雜訊）
+    P.pick = document.getElementById('practice-pick');
+    if (P.texts.length > 1) {
+      P.texts.forEach(function (t, i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'practice-pickbtn';
+        b.textContent = t.title;
+        b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+        b.addEventListener('click', function () { setText(i); out.focus(); });
+        P.pick.appendChild(b);
+      });
+    }
 
     /* 點參考文章裡任何一個字就從那裡開始。沒有這個的話，想試某個字只能一路按
        「跳過這個字」——文章一千三百多字，光是走到第 290 個字的 付 就要按 289 次。 */
@@ -514,7 +541,7 @@
     });
 
     host.hidden = false;
-    renderPractice();
+    setText(0);
     render();
   }
 
