@@ -158,7 +158,23 @@
       return;
     }
 
-    rail.appendChild(el('span', 'buf', state.buf));
+    // 跟著打的時候，打歪的那幾碼標紅 —— 錯在第幾碼一眼看得出來
+    var split = null;
+    if (P.on && P.pos < P.chars.length) {
+      var tgt = P.chars[P.pos], tsegs = P.segs && P.segs[tgt];
+      if (tsegs && tsegs.length) {
+        var mm = typedMatch(tgt, tsegs);
+        if (mm.bad) split = Math.min(mm.ok, state.buf.length);
+      }
+    }
+    if (split == null) {
+      rail.appendChild(el('span', 'buf', state.buf));
+    } else {
+      var b = el('span', 'buf');
+      b.appendChild(document.createTextNode(state.buf.slice(0, split)));
+      b.appendChild(el('span', 'is-bad', state.buf.slice(split)));
+      rail.appendChild(b);
+    }
 
     var box = el('span', 'cands');
     state.cands.forEach(function (c, i) {
@@ -224,16 +240,23 @@
      那幾條字根都打對了。打完整個主碼（可能被「頭四尾一」截短過，跟完整碼
      不一樣）就整個字亮起來。比不上就不亮 —— 那表示打的是別條路（約定簡碼、
      兼容碼）或根本打錯，硬亮會亮在錯的筆畫上。 */
-  function typedSegs(ch, segs) {
-    var buf = state.buf;
-    if (!buf || !segs.length) return -1;
+  function typedMatch(ch, segs) {
+    var buf = state.buf, d = state.data, none = { ok: 0, bad: false };
+    if (!buf || !segs.length) return none;
+    // 走別條路也算全對：主碼打完（可能被「頭四尾一」截短）、約定簡碼、兼容碼、完整碼
+    if ((P.main && buf === P.main[ch]) ||
+        (d && ((d.codes[buf] && d.codes[buf].indexOf(ch) >= 0) || d.short[buf] === ch))) {
+      return { ok: segs.length, bad: false };
+    }
     var full = '';
     for (var i = 0; i < segs.length; i++) full += segs[i].L.toLowerCase();
-    if (full.indexOf(buf) === 0) return Math.min(buf.length, segs.length) - 1;
-    var mc = P.main && P.main[ch];
-    if (mc && buf === mc) return segs.length - 1;      // 主碼打完＝整個字
-    return -1;
+    var k = 0;
+    while (k < buf.length && k < full.length && buf[k] === full[k]) k++;
+    // ok = 前面打對了幾碼；bad = 從第 ok 碼開始打歪了
+    return { ok: k, bad: buf.length > k };
   }
+
+  function typedSegs(ch, segs) { return typedMatch(ch, segs).ok - 1; }
 
   /* 預設整個字都是黑的 —— 這裡講的是「這個字長這樣」，不是在講字根，
      上色會讓人以為顏色有意思。被提示到、或自己打對的那幾條字根才上色，
@@ -343,12 +366,32 @@
     var box = P.hintbox;
     box.innerHTML = '';
     var segs = P.segs && P.segs[ch];
-    if (!P.hstep || !segs || !segs.length) { box.hidden = true; return; }
+    if (!segs || !segs.length) { box.hidden = true; return; }
+
+    /* 打歪了：前面對的那幾條字根照樣留著顏色（不要整個字變回黑的，那等於
+       把好不容易打對的進度也一起收掉），這裡只講「這一碼應該是哪一條字根」。
+       講的是取形意圖，不是字母 —— 直接給字母就沒得練了。 */
+    var m = typedMatch(ch, segs);
+    if (m.bad) {
+      box.hidden = false;
+      var want = segs[Math.min(m.ok, segs.length - 1)];
+      box.appendChild(el('span', 'tz-wrong', '這一碼不是這樣拆的'));
+      if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
+      return;
+    }
+
+    if (!P.hstep) { box.hidden = true; return; }
     box.hidden = false;
 
+    /* 自己打對的那幾條也要翻牌 —— 提示亮出筆畫、人看懂了、打對了，那一格就該
+       從「？」變成字母（顏色跟格子裡那幾筆一樣），才有「猜中了」的回饋（Wilson）。
+       所以「已知」有三種來源：提示已經走過去的、提示走到第三步給了字母的、
+       還有自己打對的。 */
+    var typed = typedMatch(ch, segs).ok;
+    var upto = Math.max(P.hseg, typed - 1);
     var row = el('span', 'tz-hintcodes');
-    for (var i = 0; i <= P.hseg && i < segs.length; i++) {
-      var known = i < P.hseg || P.hstep >= 3;
+    for (var i = 0; i <= upto && i < segs.length; i++) {
+      var known = i < P.hseg || (i === P.hseg && P.hstep >= 3) || i < typed;
       var chip = el('span', 'tz-chip z' + (i % 6) + (known ? '' : ' is-blank'),
                     known ? segs[i].L : '？');
       row.appendChild(chip);

@@ -1055,7 +1055,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
      打出來的字要大 —— 這一格是「你打了什麼」，練習的時候眼睛一直在這裡；
      參考文章反而可以小（.88rem），它是照著抄的來源，不是成果。 */
   font-family: inherit;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   line-height: 1.7;
 }
 
@@ -1823,4 +1823,8 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-chip.z5.is-blank { color: var(--rb-5); }
 
 .tz-intent { font-size: .8rem; line-height: 1.5; color: var(--ink); text-align: center; }
+/* 打歪的時候：候選列裡那幾碼標紅，田字格底下說「應該是哪一條字根」。
+ * 已經打對的字根照樣留著顏色 —— 整個字變回黑的等於把進度也收掉了（Wilson）。 */
+.rail .buf .is-bad { color: var(--rb-0); }
+.tz-wrong { font-size: .8rem; font-weight: 600; color: var(--rb-0); }
 .tz-more { font-size: .72rem; color: var(--ink-faint); }
