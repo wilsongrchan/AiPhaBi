@@ -1723,13 +1723,19 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  /* 上緣收窄（Wilson）：標題到面板、面板到「試打文本」都少一點空白 */
+  /* 上緣收窄（Wilson）：標題到面板、面板到「試打文本」都少一點空白。
+     上外距歸零，標題與面板之間就只剩 .h1-tight 的下外距（.5rem）—— 兩個外距
+     會合併，留著較大的那個，所以只改一邊沒有用。 */
   padding: .85rem 1.2rem 1.2rem;
-  margin: .85rem 0 1.4rem;
+  margin: 0 0 1.4rem;
 }
 
 /* practice.json 沒產出來時 JS 會加這個 —— 收成單欄，只剩試打框 */
 .tryarea.is-plain { grid-template-columns: minmax(0, 1fr); }
+
+/* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
+   在同一畫面上多露一列（Wilson）。 */
+.h1-tight { margin-bottom: .5rem; }
 
 /* 左欄是直排：參考文章 → 進度列 → 試打框 → 候選列 */
 .tryarea-main { display: flex; flex-direction: column; min-height: 0; }
@@ -1744,7 +1750,11 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
      不然試打框會被擠到看不見。要多讀幾行就捲這一格。
      6.5rem 剛好三行（行高 27.5px × 3 ＋ 上下 padding .6rem ＋ 框線）—— 從五行收成
      三行是為了讓底下的按鍵指南在同一畫面上多露一點。 */
-  height: 6.5rem;
+  /* 5.7rem 是量出來的：剛好三行，第四行整個看不到。
+     ⚠️ 不要照「3 × 行高 ＋ padding」算 —— CJK 行框有 half-leading，字面比行框矮，
+     照算出來的 6.5rem 會讓第四行的字頭露出來（Wilson 說「3.5 行很難看」）。
+     改了字級或行高就重新量一次，別重算。 */
+  height: 5.7rem;
   overflow-y: auto;
   line-height: 1.95;
   font-size: .88rem;
