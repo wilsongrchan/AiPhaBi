@@ -1720,7 +1720,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   display: grid;
   grid-template-columns: minmax(0, 1fr) 13rem;
   gap: 1.4rem;
-  align-items: start;
+  /* 兩欄一起拉到同高（不要 align-items:start）：右欄為了提示留了位，左欄
+     底下就會空一塊。讓左欄長滿，多出來的高度全部給文章框（Wilson）。 */
+  align-items: stretch;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1728,13 +1730,21 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   margin: 1.4rem 0;
 }
 
+/* 左欄是直排的 flex，文章框吃掉中間所有剩餘高度，標題與底下那一列各自佔自己的 */
+.practice-main { display: flex; flex-direction: column; min-height: 0; }
 .practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
 .practice-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
 .practice-src { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 
 .practice-text {
   margin-top: .8rem;
-  max-height: 11.5rem;
+  /* 這一格要「長滿右欄留下的高度」，但**不能拿自己的內容去決定那個高度** ——
+     文章有一千三百多字，用 auto 基準的話它會把整個面板撐到一千多 px。
+     所以 flex-basis 取 0（自然高度不算內容），再給一個 8rem 的地板：
+     地板同時是這一欄的自然高度來源，比右欄矮，所以列高由右欄決定，
+     這一格再長滿剩下的空間。窄螢幕堆成一欄時，地板也保證它不會被壓扁。 */
+  flex: 1 1 0;
+  min-height: 8rem;
   overflow-y: auto;
   line-height: 1.95;
   font-size: .88rem;
@@ -1752,6 +1762,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 
 .practice-bar {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .7rem;
+  flex: none;
 }
 .practice-prog {
   font-family: ui-monospace, Menlo, monospace;
@@ -1817,9 +1828,11 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   display: flex; flex-direction: column; align-items: center; gap: .35rem;
   /* 高度先留著，空的時候也佔位 —— 提示一出現就把底下的試打框往下推，
      打到一半整個版面跳一下（Wilson）。留的是最壞情況：一排字母＋最長的那條
-     取形意圖（全篇最長 39 字，在這個欄寬會排到三行）＋底下那一行字。
+     取形意圖（全篇最長 39 字＝A 的「半包框中夾一點…」，在這個欄寬排到三行）
+     ＋底下那一行字。⚠️ 這個值要拿**真的排到三行**的字去量（付、封、將、待、
+     得、持），拿短的意圖量會少留十幾 px，長的一出現還是會跳。
      所以這裡不能用 hidden／display:none，內容清掉、框留著。 */
-  min-height: 6.6rem;
+  min-height: 7.5rem;
 }
 .tz-hintcodes { display: flex; gap: .25rem; flex-wrap: wrap; justify-content: center; }
 .tz-chip {
