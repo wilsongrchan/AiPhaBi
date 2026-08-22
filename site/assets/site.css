@@ -1744,7 +1744,8 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   background: var(--bg);
 }
 
-.practice-text .pc { border-radius: 3px; }
+.practice-text .pc { border-radius: 3px; cursor: pointer; }
+.practice-text .pc:hover { background: var(--accent-soft); }
 .practice-text .pc.is-done { color: var(--ink-faint); }
 /* 目前這一格：底色而不是外框 —— 外框會讓那一個字比左右鄰居寬，整行跳一下 */
 .practice-text .pc.is-now { background: var(--accent); color: var(--surface); }
@@ -1756,6 +1757,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   font-family: ui-monospace, Menlo, monospace;
   font-size: .8rem; color: var(--ink-dim); margin-inline-end: auto;
 }
+.practice-tip { font-size: .75rem; color: var(--ink-faint); }
 .practice-btn {
   font: inherit; font-size: .82rem;
   padding: .25rem .8rem;

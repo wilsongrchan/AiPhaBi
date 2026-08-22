@@ -345,7 +345,9 @@
       var c = P.chars[i];
       if (c === '\n') { frag.appendChild(document.createElement('br')); continue; }
       var cls = i < P.pos ? 'pc is-done' : i === P.pos ? 'pc is-now' : 'pc';
-      frag.appendChild(el('span', cls, c));
+      var sp = el('span', cls, c);
+      sp.dataset.i = i;                 // 點一下就跳到那個字（見 setupPractice）
+      frag.appendChild(sp);
     }
     P.text.innerHTML = '';
     P.text.appendChild(frag);
@@ -488,6 +490,19 @@
     // 完整的來源與授權留在 site/content/practice.md 和 practice.json 裡。
     var src = document.getElementById('practice-src');
     src.textContent = '《' + pd.title + '》' + pd.author;
+
+    /* 點參考文章裡任何一個字就從那裡開始。沒有這個的話，想試某個字只能一路按
+       「跳過這個字」——文章一千三百多字，光是走到第 290 個字的 付 就要按 289 次。 */
+    P.text.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('.pc');
+      if (!t || t.dataset.i == null) return;
+      P.pos = +t.dataset.i;
+      while (P.chars[P.pos] === '\n') P.pos++;
+      P.hseg = 0; P.hstep = 0;
+      setBuf('');
+      renderPractice();
+      out.focus();
+    });
 
     document.getElementById('practice-skip').addEventListener('click', function () {
       if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
