@@ -748,6 +748,13 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-08-19** (character set had grown 5,911→6,449 in the meantime): the
+  crash point moved from ~29,500 down to **between 25,000 and 28,000** — confirms the cliff isn't
+  static, it erodes as Side A keeps adding characters. `N=18000` still passed with real margin
+  (~67,600 lines this time, up from ~55,600 at the same N three days earlier — line count for a
+  fixed N grows too, since it's driven by the base tables, not just `si4`). Re-bisect at the next
+  rebuild rather than assuming 18000 stays safe indefinitely — at the current erosion rate it has
+  a few more months, not forever.
 - **`si4_rev` no longer has its own separate cap** (an earlier draft capped it directly to the
   top 3,000 phrases by weight, `SI4_REV_TOPN` — that line never made it to `main` and was
   discarded during a merge on 2026-08-16). It's now implicitly bounded by `AIPHABI_MOBILE_SI4_TOPN`
