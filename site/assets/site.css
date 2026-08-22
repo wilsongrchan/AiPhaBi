@@ -1040,17 +1040,12 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 /* ---------- 線上試打 ---------- */
 
-.typebox {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 1.2rem;
-  margin: 1.4rem 0;
-}
+/* 試打框現在住在試打區的左欄裡，所以自己不再是一個獨立的面板 */
+.typebox { margin-top: .9rem; }
 
 .typebox textarea {
   width: 100%;
-  min-height: 8.5rem;
+  min-height: 6.5rem;
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1716,12 +1711,12 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 /* ── 試打頁的「跟著打」：參考文章 + 田字格 ─────────────────────────
  * 左邊是文章、右邊是田字格，格子裡是**下一個要打的字**。
  * 窄螢幕時田字格移到文章上面 —— 它是主角，不該被擠到捲軸底下。 */
-.practice {
+.tryarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 13rem;
   gap: 1.4rem;
-  /* 兩欄一起拉到同高（不要 align-items:start）：右欄為了提示留了位，左欄
-     底下就會空一塊。讓左欄長滿，多出來的高度全部給文章框（Wilson）。 */
+  /* 兩欄一起拉到同高：右欄（田字格＋提示）因此拿得到整個左欄的高度，
+     提示要多長都放得下，也不會反過來把面板撐高。 */
   align-items: stretch;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1730,21 +1725,21 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   margin: 1.4rem 0;
 }
 
-/* 左欄是直排的 flex，文章框吃掉中間所有剩餘高度，標題與底下那一列各自佔自己的 */
-.practice-main { display: flex; flex-direction: column; min-height: 0; }
+/* practice.json 沒產出來時 JS 會加這個 —— 收成單欄，只剩試打框 */
+.tryarea.is-plain { grid-template-columns: minmax(0, 1fr); }
+
+/* 左欄是直排：參考文章 → 進度列 → 試打框 → 候選列 */
+.tryarea-main { display: flex; flex-direction: column; min-height: 0; }
+
 .practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; flex: none; }
 .practice-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
 .practice-src { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 
 .practice-text {
   margin-top: .8rem;
-  /* 這一格要「長滿右欄留下的高度」，但**不能拿自己的內容去決定那個高度** ——
-     文章有一千三百多字，用 auto 基準的話它會把整個面板撐到一千多 px。
-     所以 flex-basis 取 0（自然高度不算內容），再給一個 8rem 的地板：
-     地板同時是這一欄的自然高度來源，比右欄矮，所以列高由右欄決定，
-     這一格再長滿剩下的空間。窄螢幕堆成一欄時，地板也保證它不會被壓扁。 */
-  flex: 1 1 0;
-  min-height: 8rem;
+  /* 固定高度（Wilson）：試打框現在就在同一欄的下面，文章框不再吃掉剩餘空間，
+     不然試打框會被擠到看不見。要多讀幾行就捲這一格。 */
+  height: 9.5rem;
   overflow-y: auto;
   line-height: 1.95;
   font-size: .88rem;
@@ -1752,6 +1747,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
+  flex: none;
 }
 
 .practice-text .pc { border-radius: 3px; cursor: pointer; }
@@ -1823,7 +1819,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .practice-next .ok { color: var(--accent); }
 
 @media (max-width: 46rem) {
-  .practice { grid-template-columns: minmax(0, 1fr); }
+  .tryarea { grid-template-columns: minmax(0, 1fr); }
   .practice-cell { order: -1; }
   .tianzi { max-width: 10rem; }
 }
@@ -1881,3 +1877,29 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .rail .buf .is-bad { color: var(--warn); }
 .tz-wrong { font-size: .8rem; font-weight: 600; color: var(--warn); }
 .tz-more { font-size: .72rem; color: var(--ink-faint); }
+
+/* 按鍵指南：兩欄並排。用 grid 而不是表格 —— 表格要橫向捲才塞得下兩組，
+ * grid 在窄螢幕自己收成一欄。每一格是「鍵｜說明」，鍵那一欄寬度看內容，
+ * 但不換行（Backspace 斷成兩行很難看）。 */
+.keyguide {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem 2rem;
+  margin: 1.2rem 0;
+}
+
+.keyguide > div {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr);
+  gap: .9rem;
+  align-items: baseline;
+  padding: .35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.keyguide dt { white-space: nowrap; }
+.keyguide dd { margin: 0; color: var(--ink-dim); font-size: .9rem; line-height: 1.6; }
+
+@media (max-width: 46rem) {
+  .keyguide { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}

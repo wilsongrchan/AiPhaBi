@@ -496,7 +496,7 @@
   }
 
   function setupPractice(pd, dict) {
-    var host = document.getElementById('practice');
+    var host = document.getElementById('tryarea');
     if (!host || !pd || !pd.texts || !pd.texts.length) return;
     P.on = true;
     P.glyphs = pd.glyphs || null;
@@ -545,7 +545,9 @@
       P.pos = 0; P.hseg = 0; P.hstep = 0; renderPractice(); render(); out.focus();
     });
 
-    host.hidden = false;
+    // 參考文章那幾塊亮出來、切成兩欄（試打框本來就在，不受影響）
+    [].forEach.call(host.querySelectorAll('[data-practice]'), function (n) { n.hidden = false; });
+    host.classList.remove('is-plain');
     setText(0);
     render();
   }

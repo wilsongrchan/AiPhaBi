@@ -43,67 +43,59 @@
   <p class="eyebrow">愛發筆輸入法</p>
   <h1>線上試打</h1>
 
-  <p class="lede">
-    不用安裝。在下面的框裡打英文字母，候選字會出現在框下面那一列。
-    查的是真正的碼表——跟裝起來之後打出來的結果一致。
-  </p>
-
-  <!-- 參考文章＋田字格。practice.json 沒產出來時 try.js 會把整塊拿掉，
-       試打框照常能用（見 try.js 的 setupPractice）。 -->
-  <section class="practice" id="practice" hidden>
-    <div class="practice-main">
-      <div class="practice-head">
+  <!-- 試打區：左欄是「參考文章 → 試打框 → 候選列」，右欄是田字格與提示。
+       田字格那一欄因此有整個左欄的高度可用，提示要多長都放得下（Wilson）。
+       ⚠️ 試打框一定要在這個 section 裡面、而且**不能**跟著參考文章一起隱藏：
+       預設就是 is-plain（單欄、只有試打框），practice.json 抓到了 try.js 才把
+       標了 data-practice 的那幾塊亮出來、把 is-plain 拿掉。這個方向才是安全的：
+       JS 掛了或檔案沒產出來，版面自己就是對的。 -->
+  <section class="tryarea is-plain" id="tryarea">
+    <div class="tryarea-main">
+      <div class="practice-head" data-practice hidden>
         <h2>試打文本</h2>
         <p class="practice-src" id="practice-src"></p>
         <span class="practice-pick" id="practice-pick" role="group" aria-label="換一篇"></span>
       </div>
-      <div class="practice-text" id="practice-text" aria-live="off"></div>
-      <div class="practice-bar">
+      <div class="practice-text" id="practice-text" aria-live="off" data-practice hidden></div>
+      <div class="practice-bar" data-practice hidden>
         <span class="practice-prog" id="practice-prog"></span>
         <span class="practice-tip">點擊任意一字可跳至該處開始</span>
         <button type="button" class="practice-btn" id="practice-skip">跳過這個字</button>
         <button type="button" class="practice-btn" id="practice-reset">從頭開始</button>
       </div>
+
+      <div class="typebox">
+        <label class="sr-only" for="out">試打區</label>
+        <textarea id="out" autocomplete="off"
+                  autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+        <div class="rail" id="rail" aria-live="polite"></div>
+      </div>
     </div>
 
-    <aside class="practice-cell">
+    <aside class="practice-cell" data-practice hidden>
       <div class="tianzi" id="tianzi"></div>
       <p class="practice-next" id="practice-next"></p>
       <div class="tz-hint" id="practice-hint"></div>
     </aside>
   </section>
 
-  <div class="typebox">
-    <label class="sr-only" for="out">試打區</label>
-    <!-- 不放 placeholder：上面的〈跟著打〉已經指定了要打哪個字，框裡再擺一串
-         灰色的示範碼只是雜訊（Wilson）。 -->
-    <textarea id="out" autocomplete="off"
-              autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-    <div class="rail" id="rail" aria-live="polite"></div>
-  </div>
-
   <h2>按鍵指南</h2>
 
-  <div class="tablewrap">
-    <table>
-      <tbody>
-        <tr><td><kbd data-keep>A</kbd>–<kbd data-keep>Z</kbd></td><td>輸入字根</td></tr>
-        <tr><td><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></td><td>選擇候選字</td></tr>
-        <tr><td><kbd>空白</kbd> 或 <kbd data-keep>Enter</kbd></td><td>選擇首選字</td></tr>
-        <tr><td><kbd data-keep>Backspace</kbd></td><td>刪除上一碼</td></tr>
-        <tr><td><kbd data-keep>Esc</kbd></td><td>刪除所有碼</td></tr>
-        <tr>
-          <td><kbd data-keep>=</kbd></td>
-          <td>試打練習時顯示提示</td>
-        </tr>
-        <tr>
-          <td><kbd data-keep>`</kbd></td>
-          <td>萬用鍵，代替任何字母。一鍵可代替一個或多個字母；兩、三、四鍵則只代替兩、三、四個字母。</td>
-        </tr>
-        <tr><td><kbd data-keep>,</kbd> <kbd data-keep>.</kbd> <kbd data-keep>?</kbd></td><td>正體全形標點</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <!-- 兩欄並排（Wilson）：左右各一組，配對照用途分 —— 輸入／選字／刪除／輔助。
+       用 grid 而不是表格，窄螢幕會自己收成一欄，不必橫向捲。 -->
+  <dl class="keyguide">
+    <div><dt><kbd data-keep>A</kbd>–<kbd data-keep>Z</kbd></dt><dd>輸入字根</dd></div>
+    <div><dt><kbd data-keep>,</kbd> <kbd data-keep>.</kbd> <kbd data-keep>?</kbd></dt><dd>正體全形標點</dd></div>
+
+    <div><dt><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></dt><dd>選擇候選字</dd></div>
+    <div><dt><kbd>空白</kbd> 或 <kbd data-keep>Enter</kbd></dt><dd>選擇首選字</dd></div>
+
+    <div><dt><kbd data-keep>Backspace</kbd></dt><dd>刪除上一碼</dd></div>
+    <div><dt><kbd data-keep>Esc</kbd></dt><dd>刪除所有碼</dd></div>
+
+    <div><dt><kbd data-keep>=</kbd></dt><dd>試打練習時顯示提示</dd></div>
+    <div><dt><kbd data-keep>`</kbd></dt><dd>萬用鍵，代替任何字母。一鍵可代替一個或多個字母；兩、三、四鍵則只代替兩、三、四個字母。</dd></div>
+  </dl>
 
   <div class="todo">
     <b>這個試打版是簡化過的。</b>
