@@ -240,6 +240,27 @@
      那幾條字根都打對了。打完整個主碼（可能被「頭四尾一」截短過，跟完整碼
      不一樣）就整個字亮起來。比不上就不亮 —— 那表示打的是別條路（約定簡碼、
      兼容碼）或根本打錯，硬亮會亮在錯的筆畫上。 */
+  /* 這個字要打的那幾條字根，**照主碼的順序**。
+     practice.json 的 segs[字] = { s: 全部分段（照筆順）, c: 主碼用到第幾段 }。
+     兩者不一樣：碼超過 max 就「頭四尾一」，中間那幾段根本不用打 ——
+     親 的分段是 I V T D J L，主碼卻是 IVTDL，第五碼是最後那段的 L 而不是 J。
+     提示、上色、進度全部走這一份，不然會叫人打一個打下去是錯的碼（Wilson 抓到）。
+     被略過的那幾段沒有對應的碼，就一直是黑的 —— 那正好看得出「頭四尾一」丟掉了誰。 */
+  function segsOf(ch) {
+    var e = P.segs && P.segs[ch];
+    if (!e || !e.s || !e.s.length) return null;
+    var list = [];
+    for (var i = 0; i < e.c.length; i++) if (e.s[e.c[i]]) list.push(e.s[e.c[i]]);
+    return list.length ? list : null;
+  }
+
+  function fullCodeOf(ch) {
+    var e = P.segs && P.segs[ch], out = '';
+    if (!e || !e.s) return '';
+    for (var i = 0; i < e.s.length; i++) out += e.s[i].L.toLowerCase();
+    return out;
+  }
+
   function typedMatch(ch, segs) {
     var buf = state.buf, d = state.data, none = { ok: 0, bad: false };
     if (!buf || !segs.length) return none;
@@ -248,12 +269,14 @@
         (d && ((d.codes[buf] && d.codes[buf].indexOf(ch) >= 0) || d.short[buf] === ch))) {
       return { ok: segs.length, bad: false };
     }
-    var full = '';
-    for (var i = 0; i < segs.length; i++) full += segs[i].L.toLowerCase();
+    var main = '';
+    for (var i = 0; i < segs.length; i++) main += segs[i].L.toLowerCase();
     var k = 0;
-    while (k < buf.length && k < full.length && buf[k] === full[k]) k++;
-    // ok = 前面打對了幾碼；bad = 從第 ok 碼開始打歪了
-    return { ok: k, bad: buf.length > k };
+    while (k < buf.length && k < main.length && buf[k] === main[k]) k++;
+    // 完整碼（每一段都打，不截）也是這個字打得出來的一條路，不能標紅。
+    // 但上色還是照主碼那幾段來 —— 兩條路的前幾碼本來就一樣。
+    var bad = buf.length > k && fullCodeOf(ch).indexOf(buf) !== 0;
+    return { ok: k, bad: bad };
   }
 
   function typedSegs(ch, segs) { return typedMatch(ch, segs).ok - 1; }
@@ -262,7 +285,7 @@
      上色會讓人以為顏色有意思。被提示到、或自己打對的那幾條字根才上色，
      用的是取碼原則頁那一套彩虹分組色（同一條字根同一個顏色）。 */
   function strokeColours(ch) {
-    var segs = P.segs && P.segs[ch];
+    var segs = segsOf(ch);
     if (!segs) return null;
     var upto = Math.max(P.hstep ? P.hseg : -1, typedSegs(ch, segs));
     if (upto < 0) return null;
@@ -365,8 +388,8 @@
   function renderHint(ch) {
     var box = P.hintbox;
     box.innerHTML = '';
-    var segs = P.segs && P.segs[ch];
-    if (!segs || !segs.length) { box.hidden = true; return; }
+    var segs = segsOf(ch);
+    if (!segs) { box.hidden = true; return; }
 
     /* 打歪了：前面對的那幾條字根照樣留著顏色（不要整個字變回黑的，那等於
        把好不容易打對的進度也一起收掉），這裡只講「這一碼應該是哪一條字根」。
@@ -375,20 +398,22 @@
     if (m.bad) {
       box.hidden = false;
       var want = segs[Math.min(m.ok, segs.length - 1)];
-      box.appendChild(el('span', 'tz-wrong', '這一碼不是這樣拆的'));
+      box.appendChild(el('span', 'tz-wrong', '再試一次'));
       if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
       return;
     }
 
-    if (!P.hstep) { box.hidden = true; return; }
+    /* 沒按過 / 也要給正回饋：自己打對 JK，格子底下就該出現紅 J、黃 K，
+       顏色跟剛剛亮起來的筆畫對得上（Wilson）。所以只要有打對的碼就顯示。 */
+    if (!P.hstep && !m.ok) { box.hidden = true; return; }
     box.hidden = false;
 
     /* 自己打對的那幾條也要翻牌 —— 提示亮出筆畫、人看懂了、打對了，那一格就該
        從「？」變成字母（顏色跟格子裡那幾筆一樣），才有「猜中了」的回饋（Wilson）。
        所以「已知」有三種來源：提示已經走過去的、提示走到第三步給了字母的、
        還有自己打對的。 */
-    var typed = typedMatch(ch, segs).ok;
-    var upto = Math.max(P.hseg, typed - 1);
+    var typed = m.ok;
+    var upto = Math.max(P.hstep ? P.hseg : -1, typed - 1);
     var row = el('span', 'tz-hintcodes');
     for (var i = 0; i <= upto && i < segs.length; i++) {
       var known = i < P.hseg || (i === P.hseg && P.hstep >= 3) || i < typed;
@@ -401,8 +426,12 @@
     var cur = segs[Math.min(P.hseg, segs.length - 1)];
     if (P.hstep >= 2 && cur.d) box.appendChild(el('span', 'tz-intent', cur.d));
 
-    var more = P.hseg < segs.length - 1 || P.hstep < 3;
-    box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '這個字的碼全給了'));
+    if (typed >= segs.length) {
+      box.appendChild(el('span', 'tz-more', '這個字打完了'));
+    } else {
+      var more = P.hseg < segs.length - 1 || P.hstep < 3;
+      box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '這個字的碼全給了'));
+    }
   }
 
   /* 按 / 往前一步。走完一條字根（標筆畫 → 說意圖 → 給字母）才換下一條。
@@ -416,8 +445,8 @@
   function hintStep() {
     if (!P.on || P.pos >= P.chars.length) return;
     var ch = P.chars[P.pos];
-    var segs = P.segs && P.segs[ch];
-    if (!segs || !segs.length) return;
+    var segs = segsOf(ch);
+    if (!segs) return;
 
     var typed = typedSegs(ch, segs);        // 自己打對到第幾條（-1 = 還沒打）
     if (P.hseg <= typed) {

@@ -81,6 +81,11 @@
   --rb-4: #7a3fb0;   /* 紫 */
   --rb-5: #f26fde;   /* 粉紅（Wilson 指定的值）——超過五組筆畫的字（藍 HCKAMI 六組）
                          才用得到，不然照 RAINBOW.length 循環到第六組會撞回紅色 */
+
+  /* 打錯／警告的紅。要比第一組的筆畫紅（--rb-0）更深，兩種紅才分得開（Wilson）——
+     試打頁同一畫面上就會同時出現：第一條字根的筆畫是 rb-0，打歪的那幾碼是這個。
+     淺色底下對比 7.66:1，rb-0 是 4.17，亮度差 11.3，不會看成同一個紅。 */
+  --warn: #a4161a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -109,6 +114,10 @@
     --rb-3: #0096ff;   /* 本來就夠亮，深淺主題共用 */
     --rb-4: #c084fc;
     --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
+    /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
+       （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
+       只剩 4.47，低於 4.5 就不收。 */
+    --warn: #ee4653;
   }
 }
 
@@ -1825,6 +1834,6 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-intent { font-size: .8rem; line-height: 1.5; color: var(--ink); text-align: center; }
 /* 打歪的時候：候選列裡那幾碼標紅，田字格底下說「應該是哪一條字根」。
  * 已經打對的字根照樣留著顏色 —— 整個字變回黑的等於把進度也收掉了（Wilson）。 */
-.rail .buf .is-bad { color: var(--rb-0); }
-.tz-wrong { font-size: .8rem; font-weight: 600; color: var(--rb-0); }
+.rail .buf .is-bad { color: var(--warn); }
+.tz-wrong { font-size: .8rem; font-weight: 600; color: var(--warn); }
 .tz-more { font-size: .72rem; color: var(--ink-faint); }
