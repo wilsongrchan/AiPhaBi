@@ -1113,7 +1113,15 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 }
 
 .rail .cand:hover { background: var(--accent-soft); }
-.rail .cand .n { font-size: .72rem; color: var(--ink-dim); }
+/* 序號與碼行的字級、位移都跟標註站那頁對齊（type.html 的 .cand i／.cand em）——
+ * 那邊的註解寫得很清楚：兩者的底部原本差快 3px，序號往下 2px、碼行往上 1px，
+ * 底部才會切齊。這裡用 px 不用 rem 也是為了跟那邊一模一樣。 */
+.rail .cand .n {
+  font: 600 11px ui-monospace, Menlo, monospace;
+  color: var(--ink-dim);
+  position: relative;
+  top: 2px;
+}
 
 /* 打中的字（你打的這幾碼就是它的碼）用主色標出來 —— 一眼看出哪個是真打中的，
  * 哪些只是「開頭一樣、還要再補幾碼」。跟標註站那個試打頁同一條規則。 */
@@ -1127,16 +1135,16 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   flex-direction: column;
   align-items: flex-start;
   align-self: flex-end;
-  line-height: 1.35;
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: .68rem;
-  font-weight: 600;
+  line-height: 1.4;
+  font: 600 10px ui-monospace, Menlo, monospace;
   color: var(--ink-faint);
   position: relative;
-  top: -.1rem;
+  /* 量出來的：碼行的底原本比序號的底低 4.1px（橘色那頁的基準字級跟這裡不一樣，
+     所以它的 -1px 搬過來剛好差這麼多）。往上挪到兩邊切齊為止。 */
+  top: -5px;
 }
 
-.rail .cand .c .tag { color: var(--accent); font-size: .62rem; }
+.rail .cand .c .tag { color: var(--accent); font-size: 9px; }
 
 .rail .hint {
   margin-inline-start: auto;
@@ -1805,6 +1813,11 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-hint {
   margin-top: .55rem;
   display: flex; flex-direction: column; align-items: center; gap: .35rem;
+  /* 高度先留著，空的時候也佔位 —— 提示一出現就把底下的試打框往下推，
+     打到一半整個版面跳一下（Wilson）。留的是最壞情況：一排字母＋最長的那條
+     取形意圖（全篇最長 39 字，在這個欄寬會排到三行）＋底下那一行字。
+     所以這裡不能用 hidden／display:none，內容清掉、框留著。 */
+  min-height: 6.6rem;
 }
 .tz-hintcodes { display: flex; gap: .25rem; flex-wrap: wrap; justify-content: center; }
 .tz-chip {

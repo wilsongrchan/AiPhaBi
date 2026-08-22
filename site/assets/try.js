@@ -389,14 +389,13 @@
     var box = P.hintbox;
     box.innerHTML = '';
     var segs = segsOf(ch);
-    if (!segs) { box.hidden = true; return; }
+    if (!segs) return;
 
     /* 打歪了：前面對的那幾條字根照樣留著顏色（不要整個字變回黑的，那等於
        把好不容易打對的進度也一起收掉），這裡只講「這一碼應該是哪一條字根」。
        講的是取形意圖，不是字母 —— 直接給字母就沒得練了。 */
     var m = typedMatch(ch, segs);
     if (m.bad) {
-      box.hidden = false;
       var want = segs[Math.min(m.ok, segs.length - 1)];
       box.appendChild(el('span', 'tz-wrong', '再試一次'));
       if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
@@ -405,8 +404,7 @@
 
     /* 沒按過 / 也要給正回饋：自己打對 JK，格子底下就該出現紅 J、黃 K，
        顏色跟剛剛亮起來的筆畫對得上（Wilson）。所以只要有打對的碼就顯示。 */
-    if (!P.hstep && !m.ok) { box.hidden = true; return; }
-    box.hidden = false;
+    if (!P.hstep && !m.ok) return;
 
     /* 自己打對的那幾條也要翻牌 —— 提示亮出筆畫、人看懂了、打對了，那一格就該
        從「？」變成字母（顏色跟格子裡那幾筆一樣），才有「猜中了」的回饋（Wilson）。
@@ -427,7 +425,7 @@
     if (P.hstep >= 2 && cur.d) box.appendChild(el('span', 'tz-intent', cur.d));
 
     if (typed >= segs.length) {
-      box.appendChild(el('span', 'tz-more', '這個字打完了'));
+      box.appendChild(el('span', 'tz-more', '打字成功！'));
     } else {
       var more = P.hseg < segs.length - 1 || P.hstep < 3;
       box.appendChild(el('span', 'tz-more', more ? '再按 / 給更多提示' : '已顯示全部編碼'));
@@ -486,8 +484,10 @@
     P.prog = document.getElementById('practice-prog');
     P.hintbox = document.getElementById('practice-hint');
 
+    // 只署名，不在版面上講授權（Wilson）—— 公有領域本來就不需要標示，
+    // 完整的來源與授權留在 site/content/practice.md 和 practice.json 裡。
     var src = document.getElementById('practice-src');
-    src.textContent = pd.title + '　' + pd.author + '　' + pd.license;
+    src.textContent = '《' + pd.title + '》' + pd.author;
 
     document.getElementById('practice-skip').addEventListener('click', function () {
       if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
