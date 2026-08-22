@@ -1,4 +1,9 @@
-# 第三方字形資料 —— 各有授權，不隨本專案散布。跑 fetch_data.py 重建。
+# 第三方字形資料 —— 各有授權，**不進版控**。跑 fetch_data.py 重建。
+#
+# ⚠️ 「不進版控」不等於「不對外散布」：公開網站會把 graphics.txt 裡約 1,375 個字的
+# 筆畫輪廓抽出來，隨 GitHub Pages 發佈出去（Wilson 於 2026-08-17 決定接受 Arphic
+# Public License 的義務）。完整說明見本檔下方 site/.cache/ 那一段。
+# 這一行原本寫的是「不隨本專案散布」，在 side-c 併進 main 之前是對的，之後就不是了。
 data/graphics.txt
 data/dictionary.txt
 data/tw_strokes.json
@@ -45,3 +50,25 @@ data/cj_img/
 # 本機預覽前先跑：python3 site/tools/build_site_data.py
 site/assets/dict.json
 site/assets/t2s.json
+site/assets/zigen.json
+site/assets/principles.json
+site/assets/jianma.json
+site/assets/conventional.json
+# practice.json 是試打頁的參考文章＋它用得到的字形。字形部分跟 glyphs.json
+# 同源同授權（Arphic PL），一樣會隨網站發佈出去 —— 見本檔下面 site/.cache/ 那段。
+site/assets/practice.json
+
+# 網站建置時抓下來的第三方字形資料快取（Arphic PL）——不進版控，跑一次就有。
+#
+# ⚠️ 跟本檔最上面那條「第三方字形資料…不隨本專案散布」有關，讀那條時要一起讀這裡：
+# graphics.txt 本身**仍然不進版控**，那條沒有變。但公開網站的〈字根表〉現在會把
+# 其中 1375 個字的筆畫輪廓抽出來（只取 strokes、不取 medians）產生 glyphs.json，
+# 而那個檔會**隨網站發佈出去**。也就是說，衍生自 makemeahanzi／Arphic 的資料現在
+# 確實會對外散布——只是不是經由 git，而是經由 GitHub Pages。
+# Wilson 於 2026-08-17 決定接受 Arphic Public License 的義務以換取字根表能畫出字根。
+# 授權三項義務見 site/tools/build_site_data.py 的 build_glyphs()，以及 site/ARPHICPL.txt。
+site/.cache/
+site/assets/glyphs.json
+
+# 內部審查用的對照頁（site/tools/review_sources.py 產生），不進版控也不發佈
+site/_review/

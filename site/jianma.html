@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>簡碼 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法縮短取碼的三種機制：約定簡碼、三簡碼、左簡碼。">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="index.html">簡介</a>
+      <a href="zigen.html">字根表</a>
+      <a href="principles.html">取碼原則</a>
+      <a href="conventional.html">約定字表</a>
+      <a href="jianma.html">簡碼</a>
+      <ul class="pr-sidenav">
+        <li><a href="#jm-1">1. 約定簡碼</a></li>
+        <li><a href="#jm-2">2. 三簡碼</a></li>
+        <li><a href="#jm-3">3. 左簡碼</a></li>
+      </ul>
+      <a href="try.html">線上試打</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>簡碼</h1>
+
+  <p class="lede">
+    主碼最多五碼，但很多字不必打滿。愛發筆有三種縮短取碼的機制，各自獨立、互不影響主碼——
+    每一種在鼠鬚管裡都有自己的開關，預設關閉；打開之後，主碼依然照打得出來，簡碼只是多一條路。
+  </p>
+
+  <h2 id="jm-1">約定簡碼</h2>
+  <p>
+    手動替常用字另外定一個更短的簡碼，通常是主碼的首尾兩碼，方便打最常用的字。開啟後，
+    直接打簡碼就能選字，不必打滿主碼。目前收錄 <span id="jm-conv-count">…</span> 個常用字。
+  </p>
+  <div class="jm-sortbar" role="group" aria-label="排序方式">
+    <span>排序</span>
+    <div class="jm-sortbar-btns">
+      <button type="button" data-sort="default" aria-pressed="true">預設</button>
+      <button type="button" data-sort="strokes" aria-pressed="false">筆劃數</button>
+      <button type="button" data-sort="alpha" aria-pressed="false">簡碼字母序</button>
+    </div>
+  </div>
+  <div class="jm-cols">
+    <table class="jm-tbl jm-compact" id="jm-convention">
+      <thead><tr><th>字</th><th>主碼</th><th>簡碼</th></tr></thead>
+      <tbody><tr><td colspan="3">簡碼表載入中……</td></tr></tbody>
+    </table>
+    <table class="jm-tbl jm-compact" id="jm-convention-2">
+      <thead><tr><th>字</th><th>主碼</th><th>簡碼</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2 id="jm-2">三簡碼</h2>
+  <p>
+    主碼四碼或以上的字，自動多一條路：取主碼的首兩碼加末一碼，合共三碼，不用另外挑字，
+    全碼表通用。開啟後打滿這三碼就能選字，不必再打萬用鍵。全碼表裡符合資格（主碼四碼或以上）
+    的字共有 <span id="jm-short3-count">…</span> 個，這裡挑幾個示範：
+  </p>
+  <div class="tablewrap">
+    <table class="jm-tbl" id="jm-short3">
+      <thead><tr><th>字</th><th>主碼</th><th>三簡碼</th></tr></thead>
+      <tbody><tr><td colspan="3">簡碼表載入中……</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2 id="jm-3">左簡碼</h2>
+  <p>
+    部分常見的左方偏旁出現在字的最左邊時，偏旁本身可以只取首尾兩碼、中間略過，讓帶有這些偏旁的字
+    打起來更短。這是設計中的規則，<strong>尚未在正式版本開放使用</strong>——這裡先列出目前收錄的
+    偏旁家族與適用範圍。
+  </p>
+  <ul class="jm-conditions">
+    <li>偏旁必須收錄在下表內</li>
+    <li>整個字的第一筆就是偏旁的第一筆，且偏旁位於整個字的最左邊（左邊沒有其他偏旁或筆劃）</li>
+    <li>偏旁單獨成字時不適用，必須完整取碼</li>
+    <li>不能跟三簡碼疊加使用，只能選一種簡化方式</li>
+  </ul>
+  <div class="tablewrap">
+    <table class="jm-tbl jm-leftshort" id="jm-leftshort">
+      <thead>
+        <tr>
+          <th>偏旁</th><th>字母碼</th><th>簡碼</th><th>可用例字</th><th>不適用例字</th><th>收錄字數</th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="6">簡碼表載入中……</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/jianma.js"></script>
+</body>
+</html>

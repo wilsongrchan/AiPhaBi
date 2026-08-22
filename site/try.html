@@ -12,87 +12,104 @@
 <header class="topbar">
   <div class="wrap">
     <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
     <nav class="site">
-      <a href="index.html">介紹</a>
-      <a href="design.html">設計原理</a>
+      <a href="index.html">簡介</a>
+      <a href="zigen.html">字根表</a>
+      <a href="principles.html">取碼原則</a>
+      <a href="conventional.html">約定字表</a>
+      <a href="jianma.html">簡碼</a>
       <a href="try.html">線上試打</a>
     </nav>
-    <div class="langtoggle" role="group" aria-label="字體切換">
-      <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
-      <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
-    </div>
   </div>
 </header>
 
 <main class="wrap">
 
-  <h1>線上試打</h1>
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1 class="h1-tight">線上試打</h1>
 
-  <p class="lede">
-    不用安裝。在下面的框裡打英文字母，候選字會出現在框下面那一列。
-    查的是真正的碼表——跟裝起來之後打出來的結果一致。
-  </p>
+  <!-- 試打區：左欄是「參考文章 → 試打框 → 候選列」，右欄是田字格與提示。
+       田字格那一欄因此有整個左欄的高度可用，提示要多長都放得下（Wilson）。
+       ⚠️ 試打框一定要在這個 section 裡面、而且**不能**跟著參考文章一起隱藏：
+       預設就是 is-plain（單欄、只有試打框），practice.json 抓到了 try.js 才把
+       標了 data-practice 的那幾塊亮出來、把 is-plain 拿掉。這個方向才是安全的：
+       JS 掛了或檔案沒產出來，版面自己就是對的。 -->
+  <section class="tryarea is-plain" id="tryarea">
+    <div class="tryarea-main">
+      <div class="practice-head" data-practice hidden>
+        <h2>試打文本</h2>
+        <p class="practice-src" id="practice-src"></p>
+        <span class="practice-pick" id="practice-pick" role="group" aria-label="換一篇"></span>
+      </div>
+      <div class="practice-text" id="practice-text" aria-live="off" data-practice hidden></div>
+      <div class="practice-bar" data-practice hidden>
+        <span class="practice-prog" id="practice-prog"></span>
+        <span class="practice-tip">點擊任意一字可跳至該處開始</span>
+        <button type="button" class="practice-btn" id="practice-skip">跳過這個字</button>
+        <button type="button" class="practice-btn" id="practice-reset">從頭開始</button>
+      </div>
 
-  <div class="typebox">
-    <label class="sr-only" for="out">試打區</label>
-    <textarea id="out" placeholder="先試試 bd（明）、jkxq（我）、jba（的）" autocomplete="off"
-              autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-    <div class="rail" id="rail" aria-live="polite"></div>
-  </div>
+      <div class="typebox">
+        <label class="sr-only" for="out">試打區</label>
+        <textarea id="out" autocomplete="off"
+                  autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+        <div class="rail" id="rail" aria-live="polite"></div>
+      </div>
+    </div>
 
-  <h2>怎麼打</h2>
+    <aside class="practice-cell" data-practice hidden>
+      <div class="tianzi" id="tianzi"></div>
+      <p class="practice-next" id="practice-next"></p>
+      <div class="tz-hint" id="practice-hint"></div>
+    </aside>
+  </section>
 
-  <div class="tablewrap">
-    <table>
-      <tbody>
-        <tr><td><kbd data-keep>a</kbd>–<kbd data-keep>z</kbd></td><td>輸入字根碼</td></tr>
-        <tr><td><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></td><td>選第幾個候選字</td></tr>
-        <tr><td><kbd>空白</kbd> 或 <kbd data-keep>Enter</kbd></td><td>選第一個</td></tr>
-        <tr><td><kbd data-keep>Backspace</kbd></td><td>刪掉剛打的一碼</td></tr>
-        <tr><td><kbd data-keep>Esc</kbd></td><td>清掉還沒選字的碼</td></tr>
-        <tr><td><kbd data-keep>,</kbd> <kbd data-keep>.</kbd> <kbd data-keep>?</kbd> …</td><td>正體全形標點（字母鍵都給字根用了，標點就留在原本的鍵上）</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h2>按鍵指南</h2>
 
-  <h2>幾個值得試的例子</h2>
+  <!-- 兩欄並排（Wilson）：左右各一組，配對照用途分 —— 輸入／選字／刪除／輔助。
+       用 grid 而不是表格，窄螢幕會自己收成一欄，不必橫向捲。 -->
+  <dl class="keyguide">
+    <div><dt><kbd data-keep>A</kbd>–<kbd data-keep>Z</kbd></dt><dd>輸入字根</dd></div>
+    <div><dt><kbd data-keep>,</kbd> <kbd data-keep>.</kbd> <kbd data-keep>?</kbd></dt><dd>正體全形標點</dd></div>
 
-  <div class="tablewrap">
-    <table>
-      <thead><tr><th>打這個</th><th>會看到</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><code>bd</code></td>
-          <td><span data-keep>明</span>——日（<span data-keep>B</span>）＋月（<span data-keep>D</span>），碼是看著字推出來的</td>
-        </tr>
-        <tr>
-          <td><code>jkxq</code></td>
-          <td><span data-keep>我</span> 的主碼，旁邊會小聲提示「簡碼 <span data-keep>JKQ</span>」——這就是它教你的方式</td>
-        </tr>
-        <tr>
-          <td><code>jkq</code></td>
-          <td>同一個 <span data-keep>我</span>，但走簡碼。注意主碼 <code>jkxq</code> 仍然有效，沒有被搶走</td>
-        </tr>
-        <tr>
-          <td><code>j</code></td>
-          <td>只打一碼，會把以 <span data-keep>J</span> 開頭的字先列出來（打到一半就有候選）</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <div><dt><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></dt><dd>選擇候選字</dd></div>
+    <div><dt><kbd>空白</kbd> 或 <kbd data-keep>Enter</kbd></dt><dd>選擇首選字</dd></div>
+
+    <div><dt><kbd data-keep>Backspace</kbd></dt><dd>刪除上一碼</dd></div>
+    <div><dt><kbd data-keep>Esc</kbd></dt><dd>刪除所有碼</dd></div>
+
+    <div><dt><kbd data-keep>=</kbd></dt><dd>試打練習時顯示提示</dd></div>
+    <div><dt><kbd data-keep>`</kbd></dt><dd>萬用鍵，代替任何字母。一鍵可代替一個或多個字母；兩、三、四鍵則只代替兩、三、四個字母。</dd></div>
+  </dl>
 
   <div class="todo">
     <b>這個試打版是簡化過的。</b>
-    目前支援主碼、完整碼、兼容碼、前綴補全、字頻排序、約定簡碼與標點。
-    真正的輸入法還有三簡碼、左簡碼、詞組連打、輸入容錯、萬用鍵、同類字與偏旁碼提示，
+    目前支援主碼、完整碼、兼容碼、前綴補全、字頻排序、約定簡碼、萬用鍵與標點。
+    真正的輸入法還有三簡碼、左簡碼、詞組連打、輸入容錯、同類字與偏旁碼提示，
     這一頁還沒有。
   </div>
 
 </main>
 
+
 <footer class="wrap">
-  <p>愛發筆 <span data-keep>AiPhaBi</span> · 自製形碼中文輸入法</p>
-  <p><a href="https://github.com/wilsongrchan/AiPhaBi" data-keep>GitHub</a></p>
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
 </footer>
 
 <script src="assets/site.js"></script>
