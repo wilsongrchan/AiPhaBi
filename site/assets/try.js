@@ -214,7 +214,9 @@
       var tgt = P.chars[P.pos], tsegs = segsOf(tgt);
       if (tsegs && tsegs.length) {
         var mm = typedMatch(tgt, tsegs);
-        if (mm.bad) split = Math.min(mm.ok, state.buf.length);
+        // 從「還有機會變成這個字」的地方斷，不是從主碼比到哪斷 —— 走兼容碼的人
+        // 前幾碼跟主碼對不上，拿主碼比會把他打對的那幾碼也標紅。
+        if (mm.bad) split = reachLen(tgt, state.buf);
       }
     }
     if (split == null) {
@@ -314,11 +316,45 @@
     return segs ? shortPlan(ch, segs) : null;
   }
 
-  function fullCodeOf(ch) {
-    var e = P.segs && P.segs[ch], out = '';
-    if (!e || !e.s) return '';
-    for (var i = 0; i < e.s.length; i++) out += e.s[i].L.toLowerCase();
-    return out;
+  /* 這個字打得出來的**所有**碼：主碼、完整碼、兼容碼都在 dict.json 的碼表裡
+     （教 → txpx 與 fjpx；親 → ivtdl 與 ivtdjl），直接掃那一份就好，不必另外
+     從 codes.json 把 alts 抄一份出來 —— 抄了就會有第二份跟碼表不同步的資料，
+     而「網站跟輸入法不一樣」是最難發現的那種錯。
+     ⚠️ 約定簡碼**不在**這裡面：簡碼表是另一張（d.short），而且簡碼字串常常
+     是別的字的主碼（的 的簡碼 JA 就是 歹 的主碼），照 codes 查會查到別人身上。
+     8000 多個碼掃一遍不到 1ms，而且只在換字時掃一次，所以照字快取起來。 */
+  var _paths = { ch: null, list: null };
+  function codePaths(ch) {
+    var d = state.data;
+    if (!d || !d.keys) return [];
+    if (_paths.ch === ch) return _paths.list;
+    var list = [];
+    for (var i = 0; i < d.keys.length; i++) {
+      if (d.codes[d.keys[i]].indexOf(ch) >= 0) list.push(d.keys[i]);
+    }
+    _paths.ch = ch; _paths.list = list;
+    return list;
+  }
+
+  /* 打到第幾碼為止，還有機會變成這個字 —— 拿 buf 去跟每一條碼比前綴，取最長的。
+     等於 buf.length 就表示還在路上（不標紅）；比它短，短的那一截就是打歪的地方。
+     走兼容碼的人前幾碼跟主碼完全不一樣（教 的 FJPX 跟 TXPX 第一碼就分家），
+     以前一律當打錯，連打對的那幾碼也一起標紅（Wilson 2026-08-24）。 */
+  function reachLen(ch, buf) {
+    var d = state.data, best = 0;
+    if (!d || !buf) return 0;
+    function lcp(p) {
+      var n = 0;
+      while (n < buf.length && n < p.length && buf.charAt(n) === p.charAt(n)) n++;
+      return n;
+    }
+    if (SHORT_ON && d.short_rev[ch]) best = lcp(d.short_rev[ch]);
+    var list = codePaths(ch);
+    for (var i = 0; i < list.length && best < buf.length; i++) {
+      var n = lcp(list[i]);
+      if (n > best) best = n;
+    }
+    return best;
   }
 
   function typedMatch(ch, segs) {
@@ -334,9 +370,10 @@
     for (var i = 0; i < segs.length; i++) main += segs[i].L.toLowerCase();
     var k = 0;
     while (k < buf.length && k < main.length && buf[k] === main[k]) k++;
-    // 完整碼（每一段都打，不截）也是這個字打得出來的一條路，不能標紅。
-    // 但上色還是照主碼那幾段來 —— 兩條路的前幾碼本來就一樣。
-    var bad = buf.length > k && fullCodeOf(ch).indexOf(buf) !== 0;
+    /* 上色只照主碼那幾段算（k）—— 兼容碼是另一套拆法（教 的 FJPX 是
+       F[0,1,2] J[3] P[4,5] X[7…]，跟主碼的 T[0,1] X[2,3] 分段不同），
+       照主碼的段上色會亮在錯的筆畫上。所以走兼容碼時不給進度色，只是不標紅。 */
+    var bad = buf.length > k && reachLen(ch, buf) < buf.length;
     return { ok: k, bad: bad };
   }
 
@@ -548,16 +585,20 @@
        「下一條」照 order 算，不是照主碼的下一段：的 拆成 J·B·A、簡碼是 JA，
        打完 J 之後該打的是 A 而不是 B。 */
     if (mo.m.bad) {
+      /* 「應該是」只在打歪的地方**落在主碼上**時才給：走兼容碼走到一半才錯的人
+         （教 打 FJPQ），拿主碼的第 n 段去講他的第 n 碼會講到別的筆畫上，那比
+         不講還糟。這種時候就只說一句「再試一次」。 */
+      var reach = reachLen(ch, state.buf);
       var wi = -1;
       for (var q = 0; q < order.length; q++) if (order[q] >= mo.m.ok) { wi = order[q]; break; }
-      var want = segs[wi >= 0 ? wi : order[order.length - 1]];
+      var want = reach === mo.m.ok && wi >= 0 ? segs[wi] : null;
       /* 被孤筆略過原則絆到：下一段前面有一筆被略過（建置時標的 k），而打錯的那一碼
          正好是 I 或 J —— 也就是把那一筆當字根取了碼。教 ＝ TXPX，很多人打成 TXPIX
          （Wilson）。這種錯有話可說，就別只丟一句「再試一次」。
          只在真的還有下一段要打的時候才講：主碼已經打完、後面多敲一個 I，那不是
          孤筆的問題。 */
       var slip = state.buf.charAt(mo.m.ok);
-      var trap = wi >= 0 && want && want.k && (slip === 'i' || slip === 'j');
+      var trap = want && want.k && (slip === 'i' || slip === 'j');
       box.appendChild(el('span', 'tz-wrong', trap ? '注意要略過孤立的橫劃或豎劃' : '再試一次'));
       if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
       return;
