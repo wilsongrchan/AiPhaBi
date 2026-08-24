@@ -1037,14 +1037,39 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
 
 - **Encoding rule:** a phrase's code = each character's 簡碼 (or 主碼 if no 簡碼) concatenated.
   Verified: 我的 = JKQJA, 你好 = YMLI, 中國人 = QOQY, 香港 = JTBWHZ.
-- **2-char phrases** get the cartesian of {short, main} × {short, main} for the two chars
-  (short/short, short/main, main/short, main/main) so you don't have to remember which mode.
-- **3+ char phrases** use three uniform modes (main / 簡碼-preferred / 三簡碼-preferred) to avoid
-  combinatorial explosion.
-- **四碼快打 (`data.si4`, generated in `aiphabi_hint.lua`, not in dict):** a 4-key shortcut for
+- **2-char phrases** get the cartesian of {short, main, *alts*} × {short, main, *alts*} for the
+  two chars — not just {short, main} (fixed 2026-08-24, see the alts box below).
+- **3+ char phrases** use four uniform modes (main / 簡碼-preferred / 三簡碼-preferred / *alt*) to
+  avoid combinatorial explosion — "alt" substitutes each character's first 兼容碼 where it has one,
+  main code otherwise, applied uniformly per character (not a per-word cartesian product).
+- **四碼快打 (`data.si4`, generated in `build_rime.py`, not in dict):** a 4-key shortcut for
   longer phrases. 3-char → 首首首末; 4-char → 4×首碼; **5+ char → both first-4 AND first-3+last**
   registered (first-4 = partial-recall friendly; first-3+last = better disambiguation on shared
   prefixes like 中國人民X). Exact 4-code → `ap_si4` (ranks as exact); 3-prefix → `ap_pool` (墊底).
+  Each position also tries its character's alt-code letter if it differs from the main one
+  (one position substituted at a time, not a cartesian product across positions — see below).
+
+> **`alts`（兼容碼）were invisible to 詞組連打 / 四碼快打 until 2026-08-24 — same class of bug as
+> the 左簡碼 one (`cca07ff`, 2026-08-16), just never audited here.** `char2code`, the table both
+> generators read from, was built from `rec["code"]` only; `rec.get("alts", [])` was never
+> consulted. A user whose mental breakdown of a character matches its *alt* segmentation (not its
+> 主碼) got no phrase-level shortcut across that character — they could still type the phrase by
+> spelling every character out in full (each character's dict entry always includes its alt code,
+> `alts` are full citizens there), but not via the compressed 詞組連打/四碼快打 path.
+>
+> Measured before fixing: 317 characters carry `alts`; 451 of 4050 curated `phrases_*.txt` words
+> (11%) contain one. Of those, 56 alts differ from their character's main code in the **first**
+> letter — the one that matters for 四碼快打 — affecting 116 of 2711 si4-eligible curated words,
+> including common ones: 臺北市, 高雄市, 上海市, 京都大學, 忠孝敦化.
+>
+> Fix: `char_alt_codes` (built once, alongside `char2code`) holds each character's alt codes,
+> shortened and de-duplicated against its main code. Phrase generation's 2-char cartesian and
+> 3+-char "alt" mode both draw on it (`_char_options`/`_pcode`); si4 generation draws on it through
+> `_si4_signatures`, which substitutes **one position's letter at a time** rather than taking the
+> full cartesian product across positions — bounded growth (only 12 characters carry more than one
+> alt, worst case 3), consistent with the project's existing "avoid combinatorial explosion" stance
+> for 3+-char phrase modes. Build now prints how many phrase/si4 words picked up an alt path
+> (`含兼容碼路徑的詞 N 個`), so a future gap of this kind is visible in the build log, not silent.
 - **Reverse hint (`data.si4_rev`, added 2026-08-15):** word → its 4-code, registered only when
   that's genuinely shorter than every normal typing mode for the word (`main`/`simp`/`t3`).
   Typing a phrase the normal 詞組連打 way and getting it back as an ordinary candidate now appends
@@ -1156,8 +1181,10 @@ the moment anyone in that folder pushes.
 - ✅ Fixed 2026-08-16: 左簡碼 generation was reading only each member's main code and silently
   ignoring `alts` — 9 of 249 members had a compatible alt code with no shortcut of its own
   (`cca07ff`; bug report `左簡碼_alts未涵蓋.md` from Side A, now resolved and removed).
+- ✅ Fixed 2026-08-24: 詞組連打 / 四碼快打 had the *same* class of bug — see the alts box under
+  *Phrase input (詞組連打) & 四碼快打* above. Caught from a Side B hunch, not a bug report.
 - 🔄 Ongoing: expand phrase庫; ordering edge-cases as they surface (each fix must land in BOTH
-  order filters). Current build: 5911 字, 7715 碼, 393 重碼組 (as of 2026-08-16, commit `5ae4925`).
+  order filters). Current build: 6820 字, 8950 碼, 499 重碼組 (as of 2026-08-24).
 
 ### Not started / open
 - ~~No formal test harness for candidate ordering~~ — **done**, see *Testing the candidate bar
