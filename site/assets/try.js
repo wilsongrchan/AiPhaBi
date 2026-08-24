@@ -2,8 +2,10 @@
  * 所以這裡打得出來的字跟真正的輸入法一致（每次網站部署時重新產生）。
  *
  * 這是「夠真實可以體會設計」的版本，不是完整模擬。目前有：
- *   主碼／完整碼／兼容碼查詢、前綴補全、字頻排序、約定簡碼（含提示）、萬用鍵、正體標點。
- * 還沒有（真正的輸入法有）：三簡碼、左簡碼、詞組連打、輸入容錯、同類字、偏旁碼。
+ *   主碼／完整碼／兼容碼查詢、前綴補全、字頻排序、約定簡碼（含提示，可關）、
+ *   三簡碼（可開，預設關——用剩法查很容易誤觸，Wilson 決定跟真正輸入法一樣預設關）、
+ *   萬用鍵、正體標點。
+ * 還沒有（真正的輸入法有）：左簡碼、詞組連打、輸入容錯、同類字、偏旁碼。
  * 別讓這一頁默默宣稱它是全部 —— 頁面底下那個 .todo 方塊要跟這段話一起改。
  */
 (function () {
@@ -35,6 +37,38 @@
      犧牲一顆標點；= 在打字時完全用不到，讓出來沒有代價。 */
   var HINT_KEY = '=';
 
+  /* 簡碼／三簡碼各自獨立開關，記在 localStorage（跟這頁其他不需要驚動伺服器的
+     暫存狀態一樣）。約定簡碼預設開（本來就一直是開的，加開關只是讓人看得到、
+     關得掉），三簡碼預設關——用剩法查很容易誤觸（打三碼常常也剛好是別的字的
+     完整碼），真正的輸入法裡它也預設關（Wilson）。 */
+  var SHORT_KEY = 'aiphabi_try_short', SHORT3_KEY = 'aiphabi_try_short3';
+  var SHORT_ON = true, SHORT3_ON = false;
+  try {
+    var savedShort = localStorage.getItem(SHORT_KEY);
+    if (savedShort != null) SHORT_ON = savedShort === '1';
+    var savedShort3 = localStorage.getItem(SHORT3_KEY);
+    if (savedShort3 != null) SHORT3_ON = savedShort3 === '1';
+  } catch (e) {}
+
+  /* 三簡碼：約定簡碼的自動版，不用手動挑，4 碼以上的字全部適用。打 3 碼當
+     「頭兩碼＋末一碼」查，跟 build_rime.py／Squirrel、標註站試打頁（type.html
+     的 buildShort3）算法一致。掃一次全部的碼建索引，跟萬用鍵一樣量體不大
+     （8000 出頭個碼），沒必要每按一鍵重算。 */
+  function buildShort3(d) {
+    var map = {};
+    for (var i = 0; i < d.keys.length; i++) {
+      var code = d.keys[i];
+      if (code.length < 4) continue;
+      var sig = code[0] + code[1] + code[code.length - 1];
+      var chs = d.codes[code];
+      if (!map[sig]) map[sig] = [];
+      for (var k = 0; k < chs.length; k++) {
+        if (map[sig].indexOf(chs[k]) < 0) map[sig].push(chs[k]);
+      }
+    }
+    return map;
+  }
+
   function ready(data) {
     state.data = data;
     data.keys = Object.keys(data.codes).sort();
@@ -42,6 +76,7 @@
     // 碼的字母順序排，候選列開頭會是一堆罕見字。
     data.rank = {};
     for (var i = 0; i < data.order.length; i++) data.rank[data.order[i]] = i;
+    data.short3 = buildShort3(data);
     rail.dataset.ready = '1';
     render();
   }
@@ -117,7 +152,7 @@
     }
 
     // 約定簡碼排最前面 —— 這幾個字常用到值得插隊，這正是要示範的行為
-    if (d.short[buf]) push(d.short[buf], { tag: '簡碼', exact: true });
+    if (SHORT_ON && d.short[buf]) push(d.short[buf], { tag: '簡碼', exact: true });
 
     var exact = d.codes[buf];
     // 打中了但主碼不是你打的這串（走的是完整碼或兼容碼），把主碼標出來當參考
@@ -136,6 +171,15 @@
         }
       }
     }
+
+    // 三簡碼：剛好打了 3 碼，當「頭兩碼＋末一碼」查——排在補全後面，它是自動
+    // 配對，不像約定簡碼認定過「就這個字」，不該搶到真正打中／補全的候選前面。
+    if (SHORT3_ON && buf.length === 3 && list.length < MAX_CANDS) {
+      var s3 = d.short3[buf];
+      if (s3) for (var j = 0; j < s3.length && list.length < MAX_CANDS; j++) {
+        push(s3[j], { tag: '三簡', code: d.main[s3[j]] ? d.main[s3[j]].toUpperCase() : '' });
+      }
+    }
     return list.slice(0, MAX_CANDS);
   }
 
@@ -143,7 +187,7 @@
      這是設計主張本身：教學發生在使用當中，不是先背一張表。 */
   function hintFor(buf, cands) {
     var d = state.data;
-    if (!d || !cands.length) return '';
+    if (!d || !cands.length || !SHORT_ON) return '';
     if (buf.indexOf(WILD) >= 0) return '';   // 萬用鍵的候選旁邊已經標了主碼
     var top = cands[0].ch;
     var s = d.short_rev[top];
@@ -215,7 +259,7 @@
    * site/content/practice.md）。抓不到就整塊拿掉，試打框本身不受影響 ——
    * 這一頁的主要功能是試打，參考文章是加分項，不該把它拖下水。 */
   var P = {
-    on: false, chars: [], pos: 0, glyphs: null, main: null, segs: null,
+    on: false, host: null, chars: [], pos: 0, glyphs: null, main: null, segs: null, conv: null, progbar: null,
     texts: null, ti: 0, pick: null,
     text: null, cell: null, next: null, prog: null, hintbox: null,
     // 提示鏈：seg = 現在講到第幾個字根，step = 講到哪一步
@@ -253,13 +297,14 @@
      親 的分段是 I V T D J L，主碼卻是 IVTDL，第五碼是最後那段的 L 而不是 J。
      提示、上色、進度全部走這一份，不然會叫人打一個打下去是錯的碼（Wilson 抓到）。
      被略過的那幾段沒有對應的碼，就一直是黑的 —— 那正好看得出「頭四尾一」丟掉了誰。 */
-  function segsOf(ch) {
-    var e = P.segs && P.segs[ch];
+  function segsFrom(table, ch) {
+    var e = table && table[ch];
     if (!e || !e.s || !e.s.length) return null;
     var list = [];
     for (var i = 0; i < e.c.length; i++) if (e.s[e.c[i]]) list.push(e.s[e.c[i]]);
     return list.length ? list : null;
   }
+  function segsOf(ch) { return segsFrom(P.segs, ch); }
 
   function fullCodeOf(ch) {
     var e = P.segs && P.segs[ch], out = '';
@@ -303,43 +348,65 @@
     return map;
   }
 
-  function drawCell(ch) {
-    var strokes = ch && P.glyphs ? P.glyphs[ch] : null;
+  /* 田字格畫格子：跟著打（P.cell，逐碼漸進上色）跟拼音查字（PY.cell，選字後
+   * 整個字一次上色）共用同一支——差別只在呼叫的人給的 colour map 怎麼算。 */
+  function paintGlyph(target, ch, strokes, colour) {
     if (strokes) {
-      var colour = strokeColours(ch);
       var paths = '';
       for (var i = 0; i < strokes.length; i++) {
         var gi = colour && colour[i] != null ? colour[i] : -1;
         var cls = gi >= 0 ? 'tz-z' + (gi % 6) : 'tz-ink';
         paths += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
       }
-      P.cell.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
+      target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
         GRID + '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
     } else {
       // 標點、或者沒有字形資料的字：照樣放進格子裡，只是用系統字型
-      P.cell.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + (ch || '') + '">' +
+      target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + (ch || '') + '">' +
         GRID + '</svg>' +
         '<span class="tz-fallback">' + (ch || '') + '</span>';
     }
   }
 
+  function drawCell(ch) {
+    var strokes = ch && P.glyphs ? P.glyphs[ch] : null;
+    paintGlyph(P.cell, ch, strokes, strokeColours(ch));
+  }
+
 
   /* 田字格那一塊（格子＋下一個字＋提示）。打字時只重畫這裡 —— 參考文章有一千
      三百多個 span，每按一鍵重建一次太浪費，而它的內容只在換字時才會變。 */
+  /* 慶祝畫面：整篇打完了，格子裡放幾個 emoji 小小彈一下，取代原本要畫的字
+   * （反正也沒有下一個字可畫）。動畫很短、每片彈跳時間錯開一點點，見
+   * site.css 的 .tz-confetti* （Wilson：完成的時候想要一點慶祝感）。 */
+  function celebrateCell() {
+    var pieces = ['🎉', '✨', '🎊'];
+    var html = '<svg viewBox="0 0 1024 1024" role="img" aria-label="完成">' + GRID + '</svg>' +
+      '<div class="tz-confetti">' + pieces.map(function (p, i) {
+        return '<span class="tz-confetti-piece" style="animation-delay:' + (i * 70) + 'ms">' + p + '</span>';
+      }).join('') + '</div>';
+    P.cell.innerHTML = html;
+  }
+
   function renderCell() {
     if (!P.on) return;
     var now = P.chars[P.pos];
-    drawCell(now === '\n' ? '' : now);
+    var done = P.pos >= P.chars.length;
+    if (done) celebrateCell();
+    else drawCell(now === '\n' ? '' : now);
 
     var uncoded = now && isHan(now) && P.main && !P.main[now];
     P.next.innerHTML = '';
-    if (P.pos >= P.chars.length) {
-      P.next.appendChild(el('span', 'ok', '整篇打完了。'));
+    if (done) {
+      P.next.appendChild(el('span', 'ok', '恭喜你完成試打練習！'));
     } else if (uncoded) {
       P.next.appendChild(el('b', null, now));
       P.next.appendChild(el('span', 'warn', '尚未取碼，按「跳過這個字」'));
     } else if (now) {
       P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
+      // 約定字：不是照筆畫拆的，整字背下來——標出來，不然學的人會以為
+      // 自己看不出字根，其實這個字本來就不歸那套推理管（Wilson）。
+      if (P.conv && P.conv.has(now)) P.next.appendChild(el('span', 'conv-badge', '約定字'));
       P.next.appendChild(el('span', null, '下一個'));
     }
     renderHint(now);
@@ -363,8 +430,9 @@
 
     // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
     var done = P.typedBefore[P.pos] || 0, total = P.total;
-    P.prog.textContent = done + ' / ' + total +
-      '　' + Math.round(done * 100 / total) + '%';
+    var pct = Math.round(done * 100 / total);
+    P.prog.textContent = done + ' / ' + total + '　' + pct + '%';
+    if (P.progbar) P.progbar.style.width = pct + '%';
 
     // 目前這個字捲進視野：只捲文章那個框，不要動整頁
     var cur = P.text.querySelector('.is-now');
@@ -496,18 +564,42 @@
     renderPractice();
   }
 
+  /* 跟著打／自由試打：兩種模式共用同一個試打框跟候選邏輯，差別在右邊那格
+   * 顯示什麼（田字格＋提示，還是拼音查字）跟要不要顯示參考文章。
+   * P.on 決定 advance()／renderCell()／renderHint() 要不要動作，見上面
+   * 各函式開頭的 `if (!P.on) return`。側欄本身（.practice-cell）兩種模式
+   * 都顯示，不是自由試打就收起來——拼音查字要有地方放。
+   * 選過一次就記住，下次開這頁直接回到上次的模式（localStorage，跟這頁
+   * 其他不需要驚動伺服器的暫存狀態一樣）。 */
+  var MODE_KEY = 'aiphabi_try_mode';
+  function setMode(m) {
+    var free = m === 'free';
+    P.on = !free;
+    [].forEach.call(P.host.querySelectorAll('[data-practice]'), function (n) { n.hidden = free; });
+    [].forEach.call(P.host.querySelectorAll('[data-mode-panel="practice"]'), function (n) { n.hidden = free; });
+    [].forEach.call(P.host.querySelectorAll('[data-mode-panel="free"]'), function (n) { n.hidden = !free; });
+    [].forEach.call(P.host.querySelectorAll('[data-mode]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+    });
+    if (!free) renderPractice();
+    setBuf('');
+    try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+  }
+
   function setupPractice(pd, dict) {
     var host = document.getElementById('tryarea');
     if (!host || !pd || !pd.texts || !pd.texts.length) return;
-    P.on = true;
+    P.host = host;
     P.glyphs = pd.glyphs || null;
     P.segs = pd.segs || null;
+    P.conv = new Set(pd.conv || []);
     P.main = dict.main;
     P.texts = pd.texts;
     P.text = document.getElementById('practice-text');
     P.cell = document.getElementById('tianzi');
     P.next = document.getElementById('practice-next');
     P.prog = document.getElementById('practice-prog');
+    P.progbar = document.getElementById('practice-progbar-fill');
     P.hintbox = document.getElementById('practice-hint');
 
     // 篇目選單：一篇一顆。只有一篇的時候整排不出現（按了也沒事發生的按鈕是雜訊）
@@ -546,11 +638,107 @@
       P.pos = 0; P.hseg = 0; P.hstep = 0; renderPractice(); render(); out.focus();
     });
 
-    // 參考文章那幾塊亮出來、切成兩欄（試打框本來就在，不受影響）
-    [].forEach.call(host.querySelectorAll('[data-practice]'), function (n) { n.hidden = false; });
+    [].forEach.call(host.querySelectorAll('[data-mode]'), function (b) {
+      b.addEventListener('click', function () { setMode(b.dataset.mode); out.focus(); });
+    });
+
+    // 模式切換那顆按鈕、側欄本身一直露出來（跟著打／自由試打都用得到，
+    // 側欄裡面放什麼交給 setMode 決定）；參考文章那幾塊要不要顯示才是照模式。
+    [].forEach.call(host.querySelectorAll('[data-practice-toggle]'), function (n) { n.hidden = false; });
     host.classList.remove('is-plain');
     setText(0);
-    render();
+
+    var savedMode = 'practice';
+    try { savedMode = localStorage.getItem(MODE_KEY) || 'practice'; } catch (e) {}
+    setMode(savedMode);
+  }
+
+
+  /* ---- 自由試打：拼音查字 -------------------------------------------
+   * 資料是 assets/pinyin.json（site/tools/build_site_data.py 的
+   * build_pinyin()）：已取碼的字裡現代字頻最高的 3000 個，查拼音（不分聲調）
+   * 帶出候選字，選了就用上面同一套 paintGlyph／segsFrom 畫出拆碼圖，
+   * 跟〈跟著打〉共用畫法，差別是不分步驟、選了就整個字一次上色——
+   * 這裡不是在「練打」，是在「查這個字怎麼打」。 */
+  var PY = { data: null, conv: null, cands: [], sel: null, input: null, candsBox: null, cell: null, hintBox: null };
+
+  /* 選出來的字，所有字根一次全部上色（不像 P.strokeColours 是打對幾碼亮幾條）。 */
+  function fullColourMap(segs) {
+    if (!segs) return null;
+    var map = {};
+    for (var i = 0; i < segs.length; i++)
+      for (var k = 0; k < segs[i].st.length; k++) map[segs[i].st[k]] = i;
+    return map;
+  }
+
+  function renderPyqCands() {
+    PY.candsBox.innerHTML = '';
+    if (!PY.cands.length) {
+      // 輸入框自己的 placeholder 已經示範怎麼打，這裡不必重講一次——
+      // 只在真的查無結果時才出聲，順便講收字範圍（Wilson：兩個框現在排一起，
+      // 沒查詢也放一整句「輸入拼音查字」是重複的）。
+      if (PY.input.value.trim()) PY.candsBox.appendChild(el('span', 'empty',
+        '查無這個拼音的字（目前只收已取碼的字，最多 3000 個）'));
+      return;
+    }
+    PY.cands.forEach(function (ch, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cand' + (ch === PY.sel ? ' is-exact' : '');
+      b.appendChild(el('span', 'n', String(i + 1)));
+      b.appendChild(el('span', 'g', ch));
+      b.addEventListener('click', function () { selectPyq(ch); });
+      PY.candsBox.appendChild(b);
+    });
+  }
+
+  function selectPyq(ch) {
+    PY.sel = ch;
+    renderPyqCands();
+    var strokes = PY.data.glyphs && PY.data.glyphs[ch];
+    var segs = segsFrom(PY.data.segs, ch);
+    paintGlyph(PY.cell, ch, strokes, fullColourMap(segs));
+
+    PY.hintBox.innerHTML = '';
+    if (PY.conv && PY.conv.has(ch)) PY.hintBox.appendChild(el('span', 'conv-badge', '約定字'));
+    if (segs) {
+      var row = el('span', 'tz-hintcodes');
+      segs.forEach(function (s, i) { row.appendChild(el('span', 'tz-chip z' + (i % 6), s.L)); });
+      PY.hintBox.appendChild(row);
+    } else {
+      var code = state.data && state.data.main[ch];
+      PY.hintBox.appendChild(el('span', 'tz-more', code ? '碼：' + code.toUpperCase() : ''));
+    }
+  }
+
+  /* 拆碼圖清空回「空格子」，不是清空成什麼都沒有——paintGlyph 在沒有筆畫
+   * 資料時本來就會畫格線＋退回文字（見上面），傳空字串、沒有筆畫，就只剩
+   * 格線，剛好當「還沒選字」的預留位置，跟選了字之後同一個尺寸，側欄不會
+   * 從空的跳成一大格（Wilson）。 */
+  function clearPyqCell() {
+    paintGlyph(PY.cell, '', null, null);
+    PY.hintBox.innerHTML = '';
+  }
+
+  function onPyqInput() {
+    var q = PY.input.value.trim().toLowerCase();
+    PY.cands = q ? (PY.data.index[q] || []).slice(0, 12) : [];
+    if (PY.cands.length && PY.cands.indexOf(PY.sel) < 0) selectPyq(PY.cands[0]);
+    else renderPyqCands();
+    if (!PY.cands.length) { PY.sel = null; clearPyqCell(); }
+  }
+
+  function setupPyq(pyd) {
+    if (!pyd || !pyd.index) return;
+    PY.data = pyd;
+    PY.conv = new Set(pyd.conv || []);
+    PY.input = document.getElementById('pyq-input');
+    PY.candsBox = document.getElementById('pyq-cands');
+    PY.cell = document.getElementById('pyq-tianzi');
+    PY.hintBox = document.getElementById('pyq-hint');
+    PY.input.addEventListener('input', onPyqInput);
+    renderPyqCands();
+    clearPyqCell();
   }
 
   function el(tag, cls, text) {
@@ -619,6 +807,20 @@
     }
   });
 
+  // 簡碼／三簡碼開關：checkbox 本身不等資料載入就能綁定，反正 lookup() 每次
+  // 都是現查 SHORT_ON／SHORT3_ON，切換後重算一次目前的 buf 就會反映出來。
+  [].forEach.call(document.querySelectorAll('[data-short]'), function (b) {
+    var is3 = b.dataset.short === 'short3';
+    var key = is3 ? SHORT3_KEY : SHORT_KEY;
+    b.checked = is3 ? SHORT3_ON : SHORT_ON;
+    b.addEventListener('change', function () {
+      if (is3) SHORT3_ON = b.checked; else SHORT_ON = b.checked;
+      try { localStorage.setItem(key, b.checked ? '1' : '0'); } catch (e) {}
+      setBuf(state.buf);
+      out.focus();
+    });
+  });
+
   fetch('assets/dict.json')
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -629,6 +831,12 @@
         .then(function (r) { return r.json(); })
         .then(function (pd) { setupPractice(pd, d); })
         .catch(function () { /* 沒有就沒有，那一塊不出現 */ });
+      // 拼音查字同理，跟參考文章互相獨立抓——沒裝 pypinyin 或抓失敗，
+      // 自由試打的查字框就一直停在「輸入拼音查字」那句提示，其餘照常能用。
+      fetch('assets/pinyin.json')
+        .then(function (r) { return r.json(); })
+        .then(function (pyd) { setupPyq(pyd); })
+        .catch(function () { /* 沒有就沒有 */ });
     })
     .catch(function () {
       rail.innerHTML = '';
