@@ -660,7 +660,28 @@
    * 帶出候選字，選了就用上面同一套 paintGlyph／segsFrom 畫出拆碼圖，
    * 跟〈跟著打〉共用畫法，差別是不分步驟、選了就整個字一次上色——
    * 這裡不是在「練打」，是在「查這個字怎麼打」。 */
-  var PY = { data: null, conv: null, cands: [], sel: null, input: null, candsBox: null, cell: null, hintBox: null };
+  var PY = { data: null, conv: null, cands: [], sel: null, input: null, candsBox: null,
+             cell: null, hintBox: null, heavy: null };
+
+  /* 拆碼圖與字形（pinyin_glyphs.json，約 8MB）等使用者真的要用查字才抓 —— 併在
+     pinyin.json 裡的話，每個開這一頁的人都得先下載 8MB 才能開始打字，而絕大多數
+     人根本不會用到查字（Wilson 2026-08-24）。
+     在它到之前查字照樣能用：查得到的字、以及每個字的碼（碼在 dict.json 的 main
+     裡，本來就載好了）都不靠這一份，只有田字格的筆畫和上色要等它。
+     抓失敗就把旗標清掉，下次進查字框會再試一次。 */
+  function loadPyqGlyphs() {
+    if (PY.heavy) return;                  // 只抓一次（'loading' 或 'ready' 都不再抓）
+    PY.heavy = 'loading';
+    fetch('assets/pinyin_glyphs.json')
+      .then(function (r) { return r.json(); })
+      .then(function (g) {
+        PY.heavy = 'ready';
+        PY.data.segs = g.segs;
+        PY.data.glyphs = g.glyphs;
+        if (PY.sel) selectPyq(PY.sel);     // 已經選了字，補畫上去
+      })
+      .catch(function () { PY.heavy = null; });
+  }
 
   /* 選出來的字，所有字根一次全部上色（不像 P.strokeColours 是打對幾碼亮幾條）。 */
   function fullColourMap(segs) {
@@ -737,6 +758,8 @@
     PY.cell = document.getElementById('pyq-tianzi');
     PY.hintBox = document.getElementById('pyq-hint');
     PY.input.addEventListener('input', onPyqInput);
+    // 一點進查字框就開始抓重的那一份，使用者還在打拼音、挑字的時候它就在路上了
+    PY.input.addEventListener('focus', loadPyqGlyphs);
     renderPyqCands();
     clearPyqCell();
   }
