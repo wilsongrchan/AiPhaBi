@@ -1108,27 +1108,26 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ 6559 characters coded (`codes.json`, 2026-08-21). Against the official lists (see
-  *取碼目標：官方字表*): **教育部常用國字 4763 / 4808 = 99.1%** (45 left — nearly done),
-  **GB 2312 4513 / 6763 = 66.7%** (2250 left, the larger remaining job). Quote those, not the raw
-  total.
+- ✅ 6847 characters coded (`codes.json`, 2026-08-24). Against the official lists (see
+  *取碼目標：官方字表*): **教育部常用國字 4808 / 4808 = 100%** — done, closed out this session
+  (was 99.1%/45 left as of 2026-08-21). **GB 2312 4755 / 6763 = 70.3%** (2008 left, now the only
+  remaining job). Quote those, not the raw total.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
 - ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
 - ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
 - ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
   collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
-- ✅ **Zigen consolidation, ongoing**: 418 → 355 shapes as of 2026-08-21 (re-sourcing to simpler
-  representative characters + merging duplicate clusters). Every 取形意圖 with real shapes now has
-  a description; the 18 remaining blanks are empty per-letter placeholder buckets, not stragglers.
-  See *Zigen curation tools* below for the three generators driving this.
-- 🔄 Ongoing: keep coding toward GB 2312 (2250 left; most have no already-coded traditional
-  counterpart, which is why it's the far larger remaining job now that 教育部常用國字 is nearly
-  closed out). The `/annotate` 未取碼 queue sorts by those tables directly (**國字表 / GB表**,
-  replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so working top-down *is*
-  working down the official list. `data/todo_chars.txt` is the older frequency-ordered queue and
-  its header counts are stale; `/progress` is the authority. Also: refine tiers/groups;
-  `kind:"manual"` rules not yet enforced.
+- ✅ **Zigen consolidation, ongoing**: 418 → 363 shapes across 109 取形意圖, as of 2026-08-24
+  (re-sourcing to simpler representative characters + merging duplicate clusters + folding
+  near-duplicate auto shapes into existing ones as `alts`). Every 取形意圖 with real shapes now has
+  a description. See *Zigen curation tools* below for the three generators driving this.
+- 🔄 Ongoing: keep coding toward GB 2312 (2008 left — the only remaining job now that 教育部常用
+  國字 甲表 is fully coded). The `/annotate` 未取碼 queue sorts by those tables directly
+  (**國字表 / GB表**, replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so
+  working top-down *is* working down the official list. `data/todo_chars.txt` is the older
+  frequency-ordered queue and its header counts are stale; `/progress` is the authority. Also:
+  refine tiers/groups; `kind:"manual"` rules not yet enforced.
 - ⏳ Waiting on Side B: 左簡碼 has no IME implementation yet. Nothing else is blocked on it.
 
 ### Zigen curation tools (`tools/*.py`, Side A only — need `data/graphics.txt`)
