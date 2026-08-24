@@ -381,8 +381,13 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
         med = medians(ch)
         if not med:
             continue
+        # 孤筆略過原則（rules.json 的 skip_isolated_hv，全表唯一會略過筆畫的規則）：
+        # 中途有一橫或一豎組不成字根就不取碼。學的人打到那裡最容易補一個 I 或 J
+        # 上去（教 = TXPX，很多人會打成 TXPIX），所以標出「這一段前面有被略過的
+        # 筆畫」，試打頁打錯時才講得出是哪一條原則絆到人（Wilson）。
+        skipped = set(rec.get("skipped") or ())
         segs = []
-        for seg in rec["segments"]:
+        for si, seg in enumerate(rec["segments"]):
             try:
                 v = stroke_vec([med[i] for i in seg["strokes"]])
             except IndexError:
@@ -395,8 +400,14 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
                         best, bd = e, d
             if not best:
                 unmatched += 1
-            segs.append({"L": seg["letter"], "st": seg["strokes"],
-                         "d": best["desc"] if best else ""})
+            one = {"L": seg["letter"], "st": seg["strokes"],
+                   "d": best["desc"] if best else ""}
+            if skipped and seg["strokes"]:
+                prev = max(rec["segments"][si - 1]["strokes"]) if si else -1
+                lo = min(seg["strokes"])
+                if any(prev < x < lo for x in skipped):
+                    one["k"] = 1
+            segs.append(one)
         # ⚠️ 提示要照**主碼**走，不是照分段走。碼超過 max 就「頭四尾一」，
         # 中間那幾段根本不用打 —— 例：親 分段是 I V T D J … L，主碼卻是 IVTDL，
         # 第五碼是最後那一段的 L，不是第五段的 J。照分段給提示會叫人打 J，

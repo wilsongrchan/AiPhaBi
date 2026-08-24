@@ -548,10 +548,17 @@
        「下一條」照 order 算，不是照主碼的下一段：的 拆成 J·B·A、簡碼是 JA，
        打完 J 之後該打的是 A 而不是 B。 */
     if (mo.m.bad) {
-      var wi = order[order.length - 1];
+      var wi = -1;
       for (var q = 0; q < order.length; q++) if (order[q] >= mo.m.ok) { wi = order[q]; break; }
-      var want = segs[wi];
-      box.appendChild(el('span', 'tz-wrong', '再試一次'));
+      var want = segs[wi >= 0 ? wi : order[order.length - 1]];
+      /* 被孤筆略過原則絆到：下一段前面有一筆被略過（建置時標的 k），而打錯的那一碼
+         正好是 I 或 J —— 也就是把那一筆當字根取了碼。教 ＝ TXPX，很多人打成 TXPIX
+         （Wilson）。這種錯有話可說，就別只丟一句「再試一次」。
+         只在真的還有下一段要打的時候才講：主碼已經打完、後面多敲一個 I，那不是
+         孤筆的問題。 */
+      var slip = state.buf.charAt(mo.m.ok);
+      var trap = wi >= 0 && want && want.k && (slip === 'i' || slip === 'j');
+      box.appendChild(el('span', 'tz-wrong', trap ? '注意要略過孤立的橫劃或豎劃' : '再試一次'));
       if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
       return;
     }
