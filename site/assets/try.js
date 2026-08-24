@@ -211,7 +211,7 @@
     // 跟著打的時候，打歪的那幾碼標紅 —— 錯在第幾碼一眼看得出來
     var split = null;
     if (P.on && P.pos < P.chars.length) {
-      var tgt = P.chars[P.pos], tsegs = P.segs && P.segs[tgt];
+      var tgt = P.chars[P.pos], tsegs = segsOf(tgt);
       if (tsegs && tsegs.length) {
         var mm = typedMatch(tgt, tsegs);
         if (mm.bad) split = Math.min(mm.ok, state.buf.length);
@@ -264,8 +264,9 @@
     text: null, cell: null, next: null, prog: null, hintbox: null,
     // 提示鏈：seg = 現在講到第幾個字根，step = 講到哪一步
     //   0 還沒開始 · 1 標出筆畫 · 2 說取形意圖 · 3 給字母
-    // 按一次 / 往前一步，走完一個字根就換下一個。字換了就整個歸零。
-    hseg: 0, hstep: 0
+    // 按一次 = 往前一步，走完一個字根就換下一個。字換了就整個歸零。
+    // hov = 有簡碼的字，第一步的「簡碼總覽」給過了沒有（見 hintStep）。
+    hseg: 0, hstep: 0, hov: 0
   };
 
   // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
@@ -306,6 +307,13 @@
   }
   function segsOf(ch) { return segsFrom(P.segs, ch); }
 
+  /* 這個字現在有沒有可用的簡碼提示 —— 「有簡碼」那個標籤跟 = 的第一步都看它，
+     標了卻按不出東西（為／爲 沒有字根分段）就成了空頭支票。 */
+  function shortPlanOf(ch) {
+    var segs = segsOf(ch);
+    return segs ? shortPlan(ch, segs) : null;
+  }
+
   function fullCodeOf(ch) {
     var e = P.segs && P.segs[ch], out = '';
     if (!e || !e.s) return '';
@@ -318,7 +326,8 @@
     if (!buf || !segs.length) return none;
     // 走別條路也算全對：主碼打完（可能被「頭四尾一」截短）、約定簡碼、兼容碼、完整碼
     if ((P.main && buf === P.main[ch]) ||
-        (d && ((d.codes[buf] && d.codes[buf].indexOf(ch) >= 0) || d.short[buf] === ch))) {
+        (d && ((d.codes[buf] && d.codes[buf].indexOf(ch) >= 0) ||
+               (SHORT_ON && d.short[buf] === ch)))) {
       return { ok: segs.length, bad: false };
     }
     var main = '';
@@ -331,19 +340,75 @@
     return { ok: k, bad: bad };
   }
 
-  function typedSegs(ch, segs) { return typedMatch(ch, segs).ok - 1; }
+  /* 這個字有沒有約定簡碼、簡碼用到哪幾條字根。
+     63 個約定簡碼全部是「頭幾碼＋末一碼」（2026-08-24 實測 dict.json：54 個兩碼、
+     9 個三碼，沒有例外），所以對得回段號 —— 但還是逐碼核對過才回傳，對不上就回
+     null，寧可退回原本的整字提示，也不要把簡碼標在錯的筆畫上。
+     簡碼開關關掉的時候也回 null：畫面上打不出來的東西不該教（跟 lookup() 一樣
+     現查 SHORT_ON，切換馬上生效）。 */
+  function shortPlan(ch, segs) {
+    var d = state.data;
+    if (!SHORT_ON || !d || !d.short_rev) return null;
+    var s = d.short_rev[ch];
+    if (!s || s.length >= segs.length) return null;
+    var head = s.length - 1;                       // 前面幾碼照抄主碼，最後一碼是主碼的末碼
+    for (var i = 0; i < head; i++) {
+      if (segs[i].L.toLowerCase() !== s.charAt(i)) return null;
+    }
+    if (segs[segs.length - 1].L.toLowerCase() !== s.charAt(head)) return null;
+    var order = [];
+    for (var j = 0; j < head; j++) order.push(j);
+    order.push(segs.length - 1);
+    return { code: s, order: order };
+  }
+
+  /* 提示現在講到哪 —— 上色、字母格、說明文字全部看這一份，三邊才不會各算各的。
+       order  提示要走的字根順序。一般照主碼一條一條走；這個字有簡碼（而且簡碼開著）
+              就只走簡碼用到的那幾條 —— 學的人真正該打的是那幾碼，講完整主碼等於
+              教一串他不必打的東西。
+       shown  已經標出筆畫的段號（上色看這個）
+       known  連字母都揭曉了的段號（字母格看這個，其餘顯示問號）
+     自己打對的碼永遠算「已知」，跟提示走到哪取聯集而不是二選一 —— 有簡碼的字照樣
+     可以一路打完整的主碼，那時中間那幾條也該跟著亮起來。 */
+  function hintModel(ch) {
+    var segs = segsOf(ch);
+    if (!segs) return null;
+    var plan = shortPlan(ch, segs);
+    var order = [];
+    if (plan) order = plan.order;
+    else for (var i = 0; i < segs.length; i++) order.push(i);
+
+    var m = typedMatch(ch, segs);
+    var pos = -1;                                  // 提示走到 order 的第幾格
+    if (P.hstep) for (var j = 0; j < order.length; j++) if (order[j] === P.hseg) pos = j;
+
+    var shown = {}, known = {}, any = false;
+    if (plan && state.buf === plan.code) {
+      // 打的是簡碼：只亮簡碼用到的那幾條。typedMatch 走簡碼那條路時回傳「全對」，
+      // 照它上色會把中間那幾條沒打的也標起來，等於自己打臉剛講過的「只要打這兩條」。
+      for (var c = 0; c < order.length; c++) { shown[order[c]] = 1; known[order[c]] = 1; any = true; }
+    } else {
+      for (var k = 0; k < m.ok && k < segs.length; k++) { shown[k] = 1; known[k] = 1; any = true; }
+    }
+    if (plan && P.hov) for (var a = 0; a < order.length; a++) { shown[order[a]] = 1; any = true; }
+    for (var b = 0; b <= pos; b++) {
+      shown[order[b]] = 1; any = true;
+      if (b < pos || P.hstep >= 3) known[order[b]] = 1;
+    }
+    return { segs: segs, order: order, plan: plan, m: m,
+             pos: pos, shown: shown, known: known, any: any };
+  }
 
   /* 預設整個字都是黑的 —— 這裡講的是「這個字長這樣」，不是在講字根，
      上色會讓人以為顏色有意思。被提示到、或自己打對的那幾條字根才上色，
      用的是取碼原則頁那一套彩虹分組色（同一條字根同一個顏色）。 */
   function strokeColours(ch) {
-    var segs = segsOf(ch);
-    if (!segs) return null;
-    var upto = Math.max(P.hstep ? P.hseg : -1, typedSegs(ch, segs));
-    if (upto < 0) return null;
+    var mo = hintModel(ch);
+    if (!mo || !mo.any) return null;
     var map = {};
-    for (var i = 0; i <= upto && i < segs.length; i++) {
-      for (var k = 0; k < segs[i].st.length; k++) map[segs[i].st[k]] = i;
+    for (var i = 0; i < mo.segs.length; i++) {
+      if (!mo.shown[i]) continue;
+      for (var k = 0; k < mo.segs[i].st.length; k++) map[mo.segs[i].st[k]] = i;
     }
     return map;
   }
@@ -407,6 +472,11 @@
       // 約定字：不是照筆畫拆的，整字背下來——標出來，不然學的人會以為
       // 自己看不出字根，其實這個字本來就不歸那套推理管（Wilson）。
       if (P.conv && P.conv.has(now)) P.next.appendChild(el('span', 'conv-badge', '約定字'));
+      // 有簡碼的字先標一句 —— 不寫是哪幾碼，只讓人知道「這個字有捷徑，按 = 會講」。
+      // 簡碼關掉的時候不標：畫面上打不出來的東西不該教（跟 shortPlan 同一個判斷）。
+      if (shortPlanOf(now)) {
+        P.next.appendChild(el('span', 'short-badge', '有簡碼'));
+      }
       P.next.appendChild(el('span', null, '下一個'));
     }
     renderHint(now);
@@ -453,7 +523,7 @@
     if (P.chars[P.pos] !== ch) return;
     P.pos++;
     while (P.chars[P.pos] === '\n') P.pos++;
-    P.hseg = 0; P.hstep = 0;          // 換字了，提示從頭來
+    P.hseg = 0; P.hstep = 0; P.hov = 0;          // 換字了，提示從頭來
     renderPractice();
     render();
   }
@@ -462,49 +532,64 @@
   /* 提示的文字放在田字格底下 —— 講的是格子裡那個字的哪幾筆，就該貼著那個字
      （Wilson）。候選列那一行只留一句「想不出來就按 = 給提示」當入口，
      真正給出來的提示不放那裡。沒按過 / 就整塊不出現。 */
+  var CN_NUM = ['', '一', '兩', '三', '四', '五'];
+
   function renderHint(ch) {
     var box = P.hintbox;
     box.innerHTML = '';
-    var segs = segsOf(ch);
-    if (!segs) return;
+    var mo = hintModel(ch);
+    if (!mo) return;
+    var segs = mo.segs, order = mo.order;
 
     /* 打歪了：前面對的那幾條字根照樣留著顏色（不要整個字變回黑的，那等於
        把好不容易打對的進度也一起收掉），這裡只講「這一碼應該是哪一條字根」。
-       講的是取形意圖，不是字母 —— 直接給字母就沒得練了。 */
-    var m = typedMatch(ch, segs);
-    if (m.bad) {
-      var want = segs[Math.min(m.ok, segs.length - 1)];
+       講的是取形意圖，不是字母 —— 直接給字母就沒得練了。
+       「下一條」照 order 算，不是照主碼的下一段：的 拆成 J·B·A、簡碼是 JA，
+       打完 J 之後該打的是 A 而不是 B。 */
+    if (mo.m.bad) {
+      var wi = order[order.length - 1];
+      for (var q = 0; q < order.length; q++) if (order[q] >= mo.m.ok) { wi = order[q]; break; }
+      var want = segs[wi];
       box.appendChild(el('span', 'tz-wrong', '再試一次'));
       if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
       return;
     }
 
-    /* 沒按過 / 也要給正回饋：自己打對 JK，格子底下就該出現紅 J、黃 K，
+    /* 沒按過 = 也要給正回饋：自己打對 JK，格子底下就該出現紅 J、黃 K，
        顏色跟剛剛亮起來的筆畫對得上（Wilson）。所以只要有打對的碼就顯示。 */
-    if (!P.hstep && !m.ok) return;
+    if (!mo.any) return;
+
+    /* 有簡碼的字，第一步講的是簡碼本身：格子裡只亮簡碼用到的那幾條字根，這裡說
+       「只要打這幾條」。不寫出是哪幾個字母 —— 寫了就沒得練了，字母照樣一條一條給。
+       只在這一步出現：往下走之後，這句話跟三行的取形意圖疊起來會超出留給提示的
+       高度（實測 143px > 120px），整個試打框就會被往下推。「這個字有簡碼」那件事
+       由〈下一個〉那行的標籤一直掛著，不靠這句話撐。 */
+    if (mo.plan && P.hov && !P.hstep) {
+      box.appendChild(el('span', 'tz-short',
+        '這個字有簡碼，只要打這' + (CN_NUM[order.length] || order.length) + '條字根'));
+    }
 
     /* 自己打對的那幾條也要翻牌 —— 提示亮出筆畫、人看懂了、打對了，那一格就該
        從「？」變成字母（顏色跟格子裡那幾筆一樣），才有「猜中了」的回饋（Wilson）。
        所以「已知」有三種來源：提示已經走過去的、提示走到第三步給了字母的、
-       還有自己打對的。 */
-    var typed = m.ok;
-    var upto = Math.max(P.hstep ? P.hseg : -1, typed - 1);
-    var row = el('span', 'tz-hintcodes');
-    for (var i = 0; i <= upto && i < segs.length; i++) {
-      var known = i < P.hseg || (i === P.hseg && P.hstep >= 3) || i < typed;
-      var chip = el('span', 'tz-chip z' + (i % 6) + (known ? '' : ' is-blank'),
-                    known ? segs[i].L : '？');
-      row.appendChild(chip);
+       還有自己打對的（見 hintModel）。 */
+    var row = el('span', 'tz-hintcodes'), any = false;
+    for (var i = 0; i < segs.length; i++) {
+      if (!mo.shown[i]) continue;
+      any = true;
+      var known = !!mo.known[i];
+      row.appendChild(el('span', 'tz-chip z' + (i % 6) + (known ? '' : ' is-blank'),
+                         known ? segs[i].L : '？'));
     }
-    box.appendChild(row);
+    if (any) box.appendChild(row);
 
-    var cur = segs[Math.min(P.hseg, segs.length - 1)];
-    if (P.hstep >= 2 && cur.d) box.appendChild(el('span', 'tz-intent', cur.d));
+    var cur = mo.pos >= 0 ? segs[order[mo.pos]] : null;
+    if (P.hstep >= 2 && cur && cur.d) box.appendChild(el('span', 'tz-intent', cur.d));
 
-    if (typed >= segs.length) {
+    if (mo.m.ok >= segs.length) {
       box.appendChild(el('span', 'tz-more', '打字成功！'));
     } else {
-      var more = P.hseg < segs.length - 1 || P.hstep < 3;
+      var more = mo.pos < order.length - 1 || P.hstep < 3;
       box.appendChild(el('span', 'tz-more', more ? '再按 = 給更多提示' : '已顯示全部編碼'));
     }
   }
@@ -520,19 +605,32 @@
   function hintStep() {
     if (!P.on || P.pos >= P.chars.length) return;
     var ch = P.chars[P.pos];
-    var segs = segsOf(ch);
-    if (!segs) return;
+    var mo = hintModel(ch);
+    if (!mo) return;
+    var segs = mo.segs, order = mo.order;
 
-    var typed = typedSegs(ch, segs);        // 自己打對到第幾條（-1 = 還沒打）
-    if (P.hseg <= typed) {
-      // 提示落後於實際進度：跳到還沒打的第一條，從「標筆畫」開始
-      P.hseg = Math.min(typed + 1, segs.length - 1);
-      P.hstep = typed + 1 > segs.length - 1 ? 3 : 1;
+    /* 有簡碼的字，第一步先講簡碼：把簡碼用到的那幾條字根一次全標出來（Wilson）。
+       兩碼的簡碼就是頭一條跟末一條，中間那幾條不用打——一次看到全貌，才知道
+       接下來要練的是哪兩條，而不是傻傻地一路拆到底。
+       筆畫既然已經在這一步標完了，後面每一條就直接從「說取形意圖」開始，
+       不必再有一步只是把同一批筆畫再標一次。 */
+    if (mo.plan && !P.hov) { P.hov = 1; renderPractice(); return; }
+
+    var typed = mo.m.ok - 1;                // 自己打對到第幾條（-1 = 還沒打）
+    var pos = mo.pos;
+    var min = 0;                            // order 裡第一條還沒被打過去的
+    while (min < order.length && order[min] <= typed) min++;
+    if (pos < 0 || pos < min) {
+      // 提示落後於實際進度：跳到還沒打的第一條
+      pos = Math.min(min, order.length - 1);
+      P.hseg = order[pos];
+      P.hstep = min > order.length - 1 ? 3 : (P.hov ? 2 : 1);
     } else if (P.hstep < 3) {
       P.hstep++;
-    } else if (P.hseg < segs.length - 1) {
-      P.hseg++;
-      P.hstep = 1;
+    } else if (pos < order.length - 1) {
+      pos++;
+      P.hseg = order[pos];
+      P.hstep = P.hov ? 2 : 1;
     }
     if (P.hstep === 2 && !segs[P.hseg].d) P.hstep = 3;   // 沒有取形意圖就跳過那一步
     renderPractice();
@@ -554,7 +652,7 @@
     }
     P.typedBefore[P.chars.length] = n;
     P.total = n;
-    P.pos = 0; P.hseg = 0; P.hstep = 0;
+    P.pos = 0; P.hseg = 0; P.hstep = 0; P.hov = 0;
     setBuf('');
     document.getElementById('practice-src').textContent = '《' + t.title + '》' + t.author;
     [].forEach.call(P.pick.children, function (b, k) {
@@ -623,7 +721,7 @@
       if (!t || t.dataset.i == null) return;
       P.pos = +t.dataset.i;
       while (P.chars[P.pos] === '\n') P.pos++;
-      P.hseg = 0; P.hstep = 0;
+      P.hseg = 0; P.hstep = 0; P.hov = 0;
       setBuf('');
       renderPractice();
       out.focus();
@@ -631,11 +729,11 @@
 
     document.getElementById('practice-skip').addEventListener('click', function () {
       if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
-      P.hseg = 0; P.hstep = 0;
+      P.hseg = 0; P.hstep = 0; P.hov = 0;
       renderPractice(); render(); out.focus();
     });
     document.getElementById('practice-reset').addEventListener('click', function () {
-      P.pos = 0; P.hseg = 0; P.hstep = 0; renderPractice(); render(); out.focus();
+      P.pos = 0; P.hseg = 0; P.hstep = 0; P.hov = 0; renderPractice(); render(); out.focus();
     });
 
     [].forEach.call(host.querySelectorAll('[data-mode]'), function (b) {
@@ -839,6 +937,9 @@
     b.addEventListener('change', function () {
       if (is3) SHORT3_ON = b.checked; else SHORT_ON = b.checked;
       try { localStorage.setItem(key, b.checked ? '1' : '0'); } catch (e) {}
+      // 約定簡碼開關改的正是提示要教哪幾條字根，目前這個字的提示鏈從頭來一次，
+      // 不然會留下一個照舊制走到一半、跟新開關對不上的狀態。
+      if (!is3) { P.hseg = 0; P.hstep = 0; P.hov = 0; if (P.on) renderPractice(); }
       setBuf(state.buf);
       out.focus();
     });

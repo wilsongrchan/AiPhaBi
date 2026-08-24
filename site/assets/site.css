@@ -1927,6 +1927,19 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   white-space: nowrap;
 }
 
+/* 有簡碼的字：跟〈約定字〉同一個藥丸形，但灰的不是 accent 的 —— 約定字講的是
+ * 「這個字不歸拆碼那套推理管」（例外，該搶眼），有簡碼講的是「有捷徑，按 = 會教
+ * 你」（好消息，不該搶戲）。灰底 5.0:1／深色 5.7:1，小字也讀得動。 */
+.short-badge {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: var(--code-bg);
+  border-radius: 999px;
+  padding: .05rem .55rem;
+  white-space: nowrap;
+}
+
 .practice-next {
   margin: .6rem 0 0;
   font-size: .85rem; color: var(--ink-dim);
@@ -1990,6 +2003,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-chip.z5.is-blank { color: var(--rb-5); }
 
 .tz-intent { font-size: .8rem; line-height: 1.5; color: var(--ink); text-align: center; }
+/* 簡碼提示的第一句（「這個字有簡碼，只要打這兩條字根」）。比取形意圖淡一階：
+ * 它是框住整件事的一句話，不是這一步要讀的內容。 */
+.tz-short { font-size: .78rem; line-height: 1.5; color: var(--ink-dim); text-align: center; }
 /* 打歪的時候：候選列裡那幾碼標紅，田字格底下說「應該是哪一條字根」。
  * 已經打對的字根照樣留著顏色 —— 整個字變回黑的等於把進度也收掉了（Wilson）。 */
 .rail .buf .is-bad { color: var(--warn); }
