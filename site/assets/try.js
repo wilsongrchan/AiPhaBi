@@ -468,15 +468,16 @@
       P.next.appendChild(el('b', null, now));
       P.next.appendChild(el('span', 'warn', '尚未取碼，按「跳過這個字」'));
     } else if (now) {
+      // 有簡碼的字先標一句 —— 不寫是哪幾碼，只讓人知道「這個字有捷徑，按 = 會講」。
+      // 簡碼關掉的時候不標：畫面上打不出來的東西不該教（跟 shortPlan 同一個判斷）。
+      // 放在字的**左邊**（Wilson）：它是講後面那個字的，擺右邊會先讀成「下一個」的修飾語。
+      if (shortPlanOf(now)) {
+        P.next.appendChild(el('span', 'short-badge', '有簡碼'));
+      }
       P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
       // 約定字：不是照筆畫拆的，整字背下來——標出來，不然學的人會以為
       // 自己看不出字根，其實這個字本來就不歸那套推理管（Wilson）。
       if (P.conv && P.conv.has(now)) P.next.appendChild(el('span', 'conv-badge', '約定字'));
-      // 有簡碼的字先標一句 —— 不寫是哪幾碼，只讓人知道「這個字有捷徑，按 = 會講」。
-      // 簡碼關掉的時候不標：畫面上打不出來的東西不該教（跟 shortPlan 同一個判斷）。
-      if (shortPlanOf(now)) {
-        P.next.appendChild(el('span', 'short-badge', '有簡碼'));
-      }
       P.next.appendChild(el('span', null, '下一個'));
     }
     renderHint(now);
