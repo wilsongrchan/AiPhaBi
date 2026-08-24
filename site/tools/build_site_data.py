@@ -373,21 +373,29 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
                     {"thr": sh.get("thr", gthr), "vecs": vecs,
                      "desc": (it.get("desc") or "").strip()})
 
-    out, unmatched = {}, 0
-    for ch in sorted(chars):
-        rec = codes.get(ch)
-        if not rec or not rec.get("segments"):
-            continue
-        med = medians(ch)
-        if not med:
-            continue
-        # 孤筆略過原則（rules.json 的 skip_isolated_hv，全表唯一會略過筆畫的規則）：
-        # 中途有一橫或一豎組不成字根就不取碼。學的人打到那裡最容易補一個 I 或 J
-        # 上去（教 = TXPX，很多人會打成 TXPIX），所以標出「這一段前面有被略過的
-        # 筆畫」，試打頁打錯時才講得出是哪一條原則絆到人（Wilson）。
-        skipped = set(rec.get("skipped") or ())
+    # 「頭四尾一」：碼超過 max 就只打頭 head 段加尾 tail 段，中間那幾段不用打。
+    # 主碼、兼容碼各自算各自的（兩套拆法段數常常不一樣）。
+    p = (max_rule or {}).get("params", {}) if max_rule else {}
+    mx, head, tail = p.get("max", 5), p.get("head", 4), p.get("tail", 1)
+
+    def order_of(n):
+        if not max_rule or n <= mx:
+            return list(range(n))
+        return list(range(head)) + ([n - tail + i for i in range(tail)] if tail else [])
+
+    def one_path(segments, skipped_raw):
+        """一套拆法（主碼或某一條兼容碼）→ {"s": 每段, "c": 主碼用到第幾段}。
+
+        每一段標三件事：字母、哪幾筆、比對到的字根取形意圖。再加一個 k：
+        孤筆略過原則（rules.json 的 skip_isolated_hv，全表唯一會略過筆畫的規則）
+        在**這一段前面**丟掉了一筆。學的人打到那裡最容易補一個 I 或 J 上去
+        （教 = TXPX，很多人會打成 TXPIX），試打頁靠這個旗標才講得出是哪一條
+        原則絆到人（Wilson）。
+        """
+        nonlocal unmatched
+        skipped = set(skipped_raw or ())
         segs = []
-        for si, seg in enumerate(rec["segments"]):
+        for si, seg in enumerate(segments):
             try:
                 v = stroke_vec([med[i] for i in seg["strokes"]])
             except IndexError:
@@ -403,23 +411,33 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
             one = {"L": seg["letter"], "st": seg["strokes"],
                    "d": best["desc"] if best else ""}
             if skipped and seg["strokes"]:
-                prev = max(rec["segments"][si - 1]["strokes"]) if si else -1
+                prev = max(segments[si - 1]["strokes"]) if si else -1
                 lo = min(seg["strokes"])
                 if any(prev < x < lo for x in skipped):
                     one["k"] = 1
             segs.append(one)
-        # ⚠️ 提示要照**主碼**走，不是照分段走。碼超過 max 就「頭四尾一」，
-        # 中間那幾段根本不用打 —— 例：親 分段是 I V T D J … L，主碼卻是 IVTDL，
-        # 第五碼是最後那一段的 L，不是第五段的 J。照分段給提示會叫人打 J，
-        # 而 J 打下去是錯的。所以另外記主碼用到的是哪幾段（照打的順序）。
-        n = len(segs)
-        p = (max_rule or {}).get("params", {}) if max_rule else {}
-        mx, head, tail = p.get("max", 5), p.get("head", 4), p.get("tail", 1)
-        if not max_rule or n <= mx:
-            order = list(range(n))
-        else:
-            order = list(range(head)) + ([n - tail + i for i in range(tail)] if tail else [])
-        out[ch] = {"s": segs, "c": order}
+        return {"s": segs, "c": order_of(len(segs))}
+
+    out, unmatched = {}, 0
+    for ch in sorted(chars):
+        rec = codes.get(ch)
+        if not rec or not rec.get("segments"):
+            continue
+        med = medians(ch)
+        if not med:
+            continue
+        # ⚠️ 提示要照**主碼**走，不是照分段走：親 分段是 I V T D J … L，主碼卻是
+        # IVTDL，第五碼是最後那一段的 L，不是第五段的 J。照分段給提示會叫人打 J，
+        # 而 J 打下去是錯的（Wilson 抓到）。order_of() 就是在算這個。
+        ent = one_path(rec["segments"], rec.get("skipped"))
+        # 兼容碼是**另一套拆法**，段跟主碼對不上（教 主碼 T[0,1] X[2,3] P[4,5] X[7…]，
+        # 兼容碼 F[0,1,2] J[3] P[4,5] X[7…]）。所以各存一套，試打頁才知道使用者
+        # 現在打的是哪一套、該把哪幾筆上色（Wilson：打兼容碼時完全沒有回饋）。
+        alts = [one_path(a["segments"], a.get("skipped"))
+                for a in (rec.get("alts") or []) if a.get("segments")]
+        if alts:
+            ent["a"] = alts
+        out[ch] = ent
     if unmatched:
         print(f"  （{unmatched} 個字段比對不到字根，那幾段的 `/` 只給筆畫和字母）")
     return out

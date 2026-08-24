@@ -211,7 +211,7 @@
     // 跟著打的時候，打歪的那幾碼標紅 —— 錯在第幾碼一眼看得出來
     var split = null;
     if (P.on && P.pos < P.chars.length) {
-      var tgt = P.chars[P.pos], tsegs = segsOf(tgt);
+      var tgt = P.chars[P.pos], ap = activePath(tgt), tsegs = ap && ap.segs;
       if (tsegs && tsegs.length) {
         var mm = typedMatch(tgt, tsegs);
         // 從「還有機會變成這個字」的地方斷，不是從主碼比到哪斷 —— 走兼容碼的人
@@ -268,8 +268,13 @@
     //   0 還沒開始 · 1 標出筆畫 · 2 說取形意圖 · 3 給字母
     // 按一次 = 往前一步，走完一個字根就換下一個。字換了就整個歸零。
     // hov = 有簡碼的字，第一步的「簡碼總覽」給過了沒有（見 hintStep）。
-    hseg: 0, hstep: 0, hov: 0
+    // hpath = 上一次算出來「現在走的是哪一套拆法」的碼（見 setBuf）。
+    hseg: 0, hstep: 0, hov: 0, hpath: null
   };
+
+  /* 提示鏈歸零。hseg 是段號，而段號只在**某一套拆法**裡有意義 —— 換字、換篇、
+     換打法（主碼↔兼容碼）都得歸零，留著會亮在錯的筆畫上。 */
+  function resetHint(path) { P.hseg = 0; P.hstep = 0; P.hov = 0; P.hpath = path || null; }
 
   // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
   // 字形的 y 軸要翻過來 —— graphics.txt 的座標系原點在左下，位移是 900 不是 1024。
@@ -300,14 +305,49 @@
      親 的分段是 I V T D J L，主碼卻是 IVTDL，第五碼是最後那段的 L 而不是 J。
      提示、上色、進度全部走這一份，不然會叫人打一個打下去是錯的碼（Wilson 抓到）。
      被略過的那幾段沒有對應的碼，就一直是黑的 —— 那正好看得出「頭四尾一」丟掉了誰。 */
-  function segsFrom(table, ch) {
-    var e = table && table[ch];
+  function segsOfEntry(e) {
     if (!e || !e.s || !e.s.length) return null;
     var list = [];
     for (var i = 0; i < e.c.length; i++) if (e.s[e.c[i]]) list.push(e.s[e.c[i]]);
     return list.length ? list : null;
   }
+  function segsFrom(table, ch) { return segsOfEntry(table && table[ch]); }
   function segsOf(ch) { return segsFrom(P.segs, ch); }
+
+  function codeOfSegs(segs) {
+    var s = '';
+    for (var i = 0; i < segs.length; i++) s += segs[i].L.toLowerCase();
+    return s;
+  }
+
+  /* 這個字有幾套拆法：主碼一套，每條兼容碼各一套（practice.json 的 a[]）。
+     兼容碼是**另一套拆法**，段跟主碼對不上 —— 教 主碼是 T[0,1] X[2,3] P[4,5] X[7…]，
+     兼容碼 FJPX 卻是 F[0,1,2] J[3] P[4,5] X[7…]。所以上色、字母格、提示都得先認
+     清楚現在走的是哪一套，不然打兼容碼要嘛沒回饋、要嘛亮在錯的筆畫上。 */
+  function pathsOf(ch) {
+    var e = P.segs && P.segs[ch], out = [], s = segsOfEntry(e);
+    if (!e) return out;
+    if (s) out.push({ segs: s, isMain: true });
+    for (var i = 0; e.a && i < e.a.length; i++) {
+      var a = segsOfEntry(e.a[i]);
+      if (a) out.push({ segs: a, isMain: false });
+    }
+    return out;
+  }
+
+  /* 現在打的是哪一套：拿 buf 跟每一套的碼比前綴，最長的那套贏。平手算主碼 ——
+     還沒打字、或前幾碼兩套一樣的時候，該教的是主碼那一套。 */
+  function activePath(ch) {
+    var list = pathsOf(ch);
+    if (!list.length) return null;
+    var buf = state.buf, best = list[0], bn = -1;
+    for (var i = 0; i < list.length; i++) {
+      var p = codeOfSegs(list[i].segs), n = 0;
+      while (n < buf.length && n < p.length && buf.charAt(n) === p.charAt(n)) n++;
+      if (n > bn) { bn = n; best = list[i]; }
+    }
+    return best;
+  }
 
   /* 這個字現在有沒有可用的簡碼提示 —— 「有簡碼」那個標籤跟 = 的第一步都看它，
      標了卻按不出東西（為／爲 沒有字根分段）就成了空頭支票。 */
@@ -408,9 +448,11 @@
      自己打對的碼永遠算「已知」，跟提示走到哪取聯集而不是二選一 —— 有簡碼的字照樣
      可以一路打完整的主碼，那時中間那幾條也該跟著亮起來。 */
   function hintModel(ch) {
-    var segs = segsOf(ch);
-    if (!segs) return null;
-    var plan = shortPlan(ch, segs);
+    var ap = activePath(ch);
+    if (!ap) return null;
+    var segs = ap.segs;
+    // 簡碼是主碼那一套的捷徑，兼容碼沒有簡碼 —— 走兼容碼時不談簡碼
+    var plan = ap.isMain ? shortPlan(ch, segs) : null;
     var order = [];
     if (plan) order = plan.order;
     else for (var i = 0; i < segs.length; i++) order.push(i);
@@ -561,7 +603,7 @@
     if (P.chars[P.pos] !== ch) return;
     P.pos++;
     while (P.chars[P.pos] === '\n') P.pos++;
-    P.hseg = 0; P.hstep = 0; P.hov = 0;          // 換字了，提示從頭來
+    resetHint();          // 換字了，提示從頭來
     renderPractice();
     render();
   }
@@ -701,7 +743,7 @@
     }
     P.typedBefore[P.chars.length] = n;
     P.total = n;
-    P.pos = 0; P.hseg = 0; P.hstep = 0; P.hov = 0;
+    P.pos = 0; resetHint();
     setBuf('');
     document.getElementById('practice-src').textContent = '《' + t.title + '》' + t.author;
     [].forEach.call(P.pick.children, function (b, k) {
@@ -770,7 +812,7 @@
       if (!t || t.dataset.i == null) return;
       P.pos = +t.dataset.i;
       while (P.chars[P.pos] === '\n') P.pos++;
-      P.hseg = 0; P.hstep = 0; P.hov = 0;
+      resetHint();
       setBuf('');
       renderPractice();
       out.focus();
@@ -778,11 +820,11 @@
 
     document.getElementById('practice-skip').addEventListener('click', function () {
       if (P.pos < P.chars.length) { P.pos++; while (P.chars[P.pos] === '\n') P.pos++; }
-      P.hseg = 0; P.hstep = 0; P.hov = 0;
+      resetHint();
       renderPractice(); render(); out.focus();
     });
     document.getElementById('practice-reset').addEventListener('click', function () {
-      P.pos = 0; P.hseg = 0; P.hstep = 0; P.hov = 0; renderPractice(); render(); out.focus();
+      P.pos = 0; resetHint(); renderPractice(); render(); out.focus();
     });
 
     [].forEach.call(host.querySelectorAll('[data-mode]'), function (b) {
@@ -936,6 +978,16 @@
   function setBuf(b) {
     state.buf = b;
     state.cands = lookup(b);
+    /* 打著打著換了一套拆法（開始打兼容碼）就把提示鏈歸零：兩套的段號指的不是
+       同一批筆畫，沿用會亮在錯的地方。要在 render() 之前判斷，這一次的畫面才
+       是新的那一套。 */
+    if (P.on && P.pos < P.chars.length) {
+      var ap = activePath(P.chars[P.pos]);
+      var id = ap ? codeOfSegs(ap.segs) : null;
+      // null＝這個字還沒認過打法（剛換字），認下來就好，不要把剛按出來的提示洗掉
+      if (P.hpath === null) P.hpath = id;
+      else if (id !== P.hpath) resetHint(id);
+    }
     render();
     renderCell();          // 打對幾碼就亮幾條字根
   }
@@ -988,7 +1040,7 @@
       try { localStorage.setItem(key, b.checked ? '1' : '0'); } catch (e) {}
       // 約定簡碼開關改的正是提示要教哪幾條字根，目前這個字的提示鏈從頭來一次，
       // 不然會留下一個照舊制走到一半、跟新開關對不上的狀態。
-      if (!is3) { P.hseg = 0; P.hstep = 0; P.hov = 0; if (P.on) renderPractice(); }
+      if (!is3) { resetHint(); if (P.on) renderPractice(); }
       setBuf(state.buf);
       out.focus();
     });
