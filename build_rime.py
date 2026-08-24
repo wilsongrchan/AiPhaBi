@@ -333,44 +333,73 @@ def main():
     char2code = {c: shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
+    # alts（兼容碼）＝另一條也打得出這個字的路，跟左簡碼曾經犯過同一種錯（cca07ff）：
+    # 詞組連打／四碼快打以前只採主碼，字有 alts 卻完全沒被用上——用 alts 那條路拼出來的
+    # 字，接不上詞組快打／四碼快打的捷徑。這裡把每個字所有「打得出它」的縮短碼收一份，
+    # main 在前、alts 依序在後、去重（實測：317 字有 alts，451/4050 條精選詞含這種字；
+    # 12 字有 ≥2 條 alts，最多 3 條；56 條 alts 的首字母跟主碼不同——四碼快打是按首字母
+    # 取碼，首字母不同才會生出不一樣的簽名，116/2711 條可四碼快打的精選詞受影響，
+    # 包含 臺北市／高雄市／上海市／京都大學 這種常用詞）。
+    char_alt_codes = defaultdict(list)
+    for _c, _rec in codes.items():
+        _mc = char2code.get(_c)
+        if not _mc:
+            continue
+        for _a in _rec.get("alts", []):
+            _ac = shorten(_a.get("code", ""), max_rule).lower()
+            if _ac and _ac != _mc and _ac not in char_alt_codes[_c]:
+                char_alt_codes[_c].append(_ac)
+
     # ---- 詞組連打：常用詞 = 各字「簡碼（無簡碼則主碼）」串接 ----
     # 例：我的 = 我jkq + 的ja = jkqja；中國人 = 中q + 國oq + 人y = qoqy；香港 = 香jtb + 港whvz = jtbwhvz。
     # 打前綴（jkqj）即由 enable_completion 補出整個詞。詞收進共用碼表：二合一（＋拼音）預設就有；
     # 純愛發筆用 aiphabi_phrase 開關控制（預設關，像三簡碼一樣自己開來用），關掉時由 aiphabi_phrase.lua 濾掉多字候選。
     PHRASE_TOPN = 40000
     # 每字有兩式：主碼；短碼＝簡碼優先、否則三簡碼(主碼≥4，頭2末1)、否則主碼。各字串接即詞組碼。
-    #   兩字詞：每字「短/主」任意搭配四式都收（短短、短主、主短、主主）——不用記哪個字該用哪式。
-    #           我的＝jkqja（短短）/jkqjba（短主）/jkxqja（主短）/jkxqjba（主主）。
-    #   3+字詞：整詞統一三式（main／簡碼優先／三簡碼優先），免得組合爆炸。
+    #   兩字詞：每字「短/主/alts」任意搭配都收——不用記哪個字該用哪式，alts 有幾條就多幾式。
+    #           我的＝jkqja（短短）/jkqjba（短主）/jkxqja（主短）/jkxqjba（主主）；
+    #           有 alts 的字（如 主）再多幾種：if 那條兼容碼也能接上下一字組出詞組碼。
+    #   3+字詞：整詞統一四式（main／簡碼優先／三簡碼優先／alt），免得組合爆炸——alt 式
+    #           是「有 alts 就用第一條、沒有就退回主碼」，逐字獨立判斷，不是每字都要有 alts。
     def _pcode(ch, mode):
         mc = char2code.get(ch)                    # 主碼
         if mode == "main":
             return mc
+        if mode == "alt":
+            _alts = char_alt_codes.get(ch)         # 這個字有 alts 就用第一條，沒有就跟 main 一樣
+            return _alts[0] if _alts else mc
         sc = shortcode_rev.get(ch)                # 簡碼
         if sc:
             return sc
         if mode == "t3" and mc and len(mc) >= 4:
             return mc[0] + mc[1] + mc[-1]         # 三簡碼：頭2+末1
         return mc
-    def _char_short(ch):                          # 短碼：簡碼 > 三簡碼(主碼≥4) > 主碼
+    def _char_options(ch):                        # 詞組連打用：這個字所有「值得串進詞組」的碼
+        mc = char2code.get(ch)
+        if not mc:
+            return []
+        opts = []
         sc = shortcode_rev.get(ch)
         if sc:
-            return sc
-        mc = char2code.get(ch)
-        if mc and len(mc) >= 4:
-            return mc[0] + mc[1] + mc[-1]
-        return mc
+            opts.append(sc)
+        elif len(mc) >= 4:
+            opts.append(mc[0] + mc[1] + mc[-1])   # 三簡碼（沒有簡碼才退而求其次收這條）
+        opts.append(mc)
+        for ac in char_alt_codes.get(ch, ()):     # 兼容碼：另一條打得出這個字的路，一併收
+            if ac not in opts:
+                opts.append(ac)
+        return opts
     def _word_codes(w):                           # 回傳 {碼,...}；任一字沒取碼就回 None（整詞收不了）
         chs = list(w)
         if any(char2code.get(ch) is None for ch in chs):
             return None
         out = set()
         if len(chs) == 2:
-            for a in (_char_short(chs[0]), char2code[chs[0]]):
-                for b in (_char_short(chs[1]), char2code[chs[1]]):
+            for a in _char_options(chs[0]):
+                for b in _char_options(chs[1]):
                     out.add(a + b)
         else:
-            for mode in ("main", "simp", "t3"):
+            for mode in ("main", "simp", "t3", "alt"):
                 out.add("".join(_pcode(ch, mode) for ch in chs))
         return out
 
@@ -422,6 +451,9 @@ def main():
             for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
                 _f.write(f"{_w}\t{_code}\t{_wt}\n")
         print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN} + 精選詞庫 data/phrases_*.txt）")
+        _alt_words = sum(1 for _w in phrase_w if any(_c in char_alt_codes for _c in _w))
+        if _alt_words:
+            print(f"  含兼容碼路徑的詞 {_alt_words} 個（alts 也能接上詞組連打，不再只認主碼）")
     if place_skipped:
         print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
 
@@ -431,29 +463,58 @@ def main():
     #   5+ 字：兩式都收——前四字各首碼（從開頭打就行，記得開頭即可）＝中華人民共和國 QHYC；
     #          外加 前三字+末字首碼（記得整句可精準定位，消 中國人民X 那種撞碼）＝解放軍 QOY+軍。
     # 撞碼的照詞頻排（常用在前），每碼上限收 24 個免爆。
+    #
+    # alts：某個位置的字若有兼容碼，那個位置的首（或末）字母可能不一樣，就該多一個簽名
+    # 讓打那條路的人也找得到（同前面 char_alt_codes 的教訓）。逐位置替換、不做全笛卡兒積——
+    # 一次只換一個位置，其餘維持 base，避免多個位置同時有 alts 時簽名數暴增；反正實測
+    # 只有 12 字有 ≥2 條 alts，罕見到不值得為它多開一層組合。
+    def _si4_letter_opts(ch, want_last):          # 這個位置可能的字母，main 在前，alts 依序去重
+        opts = []
+        mc = char2code.get(ch)
+        if mc:
+            opts.append(mc[-1] if want_last else mc[0])
+        for _ac in char_alt_codes.get(ch, ()):
+            _l = _ac[-1] if want_last else _ac[0]
+            if _l not in opts:
+                opts.append(_l)
+        return opts
+    def _si4_signatures(positions):                # positions: [(字, 取末碼?), ...] 四個位置
+        _base = [_si4_letter_opts(_c, _last)[0] for _c, _last in positions]
+        _sigs = ["".join(_base)]
+        for _i, (_c, _last) in enumerate(positions):
+            for _alt_l in _si4_letter_opts(_c, _last)[1:]:
+                _variant = list(_base)
+                _variant[_i] = _alt_l
+                _sigs.append("".join(_variant))
+        return list(dict.fromkeys(_sigs))          # 去重，保序（base 永遠是第一個）
+
     si4 = defaultdict(list)
     si4_rev = {}    # 詞 -> 四碼：打了詞組連打的完整碼，剛好有四碼快打可用，就提醒「其實有四碼」
                     # （跟簡碼／左簡碼同一套反向提醒；5+ 字詞兩式都收，提醒只留第一式＝前四字首碼，
-                    # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒）
+                    # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒；alts 生出的
+                    # 額外簽名一律不提醒——提醒只教「最好記的那條」，不是每條路都講）
+    si4_alt_words = 0   # 統計用：多虧 alts 才多出額外簽名的詞數，蓋建置報告一行
     for _w, _wt in phrase_w.items():
         _chs = list(_w)
         if len(_chs) < 3 or any(_c not in char2code for _c in set(_chs[:4]) | {_chs[-1]}):
             continue
         _codes4 = []
         if len(_chs) == 3:
-            _codes4.append(char2code[_chs[0]][0] + char2code[_chs[1]][0]
-                           + char2code[_chs[2]][0] + char2code[_chs[2]][-1])
+            _codes4 += _si4_signatures([(_chs[0], False), (_chs[1], False),
+                                         (_chs[2], False), (_chs[2], True)])
         elif len(_chs) == 4:
-            _codes4.append("".join(char2code[_c][0] for _c in _chs))
+            _codes4 += _si4_signatures([(_c, False) for _c in _chs])
         else:  # 5+：前四字首碼 ＋ 前三字+末字首碼
-            _codes4.append("".join(char2code[_c][0] for _c in _chs[:4]))
-            _codes4.append("".join(char2code[_c][0] for _c in _chs[:3]) + char2code[_chs[-1]][0])
+            _codes4 += _si4_signatures([(_c, False) for _c in _chs[:4]])
+            _codes4 += _si4_signatures([(_c, False) for _c in _chs[:3]] + [(_chs[-1], False)])
+        if any(_c in char_alt_codes for _c in (set(_chs[:4]) | {_chs[-1]})):
+            si4_alt_words += 1
         for _c4 in _codes4:
             si4[_c4].append((_wt, _w))        # 完整四碼
             si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
         _wc = _word_codes(_w)                 # 只有「四碼真的比平常打法短」才提醒，不然沒省到
         if _wc and min(len(_c) for _c in _wc) > 4:
-            si4_rev[_w] = _codes4[0]
+            si4_rev[_w] = _codes4[0]          # base 簽名（每個位置的第一選項），最好記的那條
     for _c in list(si4):                      # 依詞頻排、去重、每碼上限 24
         _seen, _out = set(), []
         for _, _w in sorted(si4[_c], key=lambda x: -x[0]):
@@ -462,6 +523,8 @@ def main():
         si4[_c] = _out[:24]
     print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼；"
           f"其中 {len(si4_rev)} 詞真的比平常打法短，才給「四碼」提醒")
+    if si4_alt_words:
+        print(f"  含兼容碼路徑的詞 {si4_alt_words} 個（alts 也能生出額外簽名，不再只認主碼首字母）")
 
     # 約定簡碼開關：規則關掉、或算出來根本沒半條時，就別讓這個開關出現在方案選單裡礙眼
     # 注意：這裡不設 reset —— Rime 每次啟動引擎（開機／重新部署）都會用 reset 的值
