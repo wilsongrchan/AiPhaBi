@@ -126,6 +126,13 @@
 
 * { box-sizing: border-box; }
 
+/* [hidden] 原本靠瀏覽器內建樣式生效，但只要哪個元素自己另外設了 display
+   （這裡幾乎每個區塊都有），author stylesheet 的 display 會蓋掉 UA stylesheet
+   的 [hidden]{display:none}——兩邊 specificity 打平，author 後到者贏。試打頁
+   切換「自由試打」時 practice-head 等區塊設回 hidden 卻沒消失，就是這個原因
+   （見 try.js setMode）。這條規則保證 hidden 永遠贏。 */
+[hidden] { display: none !important; }
+
 /* 只給螢幕閱讀器看的標籤 */
 .sr-only {
   position: absolute;
@@ -1069,11 +1076,23 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   outline-offset: 1px;
 }
 
+/* resize:vertical 的 textarea 在 Chromium 下一個兄弟元素前面會多出約 8px
+   說不出從哪來的間距——量過 CSS 盒模型（margin／padding／border）都對不上，
+   換一個完全沒有 class 的空 div 放在後面照樣多 8px，是瀏覽器對「可調整大小
+   的 textarea」內建的行為，不是這裡哪個屬性算錯。跟 .rail 之間留的 .7rem
+   margin-top 因此變成視覺上比其他地方的 .7rem 多一截，這裡扣掉那 8px，
+   跟下面拼音那排（rail→.pyq-row）的間距才看起來一樣（Wilson）。 */
+.typebox textarea + .rail { margin-top: .2rem; }
+
 .rail {
   display: flex;
   align-items: center;
   gap: .6rem;
-  min-height: 2.9rem;
+  /* 固定高度，不是 min-height：候選字太多時橫向捲軸會冒出來，如果只設
+     min-height，捲軸會把這個框撐高一截，讓底下的東西跟著跳一下
+     （Wilson 抓到：候選字有幾個跟沒有候選字，這個框高度不一樣）。
+     固定高度讓捲軸自己內縮，框本身永遠一樣高。 */
+  height: 2.9rem;
   margin-top: .7rem;
   padding: .35rem .6rem;
   border: 1px solid var(--line);
@@ -1730,8 +1749,41 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   margin: 0 0 1.4rem;
 }
 
-/* practice.json 沒產出來時 JS 會加這個 —— 收成單欄，只剩試打框 */
+/* practice.json 沒產出來時 JS 會加這個 —— 收成單欄，只剩試打框
+   （見 try.js setupPractice；載入之後兩個模式都是兩欄，不會再收回單欄）。 */
 .tryarea.is-plain { grid-template-columns: minmax(0, 1fr); }
+
+/* 模式切換那排橫跨兩欄、自己佔一整列（見 try.html 裡它是 .tryarea 的第一個
+   子元素，不在 .tryarea-main 裡）——這樣試打文本／自由試打切換時，左欄的
+   試打框跟右欄的內容（田字格或拼音查字）永遠從同一條線開始，不會因為模式
+   不同而跳來跳去（Wilson：拼音查字框的上緣要跟試打框切齊）。 */
+.try-mode { grid-column: 1 / -1; margin: 0 0 .8rem; }
+
+/* 簡碼／三簡碼開關：兩組各一顆的獨立開關（不是一組互斥的兩顆），跟模式
+   切換一樣橫跨兩欄、貼在它下面。 */
+.short-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  margin: 0 0 .8rem;
+}
+
+.chk-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  cursor: pointer;
+}
+
+.chk-toggle input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 
 /* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
    在同一畫面上多露一列（Wilson）。 */
@@ -1781,6 +1833,25 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 }
 .practice-tip { font-size: .75rem; color: var(--ink-faint); }
 
+/* 進度長條：跟旁邊的「X / Y　Z%」文字講同一件事，用寬度再視覺化一次——
+   數字要心算，長條一眼看出走了多遠（Wilson：想在百分比底下加一條）。
+   寬度用 inline style 直接設，transition 讓它跟著打字平滑地長，不是跳一下。 */
+.practice-progbar {
+  width: 100%;
+  height: .35rem;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: .5rem;
+}
+.practice-progbar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width .25s ease-out;
+}
+
 /* 篇目選單：一篇一顆，現在這篇用主色實心標出來 */
 .practice-pick { display: inline-flex; gap: .3rem; margin-inline-start: auto; }
 .practice-pickbtn {
@@ -1822,6 +1893,38 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 5.5rem; color: var(--ink); line-height: 1;
+}
+
+/* 慶祝畫面：整篇打完了，田字格裡放幾個 emoji 小小彈一下，取代原本要畫的字
+ * （見 try.js celebrateCell）。跟 .tz-fallback 一樣疊在格子中央，動畫很短，
+ * 每片彈跳的時間錯開一點點（inline style 的 animation-delay），看起來比較
+ * 活潑，不是全部同時跳一下（Wilson：完成時想要一點慶祝感）。 */
+.tz-confetti {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
+  pointer-events: none;
+}
+.tz-confetti-piece {
+  font-size: 2.2rem;
+  animation: tz-confetti-pop .6s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+@keyframes tz-confetti-pop {
+  0%   { transform: scale(0) translateY(8px) rotate(-10deg); opacity: 0; }
+  100% { transform: scale(1) translateY(0) rotate(0deg); opacity: 1; }
+}
+
+/* 約定字標籤：這個字不是照筆畫拆的，是整字背下來的（rules.json 的
+ * convention 規則，見〈約定字表〉）——標出來，免得學的人以為自己看不出
+ * 字根，其實這個字本來就不歸那套推理管（Wilson）。跟〈約定字表〉、
+ * 〈取碼原則〉頁裡標籤類的用色一致（accent 底色、accent 字）。 */
+.conv-badge {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: .05rem .55rem;
+  white-space: nowrap;
 }
 
 .practice-next {
@@ -1892,6 +1995,57 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .rail .buf .is-bad { color: var(--warn); }
 .tz-wrong { font-size: .8rem; font-weight: 600; color: var(--warn); }
 .tz-more { font-size: .72rem; color: var(--ink-faint); }
+
+/* 自由試打的拼音查字，分兩塊：
+ * 1. 輸入框＋候選（.pyq-row）住在左欄，貼在試打框自己的候選列（#rail）
+ *    下面、同一列。左右是**兩個獨立的框**，不是一個框套一個框（Wilson 指出
+ *    輸入框自己的邊框跟外層候選列的邊框疊在一起，看起來像框中框）——輸入框
+ *    窄、候選框借 .rail 的樣式貼著它右邊，中間只留一點點縫，看起來像同一條
+ *    （Wilson：候選框要緊接在輸入框右邊）。
+ * 2. 拆碼圖（.pyq，右欄）固定在側欄，跟左欄完全分開——這樣候選字換了
+ *    拼音、行數變多變少，也不會牽動拆碼圖的位置（Wilson）。 */
+/* 上邊距跟 .rail 自己的 margin-top 一樣（.7rem）——textarea→#rail 跟
+   #rail→這一排要同一個間距，兩條「候選列」上下疊起來間距才均勻
+   （Wilson：兩條候選列中間的間距不一致）。 */
+.pyq-row { display: flex; align-items: stretch; gap: .35rem; margin-top: .7rem; }
+
+.pyq-input {
+  flex: none;
+  width: 12.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  padding: 0 .6rem;
+  font: inherit;
+  font-size: .95rem;
+}
+.pyq-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* 輸入框的提示字跟候選框「查無此字」那句提示，字色／字級要一致——兩個框
+   現在緊挨著，一句話沒打完接另一句，深淺、大小不一樣會很明顯（Wilson）。
+   跟 .rail .empty 用同一組值。 */
+.pyq-input::placeholder { color: var(--ink-dim); opacity: 1; font-size: .78rem; }
+
+/* 候選框借 .rail 的樣式（邊框／底色／固定高度），但這裡是橫排裡的一個
+   item，.rail 自己的 margin-top 是給「接在上一個區塊下面」用的，這裡
+   用 .pyq-row 的 gap 取代，要歸零，不然會被拉出兩層間距。 */
+.pyq-cands-box { flex: 1; min-width: 0; margin-top: 0; }
+
+/* 拆碼圖那一塊：跟 .typebox 的上外距（.9rem）一樣，讓這個面板的上緣跟
+   左邊試打框的 textarea 上緣切齊（Wilson）。田字格跟色塊碼都給固定高度
+   （不是 min-height）：選字之前／之後、有沒有取形意圖，高度都一樣，
+   不會讓側欄一下高一下矮，把下面按鍵指南的位置跟著跳一下
+   （Wilson：選字前後右欄框在跳）。 */
+.pyq { margin-top: .9rem; }
+.pyq .tianzi { margin-top: 0; height: 13rem; }
+/* 基礎的 .tz-hint 有 min-height:7.5rem（給練習模式的多行取形意圖用），這裡
+   只放一行色塊碼，不用蓋那麼大——沒蓋掉 min-height 的話，實際高度會被那個
+   7.5rem 頂住，拆碼圖右欄比左邊的輸入框／候選框那排高一大截，兩欄拉齊之後
+   輸入框那排下面就會空出一大塊白（Wilson 抓到）。 */
+/* 高度留夠兩行（色塊碼一行＋約定字標籤一行），不管標籤有沒有出現都一樣高——
+   跟固定高度那套邏輯一致（見上面拆碼圖／田字格的說明），選到約定字跟選到
+   一般字，側欄高度不該不一樣。 */
+.pyq .tz-hint { margin-top: .6rem; height: 3.3rem; min-height: 0; }
 
 /* 按鍵指南：兩欄並排。用 grid 而不是表格 —— 表格要橫向捲才塞得下兩組，
  * grid 在窄螢幕自己收成一欄。每一格是「鍵｜說明」，鍵那一欄寬度看內容，

@@ -1,2 +1,6 @@
 # 倉頡拆碼圖的取色（cangjie_map.py）需要 Pillow；其餘功能只用標準庫。
 Pillow>=10
+
+# 拼音查字（site/tools/build_site_data.py 的 build_pinyin()，供〈自由試打〉頁用）
+# 需要 pypinyin 查每個字的讀音；只在建置網站資料時用，不會出現在網站本身。
+pypinyin>=0.50
