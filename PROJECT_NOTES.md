@@ -779,6 +779,17 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   3. **pool** — completions, 偏旁碼, 同類, 三簡, 容錯 (`ap_pool`), ranked by
      userfreq (session pick count, decaying in plus) then `cf` (word/char frequency).
      Completions ×0.7; cold-reading obscure single-char pinyin ×0.10 (plus only).
+     **`MAX_SORT = 500`**: only the first 500 raw candidates in the pool get the real
+     `table.sort` (2026-08-25, both files, kept in sync per the rule above); anything past
+     that is appended untouched in upstream (dict-weight) order. Root letters `I`/`J` alone
+     carry 17,727 / 12,978 dict rows (by far the two largest — next is `Y` at 8,100; check with
+     `awk -F'\t' '{print substr($2,1,1)}' rime/aiphabi.dict.yaml | sort | uniq -c | sort -rn`),
+     and a full unbounded sort of that measured ~25–50ms in pure Lua alone (real Candidate
+     userdata overhead in Squirrel is worse) — noticeable as input lag specifically when typing
+     those two letters first, and it gets worse every time the dict grows. Nobody pages 500+
+     deep, so the cap is invisible in normal use. `tests/run_tests.lua`'s perf group proves the
+     cap is active by planting a real high-freq character (是) at raw position 8000 and asserting
+     it does **not** get pulled to the top — mutation-tested (removing the cap turns it red).
   4. **part** — coverage-demoted fragments (a candidate that doesn't span the whole segment,
      e.g. 民 covering only the tail of YCLX) sinks to the bottom. **Coverage is span-based**
      (`[min start, max _end]` over candidates); needed because `enable_sentence` spits out
