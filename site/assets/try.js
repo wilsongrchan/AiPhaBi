@@ -435,7 +435,7 @@
        開著而且文章接下來剛好成詞，它就是那個詞（見 unitAt）。
          uix  = 現在打到這個詞的第幾個字（田字格、提示都看它）
          uoff = 前面那幾個字用掉了 buf 的前幾碼（提示要看的是剩下那一截） */
-    unit: '', uix: 0, uoff: 0, upieces: []
+    unit: '', uix: 0, uoff: 0
   };
 
   /* 這個字打得出來的所有碼，含約定簡碼／三簡碼 —— 切詞用。codePaths 是碼表裡
@@ -472,7 +472,6 @@
     P.unit = unitAt();
     P.uix = 0;
     P.uoff = 0;
-    P.upieces = [];
     var rest = state.buf;
     while (P.uix < P.unit.length - 1 && rest) {
       var codes = unitCodesOf(P.unit.charAt(P.uix)), best = '';
@@ -480,7 +479,6 @@
         if (rest.indexOf(codes[i]) === 0 && codes[i].length > best.length) best = codes[i];
       }
       if (!best) break;                 // 這個字還沒打完 —— 停在它身上
-      P.upieces.push(best);
       P.uoff += best.length;
       rest = rest.slice(best.length);
       P.uix++;
@@ -787,8 +785,8 @@
           wb.appendChild(el('span', u === P.uix ? 'is-now' : (u < P.uix ? 'is-done' : ''),
                             P.unit.charAt(u)));
         }
-        P.next.appendChild(wb);
         P.next.appendChild(el('span', 'word-badge', '詞組'));
+        P.next.appendChild(wb);
       } else {
         P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
       }
@@ -818,9 +816,17 @@
     for (var i = 0; i < P.chars.length; i++) {
       var c = P.chars[i];
       if (c === '\n') { frag.appendChild(document.createElement('br')); continue; }
-      var cls = i < P.pos ? 'pc is-done'
-              : i < uend ? 'pc is-now' + (i === uhere ? ' is-here' : '')
-              : 'pc';
+      var cls;
+      if (i < P.pos) cls = 'pc is-done';
+      else if (i >= uend) cls = 'pc';
+      else {
+        /* 一格是一個詞的時候，整個詞是**一個**連續的色塊。每個字各自收圓角會
+           在字與字之間切出兩道缺口，讀起來像兩格（Wilson）——所以圓角只給
+           兩端，中間切平。換行會把色塊斷開，斷點兩邊各自算一次端點。 */
+        cls = 'pc is-now' + (i === uhere ? ' is-here' : '');
+        if (i === P.pos || P.chars[i - 1] === '\n') cls += ' is-wl';
+        if (i === uend - 1 || P.chars[i + 1] === '\n') cls += ' is-wr';
+      }
       var sp = el('span', cls, c);
       sp.dataset.i = i;                 // 點一下就跳到那個字（見 setupPractice）
       frag.appendChild(sp);
@@ -883,23 +889,6 @@
   function renderHint(ch) {
     var box = P.hintbox;
     box.innerHTML = '';
-    /* 這一格是一個詞的時候，最上面先把整串攤開：每個字一格，已經打完的秀它
-       實際吃掉的那幾碼，正在打的秀已經打了什麼，還沒輪到的留問號。
-       詞組連打要學的就是「兩個字的碼接成一條、中間不按空白」，光看單字提示
-       學不到那件事（Wilson）。底下逐條字根的提示照舊，講的是正在打的那個字。 */
-    if (P.unit.length > 1) {
-      var wl = el('span', 'tz-word');
-      for (var w = 0; w < P.unit.length; w++) {
-        var st = w < P.uix ? ' is-done' : w === P.uix ? ' is-now' : '';
-        var chip = el('span', 'tz-wchip' + st);
-        chip.appendChild(el('b', null, P.unit.charAt(w)));
-        chip.appendChild(el('code', null,
-          w < P.uix ? (P.upieces[w] || '').toUpperCase()
-                    : w === P.uix ? (curBuf().toUpperCase() || '…') : '？'));
-        wl.appendChild(chip);
-      }
-      box.appendChild(wl);
-    }
     var mo = hintModel(ch);
     if (!mo) return;
     var segs = mo.segs, order = mo.order;

@@ -1785,9 +1785,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   cursor: pointer;
 }
 
-/* 〈跟著打〉的一格是一個詞時用到的三塊：文章裡正在打的那個字（.pc.is-here）、
-   〈下一個〉那行的整個詞（.tz-unit）、以及提示最上面那條「整串怎麼接」（.tz-word）。
-   詞組關著時這三塊都不會出現，版面跟以前一樣。 */
+/* 〈跟著打〉的一格是一個詞時用到的兩塊：文章裡正在打的那個字（.pc.is-here）、
+   〈下一個〉那行的整個詞（.tz-unit）。詞組關著時兩塊都不會出現，版面跟以前一樣。
+   （提示區上面本來還有一條攤開整串的 .tz-word，Wilson 說多餘，已拿掉。） */
 .pc.is-now.is-here { text-decoration: underline; text-underline-offset: .25em; }
 
 .tz-unit { display: inline-flex; gap: .05em; }
@@ -1801,27 +1801,6 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   border-radius: 999px;
   padding: .05rem .4rem;
 }
-
-.tz-word {
-  display: flex;
-  justify-content: center;
-  gap: .5rem;
-  flex-wrap: wrap;
-  margin-bottom: .1rem;
-}
-
-.tz-wchip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: .2em;
-  font-size: .8rem;
-  color: var(--ink-faint);
-}
-
-.tz-wchip b { font-size: 1rem; font-weight: 600; }
-.tz-wchip code { background: none; padding: 0; font-size: .78rem; letter-spacing: .05em; }
-.tz-wchip.is-done { color: var(--ink-dim); }
-.tz-wchip.is-now { color: var(--accent); }
 
 /* 簡碼那組跟詞組那組之間的分隔。用一條細線而不是加大 gap —— 這排是
    「標籤＋兩個勾選格」重複兩次，沒有線的話讀起來像四個並列的勾選格，
@@ -1884,7 +1863,14 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .practice-text .pc:hover { background: var(--accent-soft); }
 .practice-text .pc.is-done { color: var(--ink-faint); }
 /* 目前這一格：底色而不是外框 —— 外框會讓那一個字比左右鄰居寬，整行跳一下 */
-.practice-text .pc.is-now { background: var(--accent); color: var(--surface); }
+/* 圓角歸零是為了下面那兩條：一格是一個詞（詞組開著）的時候，那幾個字要連成
+   一塊底色，不是一字一塊 —— 每個字各自收圓角會在字與字之間切出缺口。圓角只
+   收在整塊的兩端，.is-wl／.is-wr 由 renderPractice 標。 */
+.practice-text .pc.is-now {
+  background: var(--accent); color: var(--surface); border-radius: 0;
+}
+.practice-text .pc.is-now.is-wl { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.practice-text .pc.is-now.is-wr { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
 
 .practice-bar {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .7rem;
