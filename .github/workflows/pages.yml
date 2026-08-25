@@ -90,6 +90,12 @@ jobs:
           if [ -s site/assets/practice.json ]; then
             echo "參考文章：有（$(wc -c < site/assets/practice.json) bytes）"
             test -s site/ARPHICPL.txt || { echo "有字形資料卻沒有 ARPHICPL.txt，違反授權"; exit 1; }
+            # 少數幾個字（目前只有「為」）的字形改用教育部標準筆順（g0v/zh-stroke-data），
+            # 那份資料的條件是非商業＋教育用途＋註明出處，出處檔一樣要跟著發佈。
+            if grep -q '"tw_glyph_source"' site/assets/practice.json; then
+              test -s site/TWSTROKE.txt || { echo "有教育部筆順資料卻沒有 TWSTROKE.txt，違反使用條件"; exit 1; }
+              echo "教育部標準筆順：有，TWSTROKE.txt 在"
+            fi
           else
             echo "::warning::practice.json 沒產出來，試打頁不會有參考文章與田字格"
           fi
