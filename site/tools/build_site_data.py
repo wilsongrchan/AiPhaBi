@@ -1691,7 +1691,7 @@ CORPUS_GROUPS = [
     ("兩岸三地地名", [("places", ("中國省級行政區", "中國主要城市", "台灣縣市",
                                   "台北捷運車站", "香港港鐵車站"))]),
     ("世界地名", [("places", ("國家", "-國家全名", "世界各國首都", "世界主要城市",
-                              "大區域／半島", "美國各州", "日本都道府縣"))]),
+                              "日本都道府縣", "美國各州", "大區域／半島"))]),
     # phrases_history.txt 一個檔裡混了四種東西，分開才看得懂：帝王將相是一回事，
     # 思想家文人科學家是另一回事，而朝代與神話根本不是「人物」（Wilson）。
     # 現代政治人物（phrases_politicians.txt，含 總統／首相 這類職稱）併進來 ——
@@ -1700,18 +1700,30 @@ CORPUS_GROUPS = [
                               ("politicians", None)]),
     ("古今中外科學文學人物", [("history", ("諸子百家／思想家", "文人詩詞",
                                             "世界歷史／科學／藝術名人"))]),
-    ("朝代、宗教與神話", [("history", ("朝代", "宗教人物", "神話人物"))]),
+    ("朝代、宗教與神話", [("history", ("朝代", "神話人物", "宗教人物"))]),
     ("影視歌與體壇名人", [("people", None)]),
     ("常見英名中譯", [("english_names", None)]),
     ("機構與組織", [("orgs", None), ("common", ("政府機構", "大學"))]),
     ("品牌與公司", [("brands", None)]),
-    ("成語俗語諺語", [("idioms", None)]),
-    ("日常文化", [("common", ("節日", "生肖", "顏色", "星座")), ("food", None)]),
+    ("成語俗語諺語", [("idioms", ("四字成語", "俗語／諺語／長成語",
+                                  "新聞語料高頻四字成語", "-異體寫法"))]),
+    ("日常文化", [("common", ("節日", "生肖", "星座", "顏色")), ("food", None)]),
     ("科目與職業", [("common", ("學科", "職業"))]),
     ("國際交流", [("common", ("貨幣", "語言／文字"))]),
 ]
 
 CORPUS_PICKS = 10          # 每一組秀幾個例詞。多了會變成清單，這一段是「舉例」不是「目錄」
+
+
+def _sec_key(title):
+    """小節標題 → 拿來對照的名字：中文那一段，切在第一個空白或全形括號之前。
+
+    標題長什麼樣都有：「國家 Countries（繁體，台港用法）」「俗語／諺語／長成語（5 字
+    以上）」「美國各州 US states（繁體）：全名＋「州」兩式都收…」。只比第一段中文，
+    英文說明與括號註記怎麼改都不影響對照。
+    """
+    head = re.split(r"[\s（(]", title.strip(), 1)[0]
+    return head
 
 
 def _phrase_files():
@@ -1774,11 +1786,11 @@ def build_corpus(pc, ship, weight, warn):
                 hits = []
                 for key in wanted:
                     quiet = key.startswith("-")
-                    # 比第一個空白之前那一段，不是用 in 比子字串 ——「國家」是
-                    # 「國家全名」的前綴，用 in 比會讓 -國家全名 那一節被「國家」
-                    # 也認領一次，靜音就失效了（實際踩過）。
+                    # 全等比對，不是用 in 比子字串 ——「國家」是「國家全名」的
+                    # 前綴，用 in 比會讓 -國家全名 那一節被「國家」也認領一次，
+                    # 靜音就失效了（實際踩過）。
                     want = key.lstrip("-")
-                    got = [(t, ws, quiet) for t, ws in secs if t.split()[0] == want]
+                    got = [(t, ws, quiet) for t, ws in secs if _sec_key(t) == want]
                     if not got:
                         warn.append(f"詞庫分組「{name}」：{fname}.txt 裡找不到"
                                     f"「{key.lstrip('-')}」那一節"
@@ -1805,28 +1817,49 @@ def build_corpus(pc, ship, weight, warn):
                 by_sec.setdefault(title, []).append(w)
 
         # 例詞照**檔案裡的順序**挑，不照詞頻。精選檔是人手排的，排在前面的就是
-        # 那一節最該舉的（港鐵那節開頭是 中環、香港、金鐘）。照詞頻挑會挑出
-        # 大學、幸福 —— 它們確實是港鐵／捷運站名，但當普通詞太常見，所以詞頻
-        # 排最前面，而讀者看不出那是地名。日常用語那一組沒有檔案可循，才照詞頻。
-        # 又從各小節輪流挑，不是一節挑滿 —— 這樣看得出這一組涵蓋了哪幾種東西。
-        picks, cursor = [], 0
+        # 那一節最該舉的（港鐵那節開頭是 中環、香港、金鐘；國家那節開頭是
+        # 中國、日本、南韓）。照詞頻挑會挑出 大學、幸福 —— 它們確實是港鐵／
+        # 捷運站名，但當普通詞太常見所以排最前面，讀者看不出那是地名。
+        # 日常用語那一組沒有檔案可循，才照詞頻。
+        #
+        # 名額在各小節之間輪流分配（每輪各加一個，分完為止），但**輸出照小節順序
+        # 整段排**，不是輪流交錯 —— 交錯出來會變成 中國、華盛頓、紐約、斯堪地那維亞、
+        # 加州…，看起來像亂數（Wilson）。整段排就讀得出「國名 → 首都 → 城市 →
+        # 日本 → 美國 → 大區域」這條線。CORPUS_GROUPS 裡的小節順序就是那條線。
         order = [b[0] for b in buckets if by_sec.get(b[0])]
-        while len(picks) < CORPUS_PICKS and order:
-            progressed = False
-            for title in list(order):
-                pool = by_sec.get(title) or []
-                while pool:
-                    e = entry(pool.pop(0))
-                    if e:
-                        picks.append(e)
-                        progressed = True
-                        break
-                if not by_sec.get(title):
-                    order.remove(title)
-                if len(picks) >= CORPUS_PICKS:
+        order = list(dict.fromkeys(order))
+        avail = [len(by_sec[t]) for t in order]
+        quota = [0] * len(order)
+        left = CORPUS_PICKS
+        while left > 0 and any(quota[i] < avail[i] for i in range(len(order))):
+            for i in range(len(order)):
+                if left <= 0:
                     break
-            if not progressed:
-                break
+                if quota[i] < avail[i]:
+                    quota[i] += 1
+                    left -= 1
+        # 前綴重複的不再舉：精選檔常把「簡稱＋全名」並排收（北京／北京市、
+        # 生肖／十二生肖、聯合國／聯合國安理會），兩條並排在網站上只是佔位置。
+        # 只擋前綴，不擋異體與異譯（臺北／台北、瑪麗／瑪莉）—— 那兩種都收正是
+        # 詞庫的賣點之一，讀者看到才知道兩種寫法都打得出來。
+        def dup(w, seen):
+            # 包含就算重複：簡稱／全名（北京／北京市、聯合國／聯合國安理會）之外，
+            # 也擋得住 生肖／十二生肖 這種擴充在前面的
+            return any(x in w or w in x for x in seen)
+
+        picks, chosen = [], []
+        for i, title in enumerate(order):
+            pool = by_sec[title]
+            got = 0
+            while pool and got < quota[i]:
+                w = pool.pop(0)
+                if dup(w, chosen):
+                    continue
+                e = entry(w)
+                if e:
+                    picks.append(e)
+                    chosen.append(w)
+                    got += 1
         if picks:
             groups.append({"name": name, "n": len(all_words), "picks": picks})
 
