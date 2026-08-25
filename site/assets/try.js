@@ -807,10 +807,9 @@
     /* 亮起來的是**整一格**，不只是下一個字：詞組開著時一格可能是「白日」，
        兩個字要一起打，只亮「白」會讓人打完就停（Wilson）。
        uend 是這一格結束後的字元位置 —— 換行不佔格子，所以要跳過它們數。 */
-    var uend = P.pos, uhere = -1;
+    var uend = P.pos;
     for (var n = 0; n < P.unit.length && uend < P.chars.length; n++) {
       while (P.chars[uend] === '\n') uend++;
-      if (n === P.uix) uhere = uend;        // 正在打的是這一格裡的哪一個字
       uend++;
     }
     for (var i = 0; i < P.chars.length; i++) {
@@ -823,7 +822,7 @@
         /* 一格是一個詞的時候，整個詞是**一個**連續的色塊。每個字各自收圓角會
            在字與字之間切出兩道缺口，讀起來像兩格（Wilson）——所以圓角只給
            兩端，中間切平。換行會把色塊斷開，斷點兩邊各自算一次端點。 */
-        cls = 'pc is-now' + (i === uhere ? ' is-here' : '');
+        cls = 'pc is-now';
         if (i === P.pos || P.chars[i - 1] === '\n') cls += ' is-wl';
         if (i === uend - 1 || P.chars[i + 1] === '\n') cls += ' is-wr';
       }

@@ -1785,10 +1785,10 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   cursor: pointer;
 }
 
-/* 〈跟著打〉的一格是一個詞時用到的兩塊：文章裡正在打的那個字（.pc.is-here）、
-   〈下一個〉那行的整個詞（.tz-unit）。詞組關著時兩塊都不會出現，版面跟以前一樣。
-   （提示區上面本來還有一條攤開整串的 .tz-word，Wilson 說多餘，已拿掉。） */
-.pc.is-now.is-here { text-decoration: underline; text-underline-offset: .25em; }
+/* 〈跟著打〉的一格是一個詞時，詞裡打到哪個字由〈下一個〉那行的 .tz-unit 顯示
+   （打完的淡、正在打的用主色）。文章框裡本來也在那個字底下畫一條底線
+   （.pc.is-here），Wilson 說文本不要有底線，已拿掉 —— 同一件事講一次就夠。
+   （提示區上面本來還有一條攤開整串的 .tz-word，一樣是多餘，也拿掉了。） */
 
 .tz-unit { display: inline-flex; gap: .05em; }
 .tz-unit .is-done { color: var(--ink-faint); }
