@@ -1859,7 +1859,18 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   flex: none;
 }
 
-.practice-text .pc { border-radius: 3px; cursor: pointer; }
+/* 一個字一格，格子要比字大一點 —— 不然底色貼著筆畫，看起來像壓在字上而不是
+   框住字（Wilson）。作法是文章整體加字距，再把那道字距分一半到字的左邊：
+   letter-spacing 加出來的空白算在**前一個字的 span 裡**（跟在字後面），所以
+   只加字距的話底色會右邊寬、左邊貼死。padding-left 補左邊、負 margin 把它拉
+   回原位，字就回到格子正中間，相鄰兩格照樣接得起來（差的那一點是重疊，不是縫）。 */
+.practice-text { letter-spacing: .16em; }
+.practice-text .pc {
+  padding: .12em 0 .12em .16em;
+  margin-inline-start: -.16em;
+  border-radius: 3px;
+  cursor: pointer;
+}
 .practice-text .pc:hover { background: var(--accent-soft); }
 .practice-text .pc.is-done { color: var(--ink-faint); }
 /* 目前這一格：底色而不是外框 —— 外框會讓那一個字比左右鄰居寬，整行跳一下 */
