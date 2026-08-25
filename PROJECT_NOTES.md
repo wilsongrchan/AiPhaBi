@@ -779,6 +779,39 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   3. **pool** — completions, 偏旁碼, 同類, 三簡, 容錯 (`ap_pool`), ranked by
      userfreq (session pick count, decaying in plus) then `cf` (word/char frequency).
      Completions ×0.7; cold-reading obscure single-char pinyin ×0.10 (plus only).
+     **Three-layer cap against I/J-style lag** (2026-08-25): root letters `I`/`J` carry
+     17,727 / 12,978 dict rows (by far the two largest — next is `Y` at 8,100; check with
+     `awk -F'\t' '{print substr($2,1,1)}' rime/aiphabi.dict.yaml | sort | uniq -c | sort -rn`).
+     Typing just that one letter used to force **every** filter in the chain (`hint` → `fuzzy`
+     → `order[_plus]`) to each independently drain and touch the *entire* completion stream —
+     that repeated full materialization, not the sort, turned out to be the dominant cost
+     (confirmed by profiling after the first fix — capping only the sort barely moved the
+     needle; Wilson could still feel the lag after that deploy). The real fix has to sit at the
+     front of the chain so it cascades:
+     1. **`RAW_CAP = 1500`** in `aiphabi_hint.lua` (first filter in the chain) — simply stops
+        pulling from upstream after 1,500 raw candidates. Everything downstream (`fuzzy`,
+        `order[_plus]`) then only ever sees ≤1,500 candidates for free, without needing its own
+        cap. This is a real, disclosed trade-off, not just a quality cap: candidates past 1,500
+        genuinely never appear for a single-letter query — acceptable because page_size is 8–10
+        (1,500 is triple-digit pages deep) and typing one more code letter shrinks the raw
+        stream far below the cap anyway (Wilson's own stated usage pattern).
+     2. **`MAX_SORT = 40`** in both order filters — of what survives `RAW_CAP`, only the first
+        40 get a real `table.sort`; the rest are appended in upstream (dict-weight) order.
+     3. **Userfreq/pick-history candidates bypass `MAX_SORT`** (but not `RAW_CAP`) — split into
+        a separately-and-always-sorted `boosted` bucket in `aiphabi_order.lua` (keyed off
+        `USERFREQ`, small — bounded by *this user's* distinct picks, not dict size);
+        `aiphabi_order_plus.lua` already had this for free via its `top` bucket
+        (`PROMOTE_MIN`), untouched. A character you pick a lot but that starts beyond
+        `RAW_CAP` in the *raw* stream is the one narrow edge case this doesn't cover — accepted
+        as unlikely (personal pick frequency and static dict weight correlate for nearly
+        everything) rather than adding cross-module state sharing to close it.
+     Also fixed in the same pass: `aiphabi_fuzzy.lua` was draining-and-yielding the full stream
+     *before* checking whether fuzzy matching even applies (only meaningful at code length ≥2)
+     — pure wasted work for the exact single-letter case this was all about.
+     `tests/run_tests.lua`'s perf group asserts all three layers are active (a candidate past
+     `RAW_CAP` must be absent entirely; one past `MAX_SORT` but within `RAW_CAP` must survive
+     but not be pulled to top; a boosted one must reach the top regardless) — mutation-tested,
+     each assertion goes red if its layer is removed.
   4. **part** — coverage-demoted fragments (a candidate that doesn't span the whole segment,
      e.g. 民 covering only the tail of YCLX) sinks to the bottom. **Coverage is span-based**
      (`[min start, max _end]` over candidates); needed because `enable_sentence` spits out

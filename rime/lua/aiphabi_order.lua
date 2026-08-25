@@ -112,12 +112,42 @@ local function filter(input, env)
     else pool[#pool + 1] = { c = c } end                 -- 補全（沒中完整碼）也丟進池子
   end
 
-  for i, e in ipairs(pool) do e.i = i end                -- 穩定排序用的原序
-  table.sort(pool, function(a, b)
+  -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
+  -- 表本來就小）另外抽出來全排、擺最前面；池子其餘的才吃下面那個上限。
+  local boosted, plain = {}, {}
+  for _, e in ipairs(pool) do
+    if USERFREQ[e.c.text] then boosted[#boosted + 1] = e else plain[#plain + 1] = e end
+  end
+  for i, e in ipairs(boosted) do e.i = i end
+  table.sort(boosted, function(a, b)
     local sa, sb = score(a.c.text), score(b.c.text)
     if sa ~= sb then return sa > sb end
     return a.i < b.i
   end)
+
+  -- 池子上限：候選欄一次只顯示 8～10 個，沒人會不打字一路翻超過幾頁。I／J 這種常見
+  -- 字根補全一次可能上萬個候選，每一鍵都整包排序會卡頓（量過：17727 個時 table.sort
+  -- 要 ~50ms，Squirrel 裡的真實 Candidate 物件比這裡的模擬更重，實際感受到的卡頓比這
+  -- 個數字更久）。只排前 MAX_SORT 個，換算大概十頁的量，翻到那麼深的機率極低；真翻到
+  -- 了，超過的部分维持原始順序（碼表已經照 weight 排過，還是堪用，只是沒精排）接在後面。
+  local MAX_SORT = 40
+  local plainHead, plainTail = plain, nil
+  if #plain > MAX_SORT then
+    plainHead, plainTail = {}, {}
+    for i = 1, MAX_SORT do plainHead[i] = plain[i] end
+    for i = MAX_SORT + 1, #plain do plainTail[#plainTail + 1] = plain[i] end
+  end
+  for i, e in ipairs(plainHead) do e.i = i end            -- 穩定排序用的原序
+  table.sort(plainHead, function(a, b)
+    local sa, sb = score(a.c.text), score(b.c.text)
+    if sa ~= sb then return sa > sb end
+    return a.i < b.i
+  end)
+  if plainTail then
+    for _, e in ipairs(plainTail) do plainHead[#plainHead + 1] = e end
+  end
+  pool = boosted
+  for _, e in ipairs(plainHead) do pool[#pool + 1] = e end
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
     if a.cov ~= b.cov then return a.cov > b.cov end
@@ -130,4 +160,5 @@ local function filter(input, env)
   for _, e in ipairs(part) do yield(e.c) end             -- 4. 只吃前綴的切分候選，墊底
 end
 
-return { init = init, fini = fini, func = filter }
+-- _USERFREQ：只給 tests/run_tests.lua 用，直接塞測試資料進選過次數表，不影響正式行為。
+return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ }
