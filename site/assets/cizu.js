@@ -260,9 +260,18 @@
     p.appendChild(document.createTextNode('」是——選字列會把它留在首位，一擊空格先打出來，'));
     p.appendChild(document.createTextNode('剩下的 '));
     p.appendChild(code(s.tailCode));
-    p.appendChild(document.createTextNode('（'));
-    p.appendChild(glyph(s.tail));
-    p.appendChild(document.createTextNode('）接著打就好，不必整串刪掉重打。'));
+    /* 後半段本身是不是收錄詞組，由建置時查出貨碼表決定（tailListed）。
+       兩種情況要講的話不一樣，而且會變 —— 「新界」原本不是詞組，Side B 補進
+       港澳分區之後就是了（2026-08-26）。寫死其中一種，遲早會變成謊話。 */
+    if (s.tailListed) {
+      p.appendChild(document.createTextNode('也是收錄詞組「'));
+      p.appendChild(glyph(s.tail));
+      p.appendChild(document.createTextNode('」，再一擊空格就好，不必整串刪掉重打。'));
+    } else {
+      p.appendChild(document.createTextNode('（'));
+      p.appendChild(glyph(s.tail));
+      p.appendChild(document.createTextNode('）接著打就好，不必整串刪掉重打。'));
+    }
     card.appendChild(p);
 
     box.appendChild(card);
