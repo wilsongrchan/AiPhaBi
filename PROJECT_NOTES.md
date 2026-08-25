@@ -409,9 +409,35 @@ list includes untracked paths — and `git stash push -- <pathspec>` errors out 
 pathspec doesn't match a tracked file, rather than just skipping it. Observed failure:
 `error: pathspec ':(prefix:0)data/cangjie.json' did not match any file(s) known to git`, and the
 script exits before running `git pull` at all. **Nothing is lost** (it fails before staging
-anything), but the pull silently doesn't happen. Workaround until fixed: stash by hand naming only
-the real tracked files, e.g. `git stash push -- data/codes.json data/zigen.json data/rules.json`,
-then `git pull --rebase origin main`, then `git stash pop`.
+anything), but the pull silently doesn't happen.
+
+**Fixed 2026-08-24**: the glob is now quoted (`-- 'data/*.json'`), so git does its own pathspec
+matching against tracked files instead of the shell expanding it against whatever's on disk. If
+this ever regresses, the workaround is the same as before: stash by hand naming only the real
+tracked files, e.g. `git stash push -- data/codes.json data/zigen.json data/rules.json`, then
+`git pull --rebase origin main`, then `git stash pop`.
+
+**8. `graphics.txt`'s "為" entry is not 為 — it's 爲.** makemeahanzi has exactly one entry keyed
+`為`, but the drawing under it is the 12-stroke 爲 form (爫 head), confirmed by rendering it
+stroke-by-stroke; 爲 (U+7228) isn't in makemeahanzi separately at all. Anything sourced from that
+entry for the real 9-stroke 教育部標準 為 (U+7232) will be wrong — segments built against it won't
+match Wilson's stroke chart, and the annotate 田字格 will draw the wrong glyph.
+
+**Fixed 2026-08-24**: 為's `codes.json` segments (`Y[0,1] J[2] J[3] C[4] M[5,6,7,8]`, code `YJJCM`)
+are built against **`data/tw_strokes.json`** instead — it has 為 as 9 properly separated stroke
+outlines (2048×2048, y-down; needs `x*0.5, 900-y*0.5` to land in graphics.txt's convention) matching
+the real chart. Verified two independent ways that agreed: frame-diffing twpen.com's stroke-order
+GIF at the exact point each stroke settles from "being drawn" to "done" (pixel-precise, no
+reconstruction), and Side C cross-referencing `zigen.json`'s own shape library (為 already appears
+in two shapes' `seen` lists). `data/graphics.txt`'s "為" entry was also replaced with the same
+tw_strokes-derived 9-stroke data so `/annotate`'s 田字格 shows the correct glyph too — but remember
+`graphics.txt` is gitignored (hazard #4), so that fix is local-only; the site gets 為's glyph from
+Side C pointing `build_site_data.py` at `tw_strokes.json` directly, not from `graphics.txt`.
+爲 (U+7228) was re-annotated directly by Wilson via `/annotate` against its own real 12-stroke
+`graphics.txt` entry (code `WJJJCM`) — unrelated to 為's fix, don't conflate the two.
+
+If a future session finds 為 or 爲 looking wrong again, check `graphics.txt`'s stroke *count* first
+(9 = correct 為 source, 12 = 爲) before assuming the segments are the problem.
 
 #### Checking a zigen offline (no browser)
 `retune.py` contains a faithful Python port of `assets/shape.js` (`stroke_vec` / `dist` / `vec_of`,
