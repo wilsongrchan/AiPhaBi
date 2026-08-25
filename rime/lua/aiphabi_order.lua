@@ -112,12 +112,26 @@ local function filter(input, env)
     else pool[#pool + 1] = { c = c } end                 -- 補全（沒中完整碼）也丟進池子
   end
 
-  for i, e in ipairs(pool) do e.i = i end                -- 穩定排序用的原序
-  table.sort(pool, function(a, b)
+  -- 池子上限：I／J 這種常見字根，補全一次可能上萬個候選，每一鍵都整包排序會卡頓
+  -- （量過：17727 個時 table.sort 要 ~50ms）。沒人會翻到第 500 個候選之後，超過的
+  -- 部分維持原始順序（碼表已經照 weight 排過）接在後面，換不卡頓。
+  local MAX_SORT = 500
+  local poolHead, poolTail = pool, nil
+  if #pool > MAX_SORT then
+    poolHead, poolTail = {}, {}
+    for i = 1, MAX_SORT do poolHead[i] = pool[i] end
+    for i = MAX_SORT + 1, #pool do poolTail[#poolTail + 1] = pool[i] end
+  end
+  for i, e in ipairs(poolHead) do e.i = i end             -- 穩定排序用的原序
+  table.sort(poolHead, function(a, b)
     local sa, sb = score(a.c.text), score(b.c.text)
     if sa ~= sb then return sa > sb end
     return a.i < b.i
   end)
+  if poolTail then
+    for _, e in ipairs(poolTail) do poolHead[#poolHead + 1] = e end
+  end
+  pool = poolHead
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
     if a.cov ~= b.cov then return a.cov > b.cov end

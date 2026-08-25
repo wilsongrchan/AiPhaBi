@@ -191,10 +191,26 @@ local function filter(input, env)
     if a.w ~= b.w then return a.w > b.w end
     return a.i < b.i
   end)
-  table.sort(pool, function(a, b)
-    if a.w ~= b.w then return a.w > b.w end
-    return a.i < b.i
-  end)
+  -- 池子上限：跟 aiphabi_order.lua 同理（見那邊註解）——I／J 這種常見字根補全一次
+  -- 可能上萬個候選，全排會卡頓；量過 17727 個時排序要 ~15ms，還沒算前面分類的開銷。
+  -- 超過上限的維持原始順序（碼表已經照 weight 排過）接在後面。
+  local MAX_SORT = 500
+  if #pool > MAX_SORT then
+    local head, tail = {}, {}
+    for i = 1, MAX_SORT do head[i] = pool[i] end
+    for i = MAX_SORT + 1, #pool do tail[#tail + 1] = pool[i] end
+    table.sort(head, function(a, b)
+      if a.w ~= b.w then return a.w > b.w end
+      return a.i < b.i
+    end)
+    for _, e in ipairs(tail) do head[#head + 1] = e end
+    pool = head
+  else
+    table.sort(pool, function(a, b)
+      if a.w ~= b.w then return a.w > b.w end
+      return a.i < b.i
+    end)
+  end
   table.sort(part, function(a, b)             -- 前綴候選：吃得越多越前，再比常用度
     if a.cov ~= b.cov then return a.cov > b.cov end
     if a.w ~= b.w then return a.w > b.w end

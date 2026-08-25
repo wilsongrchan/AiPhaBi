@@ -6,6 +6,7 @@
 -- 兩支 order filter 的規則要一致，所以關鍵案例兩個 schema 各測一遍。
 
 local h = require((...) and "harness" or "harness")
+local data = require("aiphabi_data")
 local T = {}
 
 -- 開關全開，才測得到各機制；預設關的（三簡、左簡、詞組）在真機上要自己開。
@@ -98,6 +99,40 @@ do
     cands = { { text = "尔日" } },
   }
   h.checkPresent("左簡碼關 → 打 SMBF 不會冒出 鯉", out, "鯉", false)
+end
+
+print()
+print("== 效能：候選池上限（I／J 這種常見字根，一次補全上萬個不能卡頓）==")
+-- 量過：不設上限時，i 字根單一 filter 的 table.sort 本身要 ~50ms（見開發紀錄）。
+-- 這裡不直接斷言耗時（機器快慢會飄，門檻抓太鬆就測不出回歸、抓太緊會在慢機器上誤報），
+-- 改斷言「池子深處的候選不會被整包排序硬拉到最前面」——這個行為只有真的有上限才會發生，
+-- 拿掉上限（mutation test 驗過）它會被排回第一，等於直接測到有沒有上限生效。
+for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+  -- 兩萬個雜訊候選，混進兩個真實高頻字：「的」放池子前段（第 10 個，落在排序上限 500
+  -- 內，該被排到前面）；「是」放池子深處（第 8000 個，超過上限，該維持原位、不被拉到
+  -- 最前）——兩個都是真實高頻字、沒有「的」那種可能撞上 exact 的巧合（「一」的主碼剛好
+  -- 是 i，會被歸進 exact 一級，不受池子上限影響，不能拿來測這個）。
+  local cands = {}
+  for i = 1, 20000 do cands[i] = { text = "占" .. i } end
+  cands[10] = { text = "的" }
+  cands[8000] = { text = "是" }
+
+  local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
+
+  h.check(schema .. " · 候選一個都沒少", #out == #cands,
+    string.format("expected %d, got %d", #cands, #out))
+
+  local posDe, posShi = nil, nil
+  for i, c in ipairs(out) do
+    if c.text == "的" then posDe = i end
+    if c.text == "是" then posShi = i end
+  end
+  h.check(schema .. " · 池子前段（第 10 個）的高頻字「的」排到前面",
+    posDe ~= nil and posDe <= 20,
+    string.format("的 landed at #%s", tostring(posDe)))
+  h.check(schema .. " · 池子深處（第 8000 個）的高頻字「是」不會被硬拉到最前（上限生效）",
+    posShi ~= nil and posShi > 500,
+    string.format("是 landed at #%s", tostring(posShi)))
 end
 
 os.exit(h.report() == 0 and 0 or 1)
