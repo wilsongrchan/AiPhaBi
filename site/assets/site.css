@@ -2342,6 +2342,12 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 /* 四碼那一條用主色，跟詞組碼分得開 —— 同一個詞兩條碼並排，不分色會讀成一串 */
 .cz-w code.is-si4 { color: var(--accent); }
 
+/* 上面那條顏色說明。裡面的 <code> 借同一組顏色當樣本，說明本身就是圖例，
+   不必另外畫色塊。 */
+.cz-legend { font-size: .86rem; color: var(--ink-dim); margin: 0 0 1.1rem; }
+.cz-legend code { background: none; padding: 0; color: var(--ink-faint); font-weight: 700; }
+.cz-legend code.is-si4 { color: var(--accent); }
+
 .cz-stats { margin: 1.6rem 0 2rem; }
 
 .cz-foot, .cz-src { font-size: .88rem; color: var(--ink-dim); }
