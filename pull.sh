@@ -8,7 +8,7 @@ DIRTY=$(git status --porcelain data/*.json 2>/dev/null)
 if [ -n "$DIRTY" ]; then
   echo "偵測到 annotate 頁面有未提交的改動，先暫存："
   echo "$DIRTY"
-  git stash push -m "pull.sh 自動暫存 $(date '+%Y-%m-%d %H:%M')" -- data/*.json
+  git stash push -m "pull.sh 自動暫存 $(date '+%Y-%m-%d %H:%M')" -- 'data/*.json'
   STASHED=1
 fi
 
