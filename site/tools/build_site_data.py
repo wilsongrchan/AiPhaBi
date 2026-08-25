@@ -1679,7 +1679,11 @@ def build_phrases(codes, rules, max_rule, zigen_raw):
 # 「# ===== 中文 English =====」小節標題來對，對不到就在建置紀錄裡喊，
 # 不要無聲少掉一整節（Side B 改了小節名字，這裡就該知道）。
 #
-# sections=None 表示整個檔都算這一組。小節名前面加 "-" 表示**算進數字、但不舉例**
+# sections=None 表示整個檔都算這一組。
+# 小節名前面加 "~" 表示**整節攤開來挑**（等距取樣），不從頭挑：四字成語那一節是照
+# 首字排的，從頭挑會挑出 一心一意、一石二鳥、一舉兩得、一帆風順… 整排都是「一」
+# 開頭（Wilson）。人手排過重要性的節（國家：中國、日本、南韓）不能這樣挑。
+# 小節名前面加 "-" 表示**算進數字、但不舉例**
 # ——「國家全名」那一節的頭兩條是 中華人民共和國／中華民國，並排放在例詞第一行
 # 會讀成一句話，而這一段要講的只是「詞庫收了什麼」（Wilson 提過政治敏感的字眼
 # 不要當招牌例子）。那一節的詞照樣打得出來，只是不拿來當門面。
@@ -1703,9 +1707,14 @@ CORPUS_GROUPS = [
     ("朝代、宗教與神話", [("history", ("朝代", "神話人物", "宗教人物"))]),
     ("影視歌與體壇名人", [("people", None)]),
     ("常見英名中譯", [("english_names", None)]),
-    ("機構與組織", [("orgs", None), ("common", ("政府機構", "大學"))]),
+    # 政黨與各地政府機關**算進數字、不當例子**（前綴 -）：中國共產黨、中華民國總統府、
+    # 香港特別行政區政府 並排在同一行，讀起來就不是在講輸入法了。這一頁的網站面向
+    # 兩岸三地的中文使用者，政治聯想要留給讀者自己，不要由範例清單擺出來（Wilson
+    # 2026-08-26）。那些詞照樣打得出來、照樣算在 220 個詞裡，只是不拿來當門面。
+    ("機構與組織", [("orgs", ("國際組織", "-中國機關／政黨", "-台灣機關", "-香港機關")),
+                    ("common", ("-政府機構", "大學"))]),
     ("品牌與公司", [("brands", None)]),
-    ("成語俗語諺語", [("idioms", ("四字成語", "俗語／諺語／長成語",
+    ("成語俗語諺語", [("idioms", ("~四字成語", "俗語／諺語／長成語",
                                   "新聞語料高頻四字成語", "-異體寫法"))]),
     ("日常文化", [("common", ("節日", "生肖", "星座", "顏色")), ("food", None)]),
     ("科目與職業", [("common", ("學科", "職業"))]),
@@ -1713,6 +1722,41 @@ CORPUS_GROUPS = [
 ]
 
 CORPUS_PICKS = 10          # 每一組秀幾個例詞。多了會變成清單，這一段是「舉例」不是「目錄」
+
+# 指名要舉的例詞（Wilson 點的）。照檔案順序挑不一定挑得到最有代表性的那幾個：
+# 朝代那節從 夏商周 開始排，挑前四個就是 夏朝、商朝、周朝、西周；文人詩詞挑到
+# 司馬相如 而不是 李白。這裡指名的會排在它那一節最前面，而且一定佔得到位置。
+CORPUS_PIN = {
+    # 兩岸三地先舉四個代表城市，其餘照小節順序補（Wilson）
+    "兩岸三地地名": ("北京", "台北", "香港", "澳門",
+                      "石家莊", "南京", "高雄", "淡水", "中環", "九龍"),
+    # 這一組叫「古今中外」，就要真的涵蓋古今中外（Wilson）。照小節順序挑會挑出
+    # 秦始皇、嬴政、項羽、韓信、總統、首相…，全是中國＋現代職稱，一個外國人都沒有。
+    # 拿破崙／凱撒／林肯 在 history 的「世界歷史／科學／藝術名人」那一節，那一節整節
+    # 歸給了科學文學那一組 —— 指名可以跨組把單一個詞認領過來（見下面 pin 的說明）。
+    "古今中外歷史政治人物": ("秦始皇", "曹操", "諸葛亮", "毛澤東", "邱吉爾",
+                              "拿破崙", "凱撒", "林肯"),
+    "朝代、宗教與神話": ("秦朝", "漢朝", "唐朝", "宋朝", "明朝", "清朝"),
+    "古今中外科學文學人物": ("李白", "莎士比亞"),
+    # 星座只寫 白羊／牡羊 看不出是星座（Wilson）——「座」字要在
+    "日常文化": ("白羊座", "金牛座"),
+    # 世界地名不必再舉 中國（兩岸三地那組已經整組在講）；國名舉 日本／美國，
+    # 全名舉 美利堅合眾國 —— 全名那一節是靜音的，指名可以把它撈出來（見下面）
+    "世界地名": ("日本", "美國", "美利堅合眾國", "英國"),
+    # 機構舉國際組織與大學就好，理由見 CORPUS_GROUPS 裡「機構與組織」那條註解
+    "機構與組織": ("聯合國", "世界衛生組織", "世界貿易組織", "國際奧委會",
+                    "世界銀行", "台大", "清大", "成大"),
+}
+
+# 這一組不要舉的詞（照樣算進數字）。目前只有一條：世界地名不重複舉 中國。
+CORPUS_SKIP = {
+    "世界地名": ("中國",),
+    # 星座那一節「白羊」「牡羊」「金牛」…（沒有「座」字）單獨拿出來看不出是星座
+    # （Wilson）。整組十二個都列出來，免得哪天換了例詞又冒出一個沒有「座」的。
+    # 帶「座」的那些照樣舉得到，這些也照樣打得出來，只是不當例子。
+    "日常文化": ("白羊", "牡羊", "金牛", "雙子", "巨蟹", "獅子", "處女",
+                  "天秤", "天蠍", "射手", "摩羯", "水瓶", "雙魚"),
+}
 
 
 def _sec_key(title):
@@ -1773,6 +1817,7 @@ def build_corpus(pc, ship, weight, warn):
                 "si4": sigs[0].upper() if sigs else ""}
 
     groups, claimed, taken = [], {}, set()
+    pinned_extra = set()          # 指名時從 essay 高頻詞撈進來的，日常用語那組要扣掉
     for name, parts in CORPUS_GROUPS:
         buckets = []          # [(小節, [詞…]), …]，例詞從各小節輪流挑
         for fname, wanted in parts:
@@ -1781,32 +1826,31 @@ def build_corpus(pc, ship, weight, warn):
                 warn.append(f"詞庫分組「{name}」：找不到 data/phrases_{fname}.txt")
                 continue
             if wanted is None:
-                hits = [(t, ws, False) for t, ws in secs]
+                hits = [(t, ws, False, False) for t, ws in secs]
             else:
                 hits = []
                 for key in wanted:
                     quiet = key.startswith("-")
+                    wide = key.startswith("~")            # 整節攤開來挑
                     # 全等比對，不是用 in 比子字串 ——「國家」是「國家全名」的
                     # 前綴，用 in 比會讓 -國家全名 那一節被「國家」也認領一次，
                     # 靜音就失效了（實際踩過）。
-                    want = key.lstrip("-")
-                    got = [(t, ws, quiet) for t, ws in secs if _sec_key(t) == want]
+                    want = key.lstrip("-~")
+                    got = [(t, ws, quiet, wide) for t, ws in secs if _sec_key(t) == want]
                     if not got:
                         warn.append(f"詞庫分組「{name}」：{fname}.txt 裡找不到"
                                     f"「{key.lstrip('-')}」那一節"
                                     f"（小節標題改過？這一節的詞不會出現在網站上）")
                     hits += got
-            for hit in hits:
-                title, ws = hit[0], hit[1]
-                quiet = hit[2] if len(hit) > 2 else False
+            for title, ws, quiet, wide in hits:
                 claimed.setdefault(fname, set()).add(title)
-                buckets.append((title, ws, quiet))
+                buckets.append((title, ws, quiet, wide))
 
         # 同一個詞常常兩節都有（北京 既是中國省級行政區、也是世界各國首都），
         # 先認領先贏 —— 分組的順序就是決定它歸誰的順序，所以 CORPUS_GROUPS 裡
         # 兩岸三地排在世界地名前面。不去重的話 北京 會在兩組裡各出現一次。
         all_words = []
-        for title, ws, quiet in buckets:
+        for title, ws, quiet, _wide in buckets:
             for w in ws:
                 if w in ship and w not in taken:
                     taken.add(w)
@@ -1816,38 +1860,78 @@ def build_corpus(pc, ship, weight, warn):
             if not quiet:
                 by_sec.setdefault(title, []).append(w)
 
+        # 標了 ~ 的小節：等距攤開再排到前面，取樣才會散開（四字成語照首字排，
+        # 從頭挑會挑出一整排「一」開頭的）。攤開的排前面，其餘照原順序接在後面。
+        for title, _ws, _q, wide in buckets:
+            pool = by_sec.get(title)
+            if not wide or not pool or len(pool) <= CORPUS_PICKS:
+                continue
+            step = max(1, len(pool) // CORPUS_PICKS)
+            spread = pool[::step]
+            by_sec[title] = spread + [w for w in pool if w not in spread]
+
+        # 不舉的詞：照樣算進數字，只是不當例子（見 CORPUS_SKIP）
+        for w in CORPUS_SKIP.get(name, ()):
+            for title in by_sec:
+                if w in by_sec[title]:
+                    by_sec[title].remove(w)
+
+        # ---- 指名的例詞：照**指名的順序**排在最前面（見 CORPUS_PIN）----
+        # 順序由指名的人決定，不再照小節排 —— Wilson 指定「北京 台北 香港 澳門」
+        # 就是要看到這個順序，而這四個分屬三個小節，照小節排會變成
+        # 北京、香港、澳門…台北。指名之外的名額才回去照小節順序補。
+        have = {w for _t, w, _q in all_words}
+        picks, chosen = [], []
+        for w in CORPUS_PIN.get(name, ()):
+            if w not in have:
+                # 跨組認領：這個詞在別的小節（拿破崙 在「世界歷史／科學／藝術名人」，
+                # 那一節整節歸科學文學那組），或者根本不在精選檔裡、只在出貨碼表的
+                # essay 高頻詞裡（九龍）。指名是人挑過的，就讓它跨過來，並登記進
+                # taken，後面那一組不會再舉同一個詞。
+                if w in ship and w not in taken:
+                    taken.add(w)
+                    pinned_extra.add(w)
+                    all_words.append(("", w, False))
+                    have.add(w)
+                else:
+                    warn.append(f"詞庫分組「{name}」：指名的例詞「{w}」舉不出來"
+                                f"（{'已被前面的組收走' if w in taken else '碼表裡沒有這個詞'}）")
+                    continue
+            e = entry(w)
+            if not e:
+                warn.append(f"詞庫分組「{name}」：指名的例詞「{w}」算不出碼，跳過")
+                continue
+            picks.append(e)
+            chosen.append(w)
+            for pool in by_sec.values():          # 後面補的時候別再舉一次
+                if w in pool:
+                    pool.remove(w)
+
+        # ---- 其餘名額：照小節順序整段補 ----
         # 例詞照**檔案裡的順序**挑，不照詞頻。精選檔是人手排的，排在前面的就是
-        # 那一節最該舉的（港鐵那節開頭是 中環、香港、金鐘；國家那節開頭是
-        # 中國、日本、南韓）。照詞頻挑會挑出 大學、幸福 —— 它們確實是港鐵／
-        # 捷運站名，但當普通詞太常見所以排最前面，讀者看不出那是地名。
-        # 日常用語那一組沒有檔案可循，才照詞頻。
+        # 那一節最該舉的（港鐵那節開頭是 中環、香港、金鐘）。照詞頻挑會挑出
+        # 大學、幸福 —— 它們確實是港鐵／捷運站名，但當普通詞太常見所以排最前面，
+        # 讀者看不出那是地名。日常用語那一組沒有檔案可循，才照詞頻。
         #
-        # 名額在各小節之間輪流分配（每輪各加一個，分完為止），但**輸出照小節順序
-        # 整段排**，不是輪流交錯 —— 交錯出來會變成 中國、華盛頓、紐約、斯堪地那維亞、
-        # 加州…，看起來像亂數（Wilson）。整段排就讀得出「國名 → 首都 → 城市 →
-        # 日本 → 美國 → 大區域」這條線。CORPUS_GROUPS 裡的小節順序就是那條線。
-        order = [b[0] for b in buckets if by_sec.get(b[0])]
-        order = list(dict.fromkeys(order))
+        # 名額在各小節之間輪流分配（每次給目前拿最少的那一節），但**輸出照小節
+        # 順序整段排**，不是輪流交錯 —— 交錯出來看起來像亂數（Wilson）。
+        order = list(dict.fromkeys(b[0] for b in buckets if by_sec.get(b[0])))
         avail = [len(by_sec[t]) for t in order]
         quota = [0] * len(order)
-        left = CORPUS_PICKS
+        left = max(0, CORPUS_PICKS - len(picks))
         while left > 0 and any(quota[i] < avail[i] for i in range(len(order))):
-            for i in range(len(order)):
-                if left <= 0:
-                    break
-                if quota[i] < avail[i]:
-                    quota[i] += 1
-                    left -= 1
-        # 前綴重複的不再舉：精選檔常把「簡稱＋全名」並排收（北京／北京市、
+            i = min((i for i in range(len(order)) if quota[i] < avail[i]),
+                    key=lambda i: (quota[i], i))
+            quota[i] += 1
+            left -= 1
+
+        # 前綴／包含重複的不再舉：精選檔常把「簡稱＋全名」並排收（北京／北京市、
         # 生肖／十二生肖、聯合國／聯合國安理會），兩條並排在網站上只是佔位置。
-        # 只擋前綴，不擋異體與異譯（臺北／台北、瑪麗／瑪莉）—— 那兩種都收正是
-        # 詞庫的賣點之一，讀者看到才知道兩種寫法都打得出來。
+        # 只擋這種，不擋異體與異譯（臺北／台北、瑪麗／瑪莉）—— 兩種都收正是詞庫
+        # 的賣點之一，讀者看到才知道兩種寫法都打得出來。指名的不受這條管。
         def dup(w, seen):
-            # 包含就算重複：簡稱／全名（北京／北京市、聯合國／聯合國安理會）之外，
-            # 也擋得住 生肖／十二生肖 這種擴充在前面的
             return any(x in w or w in x for x in seen)
 
-        picks, chosen = [], []
         for i, title in enumerate(order):
             pool = by_sec[title]
             got = 0
@@ -1873,7 +1957,7 @@ def build_corpus(pc, ship, weight, warn):
     # 精選檔以外的詞＝rime-essay 高頻詞表那一批（日常用語），量最大的一塊。
     # 它沒有分類可言，所以只按詞頻舉例；數字是「總數減掉精選檔收得到的」。
     curated = {w for secs in files.values() for _t, ws in secs for w in ws}
-    daily = [w for w in ship if w not in curated]
+    daily = [w for w in ship if w not in curated and w not in pinned_extra]
     picks = []
     for w in sorted(daily, key=rank):
         e = entry(w)
