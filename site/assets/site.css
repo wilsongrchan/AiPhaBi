@@ -2152,6 +2152,11 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   .keyguide { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
+/* 節標題用主色，跟〈取碼原則〉那頁一致（Wilson）—— 兩頁都是「一節講一條規則」，
+   同一種東西不該兩種顏色。只借顏色，不借 .pr-page h2 的字級與掛式縮排：那是為
+   編號標題（「1. 筆順原則」）做的，這一頁的標題沒有編號。 */
+.cz-page h2 { color: var(--accent); }
+
 /* ---------------------------------------------------------------------------
    〈詞組〉頁（cizu.html）—— 詞組連打與四碼快打
    核心是「一個字的碼在分解式和總碼裡是同一個顏色」，串接這件事才一眼看得懂，
