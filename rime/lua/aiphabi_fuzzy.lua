@@ -44,6 +44,16 @@ end
 return function(input, env)
   local ctx = env.engine.context
   local code = ctx.input
+  -- 容錯要碼長 ≥2 才有意義（少一碼、多一碼、隔壁鍵……都需要至少兩碼去比對）。單一字根
+  -- 補全（打 I／J 這種一碼）用不到底下這些，先判斷再決定要不要多記 seen/s/e——I／J
+  -- 補全一次可能上萬個候選，每個候選多做兩次表寫入，白花的時間會隨字根補全量一起長大。
+  local fuzzy_relevant = ctx:get_option("aiphabi_fuzzy")
+    and code and #code >= 2 and not code:find("[^a-z]")
+  if not fuzzy_relevant then
+    for cand in input:iter() do yield(cand) end
+    return
+  end
+
   local seen, s, e = {}, nil, nil
   for cand in input:iter() do
     seen[cand.text] = true
@@ -51,8 +61,6 @@ return function(input, env)
     e = cand._end
     yield(cand)
   end
-  if not ctx:get_option("aiphabi_fuzzy") then return end
-  if not code or #code < 2 or code:find("[^a-z]") then return end
   s = s or 0
   e = e or #code
   local n = #code
