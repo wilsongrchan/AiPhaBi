@@ -62,12 +62,23 @@ local function fini(env)
   if env.aiphabi_notifier then env.aiphabi_notifier:disconnect() end
 end
 
+-- 這是 filter 鏈第一個（見檔頭），所以這個上限會連帶讓 aiphabi_fuzzy／aiphabi_order 收到
+-- 的候選也一起變少——不用在每個 filter 各自設一個。I／J 這種常見字根，打一碼就補全出
+-- 上萬個候選，光是「跟每個候選拿一次 .text/.type」在真機的 Candidate 物件上開銷就不小，
+-- 三個 filter 各自全部掃過一輪，這才是卡頓的大宗（比池子排序本身更貴，量過）。
+-- 候選欄一次只顯示 8～10 個，1500 個已經是三位數頁——真的翻到那麼深不如多打一兩碼，
+-- 字根補全的候選量本來就會隨碼變長而急遽變少，不需要靠翻頁翻出來。
+local RAW_CAP = 1500
+
 local function filter(input, env)
   local ctx = env.engine.context
   local code = ctx.input
-  -- 先收下全部候選（原順序不動），順便記下已出現的字
+  -- 先收下候選（原順序不動，最多 RAW_CAP 個），順便記下已出現的字
   local cands, seen = {}, {}
+  local n = 0
   for cand in input:iter() do
+    n = n + 1
+    if n > RAW_CAP then break end
     cands[#cands + 1] = cand
     seen[cand.text] = true
   end
