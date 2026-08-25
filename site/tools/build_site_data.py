@@ -1253,12 +1253,13 @@ PHRASE_TWO = [
     ("城市", "市 有一條兼容碼 IM，它也算一條路，一樣接得上"),
 ]
 PHRASE_MULTI = "廣東話"      # 三字以上：四式剛好各不相同的詞（另一個是 普通話）
+# 四碼快打的例詞。挑的時候避開**一碼字**（人 Y、山 W）和**約定字**（大、上）——
+# 它們的碼不是照筆順拆出來的，拿來示範「取首碼」會讓人看不出那個字母是哪一條字根
+# （Wilson）。每一式各一個詞就夠，同一條規則不重複示範。
 PHRASE_SI4 = [
-    ("容祖兒", "三字：前兩字首碼 ＋ 末字的首碼和末碼"),
-    ("人山人海", "四字：各取首碼"),
-    ("光明正大", "四字：各取首碼"),
-    ("中華人民共和國", "五字以上：前四字首碼，另加「前三字＋末字」一式"),
-    ("上海市", "市 的兼容碼 IM 首字母不同，於是多一個簽名 JWIM"),
+    ("劉德華", "三字：前兩字首碼 ＋ 末字的首碼和末碼"),
+    ("守株待兔", "四字：各取首碼"),
+    ("聯合國教科文組織", "五字以上：前四字首碼，另加「前三字＋末字」一式"),
 ]
 PHRASE_SENTENCE = ("香港", "新界")   # 智能分詞示範：前半是收錄詞、後半不是
 
@@ -1415,24 +1416,47 @@ class _PhraseCoder:
                 sigs.append("".join(v))
         return list(dict.fromkeys(sigs))
 
-    def si4_of(self, w):
-        """回傳 (positions, [四碼…])。positions 是 [(字, 取末碼?), …] 四格。"""
+    def si4_forms(self, w):
+        """四碼快打的**每一式**：[(positions, [簽名…]), …]。
+
+        三字、四字只有一式；五字以上有兩式（前四字首碼／前三字＋末字首碼）。
+        每一式的簽名第一個是 base（每格取主碼那個字母），其餘是兼容碼換出來的。
+        ⚠️ 兩式要分開拿，不能把簽名接成一串再取第二個 —— 那樣拿到的是「第一式的
+        兼容碼變體」，不是第二式（聯合國教科文組織：NAOT／NAOF 都是第一式，
+        第二式是 NAOG）。
+        """
         chs = list(w)
         if len(chs) < 3 or any(c not in self.char2code for c in set(chs[:4]) | {chs[-1]}):
-            return None, []
+            return []
         if len(chs) == 3:
             pos = [(chs[0], False), (chs[1], False), (chs[2], False), (chs[2], True)]
-            return pos, self._si4_sigs(pos)
+            return [(pos, self._si4_sigs(pos))]
         if len(chs) == 4:
             pos = [(c, False) for c in chs]
-            return pos, self._si4_sigs(pos)
-        pos = [(c, False) for c in chs[:4]]
+            return [(pos, self._si4_sigs(pos))]
+        head = [(c, False) for c in chs[:4]]
         tail = [(c, False) for c in chs[:3]] + [(chs[-1], False)]
-        return pos, self._si4_sigs(pos) + self._si4_sigs(tail)
+        return [(head, self._si4_sigs(head)), (tail, self._si4_sigs(tail))]
+
+    def si4_of(self, w):
+        """回傳 (第一式的 positions, [全部簽名…])。碼表那一側只在乎有哪些簽名。"""
+        forms = self.si4_forms(w)
+        if not forms:
+            return None, []
+        sigs = []
+        for _pos, ss in forms:
+            for x in ss:
+                if x not in sigs:
+                    sigs.append(x)
+        return forms[0][0], sigs
 
 
-def build_phrases(codes, rules, max_rule):
-    """〈詞組〉頁：詞組連打的拼碼規則 ＋ 四碼快打的四個位置，逐字算給頁面畫。"""
+def build_phrases(codes, rules, max_rule, zigen_raw):
+    """〈詞組〉頁：詞組連打的拼碼規則 ＋ 四碼快打的四個位置，逐字算給頁面畫。
+
+    四碼快打的每一格還附字形與「取到的是哪幾筆」，頁面畫得出彩色筆畫 ——
+    「取首碼」講的其實是「取第一條字根的字母」，看到那幾筆亮起來才懂（Wilson）。
+    """
     warn = []
     pc = _PhraseCoder(codes, rules, max_rule)
     char2code, alt_codes, short_rev = pc.char2code, pc.alt_codes, pc.short_rev
@@ -1505,36 +1529,71 @@ def build_phrases(codes, rules, max_rule):
                  "ok": check(PHRASE_MULTI, seen)}
 
     # ---- 四碼快打 ----
+    # 例字的字形與拆碼段：每一格要畫出「取到的是哪幾筆」。跟參考文章、拼音查字
+    # 同一份來源、同一個授權（Arphic PL／教育部標準筆順），所以 meta 那邊要一起
+    # 標出處，CI 也要對 phrases.json 查一次授權檔在不在。
+    si4_chars = {c for w, _ in PHRASE_SI4 for c in w}
+    si4_glyphs = _practice_glyphs(si4_chars)
+    si4_segs = build_practice_hints(si4_chars, codes, zigen_raw, max_rule)
+
+    def slot_strokes(ch, last):
+        """這一格取到的是哪幾筆。首碼＝主碼第一個字母那一段，末碼＝最後一個字母
+        那一段 —— 「頭四尾一」砍過之後，末碼對到的一定是最後一段，所以照 c 的
+        頭尾取就對了（c 記的正是主碼每個字母用的是第幾段）。"""
+        e = si4_segs.get(ch)
+        if not e or not e.get("s") or not e.get("c"):
+            return None
+        idx = e["c"][-1] if last else e["c"][0]
+        seg = e["s"][idx] if idx < len(e["s"]) else None
+        return seg.get("st") if seg else None
+
     si4 = []
     for w, note in PHRASE_SI4:
-        pos, sigs = si4_of(w)
-        if not sigs:
+        forms = pc.si4_forms(w)
+        if not forms:
             warn.append(f"詞組頁：「{w}」湊不出四碼快打，跳過")
             continue
+        pos, sigs = forms[0]
         def slots_of(positions):
+            """四個位置 → 要畫幾個格子。
+
+            連著的同一個字合成一格（劉德華 的末字 華 同時被取首碼和末碼）——
+            兩個 華 並排會看成「劉德華華」，而且那個字的首尾兩條字根本來就該在
+            同一張圖上一起看（Wilson）。所以一格可以帶好幾個 pick，i 記的是它
+            在四碼裡的第幾位，顏色跟底下那個字母對得起來。
+            """
             out = []
-            for ch, last in positions:
-                mc = char2code[ch]
-                out.append({"c": ch, "code": mc.upper(),
-                            "letter": (mc[-1] if last else mc[0]).upper(),
-                            "last": last})
+            for i, (ch, last) in enumerate(positions):
+                pick = {"i": i, "letter": (char2code[ch][-1] if last
+                                           else char2code[ch][0]).upper(), "last": last}
+                st = slot_strokes(ch, last)
+                if st and si4_glyphs.get(ch):
+                    pick["on"] = st
+                if out and out[-1]["c"] == ch:
+                    out[-1]["picks"].append(pick)
+                else:
+                    out.append({"c": ch, "code": char2code[ch].upper(), "picks": [pick]})
             return out
         slots = slots_of(pos)
         # 五字以上收兩式，第二式是「前三字＋末字」——兩式都要畫，不然頁面只講了一半
-        slots2 = (slots_of([(c, False) for c in list(w)[:3]] + [(list(w)[-1], False)])
-                  if len(w) >= 5 else None)
+        slots2 = slots_of(forms[1][0]) if len(forms) > 1 else None
         wc = word_codes(w) or set()
+        # more＝兼容碼換出來的額外簽名（兩式的都算），不含第二式的 base
+        more = [x for x in sigs[1:]]
+        if slots2:
+            more += [x for x in forms[1][1][1:] if x not in more]
         entry = {"w": w, "n": len(w), "note": note,
                  "code": sigs[0].upper(),
-                 "more": [s.upper() for s in sigs[1:]],
+                 "more": [x.upper() for x in more],
                  "slots": slots,
                  "slots2": slots2,
-                 "code2": sigs[1].upper() if slots2 and len(sigs) > 1 else "",
+                 "code2": forms[1][1][0].upper() if slots2 else "",
                  # 「省了幾碼」：四碼 vs 平常最短的打法。si4_rev 只在真的比較短時才提醒。
                  "full": min(wc, key=len).upper() if wc else "",
                  "hint": bool(wc) and min(len(c) for c in wc) > 4}
+        all_sigs = [sigs[0]] + more + ([forms[1][1][0]] if slots2 else [])
         if ship_si4 is not None:
-            missing = [s for s in sigs if w not in (ship_si4.get(s) or [])]
+            missing = [x for x in all_sigs if w not in (ship_si4.get(x) or [])]
             entry["ok"] = not missing
             if missing:
                 warn.append(f"詞組頁：「{w}」的四碼 {[m.upper() for m in missing]} "
@@ -1568,6 +1627,8 @@ def build_phrases(codes, rules, max_rule):
         if sentence["tailListed"]:
             warn.append(f"詞組頁：「{tail}」現在**有**收錄了，智能分詞那段的說法要跟著改")
 
+    corpus = build_corpus(pc, ship, _ship_read()[1] or {}, warn) if ship else None
+
     stats = {}
     if ship is not None:
         stats["words"] = len(ship)
@@ -1583,8 +1644,24 @@ def build_phrases(codes, rules, max_rule):
     for w in warn:
         print(f"  ⚠️ {w}")
 
+    meta = {}
+    if si4_glyphs:
+        # 字形資料的授權跟 practice.json／pinyin_glyphs.json 完全一樣，
+        # 一樣要隨附授權全文（site/ARPHICPL.txt，教育部那份是 TWSTROKE.txt）。
+        meta = {
+            "glyph_source": "makemeahanzi (https://github.com/skishore/makemeahanzi) graphics.txt",
+            **_tw_credit(si4_glyphs),
+            "glyph_license": "Arphic Public License — 全文見 ARPHICPL.txt，隨網站一併發佈",
+            "glyph_modifications": (
+                "自 graphics.txt 取出四碼快打例字用得到的字元，保留其 strokes 欄"
+                "（字形輪廓，SVG path 指令），未修改任何路徑資料；捨棄 medians 與其餘欄位。"),
+        }
+
     return {
         "note": "generated by site/tools/build_site_data.py — do not edit",
+        **meta,
+        "glyphs": si4_glyphs,
+        "corpus": corpus,
         "stats": stats,
         "two": two,
         "multi": multi,
@@ -1593,6 +1670,188 @@ def build_phrases(codes, rules, max_rule):
         # 出貨碼表拿不到（極少見：rime/ 不在）就別讓頁面畫「已核對」的字樣
         "checked": ship is not None and ship_si4 is not None,
     }
+
+
+# 〈詞組〉頁的「詞庫收錄了什麼」：每一組的名字，以及它由哪幾個精選檔／哪幾節組成。
+#
+# 分組是**為了讀者**分的，不是照檔案分的 —— data/phrases_places.txt 一個檔裡
+# 同時有兩岸三地和世界各地，讀者要看的是這兩件事分開。所以用檔案裡的
+# 「# ===== 中文 English =====」小節標題來對，對不到就在建置紀錄裡喊，
+# 不要無聲少掉一整節（Side B 改了小節名字，這裡就該知道）。
+#
+# sections=None 表示整個檔都算這一組。小節名前面加 "-" 表示**算進數字、但不舉例**
+# ——「國家全名」那一節的頭兩條是 中華人民共和國／中華民國，並排放在例詞第一行
+# 會讀成一句話，而這一段要講的只是「詞庫收了什麼」（Wilson 提過政治敏感的字眼
+# 不要當招牌例子）。那一節的詞照樣打得出來，只是不拿來當門面。
+CORPUS_GROUPS = [
+    # 順序有兩個作用，改的時候兩個都要想：
+    #   1. 網站上就照這個順序排 —— 地名 → 人名（古到今）→ 機構品牌 → 語文與生活。
+    #   2. **先認領先贏**：同一個詞常常兩節都有（北京 既是中國省級行政區、也是
+    #      世界各國首都），排前面的那一組收走它。所以 兩岸三地 一定要在 世界地名 前面。
+    ("兩岸三地地名", [("places", ("中國省級行政區", "中國主要城市", "台灣縣市",
+                                  "台北捷運車站", "香港港鐵車站"))]),
+    ("世界地名", [("places", ("國家", "-國家全名", "世界各國首都", "世界主要城市",
+                              "大區域／半島", "美國各州", "日本都道府縣"))]),
+    # phrases_history.txt 一個檔裡混了四種東西，分開才看得懂：帝王將相是一回事，
+    # 思想家文人科學家是另一回事，而朝代與神話根本不是「人物」（Wilson）。
+    # 現代政治人物（phrases_politicians.txt，含 總統／首相 這類職稱）併進來 ——
+    # 帝王將相跟當代政要本來就是同一件事的古今兩端，分兩組讀者只會問差在哪（Wilson）。
+    ("古今中外歷史政治人物", [("history", ("帝王／年號", "名將／歷史人物")),
+                              ("politicians", None)]),
+    ("古今中外科學文學人物", [("history", ("諸子百家／思想家", "文人詩詞",
+                                            "世界歷史／科學／藝術名人"))]),
+    ("朝代、宗教與神話", [("history", ("朝代", "宗教人物", "神話人物"))]),
+    ("影視歌與體壇名人", [("people", None)]),
+    ("常見英名中譯", [("english_names", None)]),
+    ("機構與組織", [("orgs", None), ("common", ("政府機構", "大學"))]),
+    ("品牌與公司", [("brands", None)]),
+    ("成語俗語諺語", [("idioms", None)]),
+    ("日常文化", [("common", ("節日", "生肖", "顏色", "星座")), ("food", None)]),
+    ("科目與職業", [("common", ("學科", "職業"))]),
+    ("國際交流", [("common", ("貨幣", "語言／文字"))]),
+]
+
+CORPUS_PICKS = 10          # 每一組秀幾個例詞。多了會變成清單，這一段是「舉例」不是「目錄」
+
+
+def _phrase_files():
+    """data/phrases_*.txt → {檔名去掉前綴: [(小節標題, [詞, …]), …]}。
+
+    ⚠️ 讀的是 **Side B 的詞源檔**，只讀不寫。格式見各檔檔頭：空白分隔、
+    `#` 註解，其中 `# ===== 中文 English ===== ` 這種是小節標題。
+    """
+    out = {}
+    for path in sorted(DATA.glob("phrases_*.txt")):
+        name = path.stem[len("phrases_"):]
+        sections, cur = [], ("", [])
+        for line in path.read_text("utf-8", "ignore").splitlines():
+            head = re.match(r"#\s*=+\s*(.+?)\s*=+\s*$", line)
+            if head:
+                if cur[1]:
+                    sections.append(cur)
+                cur = (head.group(1), [])
+                continue
+            words = line.split("#")[0].split()
+            cur[1].extend(words)
+        if cur[1]:
+            sections.append(cur)
+        out[name] = sections
+    return out
+
+
+def build_corpus(pc, ship, weight, warn):
+    """詞庫收錄了什麼：每一組幾個詞、舉幾個例。
+
+    例詞照詞頻挑最高的幾個 —— 舉例要舉認得出來的，挑到冷門詞等於沒舉。
+    每個詞的碼都現算並確認它真的收進了出貨碼表，不然就換下一個。
+    """
+    files = _phrase_files()
+    if not files:
+        return None
+
+    def rank(w):
+        return -weight.get(w, 0)
+
+    def entry(w):
+        got = pc.word_codes(w)
+        if not got or w not in ship:
+            return None
+        _pos, sigs = pc.si4_of(w)
+        return {"w": w, "code": min(got, key=len).upper(),
+                "si4": sigs[0].upper() if sigs else ""}
+
+    groups, claimed, taken = [], {}, set()
+    for name, parts in CORPUS_GROUPS:
+        buckets = []          # [(小節, [詞…]), …]，例詞從各小節輪流挑
+        for fname, wanted in parts:
+            secs = files.get(fname)
+            if secs is None:
+                warn.append(f"詞庫分組「{name}」：找不到 data/phrases_{fname}.txt")
+                continue
+            if wanted is None:
+                hits = [(t, ws, False) for t, ws in secs]
+            else:
+                hits = []
+                for key in wanted:
+                    quiet = key.startswith("-")
+                    # 比第一個空白之前那一段，不是用 in 比子字串 ——「國家」是
+                    # 「國家全名」的前綴，用 in 比會讓 -國家全名 那一節被「國家」
+                    # 也認領一次，靜音就失效了（實際踩過）。
+                    want = key.lstrip("-")
+                    got = [(t, ws, quiet) for t, ws in secs if t.split()[0] == want]
+                    if not got:
+                        warn.append(f"詞庫分組「{name}」：{fname}.txt 裡找不到"
+                                    f"「{key.lstrip('-')}」那一節"
+                                    f"（小節標題改過？這一節的詞不會出現在網站上）")
+                    hits += got
+            for hit in hits:
+                title, ws = hit[0], hit[1]
+                quiet = hit[2] if len(hit) > 2 else False
+                claimed.setdefault(fname, set()).add(title)
+                buckets.append((title, ws, quiet))
+
+        # 同一個詞常常兩節都有（北京 既是中國省級行政區、也是世界各國首都），
+        # 先認領先贏 —— 分組的順序就是決定它歸誰的順序，所以 CORPUS_GROUPS 裡
+        # 兩岸三地排在世界地名前面。不去重的話 北京 會在兩組裡各出現一次。
+        all_words = []
+        for title, ws, quiet in buckets:
+            for w in ws:
+                if w in ship and w not in taken:
+                    taken.add(w)
+                    all_words.append((title, w, quiet))
+        by_sec = {}
+        for title, w, quiet in all_words:
+            if not quiet:
+                by_sec.setdefault(title, []).append(w)
+
+        # 例詞照**檔案裡的順序**挑，不照詞頻。精選檔是人手排的，排在前面的就是
+        # 那一節最該舉的（港鐵那節開頭是 中環、香港、金鐘）。照詞頻挑會挑出
+        # 大學、幸福 —— 它們確實是港鐵／捷運站名，但當普通詞太常見，所以詞頻
+        # 排最前面，而讀者看不出那是地名。日常用語那一組沒有檔案可循，才照詞頻。
+        # 又從各小節輪流挑，不是一節挑滿 —— 這樣看得出這一組涵蓋了哪幾種東西。
+        picks, cursor = [], 0
+        order = [b[0] for b in buckets if by_sec.get(b[0])]
+        while len(picks) < CORPUS_PICKS and order:
+            progressed = False
+            for title in list(order):
+                pool = by_sec.get(title) or []
+                while pool:
+                    e = entry(pool.pop(0))
+                    if e:
+                        picks.append(e)
+                        progressed = True
+                        break
+                if not by_sec.get(title):
+                    order.remove(title)
+                if len(picks) >= CORPUS_PICKS:
+                    break
+            if not progressed:
+                break
+        if picks:
+            groups.append({"name": name, "n": len(all_words), "picks": picks})
+
+    # 精選檔裡沒被任何一組認領的小節 —— 讀者看不到，通常是分組表沒跟上檔案
+    for fname, secs in files.items():
+        for title, ws in secs:
+            if ws and title not in claimed.get(fname, ()):
+                warn.append(f"詞庫分組：{fname}.txt 的「{title or '（無標題）'}」"
+                            f"沒有分到任何一組，那 {len(ws)} 個詞不會出現在網站上")
+
+    # 精選檔以外的詞＝rime-essay 高頻詞表那一批（日常用語），量最大的一塊。
+    # 它沒有分類可言，所以只按詞頻舉例；數字是「總數減掉精選檔收得到的」。
+    curated = {w for secs in files.values() for _t, ws in secs for w in ws}
+    daily = [w for w in ship if w not in curated]
+    picks = []
+    for w in sorted(daily, key=rank):
+        e = entry(w)
+        if e:
+            picks.append(e)
+        if len(picks) >= CORPUS_PICKS:
+            break
+    if picks:
+        groups.insert(0, {"name": "日常用語", "n": len(daily), "picks": picks,
+                          "src": "rime-essay 高頻詞表"})
+    return {"total": len(ship), "groups": groups}
 
 
 # 試打頁的詞庫上限：每個碼最多留幾個候選。跟 try.js 的 MAX_CANDS 一樣是 9 ——
@@ -2042,7 +2301,7 @@ def main():
     glyph_chars.update(principles.keys())
     jianma = build_jianma(codes, rules)
     conventional = build_conventional(codes, rules, max_rule)
-    phrases = build_phrases(codes, rules, max_rule)
+    phrases = build_phrases(codes, rules, max_rule, zigen_raw)
     phrase_dict = build_phrase_dict(codes, rules, max_rule)
     for g in conventional["groups"]:
         glyph_chars.update(c["c"] for c in g["chars"])

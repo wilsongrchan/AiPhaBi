@@ -34,6 +34,37 @@
     return c;
   }
 
+  /* 例字的字形（assets/phrases.json 的 glyphs，跟試打頁的田字格同一份來源、
+     同一個授權：makemeahanzi／Arphic PL，少數字用教育部標準筆順）。
+     座標系跟 try.js 的田字格一樣：graphics.txt 的原點在左下，所以 y 要翻過來，
+     位移是 900 不是 1024。這裡不畫格線 —— 要看的是「哪幾筆亮著」，格子是多餘的。 */
+  var SVG_TF = 'scale(1,-1) translate(0,-900)';
+  var GLYPHS = null;
+
+  /* 一個字一張圖。picks 可以有兩條（劉德華 的 華 同時被取首碼和末碼），
+     各自上自己那一位的顏色，其餘筆畫壓成淡灰。 */
+  function strokeSvg(ch, picks) {
+    var st = GLYPHS && GLYPHS[ch];
+    if (!st) return null;
+    var lit = {}, any = false;
+    for (var i = 0; i < picks.length; i++) {
+      var on = picks[i].on || [];
+      for (var j = 0; j < on.length; j++) { lit[on[j]] = picks[i].i; any = true; }
+    }
+    if (!any) return null;
+    var paths = '';
+    for (var k = 0; k < st.length; k++) {
+      var g = lit[k];
+      paths += '<path class="' + (g == null ? 'cz-off' : 'cz-lit-' + rb(g).slice(3))
+             + '" d="' + st[k] + '"/>';
+    }
+    var box = el('span', 'cz-glyph');
+    box.setAttribute('data-keep', '');
+    box.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">'
+      + '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
+    return box;
+  }
+
   function glyph(ch) {
     var g = el('span', 'cz-ch', ch);
     g.setAttribute('data-keep', '');
@@ -123,21 +154,27 @@
   }
 
   /* ---------- 四碼快打 ---------- */
-  /* 一個字的碼，取到的那個字母亮起來、其餘壓暗——四碼是「每格挑一個字母」，
-     畫成挑字母的樣子比寫規則好懂。同一個字在兩格被取到（三字詞的末字取首和末）
-     時會出現兩次，各自亮各自那一個字母。 */
-  function slotCell(s, i) {
+  /* 一格＝一個字：畫出那個字，取到的字根亮起來、其餘壓暗，底下是它的碼（取到的
+     字母上色）。四碼是「每格挑一個字母」，畫成挑字根的樣子比寫規則好懂。
+     連著的同一個字合成一格（劉德華 的 華 同時被取首碼和末碼）—— 兩個 華 並排
+     會看成「劉德華華」，而首尾兩條字根本來就該在同一張圖上一起看（Wilson）。 */
+  function slotCell(s) {
     var cell = el('div', 'cz-slot');
-    cell.appendChild(glyph(s.c));
+    /* 字形優先：取首碼講的其實是「取第一條字根的字母」，看到那幾筆亮起來才懂
+       （Wilson）。沒有字形資料（字形檔沒下載成功）就退回單純的字，其餘照舊。 */
+    cell.appendChild(strokeSvg(s.c, s.picks) || glyph(s.c));
+
     var c = el('code', null);
     c.setAttribute('data-keep', '');
     var letters = s.code.split('');
-    var pick = s.last ? letters.length - 1 : 0;
+    var lit = {};
+    s.picks.forEach(function (p) { lit[p.last ? letters.length - 1 : 0] = p.i; });
     letters.forEach(function (ch, j) {
-      c.appendChild(el('span', j === pick ? rb(i) : 'off', ch));
+      c.appendChild(el('span', lit[j] == null ? 'off' : rb(lit[j]), ch));
     });
     cell.appendChild(c);
-    cell.appendChild(el('i', 'cz-kind', s.last ? '末碼' : '首碼'));
+    cell.appendChild(el('i', 'cz-kind',
+      s.picks.map(function (p) { return p.last ? '末碼' : '首碼'; }).join('＋')));
     return cell;
   }
 
@@ -146,7 +183,7 @@
     if (label) row.appendChild(el('span', 'cz-modetag', label));
     slots.forEach(function (s, i) {
       if (i) row.appendChild(el('span', 'cz-op', '＋'));
-      row.appendChild(slotCell(s, i));
+      row.appendChild(slotCell(s));
     });
     row.appendChild(el('span', 'cz-op', '＝'));
     var total = el('code', 'cz-total');
@@ -176,7 +213,9 @@
         foot.appendChild(document.createTextNode(
           '（' + e.full.length + ' 碼），四碼省下 ' + (e.full.length - 4) + ' 下。'));
       }
-      if (e.more && e.more.length && !e.slots2) {
+      // 兼容碼生出來的額外簽名。五字以上也要講 —— 那邊 more 是「某一格的字有
+      // 兼容碼」，跟第二式是兩回事，早先漏掉了（聯合國教科文組織 的 教 → NAOF）。
+      if (e.more && e.more.length) {
         foot.appendChild(document.createTextNode('　兼容碼另外生出 '));
         e.more.forEach(function (m, i) {
           if (i) foot.appendChild(document.createTextNode('、'));
@@ -228,6 +267,36 @@
     box.appendChild(card);
   }
 
+  /* ---------- 詞庫收錄了什麼 ---------- */
+  /* 每一組一張卡：組名、幾個詞、幾個例。例詞旁邊掛它的碼（詞組連打那條），
+     有四碼的再多掛一個 —— 這一段是「詞庫有什麼」，不是碼表，所以碼只當佐證，
+     不佔版面（.cz-w code 是小字）。 */
+  function renderCorpus(c) {
+    var box = document.getElementById('cz-corpus');
+    box.textContent = '';
+    if (!c) return;
+    c.groups.forEach(function (g) {
+      var card = el('div', 'cz-card cz-cat');
+      var head = el('p', 'cz-cathead');
+      head.appendChild(el('b', null, g.name));
+      head.appendChild(el('span', 'cz-note',
+        g.n.toLocaleString('en-US') + ' 個詞' + (g.src ? '　' + g.src : '')));
+      card.appendChild(head);
+      var list = el('div', 'cz-words');
+      g.picks.forEach(function (p) {
+        var one = el('span', 'cz-w');
+        one.appendChild(glyph(p.w));
+        /* 一個詞只掛一條碼：有四碼就掛四碼，沒有才掛詞組碼。兩條都掛的話，
+           長詞會被自己的詞組碼淹沒（斯堪地那維亞 的詞組碼有 17 個字母），
+           而這一段要講的是「詞庫收了什麼」，碼只是佐證。 */
+        one.appendChild(p.si4 ? code(p.si4, 'is-si4') : code(p.code));
+        list.appendChild(one);
+      });
+      card.appendChild(list);
+      box.appendChild(card);
+    });
+  }
+
   function num(id, v) {
     var n = document.getElementById(id);
     if (n && v != null) n.textContent = v.toLocaleString('en-US');
@@ -239,10 +308,23 @@
       num('cz-n-words', d.stats.words);
       num('cz-n-entries', d.stats.entries);
       num('cz-n-si4', d.stats.si4Words);
+      GLYPHS = d.glyphs || null;
       renderTwo(d.two || []);
       renderMulti(d.multi);
       renderSi4(d.si4 || []);
       renderSentence(d.sentence);
+      renderCorpus(d.corpus);
+      /* 四碼快打那段開場白裡的「照規則接要打幾碼」——拿最長的那個例詞現算，
+         不要寫死在 HTML 裡（取碼一改就過期，而過期的數字沒人會發現）。 */
+      var lng = (d.si4 || []).slice().sort(function (a, b) {
+        return (b.full || '').length - (a.full || '').length;
+      })[0];
+      if (lng) {
+        var wEl = document.getElementById('cz-long-w');
+        var nEl = document.getElementById('cz-long-n');
+        if (wEl) { wEl.textContent = lng.w; wEl.setAttribute('data-keep', ''); }
+        if (nEl) nEl.textContent = lng.full.length;
+      }
       if (window.AiPhaBiSite) window.AiPhaBiSite.localize(document.querySelector('main'));
     })
     .catch(function () {

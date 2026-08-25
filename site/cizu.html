@@ -38,7 +38,7 @@
         <li><a href="#cz-1">1. 詞組連打</a></li>
         <li><a href="#cz-4">2. 四碼快打</a></li>
         <li><a href="#cz-5">3. 智能分詞</a></li>
-        <li><a href="#cz-6">4. 開關</a></li>
+        <li><a href="#cz-7">4. 詞庫收錄什麼</a></li>
       </ul>
       <a href="try.html">線上試打</a>
     </nav>
@@ -57,7 +57,7 @@
   </p>
 
   <div class="cz-stats stats">
-    <div class="stat"><b id="cz-n-words">…</b><span>個收錄詞組</span></div>
+    <div class="stat"><b id="cz-n-words">…</b><span><a href="#cz-7">個收錄詞組</a></span></div>
     <div class="stat"><b id="cz-n-entries">…</b><span>條碼表條目（一詞多式）</span></div>
     <div class="stat"><b id="cz-n-si4">…</b><span>個詞打四碼就出得來</span></div>
   </div>
@@ -92,8 +92,9 @@
 
   <h2 id="cz-4">四碼快打</h2>
   <p>
-    長詞逐字接下來會很長——「中華人民共和國」照規則接是十五碼。所以三字以上的詞
-    另外壓成<strong>固定四碼</strong>，取哪四碼也是推得出來的：
+    長詞逐字接下來會很長——「<span id="cz-long-w">…</span>」照規則接要打
+    <span id="cz-long-n">…</span> 碼。所以三字以上的詞另外壓成<strong>固定四碼</strong>，
+    取哪四碼也是推得出來的：
   </p>
   <ul class="jm-conditions">
     <li><b>三字詞</b>：前兩字的首碼，加末字的<strong>首碼和末碼</strong>（末字補一碼消歧）</li>
@@ -117,13 +118,15 @@
   </p>
   <div id="cz-sentence"><p class="cz-loading">詞組資料載入中……</p></div>
 
-  <h2 id="cz-6">開關</h2>
+  <h2 id="cz-7">詞庫收錄了什麼</h2>
   <p>
-    詞組連打在鼠鬚管裡是一個開關（<span class="cz-tag" data-keep>詞組開／詞組關</span>），
-    預設關閉；四碼快打<strong>跟著它走</strong>，沒有另外的開關。關掉之後，
-    多字候選會被濾掉，選字列只剩單字——想追求一擊即中、不被詞干擾的人可以關。
-    無論開關，單字怎麼打都不受影響。
+    詞庫有兩個來源。大部分是<strong>日常高頻詞</strong>，從公開語料統計而來；
+    另外一批是<strong>手工收的專名</strong>——地名、人名、成語、機構、品牌、小吃，
+    這些字詞不見得常出現在文章裡，但真要打的時候一個都不能少。
+    每一組舉幾個例，碼都是現算的：
   </p>
+  <div id="cz-corpus"><p class="cz-loading">詞組資料載入中……</p></div>
+
   <p class="cz-src">
     這一頁的每一個碼都是建置時從 <code data-keep>data/codes.json</code> 現算，
     再拿實際出貨的碼表對過一次，不是手抄上來的。
@@ -133,7 +136,8 @@
     <b>可以直接試。</b>
     <a href="try.html">線上試打</a>頁有「詞組連打＋四碼快打」開關，
     打開就能用這一頁講的規則打詞——查的是同一份現算出來的碼。
-    預設關閉，跟真正的輸入法一樣；詞庫要另外下載，所以打開之後會等一下。
+    預設關閉，跟真正的輸入法一樣（四碼快打沒有自己的開關，跟著詞組走）；
+    詞庫要另外下載，所以打開之後會等一下。
     智能分詞是 Rime 引擎做的，那一頁還沒有。
   </div>
 

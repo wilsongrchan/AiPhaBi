@@ -2234,6 +2234,24 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .cz-eq .rb-5 { color: var(--rb-5); }
 .cz-eq .off  { color: var(--ink-faint); }
 
+/* 四碼快打每一格的字形：取到的那一條字根亮著（顏色跟它下面那個字母同色），
+   其餘筆畫壓成淡灰。「取首碼」講的是「取第一條字根的字母」—— 這件事看圖比看字快。
+   2.6rem：小於這個，一兩筆的字根（德 的 J 只有一筆）在螢幕上看不出顏色。 */
+.cz-glyph {
+  display: block;
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+.cz-glyph svg { width: 100%; height: 100%; display: block; }
+.cz-glyph .cz-off { fill: var(--zg-off); }
+.cz-glyph .cz-lit-0 { fill: var(--rb-0); }
+.cz-glyph .cz-lit-1 { fill: var(--rb-1); }
+.cz-glyph .cz-lit-2 { fill: var(--rb-2); }
+.cz-glyph .cz-lit-3 { fill: var(--rb-3); }
+.cz-glyph .cz-lit-4 { fill: var(--rb-4); }
+.cz-glyph .cz-lit-5 { fill: var(--rb-5); }
+
 .cz-count {
   margin: .5rem 0 0;
   font-size: .84rem;
@@ -2288,6 +2306,41 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   border-radius: 5px;
   padding: .05rem .35rem;
 }
+
+/* 詞庫收錄了什麼：一組一張卡，例詞橫排、自己折行 */
+.cz-cat { padding: .8rem 1.1rem .9rem; }
+
+.cz-cathead {
+  display: flex;
+  align-items: baseline;
+  gap: .7rem;
+  flex-wrap: wrap;
+  margin: 0 0 .5rem;
+  max-width: none;
+}
+
+.cz-cathead b { font-size: 1rem; }
+
+.cz-words { display: flex; flex-wrap: wrap; gap: .35rem .9rem; }
+
+.cz-w {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .25em;
+}
+
+.cz-w .cz-ch { font-size: 1.05rem; }
+
+.cz-w code {
+  background: none;
+  padding: 0;
+  font-size: .68rem;
+  color: var(--ink-faint);
+  letter-spacing: .03em;
+}
+
+/* 四碼那一條用主色，跟詞組碼分得開 —— 同一個詞兩條碼並排，不分色會讀成一串 */
+.cz-w code.is-si4 { color: var(--accent); }
 
 .cz-stats { margin: 1.6rem 0 2rem; }
 
