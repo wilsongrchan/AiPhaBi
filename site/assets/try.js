@@ -740,6 +740,63 @@
     paintGlyph(P.cell, ch, strokes, strokeColours(ch));
   }
 
+  /* ── 四碼快打：一格是三字以上的詞時，田字格切成四小格 ────────────────
+     一小格一碼，照四碼的順序排（左上→右上→左下→右下），每格只把貢獻那一碼的
+     那條字根標色，其餘筆畫留黑。四個字母連起來就是要打的四碼。
+
+     為什麼不沿用原本那一個大格子：三字以上的詞照 build_rime.py 的規則逐字接
+     碼會很長（悲歡離合 連打是 11 碼），真正該學的是四碼那條路，而四碼講的是
+     「每個字取一個字母」——那件事非得四個字擺在一起才看得出來（Wilson）。
+
+     取哪一碼跟 _PhraseCoder.si4_forms（site/tools/build_site_data.py，移植自
+     build_rime.py）同一條規則：四字詞取四個首碼；三字詞取首首首末，最後一格
+     是第三個字的**末**碼，所以第三個字會出現兩次。這裡的「首碼／末碼」指的是
+     segsOf() 那一份（已經套過「頭四尾一」）的第一段與最後一段 —— 跟碼表那邊
+     取 char2code 的頭尾字母是同一件事，不然標色會標在被截掉的那幾段上。
+     兼容碼換出來的那些簽名不畫：一格只講一條路，那是碼表那邊的事。 */
+  var QZ = [0, 1, 2, 4];          // 紅黃綠紫，跟〈詞組〉頁的四碼卡同一個順序
+
+  function si4Cells(unit) {
+    if (!unit || unit.length < 3) return null;
+    var segs = [], i;
+    for (i = 0; i < unit.length; i++) {
+      var one = segsOf(unit.charAt(i));
+      if (!one || !one.length) return null;      // 有字沒分段就整個不畫，別畫半套
+      segs.push(one);
+    }
+    var out = [];
+    if (unit.length === 3) {
+      for (i = 0; i < 3; i++) out.push({ ch: unit.charAt(i), seg: segs[i][0], last: false });
+      out.push({ ch: unit.charAt(2), seg: segs[2][segs[2].length - 1], last: true });
+    } else {
+      for (i = 0; i < 4; i++) out.push({ ch: unit.charAt(i), seg: segs[i][0], last: false });
+    }
+    return out;
+  }
+
+  function drawQuad(cells) {
+    var html = '';
+    for (var i = 0; i < cells.length; i++) {
+      var c = cells[i], strokes = P.glyphs ? P.glyphs[c.ch] : null, paths = '';
+      if (strokes) {
+        var lit = {};
+        for (var k = 0; k < c.seg.st.length; k++) lit[c.seg.st[k]] = 1;
+        for (var j = 0; j < strokes.length; j++) {
+          paths += '<path class="' + (lit[j] ? 'tz-z' + QZ[i] : 'tz-ink') +
+                   '" d="' + strokes[j] + '"/>';
+        }
+      }
+      html += '<div class="tz-q">' +
+        '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + c.ch + '">' + GRID +
+        '<g transform="' + SVG_TF + '">' + paths + '</g></svg>' +
+        (strokes ? '' : '<span class="tz-fallback">' + c.ch + '</span>') +
+        '<span class="tz-qcode">' + c.seg.L.toUpperCase() +
+        (c.last ? '<i class="tz-qtag">末</i>' : '') + '</span>' +
+        '</div>';
+    }
+    P.cell.innerHTML = '<div class="tz-quad">' + html + '</div>';
+  }
+
 
   /* 田字格那一塊（格子＋下一個字＋提示）。打字時只重畫這裡 —— 參考文章有一千
      三百多個 span，每按一鍵重建一次太浪費，而它的內容只在換字時才會變。 */
@@ -759,7 +816,10 @@
     if (!P.on) return;
     var now = curChar();
     var done = P.pos >= P.chars.length;
+    // 三字以上的詞：四小格講四碼快打；其餘照舊，一個大格子逐碼上色
+    var quad = done ? null : si4Cells(P.unit);
     if (done) celebrateCell();
+    else if (quad) drawQuad(quad);
     else drawCell(now === '\n' ? '' : now);
 
     var uncoded = now && isHan(now) && P.main && !P.main[now];

@@ -1955,6 +1955,27 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   font-size: 5.5rem; color: var(--ink); line-height: 1;
 }
 
+/* 四碼快打：一格是三字以上的詞時，那一個田字格換成四個四分之一大的小格
+ * （見 try.js drawQuad）。一小格一碼，四個字母連起來就是要打的四碼。
+ * 小格照樣沿用 .tianzi 底下那幾條（格線、tz-ink、tz-z*、tz-fallback），
+ * 這裡只管排版 —— 顏色改一次全站一起改，不要在這裡另開一組。 */
+.tz-quad { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .4rem; }
+.tz-q { position: relative; }
+/* 小格裡沒有字形資料時的退路字要跟著縮，不然 5.5rem 會撐破四分之一的格子 */
+.tz-q .tz-fallback { font-size: 2.6rem; }
+.tz-qcode {
+  display: block; text-align: center; margin-top: .1rem;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: .95rem; font-weight: 600; letter-spacing: .06em; color: var(--ink);
+}
+/* 三字詞的第四格取的是第三個字的**末**碼（首首首末），第三個字因此出現兩次。
+   不標的話看起來像畫錯了，所以只有末碼那一格加一個小字；首碼那三格不標，
+   四格都標等於什麼都沒說。 */
+.tz-qtag {
+  font-family: inherit; font-style: normal; font-size: .6rem; font-weight: 400;
+  color: var(--ink-faint); margin-inline-start: .2em; vertical-align: .15em;
+}
+
 /* 慶祝畫面：整篇打完了，田字格裡放幾個 emoji 小小彈一下，取代原本要畫的字
  * （見 try.js celebrateCell）。跟 .tz-fallback 一樣疊在格子中央，動畫很短，
  * 每片彈跳的時間錯開一點點（inline style 的 animation-delay），看起來比較
