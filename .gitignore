@@ -54,6 +54,9 @@ site/assets/zigen.json
 site/assets/principles.json
 site/assets/jianma.json
 site/assets/conventional.json
+# 詞組頁：詞組連打／四碼快打的例詞。碼是建置時現算、再拿 rime/ 的出貨碼表對過的，
+# 更沒有理由收進版控 —— 收了就會有一份跟碼表對不上的碼躺在 repo 裡。
+site/assets/phrases.json
 site/assets/pinyin.json
 # 拆碼圖＋字形，跟 glyphs.json 同源同授權（Arphic PL），一樣會隨網站發佈出去。
 # 跟 pinyin.json 分開是因為下載時機不同：這一份要等使用者點進查字框才抓。

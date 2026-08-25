@@ -5,6 +5,7 @@
     site/assets/t2s.json    繁 → 簡 單字對照（繁簡切換用）
     site/assets/zigen.json  字根表（取形意圖 ＋ 例字），給 zigen.html 用
     site/assets/jianma.json 簡碼表（約定簡碼／三簡碼／左簡碼），給 jianma.html 用
+    site/assets/phrases.json 詞組連打／四碼快打，給 cizu.html 用
 
 All outputs are **generated, never hand-edited, and gitignored**. They are rebuilt in the
 Pages workflow right before deploy, so the published demo can never drift from `data/codes.json`
@@ -1227,6 +1228,333 @@ def build_conventional(codes, rules, max_rule=None):
     }
 
 
+# ---------------------------------------------------------------------------
+# 〈詞組〉頁：詞組連打 ＋ 四碼快打
+#
+# ⚠️ 這一段是**唯一**在 Side C 這邊複製 build_rime.py 取碼邏輯的地方，因為詞組碼
+# 不在 codes.json 裡 —— 它是 build_rime.py 在建置時算出來的，只存在於出貨碼表
+# （rime/aiphabi.dict.yaml）和 rime/lua/aiphabi_data.lua 的 M.si4 裡。
+#
+# 複製邏輯就會走鐘，所以每一條例詞算完之後都**拿出貨碼表對一次**（_ship_words /
+# _ship_si4）：對不上就在建置紀錄裡印出來，例詞旁邊也會標「碼表還沒重建」。
+# 對不上通常不是這裡算錯，而是 Side A 改了取碼、Side B 還沒重建碼表 —— 那是
+# 正常的暫時狀態（見 CLAUDE.md 硬規則二），不該擋住建置。
+#
+# 下面四個函式（_pcode / _char_options / _word_codes / _si4_*）是
+# build_rime.py:364-509 的搬運，改動那邊就要改這邊。
+# ---------------------------------------------------------------------------
+
+# 例詞是手挑的，挑的標準寫在每一組旁邊。碼一律現算，不手抄。
+PHRASE_TWO = [
+    # 兩字詞：每字「簡碼／三簡碼／主碼／兼容碼」任意搭配都收進碼表。
+    ("香港", "港 沒有約定簡碼，落到三簡碼 WHZ —— 首尾相接就是最短的那條"),
+    ("我的", "兩個字都有約定簡碼，四種搭配全部打得出來"),
+    ("城市", "市 有一條兼容碼 IM，它也算一條路，一樣接得上"),
+]
+PHRASE_MULTI = "廣東話"      # 三字以上：四式剛好各不相同的詞（另一個是 普通話）
+PHRASE_SI4 = [
+    ("容祖兒", "三字：前兩字首碼 ＋ 末字的首碼和末碼"),
+    ("人山人海", "四字：各取首碼"),
+    ("光明正大", "四字：各取首碼"),
+    ("中華人民共和國", "五字以上：前四字首碼，另加「前三字＋末字」一式"),
+    ("上海市", "市 的兼容碼 IM 首字母不同，於是多一個簽名 JWIM"),
+]
+PHRASE_SENTENCE = ("香港", "新界")   # 智能分詞示範：前半是收錄詞、後半不是
+
+KIND_LABEL = {"short": "約定簡碼", "t3": "三簡碼", "main": "主碼", "alt": "兼容碼"}
+
+
+def _ship_words():
+    """出貨碼表裡的多字詞 -> {碼}。拿來對例詞，也拿來算「收錄幾個詞」。"""
+    path = ROOT / "rime" / "aiphabi.dict.yaml"
+    if not path.exists():
+        return None
+    out = {}
+    for line in path.read_text("utf-8", "ignore").splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 2 and len(parts[0]) >= 2 and parts[1].isalpha():
+            out.setdefault(parts[0], set()).add(parts[1])
+    return out
+
+
+def _ship_si4():
+    """rime/lua/aiphabi_data.lua 的 M.si4：四碼 -> [詞]。四碼快打不進碼表，只在這裡。"""
+    path = ROOT / "rime" / "lua" / "aiphabi_data.lua"
+    if not path.exists():
+        return None
+    out = {}
+    inside = False
+    for line in path.read_text("utf-8", "ignore").splitlines():
+        if line.startswith("M.si4 = {"):
+            inside = True
+            continue
+        if inside:
+            if line.startswith("}"):
+                break
+            m = re.match(r'\s*\["([a-z]+)"\]=\{(.*)\},\s*$', line)
+            if m:
+                out[m.group(1)] = re.findall(r'"([^"]+)"', m.group(2))
+    return out or None
+
+
+def build_phrases(codes, rules, max_rule):
+    """〈詞組〉頁：詞組連打的拼碼規則 ＋ 四碼快打的四個位置，逐字算給頁面畫。"""
+    warn = []
+
+    char2code = {c: shorten(rec["code"], max_rule).lower()
+                 for c, rec in codes.items() if rec.get("code")}
+    alt_codes = {}
+    for ch, rec in codes.items():
+        mc = char2code.get(ch)
+        if not mc:
+            continue
+        got = []
+        for a in rec.get("alts", []):
+            ac = shorten(a.get("code", ""), max_rule).lower()
+            if ac and ac != mc and ac not in got:
+                got.append(ac)
+        if got:
+            alt_codes[ch] = got
+    short_rev = {}
+    sc = next((r for r in rules.get("rules", []) if r["id"] == "short_code"), None)
+    if sc:
+        for e in (sc.get("params", {}).get("entries") or sc.get("entries") or []):
+            ch, s = e.get("c"), (e.get("short") or "").lower()
+            if ch and s and ch in codes:
+                short_rev.setdefault(ch, s)
+
+    def piece(ch, mode):
+        """回傳 (碼, 這條碼是哪一種)。mode 對應 build_rime.py 的 _pcode。"""
+        mc = char2code.get(ch)
+        if mode == "main":
+            return mc, "main"
+        if mode == "alt":
+            got = alt_codes.get(ch)
+            return (got[0], "alt") if got else (mc, "main")
+        s = short_rev.get(ch)
+        if s:
+            return s, "short"
+        if mode == "t3" and mc and len(mc) >= 4:
+            return mc[0] + mc[1] + mc[-1], "t3"
+        return mc, "main"
+
+    def char_options(ch):
+        """兩字詞用：這個字所有值得串進詞組的碼，[(碼, 種類), ...]。"""
+        mc = char2code.get(ch)
+        if not mc:
+            return []
+        opts = []
+        s = short_rev.get(ch)
+        if s:
+            opts.append((s, "short"))
+        elif len(mc) >= 4:
+            opts.append((mc[0] + mc[1] + mc[-1], "t3"))
+        opts.append((mc, "main"))
+        for ac in alt_codes.get(ch, ()):
+            if ac not in [o[0] for o in opts]:
+                opts.append((ac, "alt"))
+        return opts
+
+    def word_codes(w):
+        chs = list(w)
+        if any(char2code.get(c) is None for c in chs):
+            return None
+        if len(chs) == 2:
+            return {a[0] + b[0] for a in char_options(chs[0]) for b in char_options(chs[1])}
+        return {"".join(piece(c, m)[0] for c in chs) for m in ("main", "simp", "t3", "alt")}
+
+    def si4_letters(ch, want_last):
+        out = []
+        mc = char2code.get(ch)
+        if mc:
+            out.append(mc[-1] if want_last else mc[0])
+        for ac in alt_codes.get(ch, ()):
+            L = ac[-1] if want_last else ac[0]
+            if L not in out:
+                out.append(L)
+        return out
+
+    def si4_sigs(positions):
+        base = [si4_letters(c, last)[0] for c, last in positions]
+        sigs = ["".join(base)]
+        for i, (c, last) in enumerate(positions):
+            for L in si4_letters(c, last)[1:]:
+                v = list(base)
+                v[i] = L
+                sigs.append("".join(v))
+        return list(dict.fromkeys(sigs))
+
+    def si4_of(w):
+        """回傳 (positions, [四碼…])。positions 是 [(字, 取末碼?), …] 四格。"""
+        chs = list(w)
+        if len(chs) < 3 or any(c not in char2code for c in set(chs[:4]) | {chs[-1]}):
+            return None, []
+        if len(chs) == 3:
+            pos = [(chs[0], False), (chs[1], False), (chs[2], False), (chs[2], True)]
+            return pos, si4_sigs(pos)
+        if len(chs) == 4:
+            pos = [(c, False) for c in chs]
+            return pos, si4_sigs(pos)
+        pos = [(c, False) for c in chs[:4]]
+        tail = [(c, False) for c in chs[:3]] + [(chs[-1], False)]
+        return pos, si4_sigs(pos) + si4_sigs(tail)
+
+    ship = _ship_words()
+    ship_si4 = _ship_si4()
+
+    def check(w, got):
+        """例詞的碼跟出貨碼表對一次。回傳 True＝對得上（或無從對起）。"""
+        if ship is None:
+            return True
+        have = ship.get(w)
+        if have is None:
+            warn.append(f"詞組頁：出貨碼表裡沒有「{w}」，例詞旁邊會標「碼表還沒收」")
+            return False
+        if have != got:
+            warn.append(f"詞組頁：「{w}」現算 {sorted(got)}，出貨碼表是 {sorted(have)}"
+                        f" —— 多半是 Side A 改了取碼、碼表還沒重建")
+            return False
+        return True
+
+    def parts_of(w, mode):
+        out = []
+        for ch in w:
+            c, kind = piece(ch, mode)
+            out.append({"c": ch, "code": (c or "").upper(), "kind": kind,
+                        "label": KIND_LABEL[kind]})
+        return out
+
+    # ---- 兩字詞：所有搭配 ----
+    two = []
+    for w, note in PHRASE_TWO:
+        opts = [char_options(ch) for ch in w]
+        if not all(opts):
+            warn.append(f"詞組頁：「{w}」有字還沒取碼，跳過")
+            continue
+        rows = []
+        for a in opts[0]:
+            for b in opts[1]:
+                rows.append({
+                    "code": (a[0] + b[0]).upper(),
+                    "parts": [{"c": w[0], "code": a[0].upper(), "kind": a[1],
+                               "label": KIND_LABEL[a[1]]},
+                              {"c": w[1], "code": b[0].upper(), "kind": b[1],
+                               "label": KIND_LABEL[b[1]]}],
+                })
+        rows.sort(key=lambda r: len(r["code"]))
+        two.append({"w": w, "note": note, "rows": rows,
+                    "ok": check(w, {r["code"].lower() for r in rows})})
+
+    # ---- 三字以上：四式 ----
+    multi = None
+    if all(c in char2code for c in PHRASE_MULTI):
+        modes = []
+        seen = set()
+        for mode, label, why in [
+            ("main", "主碼式", "每個字都打主碼，最長但最不用想"),
+            ("simp", "簡碼式", "有約定簡碼的字用簡碼，沒有的用主碼"),
+            ("t3", "三簡碼式", "先看約定簡碼；沒有簡碼、主碼又有四碼以上，就用三簡碼"),
+            ("alt", "兼容碼式", "有兼容碼的字用第一條兼容碼，沒有的用主碼"),
+        ]:
+            code = "".join(piece(c, mode)[0] for c in PHRASE_MULTI)
+            modes.append({"id": mode, "label": label, "why": why,
+                          "code": code.upper(), "parts": parts_of(PHRASE_MULTI, mode),
+                          "dup": code in seen})
+            seen.add(code)
+        multi = {"w": PHRASE_MULTI, "modes": modes,
+                 "ok": check(PHRASE_MULTI, seen)}
+
+    # ---- 四碼快打 ----
+    si4 = []
+    for w, note in PHRASE_SI4:
+        pos, sigs = si4_of(w)
+        if not sigs:
+            warn.append(f"詞組頁：「{w}」湊不出四碼快打，跳過")
+            continue
+        def slots_of(positions):
+            out = []
+            for ch, last in positions:
+                mc = char2code[ch]
+                out.append({"c": ch, "code": mc.upper(),
+                            "letter": (mc[-1] if last else mc[0]).upper(),
+                            "last": last})
+            return out
+        slots = slots_of(pos)
+        # 五字以上收兩式，第二式是「前三字＋末字」——兩式都要畫，不然頁面只講了一半
+        slots2 = (slots_of([(c, False) for c in list(w)[:3]] + [(list(w)[-1], False)])
+                  if len(w) >= 5 else None)
+        wc = word_codes(w) or set()
+        entry = {"w": w, "n": len(w), "note": note,
+                 "code": sigs[0].upper(),
+                 "more": [s.upper() for s in sigs[1:]],
+                 "slots": slots,
+                 "slots2": slots2,
+                 "code2": sigs[1].upper() if slots2 and len(sigs) > 1 else "",
+                 # 「省了幾碼」：四碼 vs 平常最短的打法。si4_rev 只在真的比較短時才提醒。
+                 "full": min(wc, key=len).upper() if wc else "",
+                 "hint": bool(wc) and min(len(c) for c in wc) > 4}
+        if ship_si4 is not None:
+            missing = [s for s in sigs if w not in (ship_si4.get(s) or [])]
+            entry["ok"] = not missing
+            if missing:
+                warn.append(f"詞組頁：「{w}」的四碼 {[m.upper() for m in missing]} "
+                            f"在 aiphabi_data.lua 的 M.si4 裡對不上（碼表還沒重建？）")
+        else:
+            entry["ok"] = True
+        # 同碼還有誰：四碼很短，撞碼是常態，頁面要老實講
+        if ship_si4 is not None:
+            entry["share"] = [x for x in (ship_si4.get(sigs[0]) or []) if x != w][:3]
+        si4.append(entry)
+
+    # ---- 智能分詞：前半是收錄詞、後半不是 ----
+    sentence = None
+    head, tail = PHRASE_SENTENCE
+    hc, tc = word_codes(head), word_codes(tail)
+    if hc and tc:
+        joined = head + tail
+        sentence = {
+            "head": head, "tail": tail,
+            "headCode": min(hc, key=len).upper(),
+            "tailCode": min(tc, key=len).upper(),
+            "whole": joined,
+            # 整串打下去到底收不收得到？收錄了就換一個例子，不然頁面在說謊
+            "listed": bool(ship and joined in ship),
+            # 後半段本身是不是收錄詞組。它**不是**才對——這個例子要示範的正是
+            # 「詞庫收不完」，頁面因此只敢說剩下的碼接著打，不敢說剩下的還能選成一個詞。
+            "tailListed": bool(ship and tail in ship),
+        }
+        if sentence["listed"]:
+            warn.append(f"詞組頁：「{joined}」其實**有**收錄，智能分詞的例子要換一個")
+        if sentence["tailListed"]:
+            warn.append(f"詞組頁：「{tail}」現在**有**收錄了，智能分詞那段的說法要跟著改")
+
+    stats = {}
+    if ship is not None:
+        stats["words"] = len(ship)
+        stats["entries"] = sum(len(v) for v in ship.values())
+    if ship_si4 is not None:
+        # M.si4 同時收「完整四碼」和「前三碼」兩種鍵（打到第三碼就先補全出來），
+        # 對外要講的是四碼那一種 —— 把三碼的前綴也算進去會虛報一半。
+        four = {k: v for k, v in ship_si4.items() if len(k) == 4}
+        stats["si4Codes"] = len(four)
+        stats["si4Words"] = len({w for v in four.values() for w in v})
+    stats["shortCodes"] = len(short_rev)
+
+    for w in warn:
+        print(f"  ⚠️ {w}")
+
+    return {
+        "note": "generated by site/tools/build_site_data.py — do not edit",
+        "stats": stats,
+        "two": two,
+        "multi": multi,
+        "si4": si4,
+        "sentence": sentence,
+        # 出貨碼表拿不到（極少見：rime/ 不在）就別讓頁面畫「已核對」的字樣
+        "checked": ship is not None and ship_si4 is not None,
+    }
+
+
 def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, notes=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
@@ -1582,6 +1910,7 @@ def main():
     glyph_chars.update(principles.keys())
     jianma = build_jianma(codes, rules)
     conventional = build_conventional(codes, rules, max_rule)
+    phrases = build_phrases(codes, rules, max_rule)
     for g in conventional["groups"]:
         glyph_chars.update(c["c"] for c in g["chars"])
     # 孤筆略過原則說明裡就地畫出來的字（「言」的第 1、2 筆），不是例字本身。
@@ -1645,6 +1974,8 @@ def main():
         json.dumps(jianma, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "conventional.json").write_text(
         json.dumps(conventional, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    (OUT / "phrases.json").write_text(
+        json.dumps(phrases, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
     if practice:
@@ -1680,6 +2011,11 @@ def main():
           + f" / {len(jianma['left_short'])} 組左簡碼家族（{n_left} 字）")
     n_conv_chars = sum(len(g["chars"]) for g in conventional["groups"])
     print(f"conventional.json {len(conventional['groups'])} 組約定字（{n_conv_chars} 字）")
+    ps = phrases["stats"]
+    print(f"phrases.json {len(phrases['two'])} 個兩字例詞 / {len(phrases['si4'])} 個四碼例詞"
+          + (f"；出貨碼表 {ps['words']} 詞 / {ps['entries']} 條，"
+             f"四碼快打 {ps.get('si4Words', 0)} 詞 / {ps.get('si4Codes', 0)} 個四碼"
+             if "words" in ps else "；⚠️ 讀不到 rime/，數字與核對都略過"))
 
 
 if __name__ == "__main__":

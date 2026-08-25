@@ -99,6 +99,13 @@ jobs:
           else
             echo "::warning::practice.json 沒產出來，試打頁不會有參考文章與田字格"
           fi
+          # 詞組頁的例詞：碼是建置時現算的，產不出來就整頁沒東西。
+          # 不擋部署（其餘頁面不受影響），但要在紀錄裡看得見。
+          if [ -s site/assets/phrases.json ]; then
+            echo "詞組例詞：有（$(wc -c < site/assets/phrases.json) bytes）"
+          else
+            echo "::warning::phrases.json 沒產出來，〈詞組〉頁會是空的"
+          fi
           # 拼音查字拆成兩份：pinyin.json 是「查得到什麼字」（小，載入就抓），
           # pinyin_glyphs.json 是拆碼圖與字形（大，點進查字框才抓）。
           # 帶 Arphic 字形資料的是後者，同一條義務要對它查。
