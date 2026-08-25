@@ -4,8 +4,9 @@
  * 這是「夠真實可以體會設計」的版本，不是完整模擬。目前有：
  *   主碼／完整碼／兼容碼查詢、前綴補全、字頻排序、約定簡碼（含提示，可關）、
  *   三簡碼（可開，預設關——用剩法查很容易誤觸，Wilson 決定跟真正輸入法一樣預設關）、
+ *   詞組連打＋四碼快打（可開，預設關，詞庫另外抓，見 PHRASE_ON）、
  *   萬用鍵、正體標點。
- * 還沒有（真正的輸入法有）：左簡碼、詞組連打、輸入容錯、同類字、偏旁碼。
+ * 還沒有（真正的輸入法有）：左簡碼、輸入容錯、同類字、偏旁碼、智能分詞。
  * 別讓這一頁默默宣稱它是全部 —— 頁面底下那個 .todo 方塊要跟這段話一起改。
  */
 (function () {
@@ -27,6 +28,20 @@
 
   var MAX_CANDS = 9;
 
+  /* 詞組**補全**（打的是某個詞的前綴）最多佔幾格。九格全給它會很難看：候選列
+     是一條橫捲的窄條，而詞比字長 —— 打 JTBWHZ 會排出 香港理工、香港城市大學、
+     香港警務處…，一眼只看得到三個，真正打中的「香港」被推得看不出來。
+     打中的詞不受這個上限管，那是使用者要的東西。 */
+  var MAX_PHRASE_COMPLETE = 3;
+
+  /* 跟著打的時候，「一格」最多幾個字。詞組開著、而且文章接下來剛好是收錄詞，
+     整個詞算一格：亮起來的是「白日」不是「白」，提示教的也是兩個字連起來的
+     那一串 —— 詞組連打要練的正是這個（Wilson）。
+     上限 4：essay 那批常用詞本來就只收 2–4 字（build_rime.py 的 PHRASE_TOPN
+     那段），而 3 字以上才練得到四碼快打。精選詞庫裡的長詞（中華人民共和國）
+     當成一格會是一面牆，練不起來，所以不讓它整串進來。 */
+  var UNIT_MAX = 4;
+
   /* 萬用鍵 —— 鍵盤左上角那一顆。語意照 rime/lua/aiphabi_wildcard.lua：
    *   單一個 `  = 一碼以上（wj`m 找得到 wjstm）
    *   連按 N 個 = 剛好補 N 碼（wj``m 只找剛好多兩碼的）
@@ -43,11 +58,21 @@
      完整碼），真正的輸入法裡它也預設關（Wilson）。 */
   var SHORT_KEY = 'aiphabi_try_short', SHORT3_KEY = 'aiphabi_try_short3';
   var SHORT_ON = true, SHORT3_ON = false;
+  /* 詞組連打。四碼快打**沒有自己的開關**，跟著它走 —— 真正的輸入法就是這樣接的
+     （rime/lua/aiphabi_hint.lua:89 的 si4_on 直接 and phrase_on），這裡照抄，
+     不要好心多給一個開關，那會變成網站在描述一個不存在的設定。
+     預設關，跟 IME 一致；而且詞庫有 3MB，關著的時候一個位元組都不抓。 */
+  var PHRASE_KEY = 'aiphabi_try_phrase';
+  var PHRASE_ON = false;
+  var PD = null;              // 詞庫（assets/phrase_dict.json），載入後才有
+  var PD_STATE = 'idle';      // idle | loading | ready | fail
+
   try {
     var savedShort = localStorage.getItem(SHORT_KEY);
     if (savedShort != null) SHORT_ON = savedShort === '1';
     var savedShort3 = localStorage.getItem(SHORT3_KEY);
     if (savedShort3 != null) SHORT3_ON = savedShort3 === '1';
+    PHRASE_ON = localStorage.getItem(PHRASE_KEY) === '1';
   } catch (e) {}
 
   /* 三簡碼：約定簡碼的自動版，不用手動挑，4 碼以上的字全部適用。打 3 碼當
@@ -67,6 +92,43 @@
       }
     }
     return map;
+  }
+
+  /* 詞庫另外抓，而且只在使用者第一次打開詞組開關時才抓。3MB 是給願意試詞組的人
+     付的，不該讓只想打幾個字的人先等它。抓失敗不影響其他功能 —— 開關旁邊會說一句，
+     其餘照常打。 */
+  function loadPhraseDict() {
+    if (PD_STATE === 'loading' || PD_STATE === 'ready') return;
+    PD_STATE = 'loading';
+    paintPhraseNote();
+    fetch('assets/phrase_dict.json')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        // 碼排序一次，之後補全就能跟單字那邊一樣二分找前綴區間（10 萬個碼，
+        // 每按一鍵掃全表太慢，這是唯一一次排序）。
+        d.keys = Object.keys(d.codes).sort();
+        d.si4keys = Object.keys(d.si4).sort();
+        /* 反查：詞 → 它最短的那條詞組碼。跟著打要用它兩件事 ——「文章接下來
+           這幾個字算不算一個詞」，以及提示要教哪一條。不從建置那邊多輸出一份
+           （那要多 1MB），現場掃一次 10 萬個碼就有，實測 40ms。
+           每個碼只留 9 個詞（PDICT_PER_CODE），理論上有詞可能每一條碼都被擠掉
+           而完全查不到；實測是 0 個（42,676 個詞全部至少在一條碼裡找得到），
+           建置那邊也印得出這個數，真的變成非 0 再說。 */
+        d.word = {};
+        for (var c in d.codes) {
+          var ws = d.codes[c];
+          for (var i = 0; i < ws.length; i++) {
+            if (!d.word[ws[i]] || c.length < d.word[ws[i]].length) d.word[ws[i]] = c;
+          }
+        }
+        PD = d;
+        PD_STATE = 'ready';
+        paintPhraseNote();
+        // 載入前這一格只能是單字，載入後才成得了詞 —— 文章要跟著重畫
+        setBuf(state.buf);
+        if (P.on) renderPractice();
+      })
+      .catch(function () { PD_STATE = 'fail'; paintPhraseNote(); });
   }
 
   function ready(data) {
@@ -160,6 +222,24 @@
       push(ch, { exact: true, code: d.main[ch] && d.main[ch] !== buf ? d.main[ch].toUpperCase() : '' });
     }
 
+    /* 詞組連打：詞的碼＝各字的碼串接（規則見 cizu.html）。打中的詞跟打中的字
+       同一級，排在單字後面。順序幾乎不影響任何人 —— 實測前 2000 個常用詞的
+       5269 條詞碼裡，只有 17 條（0.3%）跟某個單字的碼相撞，而且撞的多半正好是
+       那個詞的合體字（一個/吞、不好/孬、不用/甭、兩人/眾），兩個都給就好。 */
+    if (PHRASE_ON && PD) {
+      var pw = PD.codes[buf];
+      if (pw) for (var pi = 0; pi < pw.length && list.length < MAX_CANDS; pi++) {
+        push(pw[pi], { tag: '詞組', exact: true });
+      }
+      // 四碼快打：打滿四碼算「打中」（IME 那邊標 ap_si4，跟 exact 同級）
+      if (buf.length === 4) {
+        var s4 = PD.si4[buf];
+        if (s4) for (var qi = 0; qi < s4.length && list.length < MAX_CANDS; qi++) {
+          push(s4[qi], { tag: '四碼', exact: true });
+        }
+      }
+    }
+
     // 還沒打完的碼：把以它開頭的碼也帶出來（真正的輸入法靠 enable_completion 做同一件事）
     if (list.length < MAX_CANDS) {
       var r = prefixRange(d.keys, buf);
@@ -180,6 +260,45 @@
         push(s3[j], { tag: '三簡', code: d.main[s3[j]] ? d.main[s3[j]].toUpperCase() : '' });
       }
     }
+    /* 詞組的補全：打的是某個詞的前綴，還沒打完。排在單字補全與三簡碼後面 ——
+       詞比字長，前綴撞得多，讓它搶前面會把正在打單字的人擠掉。碼表按碼的字母序
+       排，所以短碼時前幾個會是冷門詞；但短碼時單字早就把九格佔滿了，實際看得到
+       詞組補全的時候碼都已經夠長、範圍夠窄。 */
+    if (PHRASE_ON && PD && list.length < MAX_CANDS) {
+      /* 跟著打的時候，正在打的那個詞先進來 —— 補全是照碼的字母序掃的，只留三格，
+         很容易把它擠掉（打 HUVW 時 黃浦／黃酒／黃沙 都排在 黃河 前面），
+         那會讓人以為自己打錯了。只是**列進去**，不是排第一：還沒打完的碼不該
+         按空白就過關，那條規矩跟單字那邊一樣。 */
+      if (P.on && P.unit.length > 1) {
+        var uc = PD.word[P.unit];
+        if (uc && uc !== buf && uc.indexOf(buf) === 0) {
+          push(P.unit, { tag: '詞組', code: '- ' + uc.slice(buf.length).toUpperCase() });
+        }
+      }
+      var pr = prefixRange(PD.keys, buf), pcap = list.length + MAX_PHRASE_COMPLETE;
+      for (var k2 = pr[0]; k2 < pr[1] && list.length < MAX_CANDS && list.length < pcap; k2++) {
+        if (PD.keys[k2] === buf) continue;
+        var ws = PD.codes[PD.keys[k2]];
+        for (var wi = 0; wi < ws.length && list.length < MAX_CANDS && list.length < pcap; wi++) {
+          push(ws[wi], { tag: '詞組',
+                         code: '- ' + PD.keys[k2].slice(buf.length).toUpperCase() });
+        }
+      }
+    }
+
+    // 四碼快打打到第三碼：先把符合的詞補出來，墊底 —— 跟 aiphabi_hint.lua 一樣，
+    // 三碼是「四碼的前綴」（ap_pool），不是打中，不該擠掉真的打中的候選。
+    if (PHRASE_ON && PD && buf.length === 3 && list.length < MAX_CANDS) {
+      var qr = prefixRange(PD.si4keys, buf), qcap = list.length + MAX_PHRASE_COMPLETE;
+      for (var k3 = qr[0]; k3 < qr[1] && list.length < MAX_CANDS && list.length < qcap; k3++) {
+        var qs = PD.si4[PD.si4keys[k3]];
+        for (var qj = 0; qj < qs.length && list.length < MAX_CANDS && list.length < qcap; qj++) {
+          push(qs[qj], { tag: '四碼',
+                         code: '- ' + PD.si4keys[k3].slice(3).toUpperCase() });
+        }
+      }
+    }
+
     /* 跟著打的時候，文章裡的那個字排第一 —— 打完它的碼卻還要按 2 才選得到，
        練起來很卡（Wilson）。兩個限制：
          · 只在跟著打模式動手腳。自由試打那邊照真正的輸入法的字頻順序排，
@@ -190,13 +309,27 @@
        （名/合、什/午、引/乃、丹/曰…），而沒有任何一個字是根本不在候選列裡的
        —— 所以「在列表裡就往前挪」已經涵蓋全部情況，不必再去撈第 10 名以後的。 */
     if (P.on && P.pos < P.chars.length) {
-      var tgt = P.chars[P.pos];
-      for (var t = 1; t < list.length; t++) {
-        if (list[t].ch === tgt && (list[t].exact || list[t].tag === '三簡')) {
-          list.unshift(list.splice(t, 1)[0]);
-          break;
+      var tgt = P.chars[P.pos], up = -1;
+      /* 詞組先看：候選裡有哪個詞剛好就是文章接下來的那幾個字，它排第一。
+         同一個道理（打完該打的碼還要按 2 很卡），而且命中的詞比只命中第一個字的
+         單字更貼近意圖 —— 打詞組碼的人要的本來就是那整個詞。 */
+      if (PHRASE_ON && PD) {
+        for (var t0 = 0; t0 < list.length; t0++) {
+          if (list[t0].ch.length > 1 && list[t0].exact && aheadIs(list[t0].ch)) {
+            up = t0;
+            break;
+          }
         }
       }
+      if (up < 0) {
+        for (var t = 0; t < list.length; t++) {
+          if (list[t].ch === tgt && (list[t].exact || list[t].tag === '三簡')) {
+            up = t;
+            break;
+          }
+        }
+      }
+      if (up > 0) list.unshift(list.splice(up, 1)[0]);
     }
     return list.slice(0, MAX_CANDS);
   }
@@ -205,9 +338,17 @@
      這是設計主張本身：教學發生在使用當中，不是先背一張表。 */
   function hintFor(buf, cands) {
     var d = state.data;
-    if (!d || !cands.length || !SHORT_ON) return '';
+    if (!d || !cands.length) return '';
     if (buf.indexOf(WILD) >= 0) return '';   // 萬用鍵的候選旁邊已經標了主碼
     var top = cands[0].ch;
+    /* 詞組打完了，而它其實有更短的四碼可用 —— 跟簡碼同一套「教你少打幾碼」
+       （IME 那邊是 aiphabi_hint.lua 的 si4_rev，一樣只在真的比較短時才提）。 */
+    if (top.length > 1) {
+      if (!PHRASE_ON || !PD) return '';
+      var q = PD.rev[top];
+      return q && q.length < buf.length ? '四碼 ' + q.toUpperCase() : '';
+    }
+    if (!SHORT_ON) return '';
     var s = d.short_rev[top];
     if (!s || s === buf || s.length >= buf.length) return '';
     return '簡碼 ' + s.toUpperCase();
@@ -229,12 +370,14 @@
     // 跟著打的時候，打歪的那幾碼標紅 —— 錯在第幾碼一眼看得出來
     var split = null;
     if (P.on && P.pos < P.chars.length) {
-      var tgt = P.chars[P.pos], ap = activePath(tgt), tsegs = ap && ap.segs;
+      var tgt = curChar(), ap = activePath(tgt), tsegs = ap && ap.segs;
       if (tsegs && tsegs.length) {
         var mm = typedMatch(tgt, tsegs);
-        // 從「還有機會變成這個字」的地方斷，不是從主碼比到哪斷 —— 走兼容碼的人
-        // 前幾碼跟主碼對不上，拿主碼比會把他打對的那幾碼也標紅。
-        if (mm.bad) split = reachLen(tgt, state.buf);
+        /* 從「還有機會變成這個字」的地方斷，不是從主碼比到哪斷 —— 走兼容碼的人
+           前幾碼跟主碼對不上，拿主碼比會把他打對的那幾碼也標紅。
+           打詞的時候，前面幾個字已經吃掉的那幾碼（P.uoff）當然不算打歪，所以
+           斷點要從那裡往後算 —— 詞組關著時 uoff 是 0，跟以前完全一樣。 */
+        if (mm.bad) split = P.uoff + reachLen(tgt, curBuf());
       }
     }
     if (split == null) {
@@ -287,8 +430,72 @@
     // 按一次 = 往前一步，走完一個字根就換下一個。字換了就整個歸零。
     // hov = 有簡碼的字，第一步的「簡碼總覽」給過了沒有（見 hintStep）。
     // hpath = 上一次算出來「現在走的是哪一套拆法」的碼（見 setBuf）。
-    hseg: 0, hstep: 0, hov: 0, hpath: null
+    hseg: 0, hstep: 0, hov: 0, hpath: null,
+    /* 「這一格」＝ unit。詞組關著時它就是一個字，行為跟以前一模一樣；
+       開著而且文章接下來剛好成詞，它就是那個詞（見 unitAt）。
+         uix  = 現在打到這個詞的第幾個字（田字格、提示都看它）
+         uoff = 前面那幾個字用掉了 buf 的前幾碼（提示要看的是剩下那一截） */
+    unit: '', uix: 0, uoff: 0, upieces: []
   };
+
+  /* 這個字打得出來的所有碼，含約定簡碼／三簡碼 —— 切詞用。codePaths 是碼表裡
+     查得到的（主碼／完整碼／兼容碼），簡碼另外一張表，三簡碼是現算的。 */
+  function unitCodesOf(ch) {
+    var d = state.data, list = codePaths(ch).slice();
+    if (d && SHORT_ON && d.short_rev[ch]) list.push(d.short_rev[ch]);
+    var mc = d && P.main ? P.main[ch] : null;
+    if (mc && mc.length >= 4) list.push(mc.charAt(0) + mc.charAt(1) + mc.charAt(mc.length - 1));
+    return list;
+  }
+
+  /* 文章接下來該打的一格。詞組開著就找最長的收錄詞（上限 UNIT_MAX），
+     找不到就退回一個字 —— 那正是詞組關著時的行為，兩條路合成同一條。 */
+  function unitAt() {
+    if (!P.on || P.pos >= P.chars.length) return '';
+    var ahead = '';
+    for (var i = P.pos; i < P.chars.length && ahead.length < UNIT_MAX; i++) {
+      if (P.chars[i] !== '\n') ahead += P.chars[i];
+    }
+    if (PHRASE_ON && PD && PD.word) {
+      for (var n = ahead.length; n >= 2; n--) {
+        if (PD.word[ahead.slice(0, n)]) return ahead.slice(0, n);
+      }
+    }
+    return ahead.charAt(0);
+  }
+
+  /* 打到這個詞的第幾個字了：拿 buf 逐字啃掉每個字的碼。啃不動就停在那個字上
+     —— 那表示它還沒打完（或打歪了），提示本來就該講它。 */
+  function syncUnit() {
+    if (!P.on) { P.unit = ''; P.uix = 0; P.uoff = 0; return; }
+    var was = P.unit, wasIx = P.uix;
+    P.unit = unitAt();
+    P.uix = 0;
+    P.uoff = 0;
+    P.upieces = [];
+    var rest = state.buf;
+    while (P.uix < P.unit.length - 1 && rest) {
+      var codes = unitCodesOf(P.unit.charAt(P.uix)), best = '';
+      for (var i = 0; i < codes.length; i++) {
+        if (rest.indexOf(codes[i]) === 0 && codes[i].length > best.length) best = codes[i];
+      }
+      if (!best) break;                 // 這個字還沒打完 —— 停在它身上
+      P.upieces.push(best);
+      P.uoff += best.length;
+      rest = rest.slice(best.length);
+      P.uix++;
+    }
+    // 換字了（跨過詞裡的字界，或整格換了）就把提示鏈歸零：段號只在某一個字的
+    // 某一套拆法裡有意義，沿用會亮在別的字的筆畫上。
+    var moved = P.unit !== was || P.uix !== wasIx;
+    if (moved) resetHint();
+    return moved;
+  }
+
+  /* 現在提示與田字格講的是哪個字、以及屬於它的那一截 buf。詞組關著時
+     unit 只有一個字、uoff 是 0，兩個都退化成原本的行為。 */
+  function curChar() { return P.unit ? P.unit.charAt(P.uix) : P.chars[P.pos]; }
+  function curBuf() { return state.buf.slice(P.uoff); }
 
   /* 提示鏈歸零。hseg 是段號，而段號只在**某一套拆法**裡有意義 —— 換字、換篇、
      換打法（主碼↔兼容碼）都得歸零，留著會亮在錯的筆畫上。 */
@@ -358,7 +565,7 @@
   function activePath(ch) {
     var list = pathsOf(ch);
     if (!list.length) return null;
-    var buf = state.buf, best = list[0], bn = -1;
+    var buf = curBuf(), best = list[0], bn = -1;
     for (var i = 0; i < list.length; i++) {
       var p = codeOfSegs(list[i].segs), n = 0;
       while (n < buf.length && n < p.length && buf.charAt(n) === p.charAt(n)) n++;
@@ -416,7 +623,7 @@
   }
 
   function typedMatch(ch, segs) {
-    var buf = state.buf, d = state.data, none = { ok: 0, bad: false };
+    var buf = curBuf(), d = state.data, none = { ok: 0, bad: false };
     if (!buf || !segs.length) return none;
     // 走別條路也算全對：主碼打完（可能被「頭四尾一」截短）、約定簡碼、兼容碼、完整碼
     if ((P.main && buf === P.main[ch]) ||
@@ -480,7 +687,7 @@
     if (P.hstep) for (var j = 0; j < order.length; j++) if (order[j] === P.hseg) pos = j;
 
     var shown = {}, known = {}, any = false;
-    if (plan && state.buf === plan.code) {
+    if (plan && curBuf() === plan.code) {
       // 打的是簡碼：只亮簡碼用到的那幾條。typedMatch 走簡碼那條路時回傳「全對」，
       // 照它上色會把中間那幾條沒打的也標起來，等於自己打臉剛講過的「只要打這兩條」。
       for (var c = 0; c < order.length; c++) { shown[order[c]] = 1; known[order[c]] = 1; any = true; }
@@ -552,7 +759,7 @@
 
   function renderCell() {
     if (!P.on) return;
-    var now = P.chars[P.pos];
+    var now = curChar();
     var done = P.pos >= P.chars.length;
     if (done) celebrateCell();
     else drawCell(now === '\n' ? '' : now);
@@ -571,7 +778,20 @@
       if (shortPlanOf(now)) {
         P.next.appendChild(el('span', 'short-badge', '有簡碼'));
       }
-      P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
+      /* 這一格是一個詞的時候，整個詞都秀出來，正在打的那個字用主色標出來
+         ——「白日」一起打是這一格的目標，只秀「白」會讓人以為打完就過關了
+         （Wilson）。詞組關著時 unit 只有一個字，這裡就跟以前一模一樣。 */
+      if (P.unit.length > 1) {
+        var wb = el('b', 'tz-unit');
+        for (var u = 0; u < P.unit.length; u++) {
+          wb.appendChild(el('span', u === P.uix ? 'is-now' : (u < P.uix ? 'is-done' : ''),
+                            P.unit.charAt(u)));
+        }
+        P.next.appendChild(wb);
+        P.next.appendChild(el('span', 'word-badge', '詞組'));
+      } else {
+        P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
+      }
       // 約定字：不是照筆畫拆的，整字背下來——標出來，不然學的人會以為
       // 自己看不出字根，其實這個字本來就不歸那套推理管（Wilson）。
       if (P.conv && P.conv.has(now)) P.next.appendChild(el('span', 'conv-badge', '約定字'));
@@ -582,11 +802,25 @@
 
   function renderPractice() {
     if (!P.on) return;
+    /* 這一格是詞還是單字，畫之前先算 —— 換篇、點字跳位、剛載入都會走到這裡，
+       而那幾條路都沒有經過 setBuf。少了這一句，剛開頁面時整篇沒有一個字亮著。 */
+    syncUnit();
     var frag = document.createDocumentFragment();
+    /* 亮起來的是**整一格**，不只是下一個字：詞組開著時一格可能是「白日」，
+       兩個字要一起打，只亮「白」會讓人打完就停（Wilson）。
+       uend 是這一格結束後的字元位置 —— 換行不佔格子，所以要跳過它們數。 */
+    var uend = P.pos, uhere = -1;
+    for (var n = 0; n < P.unit.length && uend < P.chars.length; n++) {
+      while (P.chars[uend] === '\n') uend++;
+      if (n === P.uix) uhere = uend;        // 正在打的是這一格裡的哪一個字
+      uend++;
+    }
     for (var i = 0; i < P.chars.length; i++) {
       var c = P.chars[i];
       if (c === '\n') { frag.appendChild(document.createElement('br')); continue; }
-      var cls = i < P.pos ? 'pc is-done' : i === P.pos ? 'pc is-now' : 'pc';
+      var cls = i < P.pos ? 'pc is-done'
+              : i < uend ? 'pc is-now' + (i === uhere ? ' is-here' : '')
+              : 'pc';
       var sp = el('span', cls, c);
       sp.dataset.i = i;                 // 點一下就跳到那個字（見 setupPractice）
       frag.appendChild(sp);
@@ -613,6 +847,19 @@
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(P.text);
   }
 
+  /* 文章接下來要打的（跳過換行）剛好就是這個詞嗎？跟著打模式下，詞組要不要
+     插隊、碼要不要標紅，兩件事都問這一句。 */
+  function aheadIs(w) {
+    if (!P.on) return false;
+    var i = P.pos;
+    for (var k = 0; k < w.length; k++) {
+      while (P.chars[i] === '\n') i++;
+      if (P.chars[i] !== w.charAt(k)) return false;
+      i++;
+    }
+    return true;
+  }
+
   /* 打出來的字跟目前這一格一樣就往前走。不一樣不做事 —— 字照樣進了試打框
      （那是使用者自己打的東西，不該被吃掉），只是進度不動。 */
   function advance(ch) {
@@ -622,6 +869,7 @@
     P.pos++;
     while (P.chars[P.pos] === '\n') P.pos++;
     resetHint();          // 換字了，提示從頭來
+    syncUnit();           // 換格了，這一格是詞還是單字要重算
     renderPractice();
     render();
   }
@@ -635,6 +883,23 @@
   function renderHint(ch) {
     var box = P.hintbox;
     box.innerHTML = '';
+    /* 這一格是一個詞的時候，最上面先把整串攤開：每個字一格，已經打完的秀它
+       實際吃掉的那幾碼，正在打的秀已經打了什麼，還沒輪到的留問號。
+       詞組連打要學的就是「兩個字的碼接成一條、中間不按空白」，光看單字提示
+       學不到那件事（Wilson）。底下逐條字根的提示照舊，講的是正在打的那個字。 */
+    if (P.unit.length > 1) {
+      var wl = el('span', 'tz-word');
+      for (var w = 0; w < P.unit.length; w++) {
+        var st = w < P.uix ? ' is-done' : w === P.uix ? ' is-now' : '';
+        var chip = el('span', 'tz-wchip' + st);
+        chip.appendChild(el('b', null, P.unit.charAt(w)));
+        chip.appendChild(el('code', null,
+          w < P.uix ? (P.upieces[w] || '').toUpperCase()
+                    : w === P.uix ? (curBuf().toUpperCase() || '…') : '？'));
+        wl.appendChild(chip);
+      }
+      box.appendChild(wl);
+    }
     var mo = hintModel(ch);
     if (!mo) return;
     var segs = mo.segs, order = mo.order;
@@ -648,7 +913,7 @@
       /* 「應該是」只在打歪的地方**落在主碼上**時才給：走兼容碼走到一半才錯的人
          （教 打 FJPQ），拿主碼的第 n 段去講他的第 n 碼會講到別的筆畫上，那比
          不講還糟。這種時候就只說一句「再試一次」。 */
-      var reach = reachLen(ch, state.buf);
+      var reach = reachLen(ch, curBuf());
       var wi = -1;
       for (var q = 0; q < order.length; q++) if (order[q] >= mo.m.ok) { wi = order[q]; break; }
       var want = reach === mo.m.ok && wi >= 0 ? segs[wi] : null;
@@ -657,7 +922,7 @@
          （Wilson）。這種錯有話可說，就別只丟一句「再試一次」。
          只在真的還有下一段要打的時候才講：主碼已經打完、後面多敲一個 I，那不是
          孤筆的問題。 */
-      var slip = state.buf.charAt(mo.m.ok);
+      var slip = curBuf().charAt(mo.m.ok);
       var trap = want && want.k && (slip === 'i' || slip === 'j');
       box.appendChild(el('span', 'tz-wrong', trap ? '注意要略過孤立的橫劃或豎劃' : '再試一次'));
       if (want && want.d) box.appendChild(el('span', 'tz-intent', '應該是：' + want.d));
@@ -984,18 +1249,24 @@
     out.selectionStart = out.selectionEnd = s + text.length;
   }
 
-  function commit(ch) {
-    insert(ch);
+  /* 選中的候選可能是一個詞（詞組連打／四碼快打）。整串一次進試打框，進度則
+     逐字往前走 —— advance() 一次只認一個字，而且它本來就會在對不上時停住，
+     所以詞只對到前半段（例如文章是「香港人」而你選了「香港島」）不會走過頭。 */
+  function commit(text) {
+    insert(text);
     state.buf = '';
     state.cands = [];
     render();
-    advance(ch);
+    for (var i = 0; i < text.length; i++) advance(text.charAt(i));
     renderCell();          // 打錯的時候 advance 不會動，格子的顏色要自己收掉
   }
 
   function setBuf(b) {
     state.buf = b;
     state.cands = lookup(b);
+    // 打到詞裡的第幾個字了，要在畫面之前算好 —— 田字格、提示、標紅都看它。
+    // 跨過詞裡的字界（黃的碼打完、換打河）文章那邊的底線也要跟著移，所以重畫。
+    var moved = syncUnit();
     /* 打著打著換了一套拆法（開始打兼容碼）就把提示鏈歸零：兩套的段號指的不是
        同一批筆畫，沿用會亮在錯的地方。要在 render() 之前判斷，這一次的畫面才
        是新的那一套。 */
@@ -1007,6 +1278,7 @@
       else if (id !== P.hpath) resetHint(id);
     }
     render();
+    if (moved && P.on) renderPractice();
     renderCell();          // 打對幾碼就亮幾條字根
   }
 
@@ -1046,6 +1318,39 @@
       return;
     }
   });
+
+  /* 詞組開關旁邊那句話。四個狀態都要說得出來，因為這是唯一一個「打開之後要等」
+     的開關 —— 沒有回饋的話，打開了卻還沒有詞候選，看起來就像壞掉。 */
+  var phraseNote = document.getElementById('phrase-note');
+  function paintPhraseNote() {
+    if (!phraseNote) return;
+    var t = '';
+    if (!PHRASE_ON) t = '';
+    else if (PD_STATE === 'loading') t = '詞庫載入中…';
+    else if (PD_STATE === 'fail') t = '詞庫載入失敗，重新整理再試';
+    else if (PD_STATE === 'ready' && PD) t = '收錄 ' + PD.stats.words.toLocaleString('en-US') + ' 個詞';
+    phraseNote.textContent = t;
+    phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
+  }
+
+  var phraseBox = document.querySelector('[data-phrase]');
+  if (phraseBox) {
+    phraseBox.checked = PHRASE_ON;
+    phraseBox.addEventListener('change', function () {
+      PHRASE_ON = phraseBox.checked;
+      try { localStorage.setItem(PHRASE_KEY, PHRASE_ON ? '1' : '0'); } catch (e) {}
+      if (PHRASE_ON) loadPhraseDict();
+      paintPhraseNote();
+      // 一格的範圍會跟著變（白 ↔ 白日），提示鏈歸零、文章重畫
+      resetHint();
+      setBuf(state.buf);
+      if (P.on) renderPractice();
+      out.focus();
+    });
+    // 上次開著就先抓 —— 使用者已經表達過要用它了，不必再等他按一次
+    if (PHRASE_ON) loadPhraseDict();
+    paintPhraseNote();
+  }
 
   // 簡碼／三簡碼開關：checkbox 本身不等資料載入就能綁定，反正 lookup() 每次
   // 都是現查 SHORT_ON／SHORT3_ON，切換後重算一次目前的 buf 就會反映出來。

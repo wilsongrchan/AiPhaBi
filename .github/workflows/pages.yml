@@ -106,6 +106,13 @@ jobs:
           else
             echo "::warning::phrases.json 沒產出來，〈詞組〉頁會是空的"
           fi
+          # 試打頁的詞庫（詞組連打／四碼快打）。產不出來只是那個開關打開後沒詞可選，
+          # 不擋部署 —— 其餘功能完全不受影響。
+          if [ -s site/assets/phrase_dict.json ]; then
+            echo "試打頁詞庫：有（$(wc -c < site/assets/phrase_dict.json) bytes）"
+          else
+            echo "::warning::phrase_dict.json 沒產出來，試打頁的詞組開關會沒有詞"
+          fi
           # 拼音查字拆成兩份：pinyin.json 是「查得到什麼字」（小，載入就抓），
           # pinyin_glyphs.json 是拆碼圖與字形（大，點進查字框才抓）。
           # 帶 Arphic 字形資料的是後者，同一條義務要對它查。

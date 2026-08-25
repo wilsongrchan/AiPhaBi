@@ -1785,6 +1785,69 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   cursor: pointer;
 }
 
+/* 〈跟著打〉的一格是一個詞時用到的三塊：文章裡正在打的那個字（.pc.is-here）、
+   〈下一個〉那行的整個詞（.tz-unit）、以及提示最上面那條「整串怎麼接」（.tz-word）。
+   詞組關著時這三塊都不會出現，版面跟以前一樣。 */
+.pc.is-now.is-here { text-decoration: underline; text-underline-offset: .25em; }
+
+.tz-unit { display: inline-flex; gap: .05em; }
+.tz-unit .is-done { color: var(--ink-faint); }
+.tz-unit .is-now  { color: var(--accent); }
+
+.word-badge {
+  font-size: .68rem;
+  color: var(--ink-dim);
+  background: var(--code-bg);
+  border-radius: 999px;
+  padding: .05rem .4rem;
+}
+
+.tz-word {
+  display: flex;
+  justify-content: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: .1rem;
+}
+
+.tz-wchip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .2em;
+  font-size: .8rem;
+  color: var(--ink-faint);
+}
+
+.tz-wchip b { font-size: 1rem; font-weight: 600; }
+.tz-wchip code { background: none; padding: 0; font-size: .78rem; letter-spacing: .05em; }
+.tz-wchip.is-done { color: var(--ink-dim); }
+.tz-wchip.is-now { color: var(--accent); }
+
+/* 簡碼那組跟詞組那組之間的分隔。用一條細線而不是加大 gap —— 這排是
+   「標籤＋兩個勾選格」重複兩次，沒有線的話讀起來像四個並列的勾選格，
+   分不出哪個標籤管哪幾個。 */
+.short-toggle-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: .1rem 0;
+  background: var(--line);
+}
+
+/* 詞組詞庫的狀態（載入中／失敗／收了幾個詞）。這是這一排唯一會等待的開關，
+   沒有這句話，打開之後還沒有詞候選會看起來像壞掉。 */
+.short-toggle-note {
+  font-size: .78rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.short-toggle-note.is-bad { color: var(--warn); }
+
+@media (max-width: 46rem) {
+  .short-toggle { flex-wrap: wrap; row-gap: .45rem; }
+  .short-toggle-sep { display: none; }
+}
+
 /* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
    在同一畫面上多露一列（Wilson）。 */
 .h1-tight { margin-bottom: .5rem; }
