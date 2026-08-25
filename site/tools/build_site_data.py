@@ -69,7 +69,14 @@ CACHE = ROOT / "site" / ".cache"
 # 「爲」(U+7228) 不在這份資料裡，也不在 makemeahanzi 裡 —— 兩邊都畫不出來，
 # 所以它仍然沒有田字格。要補得先有一份畫得出來、而且進得了版控的字形。
 TW_FORM = {"為": 0x70BA}
+
+# makemeahanzi 把「爲」的字形放在「為」那個碼位上（就是上面說的 12 筆、爫 字頭那個）。
+# 「為」既然改用教育部標準的 9 筆字形，那份 12 筆的字形正好就是「爲」缺的那一份 ——
+# Wilson 在標註頁標的 W[0,1,2,3] J[4] J[5] J[6] C[7] M[8,9,10,11] 就是照著它標的。
+# 所以這裡把它接到「爲」名下：一份資料，兩個碼位各拿各該拿的那一個。
+GLYPH_ALIAS = {"爲": "為"}
 TW_JSON = "https://raw.githubusercontent.com/g0v/zh-stroke-data/master/json/{:x}.json"
+_ALIAS_SRC = set(GLYPH_ALIAS.values())
 
 
 def _tw_convert(data):
@@ -183,7 +190,7 @@ def build_glyphs(chars):
         return None
 
     want = set(chars)
-    out = {}
+    out, raw = {}, {}
     with path.open(encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
@@ -195,7 +202,13 @@ def build_glyphs(chars):
             c = o.get("character")
             if c in want and o.get("strokes"):
                 out[c] = o["strokes"]
-    # 教育部標準字體優先（見 TW_FORM）：makemeahanzi 那一筆畫的是別種字形
+            if c in _ALIAS_SRC and o.get("strokes"):
+                raw[c] = o["strokes"]
+    for a, src in GLYPH_ALIAS.items():       # 見 GLYPH_ALIAS：爲 用 makemeahanzi 的 為
+        if a in want and raw.get(src):
+            out[a] = raw[src]
+    # 教育部標準字體優先（見 TW_FORM）：makemeahanzi 那一筆畫的是別種字形。
+    # 要在 alias 之後，不然會把 爲 也換成 9 筆的那個。
     for c, g in tw_forms().items():
         if c in want:
             out[c] = g["strokes"]
@@ -521,7 +534,7 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
         # 參考向量就是「為 第 5 筆」，那個 5 指的是 makemeahanzi 那個 12 筆字形；全域
         # 蓋掉的話，那條參考向量會變成 9 筆字形的第 5 筆（四點的第一點），於是整張表
         # 凡是一筆的 J 都可能誤配到它。字根的參考向量一律維持 makemeahanzi。
-        med = tw.get(ch, {}).get("medians") or medians(ch)
+        med = tw.get(ch, {}).get("medians") or medians(GLYPH_ALIAS.get(ch, ch))
         if not med:
             continue
         # ⚠️ 提示要照**主碼**走，不是照分段走：親 分段是 I V T D J … L，主碼卻是
@@ -659,7 +672,7 @@ def _practice_glyphs(want):
     except Exception as e:
         print(f"  ⚠️ 參考文章拿不到字形（{e}）—— 田字格會退回系統字型")
         return {}
-    out = {}
+    out, raw = {}, {}
     with path.open(encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
@@ -668,9 +681,15 @@ def _practice_glyphs(want):
                 o = json.loads(line)
             except ValueError:
                 continue
-            if o.get("character") in want and o.get("strokes"):
-                out[o["character"]] = o["strokes"]
-    for c, g in tw_forms().items():          # 同 build_glyphs()：教育部標準字體優先
+            c = o.get("character")
+            if c in want and o.get("strokes"):
+                out[c] = o["strokes"]
+            if c in _ALIAS_SRC and o.get("strokes"):
+                raw[c] = o["strokes"]
+    for a, src in GLYPH_ALIAS.items():       # 同 build_glyphs()
+        if a in want and raw.get(src):
+            out[a] = raw[src]
+    for c, g in tw_forms().items():          # 教育部標準字體優先，要排在 alias 之後
         if c in want:
             out[c] = g["strokes"]
     return out
