@@ -29,11 +29,16 @@ local function is_plain_letter(key)
 end
 
 -- 即時頂要判斷「這串碼接下去還有沒有路」——查的是「碼表裡任何一個碼，是不是剛好等於
--- 這串，或者以這串開頭」。資料來源兩個表都要查：code2chars（主碼／alts／異體字，
--- 一般字的路）跟 leftshort／leftshort_pre（左簡碼家族自己的一條路，主碼表查不到，
--- 只活在這兩張表——漏查會把還在打左簡碼的人（SMB 正要打 SMBF）當「碼死了」誤頂掉，
--- 見下面 build_index）。詞組／si4 的碼不查：自動上屏跟詞組連打互斥（見下面
--- enforce_mutex），開自動上屏時 aiphabi_phrase 一定是關的，詞組候選本來就看不到，
+-- 這串，或者以這串開頭」。資料來源四個表都要查：code2chars（主碼／alts／異體字，
+-- 一般字的路，兼容碼已經併在裡面，見 build_rime.py）、leftshort／leftshort_pre
+-- （左簡碼家族自己的一條路，主碼表查不到，只活在這兩張表——漏查會把還在打左簡碼的人
+-- （SMB 正要打 SMBF）當「碼死了」誤頂掉）、shortcode／short3（約定簡碼／三簡碼，
+-- aiphabi_hint.lua 拿它們現生成真候選，一樣主碼表查不到——漏查就是「NK 候 被 N 几 誤頂」
+-- 那個 bug：候 的約定簡碼 nk 只活在 shortcode，n 打完再打 k 時查不到任何路，誤判成打死。
+-- 這四張表都不看目前的開關狀態（short_on／short3_on 等）——寧可判斷「其實還有路」多算
+-- 幾種將來可能用不到的情況（頂多這次沒頂，退回舊行為，等使用者自己打完或按退格），也不能
+-- 反過來把活路當死路（那才是真的誤頂、丟字）。詞組／si4 的碼不查：自動上屏跟詞組連打互斥
+-- （見下面 enforce_mutex），開自動上屏時 aiphabi_phrase 一定是關的，詞組候選本來就看不到，
 -- 沒理由讓一條使用者永遠看不見的路去擋這個判斷。
 local data = require("aiphabi_data")
 local CODE_INDEX      -- 排序後的碼陣列，binary search 用（module 第一次用到才建，見 build_index）
@@ -47,6 +52,8 @@ local function build_index()
   collect(data.code2chars)
   collect(data.leftshort)
   collect(data.leftshort_pre)
+  collect(data.shortcode)
+  collect(data.short3)
   table.sort(out)
   CODE_INDEX = out
 end

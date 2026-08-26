@@ -214,6 +214,11 @@ do
     ac._is_dead_extension("smbf") == false, "expected alive")
   h.check("SM+B 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
     ac._is_dead_extension("smb") == false, "expected alive")
+  -- 約定簡碼／三簡碼也只活在各自的表（shortcode／short3），不在主碼表 code2chars
+  -- 裡——漏查會把「N 几/刂/丌」誤判成打死，把還在打 候 的約定簡碼 NK 的人半路頂掉
+  -- （2026-08-26 實測 bug：打 NK 被誤頂成「几K」，候 完全打不出來）。
+  h.check("N+K 沒打死（候 約定簡碼 NK）→ 不該頂",
+    ac._is_dead_extension("nk") == false, "expected alive")
 end
 
 os.exit(h.report() == 0 and 0 or 1)
