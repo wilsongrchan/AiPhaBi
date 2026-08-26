@@ -1977,6 +1977,16 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 }
 /* 三字詞的第三格有兩個字母：那個字同時被取首碼和末碼（首首首末）。兩個字母
    分不出誰是誰，所以末碼那個加一個小字；首碼一律不標，都標等於什麼都沒說。 */
+/* 字母跟它標色的那條字根同色。⚠️ 第二位是黃 #ffb732，淺色主題白底上只有
+   1.74:1（紅 4.2、綠 2.1、紫 6.6）—— 四個顏色裡它最難讀，深色主題反過來最亮。
+   要再好讀就得動色值，那是全站的事（跟〈詞組〉頁的碼同一組色、同一個取捨）。 */
+.tz-qcode .z0 { color: var(--rb-0); }
+.tz-qcode .z1 { color: var(--rb-1); }
+.tz-qcode .z2 { color: var(--rb-2); }
+.tz-qcode .z3 { color: var(--rb-3); }
+.tz-qcode .z4 { color: var(--rb-4); }
+.tz-qcode .z5 { color: var(--rb-5); }
+
 /* 還沒按 = 揭曉的那幾碼：留一個小點佔位，行高才不會跳。 */
 .tz-qdot { font-style: normal; color: var(--ink-faint); }
 .tz-qtag {

@@ -848,9 +848,15 @@
       var caps = '';
       for (j = 0; j < c.picks.length; j++) {
         caps += (j ? ' ' : '');
-        caps += c.picks[j].i < P.qstep
-          ? c.picks[j].seg.L.toUpperCase() + (c.picks[j].last ? '<i class="tz-qtag">末</i>' : '')
-          : '<i class="tz-qdot">·</i>';
+        if (c.picks[j].i < P.qstep) {
+          // 字母跟它標色的那條字根同一個顏色 —— 一格有兩碼時（三字詞的第三格）
+          // 光靠位置分不出哪個字母是哪一條，顏色才對得起來（Wilson）
+          caps += '<span class="z' + QZ[c.picks[j].i] + '">' +
+                  c.picks[j].seg.L.toUpperCase() + '</span>' +
+                  (c.picks[j].last ? '<i class="tz-qtag">末</i>' : '');
+        } else {
+          caps += '<i class="tz-qdot">·</i>';
+        }
       }
       html += '<div class="tz-q">' +
         '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + c.ch + '">' + GRID +
