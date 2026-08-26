@@ -8,20 +8,7 @@
  * ⚠️ 切的是 try.js 本尊的原始碼（用大括號配對切函式），不是另外抄一份。抄一份
  *    就會跟本尊分岔，測到的是抄本 —— 那比沒有測試更糟。
  */
-const fs = require('fs');
-const path = require('path');
-const TRY = process.argv[2] || path.join(__dirname, '..', 'assets', 'try.js');
-const src = fs.readFileSync(TRY, 'utf8');
-
-function cut(name) {
-  const i = src.indexOf('function ' + name + '(');
-  if (i < 0) throw new Error('找不到 ' + name);
-  let d = 0, j = src.indexOf('{', i);
-  for (let k = j; k < src.length; k++) {
-    if (src[k] === '{') d++;
-    else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
-  }
-}
+const cut = require('./cut_fn').loadTry(process.argv[2]);
 
 // 最小替身：只有被抽出來那幾支真的會用到的東西
 const P = { unit: '', qstep: 0, glyphs: {}, cell: { innerHTML: '' } };

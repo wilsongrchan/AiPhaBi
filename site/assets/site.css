@@ -1989,6 +1989,22 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   color: var(--ink-faint); margin-inline-start: .2em; vertical-align: .15em;
 }
 
+/* 兩字詞：主格子上面多一排小格（見 try.js drawPair）。右上角是等一下要打的
+ * 那個字，一直是黑的；打完前一個字，它放大成主格子，剛打完的那個縮到左上角、
+ * 顏色留著。小格照樣沿用 .tianzi 底下那幾條（格線、tz-ink、tz-z*），這裡只管排版。
+ *
+ * 兩邊的小格**一直**佔著位子（空的那邊只是 visibility:hidden）—— 用 display:none
+ * 會讓整塊在換字的那一瞬間左右跳一下，而它底下就是提示區，一起跟著跳。 */
+.tz-prow {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: .45rem;
+}
+.tz-mini { position: relative; width: 27%; }
+.tz-mini.is-blank { visibility: hidden; }
+/* 小格裡沒有字形資料時的退路字要跟著縮，不然 5.5rem 會撐破格子（同 .tz-q） */
+.tz-mini .tz-fallback { font-size: 1.5rem; }
+.tz-pmain { position: relative; }
+
 /* 慶祝畫面：整篇打完了，田字格裡放幾個 emoji 小小彈一下，取代原本要畫的字
  * （見 try.js celebrateCell）。跟 .tz-fallback 一樣疊在格子中央，動畫很短，
  * 每片彈跳的時間錯開一點點（inline style 的 animation-delay），看起來比較

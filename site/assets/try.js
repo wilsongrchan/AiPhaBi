@@ -450,8 +450,12 @@
     /* 「這一格」＝ unit。詞組關著時它就是一個字，行為跟以前一模一樣；
        開著而且文章接下來剛好成詞，它就是那個詞（見 unitAt）。
          uix  = 現在打到這個詞的第幾個字（田字格、提示都看它）
-         uoff = 前面那幾個字用掉了 buf 的前幾碼（提示要看的是剩下那一截） */
-    unit: '', uix: 0, uoff: 0
+         uoff = 前面那幾個字用掉了 buf 的前幾碼（提示要看的是剩下那一截）
+         ucodes = 前面那幾個字**各自**被吃掉的那條碼（主碼／簡碼／兼容碼都可能）。
+                  兩字詞縮到左上角那一小格要照這條碼上色 —— 打簡碼過關的字只該
+                  亮簡碼用到的那幾條，照主碼全部亮起來等於說了一句他沒打的話。
+         pshown = 上一次 drawPair 畫的是哪個詞的第幾個字（換字的縮放動畫看它） */
+    unit: '', uix: 0, uoff: 0, ucodes: [], pshown: null
   };
 
   /* 這個字打得出來的所有碼，含約定簡碼／三簡碼 —— 切詞用。codePaths 是碼表裡
@@ -488,6 +492,7 @@
     P.unit = unitAt();
     P.uix = 0;
     P.uoff = 0;
+    P.ucodes = [];
     var rest = state.buf;
     while (P.uix < P.unit.length - 1 && rest) {
       var codes = unitCodesOf(P.unit.charAt(P.uix)), best = '';
@@ -495,6 +500,7 @@
         if (rest.indexOf(codes[i]) === 0 && codes[i].length > best.length) best = codes[i];
       }
       if (!best) break;                 // 這個字還沒打完 —— 停在它身上
+      P.ucodes.push(best);
       P.uoff += best.length;
       rest = rest.slice(best.length);
       P.uix++;
@@ -879,6 +885,106 @@
   }
 
 
+  /* ── 兩字詞：主格子上面多一排小格 ────────────────────────────────────
+     右上角那一小格是「等一下要打的那個字」，一直是黑的 —— 兩字詞是一口氣打完
+     的，第二個字在打第一個字的時候就該看得見，不然打完第一個字才發現還有一個
+     （Wilson）。打完前一個字，它會放大成主格子，剛打完的那個字縮到左上角、顏色
+     留著。三字以上不走這裡：那邊是四碼快打，四小格自己講一套（見 drawQuad）。
+
+     為什麼要縮放而不是直接換掉：換掉的話兩格看起來只是「閃了一下」，看不出是
+     同一個字移過去。位移跟縮放照實際量到的位置算（見 flipFrom），排版怎麼變都對。 */
+
+  /* 已經打完的那個字要上的色。跟 strokeColours 不同的是它不看現在的 buf ——
+     buf 早就切給下一個字了（curBuf 是從 uoff 起算的）——而是看**當初實際吃掉的
+     那條碼**：兼容碼有自己一套分段，簡碼只用到其中幾條，照主碼全部亮起來會亮在
+     錯的筆畫上、或者亮出他根本沒打的碼。對不上任何一條就退回主碼整字亮。 */
+  function doneColours(ch, code) {
+    var list = pathsOf(ch), segs = null, idx = null, i, k;
+    for (i = 0; i < list.length; i++) {
+      if (codeOfSegs(list[i].segs) === code) { segs = list[i].segs; break; }
+    }
+    if (!segs) {
+      segs = segsOf(ch);
+      if (!segs) return null;
+      var plan = code ? shortPlan(ch, segs) : null;
+      if (plan && plan.code === code) idx = plan.order;   // 簡碼只亮它用到的那幾條
+    }
+    if (!idx) { idx = []; for (i = 0; i < segs.length; i++) idx.push(i); }
+    var map = {};
+    for (i = 0; i < idx.length; i++) {
+      for (k = 0; k < segs[idx[i]].st.length; k++) map[segs[idx[i]].st[k]] = idx[i];
+    }
+    return map;
+  }
+
+  /* FLIP：元素已經在新位置上了，先用 transform 把它推回舊位置、逼一次回流，
+     再放掉 —— 瀏覽器就會從舊位置動到新位置。這樣不必把兩格的座標寫死在 CSS 裡
+     （13rem／窄螢幕 10rem 是兩組數字，寫死就會有一組是錯的）。 */
+  function flipFrom(node, from) {
+    var to = node.getBoundingClientRect();
+    if (!from.width || !to.width) return;
+    var sc = from.width / to.width;
+    node.style.transformOrigin = 'top left';
+    node.style.transition = 'none';
+    node.style.transform = 'translate(' + (from.left - to.left).toFixed(1) + 'px,' +
+                           (from.top - to.top).toFixed(1) + 'px) scale(' + sc.toFixed(4) + ')';
+    void node.offsetWidth;               // 逼回流：少了這一行兩次賦值會被合併，等於沒動
+    node.style.transition = 'transform .34s cubic-bezier(.4, 0, .2, 1)';
+    node.style.transform = '';
+  }
+
+  function reduceMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function drawPair() {
+    var unit = P.unit, uix = P.uix, prev = P.pshown, from = null,
+        ready = !!P.glyphs, now = unit.charAt(uix);
+    /* 同一個詞的同一個字：只把主格子重畫一次（打了幾碼就亮幾條字根），上下兩排
+       小格原封不動。⚠️ 這不是省事而已 —— 一次按鍵會走到 renderCell 兩三趟
+       （setBuf 裡 render／renderPractice／renderCell 各一），整塊重建會把上一趟
+       才剛開始跑的縮放動畫直接砍掉，看起來就是「沒有動畫」。 */
+    if (prev && prev.unit === unit && prev.uix === uix && prev.ready === ready) {
+      var keep = P.cell.querySelector('.tz-pmain');
+      if (keep) {
+        paintGlyph(keep, now, P.glyphs ? P.glyphs[now] : null, strokeColours(now));
+        return;
+      }
+    }
+    /* 只有「同一個詞、剛好往前一個字」才動畫。倒退（打錯退格）、換詞、剛載入
+       都直接畫定格 —— 那幾種情況下畫面上本來就沒有可以動過去的東西。 */
+    if (prev && prev.unit === unit && prev.uix === uix - 1 && !reduceMotion()) {
+      var oldMain = P.cell.querySelector('.tz-pmain'),
+          oldNext = P.cell.querySelector('.tz-pnext');
+      if (oldMain && oldNext) {
+        from = { main: oldMain.getBoundingClientRect(), next: oldNext.getBoundingClientRect() };
+      }
+    }
+    var hasPast = uix > 0, hasNext = uix < unit.length - 1;
+    /* 兩邊的小格一直都在（空的那邊 visibility:hidden）：拿掉會讓整塊在換字時
+       左右跳一下，而它下面就是提示區。 */
+    P.cell.innerHTML =
+      '<div class="tz-prow">' +
+        '<div class="tz-mini tz-ppast' + (hasPast ? '' : ' is-blank') + '"></div>' +
+        '<div class="tz-mini tz-pnext' + (hasNext ? '' : ' is-blank') + '"></div>' +
+      '</div>' +
+      '<div class="tz-pmain"></div>';
+    var eP = P.cell.querySelector('.tz-ppast'),
+        eN = P.cell.querySelector('.tz-pnext'),
+        eM = P.cell.querySelector('.tz-pmain'),
+        pch = hasPast ? unit.charAt(uix - 1) : '',
+        nch = hasNext ? unit.charAt(uix + 1) : '';
+    paintGlyph(eP, pch, pch && P.glyphs ? P.glyphs[pch] : null,
+               hasPast ? doneColours(pch, P.ucodes[uix - 1]) : null);
+    paintGlyph(eN, nch, nch && P.glyphs ? P.glyphs[nch] : null, null);
+    paintGlyph(eM, now, P.glyphs ? P.glyphs[now] : null, strokeColours(now));
+    if (!hasPast) eP.setAttribute('aria-hidden', 'true');
+    if (!hasNext) eN.setAttribute('aria-hidden', 'true');
+    if (from) { flipFrom(eP, from.main); flipFrom(eM, from.next); }
+    P.pshown = { unit: unit, uix: uix, ready: ready };
+  }
+
+
   /* 田字格那一塊（格子＋下一個字＋提示）。打字時只重畫這裡 —— 參考文章有一千
      三百多個 span，每按一鍵重建一次太浪費，而它的內容只在換字時才會變。 */
   /* 慶祝畫面：整篇打完了，格子裡放幾個 emoji 小小彈一下，取代原本要畫的字
@@ -899,9 +1005,14 @@
     var done = P.pos >= P.chars.length;
     // 三字以上的詞：四小格講四碼快打；其餘照舊，一個大格子逐碼上色
     var quad = done ? null : si4Cells(P.unit);
+    // 兩字詞：主格子＋左上／右上兩小格（見 drawPair）
+    var pair = !done && !quad && P.unit.length === 2;
     if (done) celebrateCell();
     else if (quad) drawQuad(quad);
+    else if (pair) drawPair();
     else drawCell(now === '\n' ? '' : now);
+    // 離開兩字詞就把上一次畫的狀態忘掉，不然回頭時會從一個早就不在的位置動過來
+    if (!pair) P.pshown = null;
 
     var uncoded = now && isHan(now) && P.main && !P.main[now];
     P.next.innerHTML = '';
