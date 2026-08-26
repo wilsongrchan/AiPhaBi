@@ -90,6 +90,7 @@ SHORT3_ON = false;
 // 假的跟著打狀態。碼沿用上面那張假碼表：白=YT 日=ZZ 依=PP
 const P = { on: true, pos: 0, chars: [], unit: '', uix: 0, uoff: 0,
             main: { '白': 'yt', '日': 'zz', '依': 'pp' } };
+const PUNCT_CH = { '，': ',', '。': '.' };   // 文章裡的標點打不打得出來
 function curChar() { return P.unit ? P.unit.charAt(P.uix) : P.chars[P.pos]; }
 function curBuf() { return state.buf.slice(P.uoff); }
 function unitCodesOf(ch) { return [P.main[ch]]; }
@@ -113,6 +114,9 @@ check('碼還沒打完 → 不出聲', flow('白日依', 0, 'y'), null);
 check('沒打字 → 不出聲', flow('白日依', 0, ''), null);
 // 換行不佔格子：算「下一個字」時要跳過
 check('下一個字隔著換行也算得到', flow('白\n日依', 0, 'yt'), 'auto');
+// 標點自己會把打好的碼頂上屏，所以碼後面接標點時不必按空白（Wilson）
+check('下一個是標點 → 標點會頂掉它', flow('白日依。', 2, 'pp'), 'auto');
+check('標點在句中也一樣', flow('白，日依', 0, 'yt'), 'auto');
 AUTO_ON = false;
 check('不是單字上屏 → 不出聲', flow('白日依', 0, 'yt'), null);
 AUTO_ON = true;

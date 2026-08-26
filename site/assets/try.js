@@ -26,6 +26,10 @@
     '~': '～', '-': '－'
   };
 
+  // 反查：文章裡看到的全形標點，鍵盤上打不打得出來（flowState 要用）
+  var PUNCT_CH = {};
+  for (var _pk in PUNCT) PUNCT_CH[PUNCT[_pk]] = _pk;
+
   var MAX_CANDS = 9;
 
   /* 詞組**補全**（打的是某個詞的前綴）最多佔幾格。九格全給它會很難看：候選列
@@ -1064,8 +1068,11 @@
        所以第一個字母拿主碼的就對，不必猜他會打簡碼還是主碼。
        沒有下一個字（打到最後一個了）、下一個是標點（走 PUNCT 那條，會把碼丟掉）
        → 都算「要自己按空白」。 */
-    var nx = nextTypedChar(), nc = nx && P.main ? P.main[nx] : '';
-    if (!nc) return 'space';
+    var nx = nextTypedChar();
+    // 下一個是標點：標點自己會把打好的碼頂上屏（見 keydown 的 PUNCT 那一段）
+    if (nx && PUNCT_CH[nx]) return 'auto';
+    var nc = nx && P.main ? P.main[nx] : '';
+    if (!nc) return 'space';                  // 文章打完了，沒有下一鍵可以頂它
     return codeAlive(buf + nc.charAt(0)) ? 'space' : 'auto';
   }
 
@@ -1723,8 +1730,19 @@
 
     if (PUNCT[k]) {
       e.preventDefault();
+      /* 碼還在、而且已經打完某個字 → 標點先把它頂上屏，再放標點（Wilson：
+         打完 DI 接一個逗號，那個逗號就該把 目 頂出去，不必先按空白）。
+         以前這裡是 setBuf('')，等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，
+         流 就這樣沒了，連錯誤都不算，畫面上什麼都沒發生。
+         ⚠️ 只在**已經打完**某個字時才頂（跟即時頂同一條 firstComplete 規矩）；
+         碼只打一半就沒東西好頂，維持原本的行為把它清掉。IME 那邊實際怎麼處理
+         標點鍵還在問 Side B，答案回來再對齊細節。 */
+      if (state.buf) {
+        var pc = firstComplete(state.cands);
+        if (pc) commit(pc.ch);
+        else setBuf('');
+      }
       insert(PUNCT[k]);
-      if (state.buf) setBuf('');
       advance(PUNCT[k]);        // 標點也是文章的一部分，打對了一樣往前一格
       return;
     }
