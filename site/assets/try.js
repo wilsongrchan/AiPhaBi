@@ -1073,11 +1073,10 @@
     clearFlow();
     if (!P.flow) return;
     var st = flowState();
-    /* 講清楚是哪個字 —— 「按空白鍵選字」會讓人去候選列裡找，但跟著打早就把
-       文章要的那個字排到第一位了，按空白就對（Wilson：hint to hit space for 日）。 */
-    P.flow.textContent = st === 'space'
-      ? '碼不只一個字，按空白鍵送出「' + curChar() + '」'
-      : '';
+    /* 一句話帶過，鍵名用鍵帽（跟〈按鍵指南〉同一個 <kbd>）—— 要說的只有「這個
+       不會自己出去，你得按一下」（Wilson）。按空白送出的是哪個字不必再講一次：
+       跟著打早就把文章要的那個字排到候選第一位，格子裡也正畫著它。 */
+    P.flow.innerHTML = st === 'space' ? '需要按 <kbd>空白</kbd>' : '';
     P.flow.className = 'practice-flow' + (st === 'space' ? ' is-space' : '');
     if (st !== 'auto') return;
     /* 這一拍之間可能已經打了別的鍵（那一鍵自己會即時頂，結果一樣）——所以開火前
@@ -1753,11 +1752,10 @@
      單字上屏形同虛設。
      兩個 localStorage 鍵留著沒合併成一個 —— 上次來的人存的是舊的那兩個，
      合併等於把他上次選的模式洗掉。 */
-  var autoNote = document.getElementById('auto-note');
+  /* 單字上屏旁邊**不寫**「碼打完就直接出字」那類保證 —— 並不是每次都成立：
+     碼不只一個字（AO ＝ 名／合）、或下一鍵頂不掉它的時候，還是得按空白
+     （Wilson）。該說的話留給田字格底下那一行，那裡答得出這一次會怎樣（paintFlow）。 */
   function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
-  function paintAutoNote() {
-    if (autoNote) autoNote.textContent = AUTO_ON ? '碼打完就直接出字，不必按空白' : '';
-  }
 
   function setFlow(mode) {
     clearFlow();          // 換模式時把還在等的那一拍收掉，不然它會在新模式底下開火
@@ -1767,7 +1765,6 @@
     saveFlag(AUTO_KEY, AUTO_ON);
     if (PHRASE_ON) loadPhraseDict();
     paintPhraseNote();
-    paintAutoNote();
     /* 一格的範圍會跟著變（明 ↔ 明月），提示鏈歸零、文章重畫。切到別的模式也要
        做一次 —— 詞組關掉之後那一格會從「明月」縮回「明」，不重畫會停在舊的範圍。 */
     resetHint();
@@ -1786,7 +1783,6 @@
   // 上次選的是詞組就先抓詞庫 —— 使用者已經表達過要用它了，不必再等他選一次
   if (PHRASE_ON) loadPhraseDict();
   paintPhraseNote();
-  paintAutoNote();
 
   // 簡碼／三簡碼開關：checkbox 本身不等資料載入就能綁定，反正 lookup() 每次
   // 都是現查 SHORT_ON／SHORT3_ON，切換後重算一次目前的 buf 就會反映出來。
