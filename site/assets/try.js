@@ -832,14 +832,21 @@
     for (var i = 0; i < cells.length; i++) {
       var c = cells[i], strokes = P.glyphs ? P.glyphs[c.ch] : null, paths = '', j, k;
       if (strokes) {
-        var lit = {};
+        var lit = {}, any = false;
         for (j = 0; j < c.picks.length; j++) {
           if (c.picks[j].i >= P.qstep) continue;          // 還沒按到這一碼
+          any = true;
           for (k = 0; k < c.picks[j].seg.st.length; k++) lit[c.picks[j].seg.st[k]] = c.picks[j].i;
         }
+        /* 這一格已經揭了碼，其餘筆畫就壓成淡灰（跟〈詞組〉頁的 cz-off 同一個
+           --zg-off）—— 留成近黑的話紫色那一條跟旁邊分不開（Wilson）。實測白底：
+           紫對近黑只有 2.41，對淡灰是 3.80。反直覺的是往「深灰」壓會更糟（1.19）：
+           紫本身就深，把其餘筆畫也挪向深色只是靠得更近。
+           還沒揭任何碼的格子維持近黑 —— 那時候格子的用途是「這是哪個字」，整格
+           淡灰只會變得難認。 */
         for (j = 0; j < strokes.length; j++) {
           var g = lit[j];
-          paths += '<path class="' + (g == null ? 'tz-ink' : 'tz-z' + QZ[g]) +
+          paths += '<path class="' + (g != null ? 'tz-z' + QZ[g] : any ? 'tz-off' : 'tz-ink') +
                    '" d="' + strokes[j] + '"/>';
         }
       }

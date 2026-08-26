@@ -1959,6 +1959,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
  * （見 try.js drawQuad）。一小格一碼，四個字母連起來就是要打的四碼。
  * 小格照樣沿用 .tianzi 底下那幾條（格線、tz-ink、tz-z*、tz-fallback），
  * 這裡只管排版 —— 顏色改一次全站一起改，不要在這裡另開一組。 */
+/* 已經揭了碼的小格裡，沒被取到的筆畫：跟〈字根表〉〈詞組〉頁的「不是這一條」
+   同一個灰。深淺主題各有值，所以這裡不要寫死顏色。 */
+.tianzi .tz-off { fill: var(--zg-off); }
 .tz-quad { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .4rem; }
 .tz-q { position: relative; }
 /* 三字詞只有三格（第四碼是第三個字的末碼，畫在它自己那一格裡）。
