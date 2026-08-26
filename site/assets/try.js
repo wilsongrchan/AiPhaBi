@@ -1666,61 +1666,46 @@
     phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
   }
 
-  /* 自動上屏跟詞組連打互斥：勾一個，另一個自動關掉。IME 那邊就是這樣
-     （aiphabi_autocommit.lua 的 enforce_mutex），理由也一樣 —— 詞組開著時幾乎
-     每個字後面都還接得出詞，候選永遠不只一個，唯一上屏形同虛設。
-     這裡跟著關的那一個要連 checkbox 一起改，不然畫面上會留一個勾著卻沒作用的框。 */
-  var autoBox = document.querySelector('[data-auto]');
+  /* 流暢模式：詞組連打與單字上屏擇一，畫面上就是一組單選鈕（try.html）。
+     互斥不是「勾一個另一個自己跳掉」的附帶行為，而是這個設定本來的形狀 ——
+     IME 那邊也是互斥的（rime/lua/aiphabi_autocommit.lua 的 enforce_mutex），
+     理由一樣：詞組開著時幾乎每個字後面都還接得出詞，候選永遠不只一個，
+     單字上屏形同虛設。
+     兩個 localStorage 鍵留著沒合併成一個 —— 上次來的人存的是舊的那兩個，
+     合併等於把他上次選的模式洗掉。 */
   var autoNote = document.getElementById('auto-note');
   function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
   function paintAutoNote() {
     if (autoNote) autoNote.textContent = AUTO_ON ? '碼打完就直接出字，不必按空白' : '';
   }
 
-  var phraseBox = document.querySelector('[data-phrase]');
-  if (phraseBox) {
-    phraseBox.checked = PHRASE_ON;
-    phraseBox.addEventListener('change', function () {
-      PHRASE_ON = phraseBox.checked;
-      saveFlag(PHRASE_KEY, PHRASE_ON);
-      if (PHRASE_ON && AUTO_ON) {
-        AUTO_ON = false;
-        saveFlag(AUTO_KEY, false);
-        if (autoBox) autoBox.checked = false;
-        paintAutoNote();
-      }
-      if (PHRASE_ON) loadPhraseDict();
-      paintPhraseNote();
-      // 一格的範圍會跟著變（白 ↔ 白日），提示鏈歸零、文章重畫
-      resetHint();
-      setBuf(state.buf);
-      if (P.on) renderPractice();
-      out.focus();
-    });
-    // 上次開著就先抓 —— 使用者已經表達過要用它了，不必再等他按一次
+  function setFlow(mode) {
+    PHRASE_ON = mode === 'phrase';
+    AUTO_ON = mode === 'auto';
+    saveFlag(PHRASE_KEY, PHRASE_ON);
+    saveFlag(AUTO_KEY, AUTO_ON);
     if (PHRASE_ON) loadPhraseDict();
     paintPhraseNote();
+    paintAutoNote();
+    /* 一格的範圍會跟著變（白 ↔ 白日），提示鏈歸零、文章重畫。切到別的模式也要
+       做一次 —— 詞組關掉之後那一格會從「白日」縮回「白」，不重畫會停在舊的範圍。 */
+    resetHint();
+    setBuf(state.buf);
+    if (P.on) renderPractice();
+    out.focus();
   }
 
-  if (autoBox) {
-    autoBox.checked = AUTO_ON;
-    autoBox.addEventListener('change', function () {
-      AUTO_ON = autoBox.checked;
-      saveFlag(AUTO_KEY, AUTO_ON);
-      if (AUTO_ON && PHRASE_ON) {
-        PHRASE_ON = false;
-        saveFlag(PHRASE_KEY, false);
-        if (phraseBox) phraseBox.checked = false;
-        paintPhraseNote();
-        resetHint();
-        if (P.on) renderPractice();
-      }
-      paintAutoNote();
-      setBuf(state.buf);
-      out.focus();
-    });
-    paintAutoNote();
-  }
+  var flowBoxes = document.querySelectorAll('[data-flow]');
+  [].forEach.call(flowBoxes, function (b) {
+    var mode = b.dataset.flow;
+    b.checked = (mode === 'phrase' && PHRASE_ON) || (mode === 'auto' && AUTO_ON) ||
+                (mode === 'none' && !PHRASE_ON && !AUTO_ON);
+    b.addEventListener('change', function () { if (b.checked) setFlow(mode); });
+  });
+  // 上次選的是詞組就先抓詞庫 —— 使用者已經表達過要用它了，不必再等他選一次
+  if (PHRASE_ON) loadPhraseDict();
+  paintPhraseNote();
+  paintAutoNote();
 
   // 簡碼／三簡碼開關：checkbox 本身不等資料載入就能綁定，反正 lookup() 每次
   // 都是現查 SHORT_ON／SHORT3_ON，切換後重算一次目前的 buf 就會反映出來。

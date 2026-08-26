@@ -1784,6 +1784,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   cursor: pointer;
 }
 
+.chk-toggle input[type="radio"],
 .chk-toggle input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
@@ -1808,15 +1809,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   padding: .05rem .4rem;
 }
 
-/* 簡碼那組跟詞組那組之間的分隔。用一條細線而不是加大 gap —— 這排是
-   「標籤＋兩個勾選格」重複兩次，沒有線的話讀起來像四個並列的勾選格，
-   分不出哪個標籤管哪幾個。 */
-.short-toggle-sep {
-  width: 1px;
-  align-self: stretch;
-  margin: .1rem 0;
-  background: var(--line);
-}
+/* 設定分兩排（簡碼／流暢模式）之後，同一排裡不再需要分隔線 —— 換行本身就是
+   分隔。第二排貼著第一排走，中間不要留一整個段落的空白。 */
+.short-toggle + .short-toggle { margin-top: -.35rem; }
 
 /* 詞組詞庫的狀態（載入中／失敗／收了幾個詞）。這是這一排唯一會等待的開關，
    沒有這句話，打開之後還沒有詞候選會看起來像壞掉。 */
@@ -1833,10 +1828,6 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .short-toggle-link {
   font-size: .78rem;
   color: var(--accent);
-}
-
-@media (max-width: 46rem) {
-  .short-toggle-sep { display: none; }
 }
 
 /* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
@@ -2510,3 +2501,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 @media (max-width: 40rem) {
   .ac-row { grid-template-columns: 2.2rem 5rem 1fr; }
 }
+
+/* 〈自動上屏〉頁開頭那句對照：試打頁把這個功能叫「流暢模式 · 單字上屏」，
+   兩個名字要在同一畫面上綁起來，不然讀者會以為是兩個不同的東西。 */
+.ac-alias { font-size: .92rem; color: var(--ink-dim); margin-top: -.4rem; }
