@@ -222,17 +222,15 @@
       if (e.slots2) card.appendChild(si4Row(e.slots2, e.code2, '前三加末字'));
 
       var foot = el('p', 'cz-count');
-      /* 這一句要講的是**省了幾碼**，不是那一長串碼本身：醉翁之意不在酒 逐字接
-         起來有 18 個字母，整串印出來只是把重點淹掉（Wilson）。所以只留頭三個
-         字母帶過，長度與差額用數字講；那串碼怎麼接出來的，上面〈詞組連打〉那
-         一節已經逐字示範過了。
+      /* 整串碼照印，不要縮寫 —— 「省下 14 碼」要有說服力，得看得到那 18 個字母
+         真的有多長（Wilson）。
          ⚠️ 說「連打最短」不說「主碼連打」是因為 full 是 min(word_codes)，有三簡碼
          的字用的是三簡碼 —— 醉翁之意不在酒 的 18 碼開頭 IHT 就是 醉 的三簡碼，
          真的逐字打主碼是 23 碼。拿四碼跟**最短的那條**比才是公道的比法，但那就
          不能叫它主碼。 */
       if (e.full) {
         foot.appendChild(document.createTextNode('對比連打最短 '));
-        foot.appendChild(code(e.full.slice(0, 3) + '⋯⋯'));
+        foot.appendChild(code(e.full));
         foot.appendChild(document.createTextNode(
           '（' + e.full.length + ' 碼）省下 ' + (e.full.length - 4) + ' 碼。'));
       }
