@@ -1253,7 +1253,8 @@ PHRASE_TWO = [
     # 城市（4 種）換成 教授（6 種）：Wilson 要一個乘出來比較大的（2026-08-26）。
     # 教 一個字就三條路都齊了 —— 三簡碼、主碼、兼容碼，城市 的兼容碼那一課包在
     # 裡面，還多示範了「三種混著搭」。
-    ("教授", "教 有三條路：三簡碼 TXX、主碼 TXPX、兼容碼 FJPX；授 有兩條，兩兩相接都收"),
+    ("教授", "教 三條路（三簡碼 TXX、主碼 TXPX、兼容碼 FJPX）× 授 兩條；"
+             "三簡碼只從主碼取，兼容碼不另作三簡，所以沒有 FJXKWX 這一條"),
 ]
 PHRASE_MULTI = "廣東話"      # 三字以上：四式剛好各不相同的詞（另一個是 普通話）
 # 四碼快打的例詞。挑的時候避開**一碼字**（人 Y、山 W）和**約定字**（大、上）——
@@ -1469,6 +1470,13 @@ class _PhraseCoder:
         return forms[0][0], sigs
 
 
+# 說明文字裡**故意提到的不存在的碼**：(詞, 碼) → 為什麼它不該存在。
+# 這種話最容易默默過期 —— 哪天三簡碼改成兼容碼也做，這句就從教學變成謊話。
+# 所以反過來核：這幾條要是真的變成打得出來的碼，建置就叫。
+NOTE_NOT_A_CODE = {
+    ("教授", "FJXKWX"): "三簡碼只從主碼取（TXPX→TXX），兼容碼 FJPX 不另作三簡",
+}
+
 # 明知故犯的例外：(詞, 字) → 為什麼這一格可以違反上面那幾條規矩。
 # 長白山 整個存在的意義就是示範「末字只有一碼會怎樣」，一碼字正是它要講的東西。
 SI4_EXAMPLE_OK = {("長白山", "山")}
@@ -1504,7 +1512,15 @@ def _note_code_warn(pc):
                 for i in range(len(u)):
                     for j in range(i + 2, len(u) + 1):
                         ok.add(u[i:j])
+        real = {c.upper() for c in pc.word_codes(w)}
         for tok in re.findall(r"[A-Z]{2,}", note):
+            why = NOTE_NOT_A_CODE.get((w, tok))
+            if why is not None:
+                # 這一條是故意說「沒有這種碼」的，所以要核的是它**不在**碼裡
+                if tok in real or tok in ok:
+                    out.append(f"例詞「{w}」的說明說沒有 {tok} 這條碼（{why}），"
+                               f"但現在算得出來了 —— 規則改了，那句話要重寫")
+                continue
             if tok not in ok:
                 out.append(f"例詞「{w}」的說明寫著碼 {tok}，但那不是這個詞裡"
                            f"任何一個字打得出來的碼 —— 取碼改過了？")
