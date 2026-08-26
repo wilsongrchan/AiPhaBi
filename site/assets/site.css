@@ -1828,6 +1828,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .short-toggle-link {
   font-size: .78rem;
   color: var(--accent);
+  /* 貼著前面那個選項走 —— 整排的 gap 是 1.1rem，照那個距離看起來像獨立的一項，
+     而它其實是「單字上屏」的附註（Wilson）。 */
+  margin-inline-start: -.75rem;
 }
 
 /* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
