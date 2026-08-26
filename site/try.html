@@ -152,6 +152,9 @@
     <aside class="practice-cell" data-practice-toggle hidden>
       <div data-mode-panel="practice">
         <div class="tianzi" id="tianzi"></div>
+        <!-- 單字上屏才會用到的一行：碼打完了，接下來會自己上屏（等一下）還是
+             得按空白選字（見 try.js 的 flowState）。其餘模式一直是空的。 -->
+        <p class="practice-flow" id="practice-flow" aria-live="polite"></p>
         <p class="practice-next" id="practice-next"></p>
         <div class="tz-hint" id="practice-hint"></div>
       </div>

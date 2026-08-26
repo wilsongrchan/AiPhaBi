@@ -84,6 +84,42 @@ SHORT3_ON = true;
 check('三簡碼開著：ytx 接得上，不頂', type('ytx'), ['', 'ytx']);
 SHORT3_ON = false;
 
+/* ── flowState：碼打完之後，接下來會自己上屏還是得按空白 ─────────────────
+   跟著打＋單字上屏才有。判斷靠的是「文章接下來那個字的第一碼會不會把這串碼打死」
+   —— 會，即時頂就會替他上屏（'auto'）；不會，就只能自己按空白（'space'）。 */
+// 假的跟著打狀態。碼沿用上面那張假碼表：白=YT 日=ZZ 依=PP
+const P = { on: true, pos: 0, chars: [], unit: '', uix: 0, uoff: 0,
+            main: { '白': 'yt', '日': 'zz', '依': 'pp' } };
+function curChar() { return P.unit ? P.unit.charAt(P.uix) : P.chars[P.pos]; }
+function curBuf() { return state.buf.slice(P.uoff); }
+function unitCodesOf(ch) { return [P.main[ch]]; }
+eval(cut('nextTypedChar'));
+eval(cut('flowState'));
+
+function flow(text, pos, buf) {
+  P.chars = text.split(''); P.pos = pos; P.unit = P.chars[pos] || '';
+  state.buf = buf; _alive = { short: null, short3: null };
+  return flowState();
+}
+console.log('flowState');
+// 白 YT 打完，下一個字 日 的第一碼 Z：YTZ 死路 → 即時頂會收，不必按空白
+check('下一鍵會把碼打死 → 自己上屏', flow('白日依', 0, 'yt'), 'auto');
+// 日 ZZ 打完，下一個字 依 的第一碼 P：ZZP 也是死路 → 一樣自己上屏
+check('同上，換一個字', flow('白日依', 1, 'zz'), 'auto');
+// 依 PP 打完，但它是文章最後一個字 → 沒有下一鍵可以頂它，只能按空白
+check('文章最後一個字 → 要按空白', flow('白日依', 2, 'pp'), 'space');
+// 碼還沒打完 → 什麼都不說
+check('碼還沒打完 → 不出聲', flow('白日依', 0, 'y'), null);
+check('沒打字 → 不出聲', flow('白日依', 0, ''), null);
+// 換行不佔格子：算「下一個字」時要跳過
+check('下一個字隔著換行也算得到', flow('白\n日依', 0, 'yt'), 'auto');
+AUTO_ON = false;
+check('不是單字上屏 → 不出聲', flow('白日依', 0, 'yt'), null);
+AUTO_ON = true;
+P.on = false;
+check('自由試打 → 不出聲（那裡沒有「接下來要打哪個字」）', flow('白日依', 0, 'yt'), null);
+P.on = true;
+
 console.log('關掉開關／萬用鍵');
 AUTO_ON = false;
 check('關掉自動上屏：一鍵都不自己收', type('zz'), ['', 'zz']);

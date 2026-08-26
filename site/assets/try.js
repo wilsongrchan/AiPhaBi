@@ -472,7 +472,9 @@
                   兩字詞縮到左上角那一小格要照這條碼上色 —— 打簡碼過關的字只該
                   亮簡碼用到的那幾條，照主碼全部亮起來等於說了一句他沒打的話。
          pshown = 上一次 drawPair 畫的是哪個詞的第幾個字（換字的縮放動畫看它） */
-    unit: '', uix: 0, uoff: 0, ucodes: [], pshown: null
+    unit: '', uix: 0, uoff: 0, ucodes: [], pshown: null,
+    // 單字上屏的節奏：碼打完之後那顆「等一下自己上屏」的計時器（見 paintFlow）
+    flow: null, flowT: null
   };
 
   /* 這個字打得出來的所有碼，含約定簡碼／三簡碼 —— 切詞用。codePaths 是碼表裡
@@ -1016,6 +1018,78 @@
     P.cell.innerHTML = html;
   }
 
+  /* ── 單字上屏的節奏：碼打完了，然後呢？ ────────────────────────────────
+     單字上屏底下，一個字**通常不是在你打完它的碼時上屏**，而是在你按下一個字的
+     第一鍵、把碼打死的那一刻被即時頂出去（見 autoType）。自由打字時看不出來，
+     但〈跟著打〉的田字格會因此整整慢一個字：白 的碼 JB 打完了，格子還停在 白，
+     要等你開始打 日 才跳。實測（2026-08-26）確實如此，Wilson 也是這樣回報的。
+
+     所以碼打完之後先問一句「接下來會發生什麼」，答案只有兩種，而且**看得出來**
+     —— 跟著打知道你要打的下一個字是誰：
+       auto  下一個字的第一碼會把這串碼打死 → 即時頂會替你上屏。那就不必真的等
+             你按那一鍵，隔一拍自己收掉，節奏才連得起來（Wilson）。收的結果跟
+             那一鍵會收出來的一模一樣，只是早了一拍。
+       space 打不死（例：日 的 B 接著 依 的 Y，BY 是 是 的簡碼，還活著），或者
+             這串碼本來就不只一個字（AO ＝ 名／合）→ 即時頂永遠不會來，只能按
+             空白選字。那就直接說出來，不要讓人盯著一個不會動的格子（Wilson）。
+     只在跟著打＋單字上屏底下做。自由試打沒有「接下來要打哪個字」這回事，
+     那裡照真正的輸入法走，一拍都不能提前。 */
+  var FLOW_MS = 600;                 // 「打字成功」停留多久才自己收（Wilson：0.5～1 秒）
+
+  function clearFlow() {
+    if (P.flowT) { clearTimeout(P.flowT); P.flowT = null; }
+  }
+
+  /* 這一格之後、文章接下來要打的那個字。換行不佔格子，所以要跳過它們數
+     ——跟 renderPractice 算 uend 同一套走法，少了它會在行尾算錯一個字。 */
+  function nextTypedChar() {
+    var i = P.pos;
+    for (var n = 0; n < P.unit.length && i < P.chars.length; n++) {
+      while (P.chars[i] === '\n') i++;
+      i++;
+    }
+    while (i < P.chars.length && P.chars[i] === '\n') i++;
+    return i < P.chars.length ? P.chars[i] : '';
+  }
+
+  function flowState() {
+    if (!AUTO_ON || !P.on || P.pos >= P.chars.length) return null;
+    var ch = curChar(), buf = curBuf();
+    if (!buf || !ch) return null;
+    // 這串碼是不是這個字**打完了**的碼（主碼／完整碼／兼容碼／簡碼／三簡碼）
+    var codes = unitCodesOf(ch), done = false;
+    for (var i = 0; i < codes.length; i++) if (codes[i] === buf) { done = true; break; }
+    if (!done) return null;
+    /* 下一個字的第一鍵會不會把這串碼打死。簡碼的頭幾碼照抄主碼（見 shortPlan），
+       所以第一個字母拿主碼的就對，不必猜他會打簡碼還是主碼。
+       沒有下一個字（打到最後一個了）、下一個是標點（走 PUNCT 那條，會把碼丟掉）
+       → 都算「要自己按空白」。 */
+    var nx = nextTypedChar(), nc = nx && P.main ? P.main[nx] : '';
+    if (!nc) return 'space';
+    return codeAlive(buf + nc.charAt(0)) ? 'space' : 'auto';
+  }
+
+  function paintFlow() {
+    clearFlow();
+    if (!P.flow) return;
+    var st = flowState();
+    /* 講清楚是哪個字 —— 「按空白鍵選字」會讓人去候選列裡找，但跟著打早就把
+       文章要的那個字排到第一位了，按空白就對（Wilson：hint to hit space for 日）。 */
+    P.flow.textContent = st === 'space'
+      ? '碼不只一個字，按空白鍵送出「' + curChar() + '」'
+      : '';
+    P.flow.className = 'practice-flow' + (st === 'space' ? ' is-space' : '');
+    if (st !== 'auto') return;
+    /* 這一拍之間可能已經打了別的鍵（那一鍵自己會即時頂，結果一樣）——所以開火前
+       先確認「什麼都沒變」。比的是位置與整串 buf，不是比字：文章裡連著兩個一樣的
+       字時（白白），只比字會在第一個已經上屏之後又收一次，多打一個出來。 */
+    var want = curChar(), pos = P.pos, buf = state.buf;
+    P.flowT = setTimeout(function () {
+      P.flowT = null;
+      if (P.pos === pos && state.buf === buf && flowState() === 'auto') commit(want);
+    }, FLOW_MS);
+  }
+
   function renderCell() {
     if (!P.on) return;
     var now = curChar();
@@ -1065,6 +1139,7 @@
       P.next.appendChild(el('span', null, '下一個'));
     }
     renderHint(now);
+    paintFlow();
   }
 
   function renderPractice() {
@@ -1344,6 +1419,7 @@
     P.text = document.getElementById('practice-text');
     P.cell = document.getElementById('tianzi');
     P.next = document.getElementById('practice-next');
+    P.flow = document.getElementById('practice-flow');
     P.prog = document.getElementById('practice-prog');
     P.progbar = document.getElementById('practice-progbar-fill');
     P.hintbox = document.getElementById('practice-hint');
@@ -1684,6 +1760,7 @@
   }
 
   function setFlow(mode) {
+    clearFlow();          // 換模式時把還在等的那一拍收掉，不然它會在新模式底下開火
     PHRASE_ON = mode === 'phrase';
     AUTO_ON = mode === 'auto';
     saveFlag(PHRASE_KEY, PHRASE_ON);
