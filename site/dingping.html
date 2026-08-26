@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自動上屏 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法的自動上屏：唯一上屏與即時頂（規則頂屏）——碼打完就直接出字，不必按空白。">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="index.html">簡介</a>
+      <a href="zigen.html">字根表</a>
+      <a href="principles.html">取碼原則</a>
+      <a href="conventional.html">約定字表</a>
+      <a href="jianma.html">簡碼</a>
+      <a href="cizu.html">詞組</a>
+      <a href="dingping.html">自動上屏</a>
+      <ul class="pr-sidenav">
+        <li><a href="#ac-1">1. 三種上屏方式</a></li>
+        <li><a href="#ac-2">2. 唯一上屏</a></li>
+        <li><a href="#ac-3">3. 即時頂</a></li>
+        <li><a href="#ac-4">4. 兩者合起來</a></li>
+        <li><a href="#ac-5">5. 什麼時候不該開</a></li>
+      </ul>
+      <a href="try.html">線上試打</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap ac-page">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>自動上屏</h1>
+
+  <p class="lede">
+    形碼輸入法打完一個字的碼，通常還要再按一下空白鍵，字才會進到文件裡。
+    這一下按得很勤——一篇一千字的文章就是一千下。<strong>自動上屏</strong>把這一下
+    省掉：碼一打完、答案已經沒有別的可能，字就自己出去。
+  </p>
+
+  <div class="stats">
+    <div class="stat"><b id="ac-n-solo">…</b><span>個字打完碼就自己出字</span></div>
+    <div class="stat"><b id="ac-n-pct">…</b><span>佔全部已取碼的字</span></div>
+    <div class="stat"><b id="ac-n-blocked">…</b><span>最常用 1000 字裡要靠即時頂</span></div>
+  </div>
+
+  <h2 id="ac-1">1. 三種上屏方式</h2>
+
+  <p>
+    「上屏」就是把候選字送進文件。中文輸入法把它分成三家，愛發筆的自動上屏
+    做的是後兩家：
+  </p>
+
+  <dl class="ac-kinds">
+    <dt>選擇上屏</dt>
+    <dd>按空白或數字鍵挑一個。所有輸入法都有，也是關掉自動上屏時的唯一方式。</dd>
+
+    <dt>唯一上屏</dt>
+    <dd>碼打完了，而且候選欄只剩這一個——沒有第二個在排隊，就不必問了，直接出字。</dd>
+
+    <dt>頂功上屏（頂屏）</dt>
+    <dd>
+      候選還不只一個，但<strong>下一鍵已經把話說完了</strong>：新按的這個字母讓整串碼
+      再也接不上任何一個字，那就代表上一段其實早就確定了——把它「頂」上屏，
+      新按的這一鍵重新當下一個字的開頭。愛發筆做的是其中的
+      <strong>規則頂屏・即時頂</strong>：只回頭頂最近那一段，不往更早回溯。
+    </dd>
+  </dl>
+
+  <h2 id="ac-2">2. 唯一上屏：多數字根本不必按空白</h2>
+
+  <p>
+    一個字的碼打完之後，只要沒有別的字撞同一串碼、也沒有更長的碼以它開頭，
+    答案就只有一個。<span id="ac-solo-line">…</span>
+  </p>
+
+  <div class="ac-demo" id="ac-demo-solo">
+    <p class="ac-demo-cap">打完最後一個字母，字就出去了：</p>
+    <div class="ac-tape" data-tape="solo"></div>
+  </div>
+
+  <p class="ac-caveat">
+    <strong>「打完」是嚴格的。</strong>候選只剩一個、但那個碼還沒打完（例如
+    <span id="ac-partial">…</span>），不算數——那時候上屏，接下來要按的那幾個字母
+    會被當成下一個字的開頭。同理，容錯猜測（怕你按錯鍵而多提的那一個）也不算
+    「還有第二個在排隊」，它講的是別的碼，不是這個碼還沒完。
+  </p>
+
+  <h2 id="ac-3">3. 即時頂：讓罕見字不要卡住常用字</h2>
+
+  <p>
+    只有唯一上屏是不夠的。<span id="ac-block-line">…</span>
+  </p>
+
+  <div class="ac-demo" id="ac-demo-block">
+    <p class="ac-demo-cap">問題長這樣——碼打完了，卻還不能算「唯一」：</p>
+    <div class="ac-pair" data-pair="block"></div>
+  </div>
+
+  <p>
+    這種等待沒有盡頭：你不會為了打一個常用字，先去確認世上有沒有一個罕見字
+    比它多一碼。即時頂換一個問法——不問「現在是不是只剩一個」，
+    問<strong>「下一鍵按下去，這串碼還有沒有救」</strong>：
+  </p>
+
+  <div class="ac-demo" id="ac-demo-tape">
+    <p class="ac-demo-cap">一路按下去，兩種上屏各出手一次：</p>
+    <div class="ac-tape" data-tape="mix"></div>
+  </div>
+
+  <p class="ac-caveat">
+    <strong>頂之前要有東西可頂。</strong>被頂上屏的那一個必須是「碼本身已經打完」的候選；
+    整段從頭到尾只是補全或猜測（沒真正打中過什麼）就不頂，讓那一鍵照舊留在碼欄裡，
+    跟沒開這個功能時一樣，由你自己按退格處理。
+  </p>
+
+  <h2 id="ac-4">4. 兩者合起來是一個開關</h2>
+
+  <p>
+    唯一上屏與即時頂在輸入法裡是<strong>同一個開關</strong>
+    （<code data-keep>aiphabi_autocommit</code>），因為它們回答的是同一個問題的兩半：
+    「這個字還有沒有別的可能」。前者在碼打完時問，後者在碼打死時問。
+    只開一半沒有意義——只有唯一上屏，常用字會被罕見字卡住；只有即時頂，
+    每個字都要多按一鍵才頂得出去。
+  </p>
+
+  <h2 id="ac-5">5. 什麼時候不該開</h2>
+
+  <dl class="ac-kinds">
+    <dt>剛學拆碼的時候</dt>
+    <dd>
+      字自己跑出去，你就少了「看候選、確認自己拆對了」那一步。
+      先用<a href="try.html">線上試打</a>的跟著打把字根練熟，再打開它。
+    </dd>
+
+    <dt>要用詞組連打的時候</dt>
+    <dd>
+      兩者<strong>互斥</strong>，勾一個另一個會自動關掉。詞組開著時，幾乎每個字打完
+      後面都還接得出詞，候選永遠不只一個，唯一上屏形同虛設。
+      要打詞，就用<a href="cizu.html">詞組連打</a>那一套。
+    </dd>
+  </dl>
+
+  <p class="cz-src">
+    這一頁的每一個碼、每一個數字都是打開頁面時從
+    <code data-keep>assets/dict.json</code>（建置時由 <code data-keep>data/codes.json</code>
+    現算）當場查出來的，不是手抄上來的。
+  </p>
+
+  <div class="todo">
+    <b>可以直接試。</b>
+    <a href="try.html">線上試打</a>頁有「唯一上屏＋即時頂」開關，試打文本與自由試打
+    兩種模式都適用。預設關閉，跟真正的輸入法一樣。
+  </div>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/dingping.js"></script>
+</body>
+</html>

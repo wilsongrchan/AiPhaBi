@@ -34,6 +34,7 @@
       <a href="conventional.html">約定字表</a>
       <a href="jianma.html">簡碼</a>
       <a href="cizu.html">詞組</a>
+      <a href="dingping.html">自動上屏</a>
       <a href="try.html">線上試打</a>
     </nav>
   </div>
@@ -89,6 +90,19 @@
         詞組連打＋四碼快打
       </label>
       <span class="short-toggle-note" id="phrase-note"></span>
+
+      <!-- 自動上屏：唯一上屏＋即時頂，跟 IME 那邊一樣是**一個**開關
+           （rime/lua/aiphabi_autocommit.lua 的 aiphabi_autocommit），所以這裡也只
+           給一個框，不要拆成兩個。跟詞組連打互斥 —— 勾這個，詞組會自動關掉
+           （enforce_mutex），try.js 那邊連 checkbox 一起改。 -->
+      <span class="short-toggle-sep" aria-hidden="true"></span>
+      <span>自動上屏</span>
+      <label class="chk-toggle">
+        <input type="checkbox" data-auto="auto">
+        唯一上屏＋即時頂
+      </label>
+      <span class="short-toggle-note" id="auto-note"></span>
+      <a class="short-toggle-link" href="dingping.html">怎麼運作？</a>
     </div>
 
     <div class="tryarea-main">

@@ -67,12 +67,26 @@
   var PD = null;              // 詞庫（assets/phrase_dict.json），載入後才有
   var PD_STATE = 'idle';      // idle | loading | ready | fail
 
+  /* 自動上屏（IME 那邊是同一個開關 aiphabi_autocommit，見
+     rime/lua/aiphabi_autocommit.lua）。一個開關，兩件事：
+       唯一上屏 —— 這一鍵打完之後候選只剩一個、而且那一個的碼本身已經打完，
+                   直接出字，不必按空白。
+       即時頂   —— 下一鍵會把碼打死（打出來的這串碼，碼表裡再也沒有東西以它
+                   開頭）時，先把現在候選欄第一個「打完了」的頂上屏，這一鍵
+                   重新當下一個字的開頭。
+     預設關，跟 IME 一致。跟詞組連打互斥（見 setAuto）—— 詞組開著時幾乎每個字
+     後面都還接得出詞，候選永遠不只一個，唯一上屏形同虛設。 */
+  var AUTO_KEY = 'aiphabi_try_auto';
+  var AUTO_ON = false;
+
   try {
     var savedShort = localStorage.getItem(SHORT_KEY);
     if (savedShort != null) SHORT_ON = savedShort === '1';
     var savedShort3 = localStorage.getItem(SHORT3_KEY);
     if (savedShort3 != null) SHORT3_ON = savedShort3 === '1';
     PHRASE_ON = localStorage.getItem(PHRASE_KEY) === '1';
+    AUTO_ON = localStorage.getItem(AUTO_KEY) === '1';
+    if (AUTO_ON) PHRASE_ON = false;      // 兩個都被存成開著（換過版本）也修正一次
   } catch (e) {}
 
   /* 三簡碼：約定簡碼的自動版，不用手動挑，4 碼以上的字全部適用。打 3 碼當
@@ -1539,6 +1553,63 @@
     renderCell();          // 打對幾碼就亮幾條字根
   }
 
+  /* ── 自動上屏（唯一上屏＋即時頂）───────────────────────────────────────
+     移植自 rime/lua/aiphabi_autocommit.lua。一個開關兩件事，兩種模式共用
+     （試打文本／自由試打都走這裡，跟簡碼那幾個開關一樣）。
+
+     「打完了」的候選：碼本身就是它的碼，按空白就出得來（web 這邊是 exact）。
+     補全（還差幾碼）、三簡碼那種自動配對不算 —— IME 那邊分別標成 completion
+     與 ap_pool，兩者都不算「認定過就是這個字」。 */
+  function firstComplete(list) {
+    for (var i = 0; i < list.length; i++) if (list[i].exact) return list[i];
+    return null;
+  }
+
+  /* 這串碼還有沒有路：碼表裡還有沒有任何碼「等於它」或「以它開頭」。
+     索引要收的不只主碼表，約定簡碼與三簡碼也各是一條打得出字的路 —— 漏掉就會
+     在打簡碼的最後一鍵被即時頂打斷。實測出貨的 aiphabi_data.lua：63 條約定簡碼
+     裡有 12 條（會 AB、這 IZ、好 LI、過 OZ、道 VZ、得 JYA、說 IOL、覺 FXL、
+     候 NK、實 QV、應 RYW、為 YJM）不是任何一條真碼的前綴，2,938 條三簡碼裡有
+     1,712 條也不是。IME 那邊原本漏了這兩張表，Side B 於 2026-08-26（fd8649f）
+     補進 build_index()，兩邊現在是同一套判斷。
+     差別只有一處：這裡照**開關**現查（簡碼關著就不收進索引），跟 lookup() 現查
+     SHORT_ON 是同一條規矩 —— 畫面上打不出來的東西不該讓它擋住判斷。 */
+  var _alive = { short: null, short3: null };
+  function codeAlive(code) {
+    var d = state.data;
+    if (!d) return true;
+    function hit(keys) { var r = prefixRange(keys, code); return r[1] > r[0]; }
+    if (hit(d.keys)) return true;
+    if (SHORT_ON) {
+      if (!_alive.short) _alive.short = Object.keys(d.short).sort();
+      if (hit(_alive.short)) return true;
+    }
+    if (SHORT3_ON) {
+      if (!_alive.short3) _alive.short3 = Object.keys(d.short3).sort();
+      if (hit(_alive.short3)) return true;
+    }
+    return false;
+  }
+
+  /* 按下一個字母時走這裡。回傳 true 表示這一鍵已經處理掉了。
+     順序跟 Lua 那邊一樣：先問「這一鍵會不會把碼打死」（即時頂），沒死才收下這一鍵、
+     再問「收完是不是只剩一個而且打完了」（唯一上屏）。 */
+  function autoType(k) {
+    if (!AUTO_ON || !state.data) return false;
+    if (state.buf.indexOf(WILD) >= 0) return false;   // 萬用鍵不走自動上屏
+    /* 即時頂：碼死了，代表上一段再也不會有別的可能 —— 把現在候選欄第一個
+       「打完了」的頂上屏，這一鍵重新當下一個字的開頭。挑不到這樣的候選就不頂，
+       照舊往下走（跟沒開這個功能時一樣，讓使用者自己按退格）。 */
+    if (state.buf && !codeAlive(state.buf + k)) {
+      var top = firstComplete(state.cands);
+      if (top) { commit(top.ch); setBuf(k); return true; }
+    }
+    setBuf(state.buf + k);
+    // 唯一上屏：沒有第二個排隊，而且那一個的碼本身已經打完
+    if (state.cands.length === 1 && state.cands[0].exact) commit(state.cands[0].ch);
+    return true;
+  }
+
   out.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var k = e.key;
@@ -1557,7 +1628,12 @@
       }
     }
 
-    if (/^[a-zA-Z]$/.test(k)) { e.preventDefault(); setBuf(state.buf + k.toLowerCase()); return; }
+    if (/^[a-zA-Z]$/.test(k)) {
+      e.preventDefault();
+      var lk = k.toLowerCase();
+      if (!autoType(lk)) setBuf(state.buf + lk);
+      return;
+    }
 
     // 提示鍵。放在標點之前判斷 —— 將來要是 = 也收進 PUNCT，提示還是要贏，
     // 否則這顆鍵就按不出提示了。
@@ -1590,12 +1666,29 @@
     phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
   }
 
+  /* 自動上屏跟詞組連打互斥：勾一個，另一個自動關掉。IME 那邊就是這樣
+     （aiphabi_autocommit.lua 的 enforce_mutex），理由也一樣 —— 詞組開著時幾乎
+     每個字後面都還接得出詞，候選永遠不只一個，唯一上屏形同虛設。
+     這裡跟著關的那一個要連 checkbox 一起改，不然畫面上會留一個勾著卻沒作用的框。 */
+  var autoBox = document.querySelector('[data-auto]');
+  var autoNote = document.getElementById('auto-note');
+  function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
+  function paintAutoNote() {
+    if (autoNote) autoNote.textContent = AUTO_ON ? '碼打完就直接出字，不必按空白' : '';
+  }
+
   var phraseBox = document.querySelector('[data-phrase]');
   if (phraseBox) {
     phraseBox.checked = PHRASE_ON;
     phraseBox.addEventListener('change', function () {
       PHRASE_ON = phraseBox.checked;
-      try { localStorage.setItem(PHRASE_KEY, PHRASE_ON ? '1' : '0'); } catch (e) {}
+      saveFlag(PHRASE_KEY, PHRASE_ON);
+      if (PHRASE_ON && AUTO_ON) {
+        AUTO_ON = false;
+        saveFlag(AUTO_KEY, false);
+        if (autoBox) autoBox.checked = false;
+        paintAutoNote();
+      }
       if (PHRASE_ON) loadPhraseDict();
       paintPhraseNote();
       // 一格的範圍會跟著變（白 ↔ 白日），提示鏈歸零、文章重畫
@@ -1607,6 +1700,26 @@
     // 上次開著就先抓 —— 使用者已經表達過要用它了，不必再等他按一次
     if (PHRASE_ON) loadPhraseDict();
     paintPhraseNote();
+  }
+
+  if (autoBox) {
+    autoBox.checked = AUTO_ON;
+    autoBox.addEventListener('change', function () {
+      AUTO_ON = autoBox.checked;
+      saveFlag(AUTO_KEY, AUTO_ON);
+      if (AUTO_ON && PHRASE_ON) {
+        PHRASE_ON = false;
+        saveFlag(PHRASE_KEY, false);
+        if (phraseBox) phraseBox.checked = false;
+        paintPhraseNote();
+        resetHint();
+        if (P.on) renderPractice();
+      }
+      paintAutoNote();
+      setBuf(state.buf);
+      out.focus();
+    });
+    paintAutoNote();
   }
 
   // 簡碼／三簡碼開關：checkbox 本身不等資料載入就能綁定，反正 lookup() 每次
