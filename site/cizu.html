@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>詞組 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法的詞組連打與四碼快打：常用詞由各字的碼串接而成，不必另外背詞庫。">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="index.html">簡介</a>
+      <a href="zigen.html">字根表</a>
+      <a href="principles.html">取碼原則</a>
+      <a href="conventional.html">約定字表</a>
+      <a href="jianma.html">簡碼</a>
+      <a href="cizu.html">詞組</a>
+      <ul class="pr-sidenav">
+        <li><a href="#cz-1">1. 詞組連打</a></li>
+        <li><a href="#cz-4">2. 四碼快打</a></li>
+        <li><a href="#cz-5">3. 智能分詞</a></li>
+        <li><a href="#cz-7">4. 收錄詞組範例</a></li>
+      </ul>
+      <a href="try.html">線上試打</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap cz-page">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>詞組</h1>
+
+  <p class="lede">
+    打詞比打字快，但多數形碼輸入法的詞庫要另外背一套詞的碼。愛發筆不另立規則——
+    <strong>詞的碼就是每個字的碼接起來</strong>。會拆單字，就會打詞；
+    而三字以上的長詞還可以壓成固定四碼，同樣推得出來，不必記。
+  </p>
+
+  <div class="cz-stats stats">
+    <div class="stat"><b id="cz-n-words">…</b><span><a href="#cz-7">個收錄詞組</a></span></div>
+    <div class="stat"><b id="cz-n-entries">…</b><span>條碼表條目（一詞多式）</span></div>
+    <div class="stat"><b id="cz-n-si4">…</b><span>個詞打四碼就出得來</span></div>
+  </div>
+
+  <h2 id="cz-1">詞組連打</h2>
+  <p>
+    規則只有一句：<strong>把每個字的碼依序接起來，就是這個詞的碼。</strong>
+    沒有詞庫專用的碼，也沒有例外——所以詞組連打不增加任何學習成本，
+    你在<a href="principles.html">取碼原則</a>學到的東西全部照用。
+  </p>
+  <p>
+    唯一要知道的是「每個字的碼」不只一條。同一個字可能有主碼、
+    <a href="jianma.html#jm-1">約定簡碼</a>、<a href="jianma.html#jm-2">三簡碼</a>、
+    以及手動收的兼容碼；它們每一條都能打出那個字，因此每一條也都能接進詞裡。
+    輸入法把這些搭配全部收進碼表，你想到哪條就打哪條。
+  </p>
+
+  <h3 id="cz-2">兩字詞：任意搭配</h3>
+  <p>
+    兩個字的詞，兩邊各自可以用「簡碼（沒有簡碼就退三簡碼）／主碼／兼容碼」，
+    <strong>任意搭配都收</strong>——不必記哪個字該用哪一式。
+  </p>
+  <div id="cz-two"><p class="cz-loading">詞組資料載入中……</p></div>
+
+  <h3 id="cz-3">三字以上：四式</h3>
+  <p>
+    字數一多，任意搭配會爆炸（三個字各三式就有 27 種），所以三字以上改成
+    <strong>整個詞統一四式</strong>：主碼式、簡碼式、三簡碼式、兼容碼式。
+    每一式都是逐字套同一條規則，四式算出來一樣的就只收一條。
+  </p>
+  <div id="cz-multi"><p class="cz-loading">詞組資料載入中……</p></div>
+
+  <h2 id="cz-4">四碼快打</h2>
+  <p>
+    長詞逐字接下來會很長——「<span id="cz-long-w">…</span>」照規則接要打
+    <span id="cz-long-n">…</span> 碼。所以三字以上的詞另外壓成<strong>固定四碼</strong>，
+    取哪四碼也是推得出來的：
+  </p>
+  <ul class="jm-conditions">
+    <li><b>三字詞</b>：前兩字的首碼，加末字的<strong>首碼和末碼</strong>（末字補一碼消歧）</li>
+    <li><b>四字詞</b>：四個字各取首碼</li>
+    <li><b>五字或以上</b>：兩式都收——<strong>取前四字首碼</strong>（從頭打就行、好記），
+      或<strong>取前三字首碼及末字首碼</strong>（記得整個詞時比較不會撞碼）</li>
+  </ul>
+  <div id="cz-si4"><p class="cz-loading">詞組資料載入中……</p></div>
+  <h2 id="cz-5">智能分詞</h2>
+  <p>
+    詞庫再大也不可能收完所有搭配。碼串超出收錄範圍時，選字列不會整串落空，
+    而是把認得出來的前半段留在候選裡，讓你先打出這一段、再繼續打剩下的，打字節奏不會斷。
+  </p>
+  <div id="cz-sentence"><p class="cz-loading">詞組資料載入中……</p></div>
+
+  <h2 id="cz-7">收錄詞組範例</h2>
+  <!-- 兩種碼用顏色分，所以這一行說明不能省：顏色本身不會說話，讀者只會看到
+       「有些綠有些灰」而不知道差在哪（Wilson 問過）。 -->
+  <p class="cz-legend">
+    每個詞右邊標一條碼：<code class="is-si4" data-keep>綠色粗體</code>是四碼快打，
+    <code data-keep>灰色</code>是詞組連打——兩字詞沒有四碼，四碼從三字詞才開始。
+  </p>
+  <div id="cz-corpus"><p class="cz-loading">詞組資料載入中……</p></div>
+
+  <p class="cz-src">
+    這一頁的每一個碼都是建置時從 <code data-keep>data/codes.json</code> 現算，
+    再拿實際出貨的碼表對過一次，不是手抄上來的。
+  </p>
+
+  <div class="todo">
+    <b>可以直接試。</b>
+    <a href="try.html">線上試打</a>頁有「詞組連打＋四碼快打」開關，
+    打開就能用這一頁講的規則打詞——查的是同一份現算出來的碼。
+    預設關閉，跟真正的輸入法一樣（四碼快打沒有自己的開關，跟著詞組走）；
+    詞庫要另外下載，所以打開之後會等一下。
+    智能分詞是 Rime 引擎做的，那一頁還沒有。
+  </div>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/cizu.js"></script>
+</body>
+</html>

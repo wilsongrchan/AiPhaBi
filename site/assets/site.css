@@ -1785,6 +1785,48 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   cursor: pointer;
 }
 
+/* 〈跟著打〉的一格是一個詞時，詞裡打到哪個字由〈下一個〉那行的 .tz-unit 顯示
+   （打完的淡、正在打的用主色）。文章框裡本來也在那個字底下畫一條底線
+   （.pc.is-here），Wilson 說文本不要有底線，已拿掉 —— 同一件事講一次就夠。
+   （提示區上面本來還有一條攤開整串的 .tz-word，一樣是多餘，也拿掉了。） */
+
+.tz-unit { display: inline-flex; gap: .05em; }
+.tz-unit .is-done { color: var(--ink-faint); }
+.tz-unit .is-now  { color: var(--accent); }
+
+.word-badge {
+  font-size: .68rem;
+  color: var(--ink-dim);
+  background: var(--code-bg);
+  border-radius: 999px;
+  padding: .05rem .4rem;
+}
+
+/* 簡碼那組跟詞組那組之間的分隔。用一條細線而不是加大 gap —— 這排是
+   「標籤＋兩個勾選格」重複兩次，沒有線的話讀起來像四個並列的勾選格，
+   分不出哪個標籤管哪幾個。 */
+.short-toggle-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: .1rem 0;
+  background: var(--line);
+}
+
+/* 詞組詞庫的狀態（載入中／失敗／收了幾個詞）。這是這一排唯一會等待的開關，
+   沒有這句話，打開之後還沒有詞候選會看起來像壞掉。 */
+.short-toggle-note {
+  font-size: .78rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.short-toggle-note.is-bad { color: var(--warn); }
+
+@media (max-width: 46rem) {
+  .short-toggle { flex-wrap: wrap; row-gap: .45rem; }
+  .short-toggle-sep { display: none; }
+}
+
 /* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
    在同一畫面上多露一列（Wilson）。 */
 .h1-tight { margin-bottom: .5rem; }
@@ -1817,11 +1859,29 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   flex: none;
 }
 
-.practice-text .pc { border-radius: 3px; cursor: pointer; }
+/* 一個字一格，格子要比字大一點 —— 不然底色貼著筆畫，看起來像壓在字上而不是
+   框住字（Wilson）。作法是文章整體加字距，再把那道字距分一半到字的左邊：
+   letter-spacing 加出來的空白算在**前一個字的 span 裡**（跟在字後面），所以
+   只加字距的話底色會右邊寬、左邊貼死。padding-left 補左邊、負 margin 把它拉
+   回原位，字就回到格子正中間，相鄰兩格照樣接得起來（差的那一點是重疊，不是縫）。 */
+.practice-text { letter-spacing: .16em; }
+.practice-text .pc {
+  padding: .12em 0 .12em .16em;
+  margin-inline-start: -.16em;
+  border-radius: 3px;
+  cursor: pointer;
+}
 .practice-text .pc:hover { background: var(--accent-soft); }
 .practice-text .pc.is-done { color: var(--ink-faint); }
 /* 目前這一格：底色而不是外框 —— 外框會讓那一個字比左右鄰居寬，整行跳一下 */
-.practice-text .pc.is-now { background: var(--accent); color: var(--surface); }
+/* 圓角歸零是為了下面那兩條：一格是一個詞（詞組開著）的時候，那幾個字要連成
+   一塊底色，不是一字一塊 —— 每個字各自收圓角會在字與字之間切出缺口。圓角只
+   收在整塊的兩端，.is-wl／.is-wr 由 renderPractice 標。 */
+.practice-text .pc.is-now {
+  background: var(--accent); color: var(--surface); border-radius: 0;
+}
+.practice-text .pc.is-now.is-wl { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.practice-text .pc.is-now.is-wr { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
 
 .practice-bar {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .7rem;
@@ -1895,6 +1955,56 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   font-size: 5.5rem; color: var(--ink); line-height: 1;
 }
 
+/* 四碼快打：一格是三字以上的詞時，那一個田字格換成四個四分之一大的小格
+ * （見 try.js drawQuad）。一小格一碼，四個字母連起來就是要打的四碼。
+ * 小格照樣沿用 .tianzi 底下那幾條（格線、tz-ink、tz-z*、tz-fallback），
+ * 這裡只管排版 —— 顏色改一次全站一起改，不要在這裡另開一組。 */
+/* 已經揭了碼的小格裡，沒被取到的筆畫：跟〈字根表〉〈詞組〉頁的「不是這一條」
+   同一個灰。深淺主題各有值，所以這裡不要寫死顏色。 */
+.tianzi .tz-off { fill: var(--zg-off); }
+.tz-quad { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .4rem; }
+.tz-q { position: relative; }
+/* 三字詞只有三格（第四碼是第三個字的末碼，畫在它自己那一格裡）。
+   最後一格橫跨底下兩欄再置中，格子大小不變 —— 2×2 缺一角比置中難看。 */
+.tz-quad.is-three .tz-q:last-child {
+  grid-column: 1 / -1;
+  width: calc(50% - .2rem);
+  margin-inline: auto;
+}
+/* 小格裡沒有字形資料時的退路字要跟著縮，不然 5.5rem 會撐破四分之一的格子 */
+.tz-q .tz-fallback { font-size: 2.6rem; }
+/* 一格底下的碼：一碼一個反白小方塊，跟單字提示那排是同一種（.tz-chip）。 */
+.tz-qcode {
+  display: flex; justify-content: center; align-items: baseline;
+  gap: .2rem; margin-top: .2rem;
+}
+/* 三字詞的第三格有兩個字母：那個字同時被取首碼和末碼（首首首末）。兩個字母
+   分不出誰是誰，所以末碼那個加一個小字；首碼一律不標，都標等於什麼都沒說。 */
+/* 還沒按 = 揭曉的那幾碼：虛線的 ？ 方塊。用中性灰而不是那一位的顏色 ——
+   .tz-chip.is-blank 本來會留著字根色（單字提示那邊筆畫已經標出來了，留色才
+   對得上），但四小格是「什麼都還沒說」的狀態，先給顏色等於先講一半答案。 */
+.tz-qcode .tz-chip.is-blank { color: var(--ink-faint); }
+.tz-qtag {
+  font-family: inherit; font-style: normal; font-size: .6rem; font-weight: 400;
+  color: var(--ink-faint); margin-inline-start: .2em; vertical-align: .15em;
+}
+
+/* 兩字詞：主格子上面多一排小格（見 try.js drawPair）。右上角是等一下要打的
+ * 那個字，一直是黑的；打完前一個字，它放大成主格子，剛打完的那個縮到左上角、
+ * 顏色留著。小格照樣沿用 .tianzi 底下那幾條（格線、tz-ink、tz-z*），這裡只管排版。
+ *
+ * 兩邊的小格**一直**佔著位子（空的那邊只是 visibility:hidden）—— 用 display:none
+ * 會讓整塊在換字的那一瞬間左右跳一下，而它底下就是提示區，一起跟著跳。 */
+.tz-prow {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: .45rem;
+}
+.tz-mini { position: relative; width: 27%; }
+.tz-mini.is-blank { visibility: hidden; }
+/* 小格裡沒有字形資料時的退路字要跟著縮，不然 5.5rem 會撐破格子（同 .tz-q） */
+.tz-mini .tz-fallback { font-size: 1.5rem; }
+.tz-pmain { position: relative; }
+
 /* 慶祝畫面：整篇打完了，田字格裡放幾個 emoji 小小彈一下，取代原本要畫的字
  * （見 try.js celebrateCell）。跟 .tz-fallback 一樣疊在格子中央，動畫很短，
  * 每片彈跳的時間錯開一點點（inline style 的 animation-delay），看起來比較
@@ -1922,6 +2032,19 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   font-weight: 600;
   color: var(--accent);
   background: var(--accent-soft);
+  border-radius: 999px;
+  padding: .05rem .55rem;
+  white-space: nowrap;
+}
+
+/* 有簡碼的字：跟〈約定字〉同一個藥丸形，但灰的不是 accent 的 —— 約定字講的是
+ * 「這個字不歸拆碼那套推理管」（例外，該搶眼），有簡碼講的是「有捷徑，按 = 會教
+ * 你」（好消息，不該搶戲）。灰底 5.0:1／深色 5.7:1，小字也讀得動。 */
+.short-badge {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: var(--code-bg);
   border-radius: 999px;
   padding: .05rem .55rem;
   white-space: nowrap;
@@ -1990,6 +2113,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tz-chip.z5.is-blank { color: var(--rb-5); }
 
 .tz-intent { font-size: .8rem; line-height: 1.5; color: var(--ink); text-align: center; }
+/* 簡碼提示的第一句（「這個字有簡碼，只要打這兩條字根」）。比取形意圖淡一階：
+ * 它是框住整件事的一句話，不是這一步要讀的內容。 */
+.tz-short { font-size: .78rem; line-height: 1.5; color: var(--ink-dim); text-align: center; }
 /* 打歪的時候：候選列裡那幾碼標紅，田字格底下說「應該是哪一條字根」。
  * 已經打對的字根照樣留著顏色 —— 整個字變回黑的等於把進度也收掉了（Wilson）。 */
 .rail .buf .is-bad { color: var(--warn); }
@@ -2071,4 +2197,216 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 
 @media (max-width: 46rem) {
   .keyguide { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* 節標題用主色，跟〈取碼原則〉那頁一致（Wilson）—— 兩頁都是「一節講一條規則」，
+   同一種東西不該兩種顏色。只借顏色，不借 .pr-page h2 的字級與掛式縮排：那是為
+   編號標題（「1. 筆順原則」）做的，這一頁的標題沒有編號。 */
+.cz-page h2 { color: var(--accent); }
+
+/* ---------------------------------------------------------------------------
+   〈詞組〉頁（cizu.html）—— 詞組連打與四碼快打
+   核心是「一個字的碼在分解式和總碼裡是同一個顏色」，串接這件事才一眼看得懂，
+   所以顏色用的是全站分組色 --rb-0…--rb-5（跟約定字表的拆碼分析同一組），
+   索引在 cizu.js 裡按「第幾個字」給，不是按筆畫段。
+   --------------------------------------------------------------------------- */
+.cz-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem .9rem;
+  margin: 0 0 1.1rem;
+}
+
+.cz-wordhead {
+  display: flex;
+  align-items: baseline;
+  gap: .7rem;
+  flex-wrap: wrap;
+  margin: 0 0 .7rem;
+  max-width: none;
+}
+
+.cz-ch {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.cz-wordhead .cz-ch { font-size: 1.6rem; font-weight: 600; }
+
+.cz-note { font-size: .86rem; color: var(--ink-dim); }
+
+/* 一行分解式：字＋碼＋種類，用 ＋ 串起來，最後 ＝ 總碼。窄螢幕會自己折行，
+   所以 ＋ ＝ 是行內元素而不是 grid 欄 —— 折了還是讀得通。 */
+.cz-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: .45rem;
+  flex-wrap: wrap;
+  padding: .35rem 0;
+}
+
+.cz-op { color: var(--ink-faint); font-size: .9rem; padding-bottom: .15rem; }
+
+.cz-part, .cz-slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .1rem;
+  line-height: 1.25;
+}
+
+.cz-part code, .cz-slot code {
+  background: none;
+  padding: 0;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.cz-kind {
+  font-style: normal;
+  font-size: .7rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.cz-total {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: .05em;
+  padding: .15rem .5rem;
+}
+
+.cz-eq .rb-0 { color: var(--rb-0); }
+.cz-eq .rb-1 { color: var(--rb-1); }
+.cz-eq .rb-2 { color: var(--rb-2); }
+.cz-eq .rb-3 { color: var(--rb-3); }
+.cz-eq .rb-4 { color: var(--rb-4); }
+.cz-eq .rb-5 { color: var(--rb-5); }
+.cz-eq .off  { color: var(--ink-faint); }
+
+/* 四碼快打每一格的字形：取到的那一條字根亮著（顏色跟它下面那個字母同色），
+   其餘筆畫壓成淡灰。「取首碼」講的是「取第一條字根的字母」—— 這件事看圖比看字快。
+   2.6rem：小於這個，一兩筆的字根（德 的 J 只有一筆）在螢幕上看不出顏色。 */
+.cz-glyph {
+  display: block;
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+.cz-glyph svg { width: 100%; height: 100%; display: block; }
+.cz-glyph .cz-off { fill: var(--zg-off); }
+.cz-glyph .cz-lit-0 { fill: var(--rb-0); }
+.cz-glyph .cz-lit-1 { fill: var(--rb-1); }
+.cz-glyph .cz-lit-2 { fill: var(--rb-2); }
+.cz-glyph .cz-lit-3 { fill: var(--rb-3); }
+.cz-glyph .cz-lit-4 { fill: var(--rb-4); }
+.cz-glyph .cz-lit-5 { fill: var(--rb-5); }
+
+.cz-count {
+  margin: .5rem 0 0;
+  font-size: .84rem;
+  color: var(--ink-dim);
+  max-width: none;
+}
+
+/* 三字以上的四式：每一式前面掛一個標籤，說明另起一行、對齊標籤右邊 */
+.cz-mode { padding: .3rem 0; border-top: 1px solid var(--line); }
+.cz-mode:first-of-type { border-top: 0; }
+
+.cz-modetag {
+  display: inline-flex;
+  align-items: center;
+  min-width: 4.6rem;
+  height: 1.5rem;
+  padding: 0 .5rem;
+  border-radius: 999px;
+  background: var(--code-bg);
+  color: var(--ink-dim);
+  font-size: .76rem;
+  white-space: nowrap;
+}
+
+.cz-modetag.is-dup { opacity: .55; }
+
+.cz-why {
+  margin: 0 0 .2rem;
+  padding-inline-start: 5.05rem;   /* 4.6rem 標籤 ＋ .45rem gap，對齊分解式 */
+  font-size: .8rem;
+  color: var(--ink-faint);
+  max-width: none;
+}
+
+.cz-si4row .cz-modetag { align-self: center; }
+
+/* 現算的碼跟出貨碼表對不上時的標記。不是錯誤 —— 取碼剛改過、碼表還沒重建就會這樣，
+   是暫時狀態（見 CLAUDE.md 硬規則二）。標出來比悄悄顯示一個對不上的碼好。 */
+.cz-stale {
+  font-size: .72rem;
+  color: var(--warn);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: .05rem .45rem;
+  cursor: help;
+}
+
+.cz-tag {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: .88em;
+  background: var(--code-bg);
+  border-radius: 5px;
+  padding: .05rem .35rem;
+}
+
+/* 詞庫收錄了什麼：一組一張卡，例詞橫排、自己折行 */
+.cz-cat { padding: .8rem 1.1rem .9rem; }
+
+.cz-cathead {
+  display: flex;
+  align-items: baseline;
+  gap: .7rem;
+  flex-wrap: wrap;
+  margin: 0 0 .5rem;
+  max-width: none;
+}
+
+.cz-cathead b { font-size: 1rem; }
+
+.cz-words { display: flex; flex-wrap: wrap; gap: .35rem .9rem; }
+
+.cz-w {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .25em;
+}
+
+.cz-w .cz-ch { font-size: 1.05rem; }
+
+.cz-w code {
+  background: none;
+  padding: 0;
+  font-size: .68rem;
+  color: var(--ink-faint);
+  letter-spacing: .03em;
+}
+
+/* 四碼那一條用主色**並加粗**：這一排的碼是 .68rem 的細字，光靠色相分不出來
+   （Wilson：thin 的時候綠跟灰看起來差不多）。粗細是第二個訊號，色盲也讀得到。 */
+.cz-w code.is-si4 { color: var(--accent); font-weight: 700; }
+
+/* 上面那條顏色說明。裡面的 <code> 借同一組顏色當樣本，說明本身就是圖例，
+   不必另外畫色塊。 */
+.cz-legend { font-size: .86rem; color: var(--ink-dim); margin: 0 0 1.1rem; }
+.cz-legend code { background: none; padding: 0; color: var(--ink-faint); font-weight: 400; }
+.cz-legend code.is-si4 { color: var(--accent); font-weight: 700; }
+
+.cz-stats { margin: 1.6rem 0 2rem; }
+
+.cz-foot, .cz-src { font-size: .88rem; color: var(--ink-dim); }
+.cz-src { margin-top: 2rem; }
+.cz-loading { color: var(--ink-dim); }
+
+@media (max-width: 40rem) {
+  .cz-why { padding-inline-start: 0; }
 }

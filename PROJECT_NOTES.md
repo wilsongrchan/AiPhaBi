@@ -409,9 +409,35 @@ list includes untracked paths — and `git stash push -- <pathspec>` errors out 
 pathspec doesn't match a tracked file, rather than just skipping it. Observed failure:
 `error: pathspec ':(prefix:0)data/cangjie.json' did not match any file(s) known to git`, and the
 script exits before running `git pull` at all. **Nothing is lost** (it fails before staging
-anything), but the pull silently doesn't happen. Workaround until fixed: stash by hand naming only
-the real tracked files, e.g. `git stash push -- data/codes.json data/zigen.json data/rules.json`,
-then `git pull --rebase origin main`, then `git stash pop`.
+anything), but the pull silently doesn't happen.
+
+**Fixed 2026-08-24**: the glob is now quoted (`-- 'data/*.json'`), so git does its own pathspec
+matching against tracked files instead of the shell expanding it against whatever's on disk. If
+this ever regresses, the workaround is the same as before: stash by hand naming only the real
+tracked files, e.g. `git stash push -- data/codes.json data/zigen.json data/rules.json`, then
+`git pull --rebase origin main`, then `git stash pop`.
+
+**8. `graphics.txt`'s "為" entry is not 為 — it's 爲.** makemeahanzi has exactly one entry keyed
+`為`, but the drawing under it is the 12-stroke 爲 form (爫 head), confirmed by rendering it
+stroke-by-stroke; 爲 (U+7228) isn't in makemeahanzi separately at all. Anything sourced from that
+entry for the real 9-stroke 教育部標準 為 (U+7232) will be wrong — segments built against it won't
+match Wilson's stroke chart, and the annotate 田字格 will draw the wrong glyph.
+
+**Fixed 2026-08-24**: 為's `codes.json` segments (`Y[0,1] J[2] J[3] C[4] M[5,6,7,8]`, code `YJJCM`)
+are built against **`data/tw_strokes.json`** instead — it has 為 as 9 properly separated stroke
+outlines (2048×2048, y-down; needs `x*0.5, 900-y*0.5` to land in graphics.txt's convention) matching
+the real chart. Verified two independent ways that agreed: frame-diffing twpen.com's stroke-order
+GIF at the exact point each stroke settles from "being drawn" to "done" (pixel-precise, no
+reconstruction), and Side C cross-referencing `zigen.json`'s own shape library (為 already appears
+in two shapes' `seen` lists). `data/graphics.txt`'s "為" entry was also replaced with the same
+tw_strokes-derived 9-stroke data so `/annotate`'s 田字格 shows the correct glyph too — but remember
+`graphics.txt` is gitignored (hazard #4), so that fix is local-only; the site gets 為's glyph from
+Side C pointing `build_site_data.py` at `tw_strokes.json` directly, not from `graphics.txt`.
+爲 (U+7228) was re-annotated directly by Wilson via `/annotate` against its own real 12-stroke
+`graphics.txt` entry (code `WJJJCM`) — unrelated to 為's fix, don't conflate the two.
+
+If a future session finds 為 or 爲 looking wrong again, check `graphics.txt`'s stroke *count* first
+(9 = correct 為 source, 12 = 爲) before assuming the segments are the problem.
 
 #### Checking a zigen offline (no browser)
 `retune.py` contains a faithful Python port of `assets/shape.js` (`stroke_vec` / `dist` / `vec_of`,
@@ -827,6 +853,39 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   3. **pool** — completions, 偏旁碼, 同類, 三簡, 容錯 (`ap_pool`), ranked by
      userfreq (session pick count, decaying in plus) then `cf` (word/char frequency).
      Completions ×0.7; cold-reading obscure single-char pinyin ×0.10 (plus only).
+     **Three-layer cap against I/J-style lag** (2026-08-25): root letters `I`/`J` carry
+     17,727 / 12,978 dict rows (by far the two largest — next is `Y` at 8,100; check with
+     `awk -F'\t' '{print substr($2,1,1)}' rime/aiphabi.dict.yaml | sort | uniq -c | sort -rn`).
+     Typing just that one letter used to force **every** filter in the chain (`hint` → `fuzzy`
+     → `order[_plus]`) to each independently drain and touch the *entire* completion stream —
+     that repeated full materialization, not the sort, turned out to be the dominant cost
+     (confirmed by profiling after the first fix — capping only the sort barely moved the
+     needle; Wilson could still feel the lag after that deploy). The real fix has to sit at the
+     front of the chain so it cascades:
+     1. **`RAW_CAP = 1500`** in `aiphabi_hint.lua` (first filter in the chain) — simply stops
+        pulling from upstream after 1,500 raw candidates. Everything downstream (`fuzzy`,
+        `order[_plus]`) then only ever sees ≤1,500 candidates for free, without needing its own
+        cap. This is a real, disclosed trade-off, not just a quality cap: candidates past 1,500
+        genuinely never appear for a single-letter query — acceptable because page_size is 8–10
+        (1,500 is triple-digit pages deep) and typing one more code letter shrinks the raw
+        stream far below the cap anyway (Wilson's own stated usage pattern).
+     2. **`MAX_SORT = 40`** in both order filters — of what survives `RAW_CAP`, only the first
+        40 get a real `table.sort`; the rest are appended in upstream (dict-weight) order.
+     3. **Userfreq/pick-history candidates bypass `MAX_SORT`** (but not `RAW_CAP`) — split into
+        a separately-and-always-sorted `boosted` bucket in `aiphabi_order.lua` (keyed off
+        `USERFREQ`, small — bounded by *this user's* distinct picks, not dict size);
+        `aiphabi_order_plus.lua` already had this for free via its `top` bucket
+        (`PROMOTE_MIN`), untouched. A character you pick a lot but that starts beyond
+        `RAW_CAP` in the *raw* stream is the one narrow edge case this doesn't cover — accepted
+        as unlikely (personal pick frequency and static dict weight correlate for nearly
+        everything) rather than adding cross-module state sharing to close it.
+     Also fixed in the same pass: `aiphabi_fuzzy.lua` was draining-and-yielding the full stream
+     *before* checking whether fuzzy matching even applies (only meaningful at code length ≥2)
+     — pure wasted work for the exact single-letter case this was all about.
+     `tests/run_tests.lua`'s perf group asserts all three layers are active (a candidate past
+     `RAW_CAP` must be absent entirely; one past `MAX_SORT` but within `RAW_CAP` must survive
+     but not be pulled to top; a boosted one must reach the top regardless) — mutation-tested,
+     each assertion goes red if its layer is removed.
   4. **part** — coverage-demoted fragments (a candidate that doesn't span the whole segment,
      e.g. 民 covering only the tail of YCLX) sinks to the bottom. **Coverage is span-based**
      (`[min start, max _end]` over candidates); needed because `enable_sentence` spits out
@@ -1122,14 +1181,39 @@ Background and the numbers that led here: `偏旁縮碼investigation.md` at the 
 
 - **Encoding rule:** a phrase's code = each character's 簡碼 (or 主碼 if no 簡碼) concatenated.
   Verified: 我的 = JKQJA, 你好 = YMLI, 中國人 = QOQY, 香港 = JTBWHZ.
-- **2-char phrases** get the cartesian of {short, main} × {short, main} for the two chars
-  (short/short, short/main, main/short, main/main) so you don't have to remember which mode.
-- **3+ char phrases** use three uniform modes (main / 簡碼-preferred / 三簡碼-preferred) to avoid
-  combinatorial explosion.
-- **四碼快打 (`data.si4`, generated in `aiphabi_hint.lua`, not in dict):** a 4-key shortcut for
+- **2-char phrases** get the cartesian of {short, main, *alts*} × {short, main, *alts*} for the
+  two chars — not just {short, main} (fixed 2026-08-24, see the alts box below).
+- **3+ char phrases** use four uniform modes (main / 簡碼-preferred / 三簡碼-preferred / *alt*) to
+  avoid combinatorial explosion — "alt" substitutes each character's first 兼容碼 where it has one,
+  main code otherwise, applied uniformly per character (not a per-word cartesian product).
+- **四碼快打 (`data.si4`, generated in `build_rime.py`, not in dict):** a 4-key shortcut for
   longer phrases. 3-char → 首首首末; 4-char → 4×首碼; **5+ char → both first-4 AND first-3+last**
   registered (first-4 = partial-recall friendly; first-3+last = better disambiguation on shared
   prefixes like 中國人民X). Exact 4-code → `ap_si4` (ranks as exact); 3-prefix → `ap_pool` (墊底).
+  Each position also tries its character's alt-code letter if it differs from the main one
+  (one position substituted at a time, not a cartesian product across positions — see below).
+
+> **`alts`（兼容碼）were invisible to 詞組連打 / 四碼快打 until 2026-08-24 — same class of bug as
+> the 左簡碼 one (`cca07ff`, 2026-08-16), just never audited here.** `char2code`, the table both
+> generators read from, was built from `rec["code"]` only; `rec.get("alts", [])` was never
+> consulted. A user whose mental breakdown of a character matches its *alt* segmentation (not its
+> 主碼) got no phrase-level shortcut across that character — they could still type the phrase by
+> spelling every character out in full (each character's dict entry always includes its alt code,
+> `alts` are full citizens there), but not via the compressed 詞組連打/四碼快打 path.
+>
+> Measured before fixing: 317 characters carry `alts`; 451 of 4050 curated `phrases_*.txt` words
+> (11%) contain one. Of those, 56 alts differ from their character's main code in the **first**
+> letter — the one that matters for 四碼快打 — affecting 116 of 2711 si4-eligible curated words,
+> including common ones: 臺北市, 高雄市, 上海市, 京都大學, 忠孝敦化.
+>
+> Fix: `char_alt_codes` (built once, alongside `char2code`) holds each character's alt codes,
+> shortened and de-duplicated against its main code. Phrase generation's 2-char cartesian and
+> 3+-char "alt" mode both draw on it (`_char_options`/`_pcode`); si4 generation draws on it through
+> `_si4_signatures`, which substitutes **one position's letter at a time** rather than taking the
+> full cartesian product across positions — bounded growth (only 12 characters carry more than one
+> alt, worst case 3), consistent with the project's existing "avoid combinatorial explosion" stance
+> for 3+-char phrase modes. Build now prints how many phrase/si4 words picked up an alt path
+> (`含兼容碼路徑的詞 N 個`), so a future gap of this kind is visible in the build log, not silent.
 - **Reverse hint (`data.si4_rev`, added 2026-08-15):** word → its 4-code, registered only when
   that's genuinely shorter than every normal typing mode for the word (`main`/`simp`/`t3`).
   Typing a phrase the normal 詞組連打 way and getting it back as an ordinary candidate now appends
@@ -1193,27 +1277,26 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
 
 ### A · Designer side
 - ✅ Zigen learning + reverse prediction pipeline (`zigen.json` ↔ `codes.json`, midline matching).
-- ✅ 6559 characters coded (`codes.json`, 2026-08-21). Against the official lists (see
-  *取碼目標：官方字表*): **教育部常用國字 4763 / 4808 = 99.1%** (45 left — nearly done),
-  **GB 2312 4513 / 6763 = 66.7%** (2250 left, the larger remaining job). Quote those, not the raw
-  total.
+- ✅ 6847 characters coded (`codes.json`, 2026-08-24). Against the official lists (see
+  *取碼目標：官方字表*): **教育部常用國字 4808 / 4808 = 100%** — done, closed out this session
+  (was 99.1%/45 left as of 2026-08-21). **GB 2312 4755 / 6763 = 70.3%** (2008 left, now the only
+  remaining job). Quote those, not the raw total.
 - ✅ Enforced rules engine (stroke order, merge-over-split, isolated-stroke skip, cap-5, tiers,
   enclosure).
 - ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
 - ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
 - ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
   collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
-- ✅ **Zigen consolidation, ongoing**: 418 → 355 shapes as of 2026-08-21 (re-sourcing to simpler
-  representative characters + merging duplicate clusters). Every 取形意圖 with real shapes now has
-  a description; the 18 remaining blanks are empty per-letter placeholder buckets, not stragglers.
-  See *Zigen curation tools* below for the three generators driving this.
-- 🔄 Ongoing: keep coding toward GB 2312 (2250 left; most have no already-coded traditional
-  counterpart, which is why it's the far larger remaining job now that 教育部常用國字 is nearly
-  closed out). The `/annotate` 未取碼 queue sorts by those tables directly (**國字表 / GB表**,
-  replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so working top-down *is*
-  working down the official list. `data/todo_chars.txt` is the older frequency-ordered queue and
-  its header counts are stale; `/progress` is the authority. Also: refine tiers/groups;
-  `kind:"manual"` rules not yet enforced.
+- ✅ **Zigen consolidation, ongoing**: 418 → 363 shapes across 109 取形意圖, as of 2026-08-24
+  (re-sourcing to simpler representative characters + merging duplicate clusters + folding
+  near-duplicate auto shapes into existing ones as `alts`). Every 取形意圖 with real shapes now has
+  a description. See *Zigen curation tools* below for the three generators driving this.
+- 🔄 Ongoing: keep coding toward GB 2312 (2008 left — the only remaining job now that 教育部常用
+  國字 甲表 is fully coded). The `/annotate` 未取碼 queue sorts by those tables directly
+  (**國字表 / GB表**, replacing the old 字頻／新聞／簡體 buttons; 姓名／地名／連綿詞 kept), so
+  working top-down *is* working down the official list. `data/todo_chars.txt` is the older
+  frequency-ordered queue and its header counts are stale; `/progress` is the authority. Also:
+  refine tiers/groups; `kind:"manual"` rules not yet enforced.
 - (Side B caught up: 左簡碼 shipped as `aiphabi_left_short` — see *B · User side* below. Nothing
   outstanding here.)
 
@@ -1268,8 +1351,10 @@ the moment anyone in that folder pushes.
 - ✅ Fixed 2026-08-16: 左簡碼 generation was reading only each member's main code and silently
   ignoring `alts` — 9 of 249 members had a compatible alt code with no shortcut of its own
   (`cca07ff`; bug report `左簡碼_alts未涵蓋.md` from Side A, now resolved and removed).
+- ✅ Fixed 2026-08-24: 詞組連打 / 四碼快打 had the *same* class of bug — see the alts box under
+  *Phrase input (詞組連打) & 四碼快打* above. Caught from a Side B hunch, not a bug report.
 - 🔄 Ongoing: expand phrase庫; ordering edge-cases as they surface (each fix must land in BOTH
-  order filters). Current build: 5911 字, 7715 碼, 393 重碼組 (as of 2026-08-16, commit `5ae4925`).
+  order filters). Current build: 6820 字, 8950 碼, 499 重碼組 (as of 2026-08-24).
 
 ### Not started / open
 - ~~No formal test harness for candidate ordering~~ — **done**, see *Testing the candidate bar

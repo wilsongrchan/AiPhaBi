@@ -33,6 +33,7 @@
       <a href="principles.html">取碼原則</a>
       <a href="conventional.html">約定字表</a>
       <a href="jianma.html">簡碼</a>
+      <a href="cizu.html">詞組</a>
       <a href="try.html">線上試打</a>
     </nav>
   </div>
@@ -76,6 +77,18 @@
         <input type="checkbox" data-short="short3">
         三簡碼
       </label>
+
+      <!-- 詞組連打的詞庫有 3MB，關著的時候一個位元組都不抓（見 try.js 的
+           loadPhraseDict）。四碼快打**沒有**自己的開關，跟著詞組走——真正的
+           輸入法就是這樣接的，這裡不要好心多給一個，那等於在描述一個不存在的
+           設定。旁邊那句 #phrase-note 由 try.js 填（載入中／失敗／收了幾個詞）。 -->
+      <span class="short-toggle-sep" aria-hidden="true"></span>
+      <span>套用詞組</span>
+      <label class="chk-toggle">
+        <input type="checkbox" data-phrase="phrase">
+        詞組連打＋四碼快打
+      </label>
+      <span class="short-toggle-note" id="phrase-note"></span>
     </div>
 
     <div class="tryarea-main">
@@ -152,8 +165,9 @@
 
   <div class="todo">
     <b>這個試打版是簡化過的。</b>
-    目前支援主碼、完整碼、兼容碼、前綴補全、字頻排序、約定簡碼、三簡碼、萬用鍵與標點。
-    真正的輸入法還有左簡碼、詞組連打、輸入容錯、同類字與偏旁碼提示，
+    目前支援主碼、完整碼、兼容碼、前綴補全、字頻排序、約定簡碼、三簡碼、
+    <a href="cizu.html">詞組連打與四碼快打</a>、萬用鍵與標點。
+    真正的輸入法還有左簡碼、輸入容錯、智能分詞、同類字與偏旁碼提示，
     這一頁還沒有。
   </div>
 

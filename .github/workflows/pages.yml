@@ -90,15 +90,50 @@ jobs:
           if [ -s site/assets/practice.json ]; then
             echo "參考文章：有（$(wc -c < site/assets/practice.json) bytes）"
             test -s site/ARPHICPL.txt || { echo "有字形資料卻沒有 ARPHICPL.txt，違反授權"; exit 1; }
+            # 少數幾個字（目前只有「為」）的字形改用教育部標準筆順（g0v/zh-stroke-data），
+            # 那份資料的條件是非商業＋教育用途＋註明出處，出處檔一樣要跟著發佈。
+            if grep -q '"tw_glyph_source"' site/assets/practice.json; then
+              test -s site/TWSTROKE.txt || { echo "有教育部筆順資料卻沒有 TWSTROKE.txt，違反使用條件"; exit 1; }
+              echo "教育部標準筆順：有，TWSTROKE.txt 在"
+            fi
           else
             echo "::warning::practice.json 沒產出來，試打頁不會有參考文章與田字格"
           fi
-          # pinyin.json（自由試打的拼音查字）也帶著同一份 Arphic 字形資料，同一條義務。
+          # 詞組頁的例詞：碼是建置時現算的，產不出來就整頁沒東西。
+          # 不擋部署（其餘頁面不受影響），但要在紀錄裡看得見。
+          if [ -s site/assets/phrases.json ]; then
+            echo "詞組例詞：有（$(wc -c < site/assets/phrases.json) bytes）"
+            # 四碼快打的例字帶著字形（彩色筆畫），跟 practice.json 同一份來源、
+            # 同一個授權，所以同一條義務要對它再查一次。
+            if grep -q '"glyphs"' site/assets/phrases.json; then
+              test -s site/ARPHICPL.txt || { echo "有字形資料卻沒有 ARPHICPL.txt，違反授權"; exit 1; }
+            fi
+            if grep -q '"tw_glyph_source"' site/assets/phrases.json; then
+              test -s site/TWSTROKE.txt || { echo "有教育部筆順資料卻沒有 TWSTROKE.txt，違反使用條件"; exit 1; }
+            fi
+          else
+            echo "::warning::phrases.json 沒產出來，〈詞組〉頁會是空的"
+          fi
+          # 試打頁的詞庫（詞組連打／四碼快打）。產不出來只是那個開關打開後沒詞可選，
+          # 不擋部署 —— 其餘功能完全不受影響。
+          if [ -s site/assets/phrase_dict.json ]; then
+            echo "試打頁詞庫：有（$(wc -c < site/assets/phrase_dict.json) bytes）"
+          else
+            echo "::warning::phrase_dict.json 沒產出來，試打頁的詞組開關會沒有詞"
+          fi
+          # 拼音查字拆成兩份：pinyin.json 是「查得到什麼字」（小，載入就抓），
+          # pinyin_glyphs.json 是拆碼圖與字形（大，點進查字框才抓）。
+          # 帶 Arphic 字形資料的是後者，同一條義務要對它查。
           if [ -s site/assets/pinyin.json ]; then
             echo "拼音查字：有（$(wc -c < site/assets/pinyin.json) bytes）"
-            test -s site/ARPHICPL.txt || { echo "有字形資料卻沒有 ARPHICPL.txt，違反授權"; exit 1; }
           else
             echo "::warning::pinyin.json 沒產出來，自由試打不會有拼音查字"
+          fi
+          if [ -s site/assets/pinyin_glyphs.json ]; then
+            echo "拼音查字的拆碼圖：有（$(wc -c < site/assets/pinyin_glyphs.json) bytes）"
+            test -s site/ARPHICPL.txt || { echo "有字形資料卻沒有 ARPHICPL.txt，違反授權"; exit 1; }
+          else
+            echo "::warning::pinyin_glyphs.json 沒產出來，查到的字不會有田字格與拆碼圖"
           fi
 
       # _review/ 是內部審查工具（代表字對照頁），不該出現在公開網站上。
