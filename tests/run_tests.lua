@@ -193,4 +193,27 @@ do
   h.checkAt("選過的詞候選「明日」排第一，不會卡在池子裡出不了頭", out, 1, "明日")
 end
 
+print()
+print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
+do
+  local ac = require("aiphabi_autocommit")
+  h.check("PPIN+A 打死（開闞之外沒別的路）→ 該頂",
+    ac._is_dead_extension("ppina") == true, "expected dead")
+  h.check("PPIN+X 沒打死（闞 PPINX 剛好完整）→ 不該頂",
+    ac._is_dead_extension("ppinx") == false, "expected alive")
+  h.check("PPIN+E 沒打死（還在通往 PPINEX 的路上）→ 不該頂",
+    ac._is_dead_extension("ppine") == false, "expected alive")
+  h.check("PPINEX 本身沒打死（完整闞碼自己）→ 不該頂",
+    ac._is_dead_extension("ppinex") == false, "expected alive")
+  h.check("PPINEZ 打死（闞的路走到 E 之後沒有 Z 這條）→ 該頂",
+    ac._is_dead_extension("ppinez") == true, "expected dead")
+  -- 左簡碼是即時頂最容易誤傷的地方：SMB 只活在 leftshort_pre／leftshort 兩張表，
+  -- 不在主碼表 code2chars 裡——build_index 漏查任一張，這裡就會誤判「打死了」，
+  -- 把還在打 SMBF（鯉）的人半路頂掉。
+  h.check("SMB+F 沒打死（左簡碼 鯉 SMBF）→ 不該頂",
+    ac._is_dead_extension("smbf") == false, "expected alive")
+  h.check("SM+B 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
+    ac._is_dead_extension("smb") == false, "expected alive")
+end
+
 os.exit(h.report() == 0 and 0 or 1)

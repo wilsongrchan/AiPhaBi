@@ -8,6 +8,14 @@
 -- 「繼續打或許還有別的可能」，一律不上屏。唯獨容錯猜測（方括號標的）不算——那是
 -- 「怕你打錯鍵」的另一個碼的提醒，跟這碼本身有沒有打完無關，見下面 is_fuzzy_guess。
 --
+-- 即時頂（2026-08-26 加）：唯一上屏只顧「打完了」，管不到「開 PPIN、闞 PPINX/PPINEX
+-- 這種罕見字卡住常見字」——闞這種字太少見，開永遠等不到「唯一」。即時頂是另一條路：
+-- 不管現在是不是唯一，只要「這一鍵會把碼打死」（打出來的這串碼，接下來不管碼表裡
+-- 哪個字都接不上，見 is_dead_extension），就代表上一段已經確定沒有回頭路了——把
+-- 上一段候選欄排最前面那個（一定要是「打完了」的，見 is_complete_match）頂上屏，
+-- 這一鍵自己重新當下一個字的開頭。概念跟見 PROJECT_NOTES／Wilson 貼的文章一致，
+-- 叫「規則頂屏・即時頂」：頂的是「N-1 碼」，不是往更早回溯（那是「延遲頂」，這裡沒做）。
+--
 -- 為什麼不用 update_notifier 呼叫 context:commit()：試過，會在候選還在算到一半時
 -- 重入，直接把打字打壞（症狀：完全打不出字）。這裡改成處理器＋
 -- engine:commit_text()+context:clear()，跟 rime-ice 的 select_character.lua 同一種
@@ -18,6 +26,42 @@
 -- 查了反而把正常按鍵擋掉。跟 rime-ice 的 select_character.lua 一樣，只憑 repr() 判斷。
 local function is_plain_letter(key)
   return not key:release() and key:repr():match("^%l$") ~= nil
+end
+
+-- 即時頂要判斷「這串碼接下去還有沒有路」——查的是「碼表裡任何一個碼，是不是剛好等於
+-- 這串，或者以這串開頭」。資料來源兩個表都要查：code2chars（主碼／alts／異體字，
+-- 一般字的路）跟 leftshort／leftshort_pre（左簡碼家族自己的一條路，主碼表查不到，
+-- 只活在這兩張表——漏查會把還在打左簡碼的人（SMB 正要打 SMBF）當「碼死了」誤頂掉，
+-- 見下面 build_index）。詞組／si4 的碼不查：自動上屏跟詞組連打互斥（見下面
+-- enforce_mutex），開自動上屏時 aiphabi_phrase 一定是關的，詞組候選本來就看不到，
+-- 沒理由讓一條使用者永遠看不見的路去擋這個判斷。
+local data = require("aiphabi_data")
+local CODE_INDEX      -- 排序後的碼陣列，binary search 用（module 第一次用到才建，見 build_index）
+local function build_index()
+  local seen, out = {}, {}
+  local function collect(tbl)
+    for code in pairs(tbl) do
+      if not seen[code] then seen[code] = true; out[#out + 1] = code end
+    end
+  end
+  collect(data.code2chars)
+  collect(data.leftshort)
+  collect(data.leftshort_pre)
+  table.sort(out)
+  CODE_INDEX = out
+end
+
+-- newCode 打死了嗎：碼表裡沒有任何碼「等於它」或「以它開頭」，就是死路——不管
+-- 再往下打什麼字母都救不回來，代表上一段已經是唯一確定的答案，不會再有別的可能。
+local function is_dead_extension(newCode)
+  if not CODE_INDEX then build_index() end
+  local lo, hi = 1, #CODE_INDEX + 1
+  while lo < hi do
+    local mid = (lo + hi) // 2
+    if CODE_INDEX[mid] < newCode then lo = mid + 1 else hi = mid end
+  end
+  local hit = CODE_INDEX[lo]
+  return not (hit and hit:sub(1, #newCode) == newCode)
 end
 
 -- 容錯（aiphabi_fuzzy 標的）只是「怕你打錯鍵，另外提醒一個可能」，跟「這串碼本身
@@ -60,11 +104,44 @@ local function sole_real_candidate(seg)
   return nil
 end
 
+-- 從目前候選欄（頂之前，還沒收下這一鍵）挑「排最前面、非容錯、已經打完」的那個，
+-- 當即時頂要頂的對象。文章原話：「頂屏的前提是被頂的字詞已經完全確定」——挑不到
+-- 這樣的候選（例如整段從頭到尾都只是提示／猜測，沒有真正打中過什麼）就不頂，讓這一鍵
+-- 照舊往下走（碼死了就死了，跟現在沒開這個功能時一樣，等使用者自己按退格）。
+local function top_complete_candidate(seg)
+  seg.menu:prepare(CAP)
+  local total = seg.menu:candidate_count()
+  for i = 0, math.min(total, CAP) - 1 do
+    local c = seg:get_candidate_at(i)
+    if c and not is_fuzzy_guess(c) and is_complete_match(c) then return c end
+  end
+  return nil
+end
+
 local function func(key, env)
   if not is_plain_letter(key) then return 2 end
   local ctx = env.engine.context
   if not ctx:get_option("aiphabi_autocommit") then return 2 end
-  ctx:push_input(key:repr())    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
+
+  local code = ctx.input or ""
+  local k = key:repr()
+
+  -- 即時頂：碼死之前先問——這一鍵加進去，碼還有沒有救。有救（還是某個碼的前綴）
+  -- 就照舊往下走；沒救就在「加進去、變成打死的殘局」之前，先把頂之前（也就是
+  -- 現在，這一鍵還沒收）的候選欄第一個頂上屏，這一鍵才另起爐灶當新字第一碼。
+  if code ~= "" and is_dead_extension(code .. k) then
+    local seg = ctx.composition:back()
+    local top = seg and top_complete_candidate(seg)
+    if top then
+      env.engine:commit_text(top.text)
+      ctx:clear()
+      ctx:push_input(k)
+      return 1
+    end
+    -- 挑不到能頂的候選：不攔這一鍵，照舊往下走（含下面的正常收字流程）。
+  end
+
+  ctx:push_input(k)    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
   local seg = ctx.composition:back()
   if seg then
     local cand = sole_real_candidate(seg)
@@ -110,4 +187,5 @@ local function fini(env)
   end
 end
 
-return { init = init, fini = fini, func = func }
+-- _is_dead_extension：只給 tests/ 用，直接驗證即時頂的死路判斷對不對真正的碼表，不影響正式行為。
+return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension }
