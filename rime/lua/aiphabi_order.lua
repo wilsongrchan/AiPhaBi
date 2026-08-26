@@ -34,13 +34,14 @@ local function save()
   f:close()
 end
 
-local function bump(text)                 -- 一個 commit 可能是詞：逐 UTF-8 字加分
-  local i = 1
+local function bump(text)                 -- 詞本身也要加分，不能只拆單字——不然選詞候選
+  USERFREQ[text] = (USERFREQ[text] or 0) + 1  -- （score() 查的是整個候選的 text）永遠選不進去，
+  local i = 1                                 -- 次數全記在拆出來的單字頭上，詞卡在原地不會升。
   while i <= #text do
     local b = text:byte(i)
     local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
     local ch = text:sub(i, i + len - 1)
-    USERFREQ[ch] = (USERFREQ[ch] or 0) + 1
+    if ch ~= text then USERFREQ[ch] = (USERFREQ[ch] or 0) + 1 end  -- 單字本身避免跟上面重複加
     i = i + len
   end
 end
@@ -160,5 +161,5 @@ local function filter(input, env)
   for _, e in ipairs(part) do yield(e.c) end             -- 4. 只吃前綴的切分候選，墊底
 end
 
--- _USERFREQ：只給 tests/run_tests.lua 用，直接塞測試資料進選過次數表，不影響正式行為。
-return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ }
+-- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
+return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump }

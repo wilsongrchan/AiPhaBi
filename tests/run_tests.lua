@@ -162,4 +162,35 @@ do
     out, 1, "占1000")
 end
 
+print()
+print("== 選詞候選本身要記到選過次數，不能只拆單字（2026-08-26 明日/BDB 一直在第二頁那次）==")
+do
+  -- bump() 以前只拆 UTF-8 字加分：選「明日」只會加到 USERFREQ["明"]／["日"]，
+  -- USERFREQ["明日"]（score() 真正查的 key）永遠是 0，選幾百次候選都不會被拉到最前。
+  local order_mod = require("aiphabi_order")
+  for _ = 1, 5 do order_mod._bump("明日") end
+  h.check("bump(\"明日\") 五次後，USERFREQ[\"明日\"] 本身要有記到",
+    order_mod._USERFREQ["明日"] == 5,
+    string.format("got %s", tostring(order_mod._USERFREQ["明日"])))
+  h.check("單字 明／日 也照舊各自加分（沒有這個規矩不能破）",
+    order_mod._USERFREQ["明"] == 5 and order_mod._USERFREQ["日"] == 5,
+    string.format("明=%s 日=%s", tostring(order_mod._USERFREQ["明"]), tostring(order_mod._USERFREQ["日"])))
+  order_mod._USERFREQ["明日"] = nil
+  order_mod._USERFREQ["明"] = nil
+  order_mod._USERFREQ["日"] = nil
+
+  -- 端到端：明日 被選過、混在一堆雜訊候選裡，該排到最前（跟前面「占1000」那個測試同機制，
+  -- 差別是這裡驗證的是 bump() 真的把 key 記對了，不是排序邏輯本身）。
+  order_mod._bump("明日")
+  order_mod._bump("明日")
+  order_mod._bump("明日")
+  local cands = { { text = "明日" } }
+  for i = 1, 40 do cands[#cands + 1] = { text = "占" .. i } end
+  local out = h.run{ schema = "aiphabi", code = "bdb", options = {}, cands = cands }
+  order_mod._USERFREQ["明日"] = nil
+  order_mod._USERFREQ["明"] = nil
+  order_mod._USERFREQ["日"] = nil
+  h.checkAt("選過的詞候選「明日」排第一，不會卡在池子裡出不了頭", out, 1, "明日")
+end
+
 os.exit(h.report() == 0 and 0 or 1)
