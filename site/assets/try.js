@@ -1655,8 +1655,10 @@
     }
   });
 
-  /* 詞組開關旁邊那句話。四個狀態都要說得出來，因為這是唯一一個「打開之後要等」
-     的開關 —— 沒有回饋的話，打開了卻還沒有詞候選，看起來就像壞掉。 */
+  /* 詞組選項旁邊那句話：**只講還沒好的狀態**。這是唯一一個「選了之後要等」的
+     模式 —— 沒有回饋的話，選了卻還沒有詞候選，看起來就像壞掉。
+     載好之後那句就收掉（Wilson）：收錄幾個詞是〈詞組〉頁的事，擺在選項旁邊
+     只是把一排選項讀成一排數字。 */
   var phraseNote = document.getElementById('phrase-note');
   function paintPhraseNote() {
     if (!phraseNote) return;
@@ -1664,7 +1666,6 @@
     if (!PHRASE_ON) t = '';
     else if (PD_STATE === 'loading') t = '詞庫載入中…';
     else if (PD_STATE === 'fail') t = '詞庫載入失敗，重新整理再試';
-    else if (PD_STATE === 'ready' && PD) t = '收錄 ' + PD.stats.words.toLocaleString('en-US') + ' 個詞';
     phraseNote.textContent = t;
     phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
   }
