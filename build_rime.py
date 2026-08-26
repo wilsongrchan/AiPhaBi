@@ -715,6 +715,8 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
+  - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
+    states: [ 自動上屏關, 自動上屏開 ]
 {short_switch}{short3_switch}{left_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
@@ -723,6 +725,7 @@ engine:
     - ascii_composer
     - recognizer
 {predictor_processor}    - key_binder
+    - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
     - speller
     - punctuator
     - selector
