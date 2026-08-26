@@ -29,6 +29,21 @@ local CAP = 20
 local function is_fuzzy_guess(cand)
   return cand.comment and cand.comment:match("^%[") ~= nil
 end
+
+-- 「只剩一個」不夠——那一個還得是「這串碼本身已經打完」，不能是還在等後面幾碼的
+-- completion。例：候 主碼 NCYK，打到 NC 時全表沒有別的字撞這個前綴，候 變成暫時
+-- 「唯一」候選，但碼根本沒打完，這時上屏會把使用者接下來按的 YK 兩鍵當成新字的
+-- 開頭（候yk）。凡是「還在猜、還沒確定就是這條路」的都不算完整：
+--   completion —— librime 自己標的，碼還沒打完的補全（含左簡碼／三簡碼還沒打完那段）。
+--   ap_pool    —— aiphabi_hint.lua 自己發的提示／猜測（同類字／偏旁碼／三簡碼／
+--                 左簡碼補全／四碼前綴），沒有一個是「認定過就是這個字」。
+-- 剩下的（一般完整比對、ap_short 簡碼、ap_si4 打滿的四碼快打、ap_left 打滿的左簡碼）
+-- 才算「碼本身打完了」，可以上屏。
+local INCOMPLETE_TYPE = { completion = true, ap_pool = true }
+local function is_complete_match(cand)
+  return not INCOMPLETE_TYPE[cand.type]
+end
+
 local function sole_real_candidate(seg)
   seg.menu:prepare(CAP)
   local real, n = nil, 0
@@ -41,7 +56,7 @@ local function sole_real_candidate(seg)
       real = c
     end
   end
-  if n == 1 then return real end
+  if n == 1 and is_complete_match(real) then return real end
   return nil
 end
 
@@ -61,4 +76,38 @@ local function func(key, env)
   return 1                      -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
 end
 
-return { func = func }
+-- 自動上屏／詞組連打互斥：詞組開著時，打完一個字的完整碼常常還會接著冒出「候選」
+-- 「候選人」之類的詞組候選排在後面（同一串碼是那些詞的前綴）——sole_real_candidate
+-- 會正確判斷成「不只一個」而按兵不動，但這樣自動上屏形同虛設（詞組開著幾乎每個字
+-- 後面都可能接得出詞，永遠不會只剩一個）。乾脆兩個開關互斥：選單勾其中一個，
+-- 另一個自動關掉，不必先弄懂兩者會怎麼互相牽制。
+local function enforce_mutex(ctx, just_turned_on)
+  if just_turned_on == "aiphabi_autocommit" and ctx:get_option("aiphabi_phrase") then
+    ctx:set_option("aiphabi_phrase", false)
+  elseif just_turned_on == "aiphabi_phrase" and ctx:get_option("aiphabi_autocommit") then
+    ctx:set_option("aiphabi_autocommit", false)
+  end
+end
+
+local function init(env)
+  local ctx = env.engine.context
+  -- 開機當下兩個都是 true（例如手改設定檔）也一併修正一次，不用等使用者動一次選單。
+  pcall(function()
+    if ctx:get_option("aiphabi_autocommit") and ctx:get_option("aiphabi_phrase") then
+      ctx:set_option("aiphabi_phrase", false)
+    end
+  end)
+  pcall(function()
+    env.ap_autocommit_mutex_notifier = ctx.option_update_notifier:connect(function(context, option_name)
+      enforce_mutex(context, option_name)
+    end)
+  end)
+end
+
+local function fini(env)
+  if env.ap_autocommit_mutex_notifier then
+    pcall(function() env.ap_autocommit_mutex_notifier:disconnect() end)
+  end
+end
+
+return { init = init, fini = fini, func = func }
