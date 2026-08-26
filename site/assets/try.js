@@ -35,7 +35,9 @@
   var MAX_PHRASE_COMPLETE = 3;
 
   /* 跟著打的時候，「一格」最多幾個字。詞組開著、而且文章接下來剛好是收錄詞，
-     整個詞算一格：亮起來的是「白日」不是「白」，提示教的也是兩個字連起來的
+     整個詞算一格：亮起來的是「明月」不是「明」，提示教的也是兩個字連起來的
+     （例詞一律拿詞庫裡真的有的：〈登鸛雀樓〉開頭的「白日」**不在**詞庫裡，
+     拿它當例子會讓人以為那一格壞掉了 —— 實測 phrase_dict.json）
      那一串 —— 詞組連打要練的正是這個（Wilson）。
      上限 4：essay 那批常用詞本來就只收 2–4 字（build_rime.py 的 PHRASE_TOPN
      那段），而 3 字以上才練得到四碼快打。精選詞庫裡的長詞（中華人民共和國）
@@ -67,12 +69,26 @@
   var PD = null;              // 詞庫（assets/phrase_dict.json），載入後才有
   var PD_STATE = 'idle';      // idle | loading | ready | fail
 
+  /* 自動上屏（IME 那邊是同一個開關 aiphabi_autocommit，見
+     rime/lua/aiphabi_autocommit.lua）。一個開關，兩件事：
+       唯一上屏 —— 這一鍵打完之後候選只剩一個、而且那一個的碼本身已經打完，
+                   直接出字，不必按空白。
+       即時頂   —— 下一鍵會把碼打死（打出來的這串碼，碼表裡再也沒有東西以它
+                   開頭）時，先把現在候選欄第一個「打完了」的頂上屏，這一鍵
+                   重新當下一個字的開頭。
+     預設關，跟 IME 一致。跟詞組連打互斥（見 setAuto）—— 詞組開著時幾乎每個字
+     後面都還接得出詞，候選永遠不只一個，唯一上屏形同虛設。 */
+  var AUTO_KEY = 'aiphabi_try_auto';
+  var AUTO_ON = false;
+
   try {
     var savedShort = localStorage.getItem(SHORT_KEY);
     if (savedShort != null) SHORT_ON = savedShort === '1';
     var savedShort3 = localStorage.getItem(SHORT3_KEY);
     if (savedShort3 != null) SHORT3_ON = savedShort3 === '1';
     PHRASE_ON = localStorage.getItem(PHRASE_KEY) === '1';
+    AUTO_ON = localStorage.getItem(AUTO_KEY) === '1';
+    if (AUTO_ON) PHRASE_ON = false;      // 兩個都被存成開著（換過版本）也修正一次
   } catch (e) {}
 
   /* 三簡碼：約定簡碼的自動版，不用手動挑，4 碼以上的字全部適用。打 3 碼當
@@ -1029,7 +1045,7 @@
         P.next.appendChild(el('span', 'short-badge', '有簡碼'));
       }
       /* 這一格是一個詞的時候，整個詞都秀出來，正在打的那個字用主色標出來
-         ——「白日」一起打是這一格的目標，只秀「白」會讓人以為打完就過關了
+         ——「明月」一起打是這一格的目標，只秀「明」會讓人以為打完就過關了
          （Wilson）。詞組關著時 unit 只有一個字，這裡就跟以前一模一樣。 */
       if (P.unit.length > 1) {
         var wb = el('b', 'tz-unit');
@@ -1056,7 +1072,7 @@
        而那幾條路都沒有經過 setBuf。少了這一句，剛開頁面時整篇沒有一個字亮著。 */
     syncUnit();
     var frag = document.createDocumentFragment();
-    /* 亮起來的是**整一格**，不只是下一個字：詞組開著時一格可能是「白日」，
+    /* 亮起來的是**整一格**，不只是下一個字：詞組開著時一格可能是「明月」，
        兩個字要一起打，只亮「白」會讓人打完就停（Wilson）。
        uend 是這一格結束後的字元位置 —— 換行不佔格子，所以要跳過它們數。 */
     var uend = P.pos;
@@ -1539,6 +1555,63 @@
     renderCell();          // 打對幾碼就亮幾條字根
   }
 
+  /* ── 自動上屏（唯一上屏＋即時頂）───────────────────────────────────────
+     移植自 rime/lua/aiphabi_autocommit.lua。一個開關兩件事，兩種模式共用
+     （試打文本／自由試打都走這裡，跟簡碼那幾個開關一樣）。
+
+     「打完了」的候選：碼本身就是它的碼，按空白就出得來（web 這邊是 exact）。
+     補全（還差幾碼）、三簡碼那種自動配對不算 —— IME 那邊分別標成 completion
+     與 ap_pool，兩者都不算「認定過就是這個字」。 */
+  function firstComplete(list) {
+    for (var i = 0; i < list.length; i++) if (list[i].exact) return list[i];
+    return null;
+  }
+
+  /* 這串碼還有沒有路：碼表裡還有沒有任何碼「等於它」或「以它開頭」。
+     索引要收的不只主碼表，約定簡碼與三簡碼也各是一條打得出字的路 —— 漏掉就會
+     在打簡碼的最後一鍵被即時頂打斷。實測出貨的 aiphabi_data.lua：63 條約定簡碼
+     裡有 12 條（會 AB、這 IZ、好 LI、過 OZ、道 VZ、得 JYA、說 IOL、覺 FXL、
+     候 NK、實 QV、應 RYW、為 YJM）不是任何一條真碼的前綴，2,938 條三簡碼裡有
+     1,712 條也不是。IME 那邊原本漏了這兩張表，Side B 於 2026-08-26（fd8649f）
+     補進 build_index()，兩邊現在是同一套判斷。
+     差別只有一處：這裡照**開關**現查（簡碼關著就不收進索引），跟 lookup() 現查
+     SHORT_ON 是同一條規矩 —— 畫面上打不出來的東西不該讓它擋住判斷。 */
+  var _alive = { short: null, short3: null };
+  function codeAlive(code) {
+    var d = state.data;
+    if (!d) return true;
+    function hit(keys) { var r = prefixRange(keys, code); return r[1] > r[0]; }
+    if (hit(d.keys)) return true;
+    if (SHORT_ON) {
+      if (!_alive.short) _alive.short = Object.keys(d.short).sort();
+      if (hit(_alive.short)) return true;
+    }
+    if (SHORT3_ON) {
+      if (!_alive.short3) _alive.short3 = Object.keys(d.short3).sort();
+      if (hit(_alive.short3)) return true;
+    }
+    return false;
+  }
+
+  /* 按下一個字母時走這裡。回傳 true 表示這一鍵已經處理掉了。
+     順序跟 Lua 那邊一樣：先問「這一鍵會不會把碼打死」（即時頂），沒死才收下這一鍵、
+     再問「收完是不是只剩一個而且打完了」（唯一上屏）。 */
+  function autoType(k) {
+    if (!AUTO_ON || !state.data) return false;
+    if (state.buf.indexOf(WILD) >= 0) return false;   // 萬用鍵不走自動上屏
+    /* 即時頂：碼死了，代表上一段再也不會有別的可能 —— 把現在候選欄第一個
+       「打完了」的頂上屏，這一鍵重新當下一個字的開頭。挑不到這樣的候選就不頂，
+       照舊往下走（跟沒開這個功能時一樣，讓使用者自己按退格）。 */
+    if (state.buf && !codeAlive(state.buf + k)) {
+      var top = firstComplete(state.cands);
+      if (top) { commit(top.ch); setBuf(k); return true; }
+    }
+    setBuf(state.buf + k);
+    // 唯一上屏：沒有第二個排隊，而且那一個的碼本身已經打完
+    if (state.cands.length === 1 && state.cands[0].exact) commit(state.cands[0].ch);
+    return true;
+  }
+
   out.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var k = e.key;
@@ -1557,7 +1630,12 @@
       }
     }
 
-    if (/^[a-zA-Z]$/.test(k)) { e.preventDefault(); setBuf(state.buf + k.toLowerCase()); return; }
+    if (/^[a-zA-Z]$/.test(k)) {
+      e.preventDefault();
+      var lk = k.toLowerCase();
+      if (!autoType(lk)) setBuf(state.buf + lk);
+      return;
+    }
 
     // 提示鍵。放在標點之前判斷 —— 將來要是 = 也收進 PUNCT，提示還是要贏，
     // 否則這顆鍵就按不出提示了。
@@ -1590,24 +1668,46 @@
     phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
   }
 
-  var phraseBox = document.querySelector('[data-phrase]');
-  if (phraseBox) {
-    phraseBox.checked = PHRASE_ON;
-    phraseBox.addEventListener('change', function () {
-      PHRASE_ON = phraseBox.checked;
-      try { localStorage.setItem(PHRASE_KEY, PHRASE_ON ? '1' : '0'); } catch (e) {}
-      if (PHRASE_ON) loadPhraseDict();
-      paintPhraseNote();
-      // 一格的範圍會跟著變（白 ↔ 白日），提示鏈歸零、文章重畫
-      resetHint();
-      setBuf(state.buf);
-      if (P.on) renderPractice();
-      out.focus();
-    });
-    // 上次開著就先抓 —— 使用者已經表達過要用它了，不必再等他按一次
+  /* 流暢模式：詞組連打與單字上屏擇一，畫面上就是一組單選鈕（try.html）。
+     互斥不是「勾一個另一個自己跳掉」的附帶行為，而是這個設定本來的形狀 ——
+     IME 那邊也是互斥的（rime/lua/aiphabi_autocommit.lua 的 enforce_mutex），
+     理由一樣：詞組開著時幾乎每個字後面都還接得出詞，候選永遠不只一個，
+     單字上屏形同虛設。
+     兩個 localStorage 鍵留著沒合併成一個 —— 上次來的人存的是舊的那兩個，
+     合併等於把他上次選的模式洗掉。 */
+  var autoNote = document.getElementById('auto-note');
+  function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
+  function paintAutoNote() {
+    if (autoNote) autoNote.textContent = AUTO_ON ? '碼打完就直接出字，不必按空白' : '';
+  }
+
+  function setFlow(mode) {
+    PHRASE_ON = mode === 'phrase';
+    AUTO_ON = mode === 'auto';
+    saveFlag(PHRASE_KEY, PHRASE_ON);
+    saveFlag(AUTO_KEY, AUTO_ON);
     if (PHRASE_ON) loadPhraseDict();
     paintPhraseNote();
+    paintAutoNote();
+    /* 一格的範圍會跟著變（明 ↔ 明月），提示鏈歸零、文章重畫。切到別的模式也要
+       做一次 —— 詞組關掉之後那一格會從「明月」縮回「明」，不重畫會停在舊的範圍。 */
+    resetHint();
+    setBuf(state.buf);
+    if (P.on) renderPractice();
+    out.focus();
   }
+
+  var flowBoxes = document.querySelectorAll('[data-flow]');
+  [].forEach.call(flowBoxes, function (b) {
+    var mode = b.dataset.flow;
+    b.checked = (mode === 'phrase' && PHRASE_ON) || (mode === 'auto' && AUTO_ON) ||
+                (mode === 'none' && !PHRASE_ON && !AUTO_ON);
+    b.addEventListener('change', function () { if (b.checked) setFlow(mode); });
+  });
+  // 上次選的是詞組就先抓詞庫 —— 使用者已經表達過要用它了，不必再等他選一次
+  if (PHRASE_ON) loadPhraseDict();
+  paintPhraseNote();
+  paintAutoNote();
 
   // 簡碼／三簡碼開關：checkbox 本身不等資料載入就能綁定，反正 lookup() 每次
   // 都是現查 SHORT_ON／SHORT3_ON，切換後重算一次目前的 buf 就會反映出來。
