@@ -1961,6 +1961,13 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
  * 這裡只管排版 —— 顏色改一次全站一起改，不要在這裡另開一組。 */
 .tz-quad { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .4rem; }
 .tz-q { position: relative; }
+/* 三字詞只有三格（第四碼是第三個字的末碼，畫在它自己那一格裡）。
+   最後一格橫跨底下兩欄再置中，格子大小不變 —— 2×2 缺一角比置中難看。 */
+.tz-quad.is-three .tz-q:last-child {
+  grid-column: 1 / -1;
+  width: calc(50% - .2rem);
+  margin-inline: auto;
+}
 /* 小格裡沒有字形資料時的退路字要跟著縮，不然 5.5rem 會撐破四分之一的格子 */
 .tz-q .tz-fallback { font-size: 2.6rem; }
 .tz-qcode {
@@ -1968,9 +1975,10 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   font-family: ui-monospace, Menlo, monospace;
   font-size: .95rem; font-weight: 600; letter-spacing: .06em; color: var(--ink);
 }
-/* 三字詞的第四格取的是第三個字的**末**碼（首首首末），第三個字因此出現兩次。
-   不標的話看起來像畫錯了，所以只有末碼那一格加一個小字；首碼那三格不標，
-   四格都標等於什麼都沒說。 */
+/* 三字詞的第三格有兩個字母：那個字同時被取首碼和末碼（首首首末）。兩個字母
+   分不出誰是誰，所以末碼那個加一個小字；首碼一律不標，都標等於什麼都沒說。 */
+/* 還沒按 = 揭曉的那幾碼：留一個小點佔位，行高才不會跳。 */
+.tz-qdot { font-style: normal; color: var(--ink-faint); }
 .tz-qtag {
   font-family: inherit; font-style: normal; font-size: .6rem; font-weight: 400;
   color: var(--ink-faint); margin-inline-start: .2em; vertical-align: .15em;

@@ -121,6 +121,17 @@
             if (!d.word[ws[i]] || c.length < d.word[ws[i]].length) d.word[ws[i]] = c;
           }
         }
+        /* 詞 → 它的四碼簽名（可能不只一條：兼容碼會多換出幾條，五字以上還有
+           兩式）。跟著打要拿它判斷「這一串是不是正在打四碼快打」，沒有它就會
+           把打對的四碼當成打歪的字碼標紅（Wilson 2026-08-26 回報）。
+           14,542 條，掃一次幾毫秒。 */
+        d.wsi4 = {};
+        for (var q in d.si4) {
+          var qs = d.si4[q];
+          for (var j = 0; j < qs.length; j++) {
+            (d.wsi4[qs[j]] || (d.wsi4[qs[j]] = [])).push(q);
+          }
+        }
         PD = d;
         PD_STATE = 'ready';
         paintPhraseNote();
@@ -377,7 +388,12 @@
            前幾碼跟主碼對不上，拿主碼比會把他打對的那幾碼也標紅。
            打詞的時候，前面幾個字已經吃掉的那幾碼（P.uoff）當然不算打歪，所以
            斷點要從那裡往後算 —— 詞組關著時 uoff 是 0，跟以前完全一樣。 */
-        if (mm.bad) split = P.uoff + reachLen(tgt, curBuf());
+        if (mm.bad) {
+          split = P.uoff + reachLen(tgt, curBuf());
+          var q4 = si4Reach(state.buf);          // 四碼比的是整串，不是某個字那一截
+          if (q4 > split) split = q4;
+          if (split >= state.buf.length) split = null;
+        }
       }
     }
     if (split == null) {
@@ -430,7 +446,7 @@
     // 按一次 = 往前一步，走完一個字根就換下一個。字換了就整個歸零。
     // hov = 有簡碼的字，第一步的「簡碼總覽」給過了沒有（見 hintStep）。
     // hpath = 上一次算出來「現在走的是哪一套拆法」的碼（見 setBuf）。
-    hseg: 0, hstep: 0, hov: 0, hpath: null,
+    hseg: 0, hstep: 0, hov: 0, hpath: null, qstep: 0,
     /* 「這一格」＝ unit。詞組關著時它就是一個字，行為跟以前一模一樣；
        開著而且文章接下來剛好成詞，它就是那個詞（見 unitAt）。
          uix  = 現在打到這個詞的第幾個字（田字格、提示都看它）
@@ -497,7 +513,10 @@
 
   /* 提示鏈歸零。hseg 是段號，而段號只在**某一套拆法**裡有意義 —— 換字、換篇、
      換打法（主碼↔兼容碼）都得歸零，留著會亮在錯的筆畫上。 */
-  function resetHint(path) { P.hseg = 0; P.hstep = 0; P.hov = 0; P.hpath = path || null; }
+  function resetHint(path) {
+    P.hseg = 0; P.hstep = 0; P.hov = 0; P.hpath = path || null;
+    P.qstep = 0;                        // 四碼快打那四格也一起收回去
+  }
 
   // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
   // 字形的 y 軸要翻過來 —— graphics.txt 的座標系原點在左下，位移是 900 不是 1024。
@@ -612,9 +631,34 @@
       return n;
     }
     if (SHORT_ON && d.short_rev[ch]) best = lcp(d.short_rev[ch]);
+    /* 三簡碼（頭兩碼＋末一碼）也是一條打得出這個字的路 —— 漏了它，開著三簡碼
+       打三簡碼會被整串標紅、還被說「再試一次」（Wilson 2026-08-26 回報）。
+       跟 unitCodesOf 同一條算法，開關關著時不算：畫面上打不出來的不該說對。 */
+    var mc3 = SHORT3_ON && P.main ? P.main[ch] : null;
+    if (mc3 && mc3.length >= 4) {
+      var n3 = lcp(mc3.charAt(0) + mc3.charAt(1) + mc3.charAt(mc3.length - 1));
+      if (n3 > best) best = n3;
+    }
     var list = codePaths(ch);
     for (var i = 0; i < list.length && best < buf.length; i++) {
       var n = lcp(list[i]);
+      if (n > best) best = n;
+    }
+    return best;
+  }
+
+  /* 這一串還有沒有機會變成「整格那個詞的四碼快打」。跟 reachLen 不同的是它
+     比的是**整串** buf、從第一碼起算 —— 四碼是給整個詞的，不屬於任何單一個字。
+     只在 uoff 為 0（前面沒有字被逐字吃掉）時才算：一旦逐字打起來了，走的就是
+     詞組連打那條路，那條路要照字比。 */
+  function si4Reach(buf) {
+    if (!PHRASE_ON || !PD || !PD.wsi4 || P.uoff || !buf) return 0;
+    var arr = PD.wsi4[P.unit];
+    if (!arr) return 0;
+    var best = 0;
+    for (var i = 0; i < arr.length; i++) {
+      var n = 0;
+      while (n < buf.length && n < arr[i].length && buf.charAt(n) === arr[i].charAt(n)) n++;
       if (n > best) best = n;
     }
     return best;
@@ -636,7 +680,8 @@
     /* 上色只照主碼那幾段算（k）—— 兼容碼是另一套拆法（教 的 FJPX 是
        F[0,1,2] J[3] P[4,5] X[7…]，跟主碼的 T[0,1] X[2,3] 分段不同），
        照主碼的段上色會亮在錯的筆畫上。所以走兼容碼時不給進度色，只是不標紅。 */
-    var bad = buf.length > k && reachLen(ch, buf) < buf.length;
+    var bad = buf.length > k && reachLen(ch, buf) < buf.length &&
+              si4Reach(buf) < buf.length;
     return { ok: k, bad: bad };
   }
 
@@ -749,8 +794,9 @@
      「每個字取一個字母」——那件事非得四個字擺在一起才看得出來（Wilson）。
 
      取哪一碼跟 _PhraseCoder.si4_forms（site/tools/build_site_data.py，移植自
-     build_rime.py）同一條規則：四字詞取四個首碼；三字詞取首首首末，最後一格
-     是第三個字的**末**碼，所以第三個字會出現兩次。這裡的「首碼／末碼」指的是
+     build_rime.py）同一條規則：四字詞取四個首碼；三字詞取首首首末 —— 第四碼是
+     第三個字的末碼，畫在**同一格**裡（三格，不是四格），首碼末碼各一個顏色。
+     這裡的「首碼／末碼」指的是
      segsOf() 那一份（已經套過「頭四尾一」）的第一段與最後一段 —— 跟碼表那邊
      取 char2code 的頭尾字母是同一件事，不然標色會標在被截掉的那幾段上。
      兼容碼換出來的那些簽名不畫：一格只講一條路，那是碼表那邊的事。 */
@@ -765,11 +811,18 @@
       segs.push(one);
     }
     var out = [];
+    for (i = 0; i < unit.length && i < 4; i++) {
+      out.push({ ch: unit.charAt(i), picks: [{ seg: segs[i][0], i: i, last: false }] });
+    }
     if (unit.length === 3) {
-      for (i = 0; i < 3; i++) out.push({ ch: unit.charAt(i), seg: segs[i][0], last: false });
-      out.push({ ch: unit.charAt(2), seg: segs[2][segs[2].length - 1], last: true });
-    } else {
-      for (i = 0; i < 4; i++) out.push({ ch: unit.charAt(i), seg: segs[i][0], last: false });
+      /* 三字詞是首首首末：第四碼是第三個字的末碼。畫成第四格會讓第三個字出現
+         兩次，看起來像畫錯了 —— 改成留在同一格裡，首碼與末碼各上自己那一位的
+         顏色（Wilson）。字母也是兩個，末碼那個標一個「末」。
+         碼只有一段的字（人 Y、山 W）首碼就是末碼，兩條 pick 指到同一段：顏色
+         只上得了一次（後面那條蓋掉前面），但字母照樣印兩個 —— 四碼真的是
+         Y…Y，印一個反而是騙人。 */
+      var third = segs[2];
+      out[2].picks.push({ seg: third[third.length - 1], i: 3, last: true });
     }
     return out;
   }
@@ -777,24 +830,38 @@
   function drawQuad(cells) {
     var html = '';
     for (var i = 0; i < cells.length; i++) {
-      var c = cells[i], strokes = P.glyphs ? P.glyphs[c.ch] : null, paths = '';
+      var c = cells[i], strokes = P.glyphs ? P.glyphs[c.ch] : null, paths = '', j, k;
       if (strokes) {
         var lit = {};
-        for (var k = 0; k < c.seg.st.length; k++) lit[c.seg.st[k]] = 1;
-        for (var j = 0; j < strokes.length; j++) {
-          paths += '<path class="' + (lit[j] ? 'tz-z' + QZ[i] : 'tz-ink') +
+        for (j = 0; j < c.picks.length; j++) {
+          if (c.picks[j].i >= P.qstep) continue;          // 還沒按到這一碼
+          for (k = 0; k < c.picks[j].seg.st.length; k++) lit[c.picks[j].seg.st[k]] = c.picks[j].i;
+        }
+        for (j = 0; j < strokes.length; j++) {
+          var g = lit[j];
+          paths += '<path class="' + (g == null ? 'tz-ink' : 'tz-z' + QZ[g]) +
                    '" d="' + strokes[j] + '"/>';
         }
+      }
+      /* 字母跟顏色一樣，按一次 = 才出來一個。沒出來的留一個小點佔位：留白會讓
+         那一行塌掉、字母冒出來時整塊跳一下，而點的個數正好說明這一格有幾碼。 */
+      var caps = '';
+      for (j = 0; j < c.picks.length; j++) {
+        caps += (j ? ' ' : '');
+        caps += c.picks[j].i < P.qstep
+          ? c.picks[j].seg.L.toUpperCase() + (c.picks[j].last ? '<i class="tz-qtag">末</i>' : '')
+          : '<i class="tz-qdot">·</i>';
       }
       html += '<div class="tz-q">' +
         '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + c.ch + '">' + GRID +
         '<g transform="' + SVG_TF + '">' + paths + '</g></svg>' +
         (strokes ? '' : '<span class="tz-fallback">' + c.ch + '</span>') +
-        '<span class="tz-qcode">' + c.seg.L.toUpperCase() +
-        (c.last ? '<i class="tz-qtag">末</i>' : '') + '</span>' +
+        '<span class="tz-qcode">' + caps + '</span>' +
         '</div>';
     }
-    P.cell.innerHTML = '<div class="tz-quad">' + html + '</div>';
+    // 三字詞只有三格，最後一格橫跨底下兩欄再置中 —— 2×2 缺一角比置中難看
+    P.cell.innerHTML = '<div class="tz-quad' + (cells.length === 3 ? ' is-three' : '') +
+                       '">' + html + '</div>';
   }
 
 
@@ -948,6 +1015,11 @@
   function renderHint(ch) {
     var box = P.hintbox;
     box.innerHTML = '';
+    /* 這一格是四碼快打（四小格那個畫面）：底下不再講逐條字根。= 已經整個交給
+       四格了，留著「再按 = 給更多提示」會指向一條 = 根本推不動的鏈；而且打四碼
+       時第一碼常常剛好等於首字的第一條字根（禍不單行 打 Q，禍 的第一碼也是 Q），
+       那會亮出一格「進度」，看起來像在教一件他沒有在做的事。 */
+    if (si4Cells(P.unit)) return;
     var mo = hintModel(ch);
     if (!mo) return;
     var segs = mo.segs, order = mo.order;
@@ -1026,6 +1098,18 @@
      看打到哪了，已經被打過去的就整段跳掉。 */
   function hintStep() {
     if (!P.on || P.pos >= P.chars.length) return;
+    /* 這一格是四碼快打（三字以上的詞）：= 一次揭一碼，四格從左上按順序亮。
+       預設四個格子都是黑的、沒有字母 —— 光是「變成四格」就已經說明這是一個
+       四碼詞了，答案要自己先想（Wilson）。三字詞的第三格有兩碼，所以最後
+       兩次 = 都落在同一格：先亮首碼，再亮末碼。
+       這幾格不走逐條字根那一套，= 整個交給它 —— 一格講兩件事會兩件都講不清。 */
+    var qc = si4Cells(P.unit);
+    if (qc) {
+      var total = 0;
+      for (var q = 0; q < qc.length; q++) total += qc[q].picks.length;
+      if (P.qstep < total) { P.qstep++; renderPractice(); }
+      return;
+    }
     var ch = P.chars[P.pos];
     var mo = hintModel(ch);
     if (!mo) return;

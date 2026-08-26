@@ -126,7 +126,7 @@
       if (!e.ok) head.appendChild(staleTag());
       card.appendChild(head);
       e.rows.forEach(function (r) { card.appendChild(eqRow(r.parts)); });
-      card.appendChild(el('p', 'cz-count', e.rows.length + ' 種打法都收，打哪一種都選得到'));
+      card.appendChild(el('p', 'cz-count', '收錄以上 ' + e.rows.length + ' 種連打編碼'));
       root.appendChild(card);
     });
   }
@@ -168,10 +168,18 @@
     var c = el('code', null);
     c.setAttribute('data-keep', '');
     var letters = s.code.split('');
-    var lit = {};
-    s.picks.forEach(function (p) { lit[p.last ? letters.length - 1 : 0] = p.i; });
+    var claim = {};                       // 第幾個字母 → 認領它的那幾位（照四碼的位次）
+    s.picks.forEach(function (p) {
+      var j = p.last ? letters.length - 1 : 0;
+      (claim[j] || (claim[j] = [])).push(p.i);
+    });
     letters.forEach(function (ch, j) {
-      c.appendChild(el('span', lit[j] == null ? 'off' : rb(lit[j]), ch));
+      var cs = claim[j];
+      if (!cs) { c.appendChild(el('span', 'off', ch)); return; }
+      /* 首碼跟末碼撞在同一個字母上（長白山 的 山＝W，整個字只有一碼）：那個
+         字母**印兩次**，各上自己那一位的顏色（Wilson）。印一個會看不出末碼
+         那一位也是它，而四碼結尾真的是 WW —— 少印一個等於把碼講錯。 */
+      cs.forEach(function (i) { c.appendChild(el('span', rb(i), ch)); });
     });
     cell.appendChild(c);
     cell.appendChild(el('i', 'cz-kind',
@@ -204,8 +212,10 @@
       var head = wordHead(e.w, e.n + ' 字　' + e.note);
       if (!e.ok) head.appendChild(staleTag());
       card.appendChild(head);
-      card.appendChild(si4Row(e.slots, e.code, e.slots2 ? '第一式' : null));
-      if (e.slots2) card.appendChild(si4Row(e.slots2, e.code2, '第二式'));
+      /* 標籤講的是那一式**取哪幾個字**，不是「第幾式」（Wilson）——「第一式／
+         第二式」要回頭去對規則才知道是哪一種，寫成取法本身就不用對。 */
+      card.appendChild(si4Row(e.slots, e.code, e.slots2 ? '前四字' : null));
+      if (e.slots2) card.appendChild(si4Row(e.slots2, e.code2, '前三加末字'));
 
       var foot = el('p', 'cz-count');
       if (e.full) {
@@ -223,13 +233,6 @@
           foot.appendChild(code(m));
         });
         foot.appendChild(document.createTextNode(' 一樣打得到。'));
-      }
-      if (e.share && e.share.length) {
-        foot.appendChild(document.createTextNode('　同碼的還有 '));
-        var sp = el('span', null, e.share.join('、'));
-        sp.setAttribute('data-keep', '');
-        foot.appendChild(sp);
-        foot.appendChild(document.createTextNode('，按詞頻排。'));
       }
       if (foot.childNodes.length) card.appendChild(foot);
       box.appendChild(card);
