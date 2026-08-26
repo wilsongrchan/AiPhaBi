@@ -126,7 +126,11 @@
       if (!e.ok) head.appendChild(staleTag());
       card.appendChild(head);
       e.rows.forEach(function (r) { card.appendChild(eqRow(r.parts)); });
-      card.appendChild(el('p', 'cz-count', '收錄以上 ' + e.rows.length + ' 種連打編碼'));
+      /* 只有一條的時候不寫「收錄以上 1 種」—— 那一行的用處是告訴人「上面那幾條
+         都收」，只有一條時它什麼也沒多說，還讀起來像漏字。 */
+      if (e.rows.length > 1) {
+        card.appendChild(el('p', 'cz-count', '收錄以上 ' + e.rows.length + ' 種連打編碼'));
+      }
       root.appendChild(card);
     });
   }

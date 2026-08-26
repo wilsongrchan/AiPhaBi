@@ -1973,25 +1973,17 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 }
 /* 小格裡沒有字形資料時的退路字要跟著縮，不然 5.5rem 會撐破四分之一的格子 */
 .tz-q .tz-fallback { font-size: 2.6rem; }
+/* 一格底下的碼：一碼一個反白小方塊，跟單字提示那排是同一種（.tz-chip）。 */
 .tz-qcode {
-  display: block; text-align: center; margin-top: .1rem;
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: .95rem; font-weight: 600; letter-spacing: .06em; color: var(--ink);
+  display: flex; justify-content: center; align-items: baseline;
+  gap: .2rem; margin-top: .2rem;
 }
 /* 三字詞的第三格有兩個字母：那個字同時被取首碼和末碼（首首首末）。兩個字母
    分不出誰是誰，所以末碼那個加一個小字；首碼一律不標，都標等於什麼都沒說。 */
-/* 字母跟它標色的那條字根同色。⚠️ 第二位是黃 #ffb732，淺色主題白底上只有
-   1.74:1（紅 4.2、綠 2.1、紫 6.6）—— 四個顏色裡它最難讀，深色主題反過來最亮。
-   要再好讀就得動色值，那是全站的事（跟〈詞組〉頁的碼同一組色、同一個取捨）。 */
-.tz-qcode .z0 { color: var(--rb-0); }
-.tz-qcode .z1 { color: var(--rb-1); }
-.tz-qcode .z2 { color: var(--rb-2); }
-.tz-qcode .z3 { color: var(--rb-3); }
-.tz-qcode .z4 { color: var(--rb-4); }
-.tz-qcode .z5 { color: var(--rb-5); }
-
-/* 還沒按 = 揭曉的那幾碼：留一個小點佔位，行高才不會跳。 */
-.tz-qdot { font-style: normal; color: var(--ink-faint); }
+/* 還沒按 = 揭曉的那幾碼：虛線的 ？ 方塊。用中性灰而不是那一位的顏色 ——
+   .tz-chip.is-blank 本來會留著字根色（單字提示那邊筆畫已經標出來了，留色才
+   對得上），但四小格是「什麼都還沒說」的狀態，先給顏色等於先講一半答案。 */
+.tz-qcode .tz-chip.is-blank { color: var(--ink-faint); }
 .tz-qtag {
   font-family: inherit; font-style: normal; font-size: .6rem; font-weight: 400;
   color: var(--ink-faint); margin-inline-start: .2em; vertical-align: .15em;

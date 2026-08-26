@@ -56,9 +56,9 @@ function caps(unit, qstep) {
   const letters = html.split('<div class="tz-q">').slice(1).map(c => {
     const m = c.match(/<span class="tz-qcode">(.*)<\/span>\s*<\/div>/s);
     return m[1]
-      .replace(/<span class="z(\d)">(.*?)<\/span>/g, (_, z, L) => L + ':z' + z)
-      .replace(/<i class="tz-qtag">末<\/i>/g, '末')
-      .replace(/<i class="tz-qdot">·<\/i>/g, '·');
+      .replace(/<span class="tz-chip z(\d)">(.*?)<\/span>/g, (_, z, L) => L + ':z' + z)
+      .replace(/<span class="tz-chip is-blank">？<\/span>/g, '?')
+      .replace(/<i class="tz-qtag">末<\/i>/g, '末');
   });
   const lit = [...html.matchAll(/tz-z(\d)/g)].map(m => +m[1]);
   // 揭過碼的格子，其餘筆畫要壓成 tz-off；一碼都沒揭的格子維持 tz-ink
@@ -77,18 +77,18 @@ function check(label, got, want) {
 }
 
 console.log('四字詞 悲歡離合（四格，= 一次揭一碼）');
-check('qstep 0', caps('悲歡離合', 0), {boxes:4, three:false, letters:['·','·','·','·'], lit:[], off:0, ink:12});
-check('qstep 1', caps('悲歡離合', 1), {boxes:4, three:false, letters:['J:z0','·','·','·'], lit:[0], off:2, ink:9});
-check('qstep 2', caps('悲歡離合', 2), {boxes:4, three:false, letters:['J:z0','H:z1','·','·'], lit:[0,1], off:4, ink:6});
+check('qstep 0', caps('悲歡離合', 0), {boxes:4, three:false, letters:['?','?','?','?'], lit:[], off:0, ink:12});
+check('qstep 1', caps('悲歡離合', 1), {boxes:4, three:false, letters:['J:z0','?','?','?'], lit:[0], off:2, ink:9});
+check('qstep 2', caps('悲歡離合', 2), {boxes:4, three:false, letters:['J:z0','H:z1','?','?'], lit:[0,1], off:4, ink:6});
 check('qstep 4', caps('悲歡離合', 4), {boxes:4, three:false, letters:['J:z0','H:z1','I:z2','A:z4'], lit:[0,1,2,4], off:8, ink:0});
 
 console.log('三字詞 不容易（三格，第三格兩碼、末碼標「末」）');
-check('qstep 0', caps('不容易', 0), {boxes:3, three:true, letters:['·','·','· ·'], lit:[], off:0, ink:9});
-check('qstep 3', caps('不容易', 3), {boxes:3, three:true, letters:['J:z0','Q:z1','B:z2 ·'], lit:[0,1,2], off:6, ink:0});
-check('qstep 4', caps('不容易', 4), {boxes:3, three:true, letters:['J:z0','Q:z1','B:z2 J:z4末'], lit:[0,1,2,4], off:5, ink:0});
+check('qstep 0', caps('不容易', 0), {boxes:3, three:true, letters:['?','?','??'], lit:[], off:0, ink:9});
+check('qstep 3', caps('不容易', 3), {boxes:3, three:true, letters:['J:z0','Q:z1','B:z2?'], lit:[0,1,2], off:6, ink:0});
+check('qstep 4', caps('不容易', 4), {boxes:3, three:true, letters:['J:z0','Q:z1','B:z2J:z4末'], lit:[0,1,2,4], off:5, ink:0});
 
 console.log('三字詞 末字一碼（首碼末碼同一段，字母照印兩個）');
-check('長白山 qstep 4', caps('悲歡山', 4).letters, ['J:z0','H:z1','W:z2 W:z4末']);
+check('長白山 qstep 4', caps('悲歡山', 4).letters, ['J:z0','H:z1','W:z2W:z4末']);
 
 console.log('兩字詞不該有四格');
 check('悲歡', caps('悲歡', 0), null);

@@ -852,17 +852,18 @@
       }
       /* 字母跟顏色一樣，按一次 = 才出來一個。沒出來的留一個小點佔位：留白會讓
          那一行塌掉、字母冒出來時整塊跳一下，而點的個數正好說明這一格有幾碼。 */
+      /* 字母用跟單字提示同一種反白小方塊（.tz-chip）：底色是那條字根的顏色、
+         字反白（Wilson）。一格有兩碼時（三字詞的第三格）光靠位置分不出哪個字母
+         是哪一條，靠底色才對得起來。還沒揭的留一個 ？ 的虛線方塊 —— 個數說明
+         這一格有幾碼，但不透露是哪個顏色（透露了等於先講一半答案）。 */
       var caps = '';
       for (j = 0; j < c.picks.length; j++) {
-        caps += (j ? ' ' : '');
         if (c.picks[j].i < P.qstep) {
-          // 字母跟它標色的那條字根同一個顏色 —— 一格有兩碼時（三字詞的第三格）
-          // 光靠位置分不出哪個字母是哪一條，顏色才對得起來（Wilson）
-          caps += '<span class="z' + QZ[c.picks[j].i] + '">' +
+          caps += '<span class="tz-chip z' + QZ[c.picks[j].i] + '">' +
                   c.picks[j].seg.L.toUpperCase() + '</span>' +
                   (c.picks[j].last ? '<i class="tz-qtag">末</i>' : '');
         } else {
-          caps += '<i class="tz-qdot">·</i>';
+          caps += '<span class="tz-chip is-blank">？</span>';
         }
       }
       html += '<div class="tz-q">' +
