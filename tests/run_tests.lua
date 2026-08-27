@@ -274,6 +274,21 @@ do
   end
   h.check("有帶字母的萬用鍵（W`）完全不受影響，不會混進重複上字",
     not has_repeat_in_prefixed, "expected no ap_repeat candidate in w` output")
+
+  -- 實測回報的 bug（2026-08-27）：punct_translator 也認反引號，搶先生出「`」符號本身
+  -- 這個候選，排在 translators: 清單裡萬用鍵前面——重複上字排到第二個去了。這裡模擬
+  -- 那個排序（punct_translator 的候選先到），過完 order.lua 後 ap_repeat 該被撈到最前面。
+  local afterOrder = h.run{
+    code = "`",
+    cands = {
+      { text = "`" },                                       -- punct_translator：符號本身，搶第一
+      { text = "候", type = "ap_repeat", comment = "重複上字" },  -- 萬用鍵：重複上字
+      { text = "几" },
+    },
+  }
+  h.check("punct_translator 的「`」符號搶先，order.lua 還是要把重複上字撈到最前面",
+    afterOrder[1] and afterOrder[1].type == "ap_repeat" and afterOrder[1].text == "候",
+    "expected 候 (ap_repeat) first, got " .. h.fmt(afterOrder):sub(1, 60))
 end
 
 os.exit(h.report() == 0 and 0 or 1)

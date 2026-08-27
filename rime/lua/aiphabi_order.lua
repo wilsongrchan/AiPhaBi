@@ -96,9 +96,23 @@ local function filter(input, env)
   if segStart == 1e9 then segStart = 0 end
   local code = full:sub(segStart + 1, segEnd)
 
-  -- 萬用鍵／空碼／含非字母：不重排，原樣輸出
+  -- 萬用鍵／空碼／含非字母：不重排，原樣輸出——唯一例外是重複上字（ap_repeat，見
+  -- aiphabi_wildcard.lua）：punct_translator 也認得反引號，會搶先冒出「`」符號本身
+  -- 這個候選，排在 translators: 清單裡萬用鍵前面；不吃掉它，只是把 ap_repeat 挑出來
+  -- 墊到最前，其餘（含那個「`」符號）維持原順序接在後面。
   if not code or code == "" or code:find("[^a-z]") then
-    for _, c in ipairs(cands) do yield(c) end
+    local repeatCand, restIdx = nil, 0
+    local rest = {}
+    for _, c in ipairs(cands) do
+      if not repeatCand and c.type == "ap_repeat" then
+        repeatCand = c
+      else
+        restIdx = restIdx + 1
+        rest[restIdx] = c
+      end
+    end
+    if repeatCand then yield(repeatCand) end
+    for _, c in ipairs(rest) do yield(c) end
     return
   end
 
