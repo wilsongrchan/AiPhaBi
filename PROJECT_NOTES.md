@@ -825,16 +825,35 @@ load failure.
   compiled chunk**, so a second file gets its own independent 65,536 budget — no data loss, unlike
   topN capping. Not done yet (bigger change: new file + `rime.lua` require list + `aiphabi_hint.lua`
   lookup path); the topN cap above is the pragmatic fix for now.
-- **This packaging step is not part of `./sync.sh`** and is not scripted anywhere in the repo —
-  it has so far only been done by hand (by an AI coding session) each time: rebuild with
+- **⚠️ THE #1 way to ship a completely dead mobile package: `aiphabi_data.lua` and the other
+  Lua files must go inside a `lua/` SUBFOLDER in the zip, not flat at the top level next to
+  `aiphabi.schema.yaml`.** (Root-caused 2026-08-27, after an entire session of a mobile package
+  typing literally nothing, no matter what else got stripped/fixed — see the debugging saga
+  below.) Hamster's `require()` search path is `<RimeUserDir>/lua/?.lua` — confirmed directly
+  from a device error log: `no file '.../Documents/Rime/lua/aiphabi_hint.lua'`. `rime.lua`'s
+  **very first** line is `aiphabi_hint = require("aiphabi_hint")`, unguarded, no `pcall` — if
+  that one `require()` fails, the **entire rime.lua script aborts**, so *every* module fails to
+  load (hint, fuzzy, order, wildcard, phrase, autocommit — not just hint), which kills every
+  `lua_filter@...`/`lua_translator@...` the schema references. Net effect: the schema still
+  "deploys" (no fatal error in the log for this specific failure — it's silent, an `E`-level
+  line buried mid-log, easy to miss), the custom keyboard layout still renders (that's a separate
+  UI concern, `hamster.custom.yaml`, unrelated to whether Lua loaded), but **zero candidates for
+  any code, ever** — because the filter chain that's supposed to pass table_translator's raw
+  candidates through is broken from the first require() onward. The project's own `rime/README.md`
+  already said this correctly all along ("要傳的檔案：...、整個 `lua/` 目錄、...") — the packaging
+  step just wasn't following its own instructions. **The recipe, correctly stated:** rebuild with
   `AIPHABI_MOBILE_SI4_TOPN=18000` set, strip `wordfreq`, **verify with `luajit -e
   "dofile('aiphabi_data.lua')"` before packaging** (don't skip this — it's what caught the
-  2026-08-16 regression), assemble `aiphabi.dict.yaml` (from git, full/uncapped — dict.yaml has
-  no such limit, see *Phrase input* below) + the stripped `aiphabi_data.lua` (local) + all lua
-  files + `rime.lua` + `hamster.custom.yaml` + `default.custom.yaml` + `predict.db` into one flat
-  folder, zip it, hand it to the user to overwrite-import into Hamster's Files app. Worth
+  2026-08-16 regression), assemble a flat root containing `aiphabi.schema.yaml`,
+  `aiphabi.dict.yaml`, `rime.lua`, `hamster.custom.yaml`, `default.custom.yaml`, `data/predict.db`
+  — **and a `lua/` subfolder holding `aiphabi_data.lua` (stripped, local) plus all `rime/lua/*.lua`
+  files** — zip it (the zip's own top level should show a `lua/` entry, not eight loose `.lua`
+  files), hand it to the user to overwrite-import into Hamster's Files app. **Verify the zip
+  listing itself shows `lua/` as a directory entry before shipping** — `unzip -l` on the built zip,
+  don't just trust the `cp` commands. This is not part of `./sync.sh` and is not scripted anywhere
+  in the repo — it has so far only been done by hand (by an AI coding session) each time. Worth
   scripting (e.g. `package_hamster.py`) if this keeps recurring — currently just tribal knowledge
-  re-derived each session.
+  re-derived each session, which is exactly how this bug survived so many sessions unnoticed.
 - **`default.custom.yaml`'s `schema_list` must be trimmed to `aiphabi` only for the mobile
   package (found 2026-08-27, via a real on-device error log — first time one was actually
   captured, not just guessed from symptoms).** The git-tracked `default.custom.yaml` lists three
@@ -853,14 +872,21 @@ load failure.
   copying `default.custom.yaml` into the flat package, rewrite `schema_list:` to just
   `- schema: aiphabi` before zipping — don't ship the git file verbatim. Add this as an explicit
   step in the packaging recipe above, not just a implicit "copy default.custom.yaml" bullet.
-- **Getting a real device log at all was the actual unlock here.** Prior debugging rounds this
-  session (stale-cache theories, RIME reset guesses, pulling `aiphabi_autocommit` back out on
-  suspicion) were all plausible-sounding but wrong or incomplete, because they were reasoning from
-  symptoms only ("doesn't type") with no visibility into *why*. The fix only became obvious once
-  the user pasted `~/Documents/rime.log`'s tail. **If a future mobile-typing bug report is vague
-  ("doesn't work", "doesn't type"), ask for that log file early** instead of iterating on guesses —
-  it's the same file Hamster writes glog-style entries to, and greps like `grep -i error` or
-  `grep "missing input schema"` on it turn hours of guessing into minutes.
+- **Getting a real device log at all was the actual unlock here — twice.** A single session spent
+  hours on stale-cache theories, RIME-reset guesses, pulling `aiphabi_autocommit`/`predictor` back
+  out on suspicion, and re-auditing every Lua filter for a "throws on every keystroke" bug that
+  didn't exist — all plausible-sounding, all wrong or incomplete, because they were reasoning from
+  symptoms only ("doesn't type") with no visibility into *why*. Two device logs cracked two real,
+  unrelated bugs in this same session: the first (`missing input schema: aiphabi_plus`) found the
+  `default.custom.yaml` `schema_list` bug above; the second (`module 'aiphabi_hint' not found`)
+  found the `lua/` subfolder bug, which turned out to be the actual root cause of "nothing types at
+  all" the whole time — the schema_list fix, and every Lua-code theory in between, were real but
+  never the full story. **If a future mobile-typing bug report is vague ("doesn't work", "doesn't
+  type"), ask for that log file immediately, before touching any code** — it's the same file
+  Hamster writes glog-style entries to (`RIME 日誌` in the Hamster app, or `~/Documents/rime.log`),
+  and greps like `grep -i error` or `grep "not found"` on it turn hours of guessing into minutes.
+  Static code review (reading every Lua file for bugs) found nothing here, because there was
+  nothing to find in the code — the bug was entirely in how the zip was assembled.
 - **Hamster's Lua runtime may not actually be LuaJIT — needs re-verification.** The *mobile
   packaging quirk* section above (predates this note) asserts "Hamster runs Lua on LuaJIT." A
   real device error log captured 2026-08-27 shows `require()` search paths like
