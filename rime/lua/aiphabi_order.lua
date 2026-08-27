@@ -12,9 +12,30 @@
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
 
--- 上一次上屏的文字：給 aiphabi_wildcard 的「重複上字」（單獨 `）用，見該檔開頭註解。
-local LAST_COMMIT = nil
-local function get_last_commit() return LAST_COMMIT end
+-- 最近上屏的字（拆到單字，最多留 5 個）：給 aiphabi_wildcard 的「重複上字」
+-- （連續 N 個 `，N=1~5）用，見該檔開頭註解。上屏一個詞（如選字打出「候選」）
+-- 算兩個字依序推進去，不是整詞一筆——這樣「打` `再打幾次算幾個字」才講得通。
+local HISTORY = {}
+local HISTORY_MAX = 5
+local function push_history(text)
+  local i = 1
+  while i <= #text do
+    local b = text:byte(i)
+    local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
+    HISTORY[#HISTORY + 1] = text:sub(i, i + len - 1)
+    if #HISTORY > HISTORY_MAX then table.remove(HISTORY, 1) end
+    i = i + len
+  end
+end
+-- get_last_n(n)：最近 n 個字接成一串；記不到 n 個（剛開機／才選過一兩個字）就回 nil，
+-- 讓 aiphabi_wildcard 照舊退回原本的萬用鍵，不是硬湊一個不完整的答案。
+local function get_last_n(n)
+  if #HISTORY < n then return nil end
+  local parts = {}
+  for i = #HISTORY - n + 1, #HISTORY do parts[#parts + 1] = HISTORY[i] end
+  return table.concat(parts)
+end
+local function get_last_commit() return get_last_n(1) end
 
 local USERFREQ = {}
 -- 選字次數持久化：存在 Rime 使用者目錄（macOS：~/Library/Rime）。拿不到路徑或不能寫，
@@ -64,7 +85,7 @@ local DIRTY_FLUSH = 15
 local dirty = 0
 local function note_commit(text)
   if not text or text == "" then return end
-  LAST_COMMIT = text
+  push_history(text)
   bump(text)
   dirty = dirty + 1
   if dirty >= DIRTY_FLUSH then
@@ -221,4 +242,4 @@ end
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
 -- get_last_commit／note_commit：給 aiphabi_wildcard／aiphabi_autocommit 用，是正式行為的一部分。
 return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
-         get_last_commit = get_last_commit, note_commit = note_commit }
+         get_last_commit = get_last_commit, note_commit = note_commit, get_last_n = get_last_n }
