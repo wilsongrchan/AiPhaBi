@@ -88,6 +88,14 @@ local function score(ch)                   -- 選過次數優先，其次常用�
   return (USERFREQ[ch] or 0) * 1000000000 + cf(ch)
 end
 
+-- 候選欄一次只顯示 8～10 個，沒人會不打字一路翻超過幾頁。I／J 這種常見字根補全、
+-- 萬用鍵掃全表都可能一次上萬個候選，每一鍵都整包排序會卡頓（量過：17727 個時
+-- table.sort 要 ~50ms，Squirrel 裡的真實 Candidate 物件比這裡的模擬更重，實際感受
+-- 到的卡頓比這個數字更久）。只排前 MAX_SORT 個，換算大概十頁的量，翻到那麼深的
+-- 機率極低；真翻到了，超過的部分維持原始順序（碼表已經照 weight 排過／萬用鍵維持
+-- pairs() 原序，還是堪用，只是沒精排）接在後面。
+local MAX_SORT = 40
+
 local function filter(input, env)
   local cands = {}
   for cand in input:iter() do cands[#cands + 1] = cand end
@@ -106,23 +114,36 @@ local function filter(input, env)
   if segStart == 1e9 then segStart = 0 end
   local code = full:sub(segStart + 1, segEnd)
 
-  -- 萬用鍵／空碼／含非字母：不重排，原樣輸出——唯一例外是重複上字（ap_repeat，見
-  -- aiphabi_wildcard.lua）：punct_translator 也認得反引號，會搶先冒出「`」符號本身
-  -- 這個候選，排在 translators: 清單裡萬用鍵前面；不吃掉它，只是把 ap_repeat 挑出來
-  -- 墊到最前，其餘（含那個「`」符號）維持原順序接在後面。
+  -- 萬用鍵／空碼／含非字母：aiphabi_wildcard.lua 用 pairs(data.code2chars) 掃表，
+  -- Lua 的 pairs() 不保證順序（純雜湊順序，跟常用度無關）——照原樣輸出的話，候選欄
+  -- 第一頁常常是生僻字（回報：W`T 第一頁一堆冷門字）。這裡照常用度／選過次數重排一次，
+  -- 跟其餘一般候選同一套規矩；ap_repeat（重複上字，見 aiphabi_wildcard.lua）永遠
+  -- 墊最前面，不參與排序——那是「上一個上屏的字」，跟常用度無關。
   if not code or code == "" or code:find("[^a-z]") then
-    local repeatCand, restIdx = nil, 0
+    local repeatCand = nil
     local rest = {}
     for _, c in ipairs(cands) do
       if not repeatCand and c.type == "ap_repeat" then
         repeatCand = c
       else
-        restIdx = restIdx + 1
-        rest[restIdx] = c
+        rest[#rest + 1] = { c = c }
       end
     end
+    local head, tail = rest, nil
+    if #rest > MAX_SORT then
+      head, tail = {}, {}
+      for i = 1, MAX_SORT do head[i] = rest[i] end
+      for i = MAX_SORT + 1, #rest do tail[#tail + 1] = rest[i] end
+    end
+    for i, e in ipairs(head) do e.i = i end
+    table.sort(head, function(a, b)
+      local sa, sb = score(a.c.text), score(b.c.text)
+      if sa ~= sb then return sa > sb end
+      return a.i < b.i
+    end)
     if repeatCand then yield(repeatCand) end
-    for _, c in ipairs(rest) do yield(c) end
+    for _, e in ipairs(head) do yield(e.c) end
+    if tail then for _, e in ipairs(tail) do yield(e.c) end end
     return
   end
 
@@ -156,12 +177,7 @@ local function filter(input, env)
     return a.i < b.i
   end)
 
-  -- 池子上限：候選欄一次只顯示 8～10 個，沒人會不打字一路翻超過幾頁。I／J 這種常見
-  -- 字根補全一次可能上萬個候選，每一鍵都整包排序會卡頓（量過：17727 個時 table.sort
-  -- 要 ~50ms，Squirrel 裡的真實 Candidate 物件比這裡的模擬更重，實際感受到的卡頓比這
-  -- 個數字更久）。只排前 MAX_SORT 個，換算大概十頁的量，翻到那麼深的機率極低；真翻到
-  -- 了，超過的部分维持原始順序（碼表已經照 weight 排過，還是堪用，只是沒精排）接在後面。
-  local MAX_SORT = 40
+  -- 池子上限：見上面 MAX_SORT 定義處的說明。
   local plainHead, plainTail = plain, nil
   if #plain > MAX_SORT then
     plainHead, plainTail = {}, {}

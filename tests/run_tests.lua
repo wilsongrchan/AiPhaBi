@@ -365,4 +365,37 @@ do
     order.get_last_commit() == "開", "expected 開, got " .. tostring(order.get_last_commit()))
 end
 
+print()
+print("== 萬用鍵候選也要照常用度排（不能照 pairs() 的雜湊順序）==")
+do
+  -- 實測回報的 bug（2026-08-27）：打 W`T，第一頁一堆生僻字。根因：
+  -- aiphabi_wildcard.lua 用 pairs(data.code2chars) 掃表，Lua 的 pairs() 不保證順序，
+  -- 跟常用度完全無關；order.lua 對含反引號的碼原本「不重排，原樣輸出」，等於整段
+  -- 排序都是雜湊順序。這裡故意把生僻字放第一個、常用字放最後，確認排序後常用字
+  -- 還是會被排到前面。
+  local afterOrder = h.run{
+    code = "w`t",
+    cands = {
+      { text = "嶸" },  -- 生僻
+      { text = "淅" },  -- 生僻
+      { text = "當" },  -- 常用（freq 遠高於前兩個）
+    },
+  }
+  h.check("W`T：常用字（當）該排到生僻字（嶸／淅）前面，不是照原本的雜湊順序",
+    afterOrder[1] and afterOrder[1].text == "當",
+    "expected 當 first, got " .. h.fmt(afterOrder))
+
+  -- 重複上字（ap_repeat）不吃排序影響，永遠墊最前面，即使字面上比其他候選生僻。
+  local afterOrder2 = h.run{
+    code = "`",
+    cands = {
+      { text = "當" },
+      { text = "嶸", type = "ap_repeat", comment = "重複上字" },
+    },
+  }
+  h.check("重複上字不參與常用度排序，永遠排最前面",
+    afterOrder2[1] and afterOrder2[1].type == "ap_repeat" and afterOrder2[1].text == "嶸",
+    "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
+end
+
 os.exit(h.report() == 0 and 0 or 1)
