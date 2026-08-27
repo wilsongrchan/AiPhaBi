@@ -68,23 +68,19 @@ end
 -- 生出成千上百個候選（哪個字/詞的碼剛好以這幾碼開頭都算）。這裡若照單全收，等於
 -- 每個按鍵都要把這一大串全部算完（含底下的字典查找、組字串），纔輪到下面的 filter
 -- ——這就是手機上感覺到卡頓的根源，不是碼表本身「大」的問題（雾凇拼音碼表更大也
--- 不卡，只是它沒有這種「先收全部再處理」的自訂 filter）。反正最後只會顯示
--- page_size（6）個，游標往後的候選再多也用不到，收滿這個數字就不再跟 table_translator
--- 要更多，讓它不必真的算出後面那一大串。
-local CAND_CAP = 200
+-- 不卡，只是它沒有這種「先收全部再處理」的自訂 filter）。
 -- 這是 filter 鏈第一個（見檔頭），所以這個上限會連帶讓 aiphabi_fuzzy／aiphabi_order 收到
 -- 的候選也一起變少——不用在每個 filter 各自設一個。I／J 這種常見字根，打一碼就補全出
 -- 上萬個候選，光是「跟每個候選拿一次 .text/.type」在真機的 Candidate 物件上開銷就不小，
--- 三個 filter 各自全部掃過一輪，這才是卡頓的大宗（比池子排序本身更貴，量過）。CAND_CAP
--- 只擋「收進 cands 的量」；RAW_CAP 是再加一道，連 iter() 本身掃描的輪數都砍掉，兩者一起
--- 生效——候選欄一次只顯示 8～10 個，1500 個已經是三位數頁，真的翻到那麼深不如多打一兩碼。
+-- 三個 filter 各自全部掃過一輪，這才是卡頓的大宗（比池子排序本身更貴，量過）。
+-- 候選欄一次只顯示 8～10 個，1500 個已經是三位數頁——真的翻到那麼深不如多打一兩碼，
+-- 字根補全的候選量本來就會隨碼變長而急遽變少，不需要靠翻頁翻出來。
 local RAW_CAP = 1500
 
 local function filter(input, env)
   local ctx = env.engine.context
   local code = ctx.input
-  -- 先收下候選（原順序不動，但設上限，見上：iter() 最多掃 RAW_CAP 個、收進 cands 最多 CAND_CAP 個），
-  -- 順便記下已出現的字
+  -- 先收下候選（原順序不動，最多 RAW_CAP 個），順便記下已出現的字
   local cands, seen = {}, {}
   local n = 0
   for cand in input:iter() do
@@ -92,7 +88,6 @@ local function filter(input, env)
     if n > RAW_CAP then break end
     cands[#cands + 1] = cand
     seen[cand.text] = true
-    if #cands >= CAND_CAP then break end
   end
 
   -- 只處理純字母碼；萬用鍵那套交給 wildcard
