@@ -41,6 +41,7 @@ end
 -- （見下面 enforce_mutex），開自動上屏時 aiphabi_phrase 一定是關的，詞組候選本來就看不到，
 -- 沒理由讓一條使用者永遠看不見的路去擋這個判斷。
 local data = require("aiphabi_data")
+local order = require("aiphabi_order")
 local CODE_INDEX      -- 排序後的碼陣列，binary search 用（module 第一次用到才建，見 build_index）
 local function build_index()
   local seen, out = {}, {}
@@ -133,6 +134,13 @@ local function func(key, env)
   local code = ctx.input or ""
   local k = key:repr()
 
+  -- 已經在打萬用鍵（碼裡有反引號）：整段不歸這裡管，讓開。CODE_INDEX 是純 a-z 的
+  -- 正常碼表，含反引號的字串永遠不可能是任何一條的前綴——is_dead_extension 會
+  -- 對「這一鍵」永遠回真，把萬用鍵當「打死了」誤頂掉（實測回報：W`T 的 T 把
+  -- W` 第一個候選頂上屏、T 自己另起爐灶，變成查不了 W?T／W??T 這種樣式；harness
+  -- 底下沒有這個 guard 甚至會直接 crash，因為 harness 沒 stub ctx.composition）。
+  if code:find("`", 1, true) then return 2 end
+
   -- 即時頂：碼死之前先問——這一鍵加進去，碼還有沒有救。有救（還是某個碼的前綴）
   -- 就照舊往下走；沒救就在「加進去、變成打死的殘局」之前，先把頂之前（也就是
   -- 現在，這一鍵還沒收）的候選欄第一個頂上屏，這一鍵才另起爐灶當新字第一碼。
@@ -141,6 +149,9 @@ local function func(key, env)
     local top = seg and top_complete_candidate(seg)
     if top then
       env.engine:commit_text(top.text)
+      order.note_commit(top.text)   -- engine:commit_text 不經過 Context:Commit()，
+                                     -- commit_notifier 收不到，這裡要自己補記一次
+                                     -- （見 aiphabi_order.lua 的 note_commit 說明）。
       ctx:clear()
       ctx:push_input(k)
       return 1
@@ -154,6 +165,7 @@ local function func(key, env)
     local cand = sole_real_candidate(seg)
     if cand then
       env.engine:commit_text(cand.text)
+      order.note_commit(cand.text)  -- 同上，唯一上屏這條路也要自己補記
       ctx:clear()
     end
   end

@@ -44,7 +44,14 @@
     const lib = [];
     const srcs = [...new Set(allShapes(z).filter(x => x.shape.glyph)
       .flatMap(x => [x.shape.glyph.src, ...(x.shape.alts || []).map(a => a.src)]))];
-    await Promise.all(srcs.map(getGlyph));      /* 一次併發抓完，別逐個 await */
+    /* 字根表長到現在（700+ 個來源字），全部一次併發會炸掉 server 的
+       TCP accept queue（Python 預設 backlog=5）—— 大量連線同時打進來，
+       多數被系統靜靜丟掉，瀏覽器只能等 TCP 重傳逾時，頁面看起來卡死不動。
+       分批送，一批穩穩過去比全部衝進去更快。 */
+    const BATCH = 40;
+    for (let i = 0; i < srcs.length; i += BATCH) {
+      await Promise.all(srcs.slice(i, i + BATCH).map(getGlyph));
+    }
     for (const { letter, shape, tier } of allShapes(z)) {
       if (!shape.glyph) continue;
       /* 合併過的字根有多個變體（alts）：每個變體都要能比對得上 */

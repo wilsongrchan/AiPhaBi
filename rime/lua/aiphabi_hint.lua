@@ -291,10 +291,14 @@ local function filter(input, env)
   -- 約定簡碼命中的字 → 全部正常候選（含補全）→ 同類／偏旁碼等提示 → 三簡碼。
   -- short_hit 那個字如果本來就在 cands 裡（常見：這個碼補全得到它，只是排比較後面），
   -- 底下要把原本那個位置濾掉，不然會兩個一模一樣的候選一起出現。
+  -- ap_repeat（重複上字，見 aiphabi_wildcard.lua）自己已經標好註解，跳過 markHints——
+  -- 不然剛好命中兼容碼／約定簡碼的字，註解會被蓋掉，變成看起來像另一種提示。
   local shortText = short_hit and short_hit.text
   if short_hit and keep(short_hit) then yield(short_hit) end
   for i = 1, #cands do
-    if cands[i].text ~= shortText and keep(cands[i]) then yield(markHints(cands[i])) end
+    if cands[i].text ~= shortText and keep(cands[i]) then
+      yield(cands[i].type == "ap_repeat" and cands[i] or markHints(cands[i]))
+    end
   end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end

@@ -608,4 +608,7 @@ if __name__ == "__main__":
     load_glyphs()
     print(f"資料目錄：{DATA_DIR}")
     print(f"愛發筆  →  http://localhost:{PORT}")
+    # 預設 accept queue 只有 5：annotate 頁載入時會併發打上百個 /api/glyph
+    # 請求，backlog 太小的話多數連線被系統靜靜丟掉，瀏覽器卡在轉圈圈。
+    ThreadingHTTPServer.request_queue_size = 128
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

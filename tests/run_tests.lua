@@ -219,6 +219,183 @@ do
   -- （2026-08-26 實測 bug：打 NK 被誤頂成「几K」，候 完全打不出來）。
   h.check("N+K 沒打死（候 約定簡碼 NK）→ 不該頂",
     ac._is_dead_extension("nk") == false, "expected alive")
+
+  -- 實測回報的 bug（2026-08-27）：打 W`T，T 誤把 W` 第一個候選頂上屏、自己另起爐灶——
+  -- 查不了 W?T／W??T 這種樣式。根因：CODE_INDEX 純 a-z，含反引號的字串永遠不可能是
+  -- 任何一條的前綴，is_dead_extension 對萬用鍵組字狀態一律回真。func() 現在遇到
+  -- ctx.input 已經有反引號就整段讓開（return 2），不進即時頂那段判斷。
+  h.check("含反引號的字串對 is_dead_extension 一律回真（這就是萬用鍵會被誤頂的根因）",
+    ac._is_dead_extension("w`t") == true, "expected true (the trap)")
+
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local function fake_env(input, autocommit_on)
+    local ctx = {
+      input = input,
+      get_option = function(_, name) return name == "aiphabi_autocommit" and autocommit_on or false end,
+    }
+    return { engine = { context = ctx } }
+  end
+  h.check("W`T 的 T：func() 看到 ctx.input 已經有反引號，整段讓開（return 2），不誤頂",
+    ac.func(fake_key("t"), fake_env("w`", true)) == 2, "expected 2 (pass through to speller)")
+end
+
+print()
+print("== 重複上字（單獨 ` 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
+do
+  local order = require("aiphabi_order")
+  local captured_cb
+  local fake_ctx = {
+    option_update_notifier = { connect = function() return { disconnect = function() end } end },
+    commit_notifier = { connect = function(_, cb) captured_cb = cb; return { disconnect = function() end } end },
+  }
+  order.init({ engine = { context = fake_ctx } })
+
+  h.check("開機、還沒選過任何字：get_last_commit() 是空的",
+    order.get_last_commit() == nil, "expected nil")
+
+  captured_cb({ get_commit_text = function() return "候" end })
+  h.check("選過 候 之後：get_last_commit() 記得住",
+    order.get_last_commit() == "候", "expected 候")
+
+  -- 直接呼叫萬用鍵的 translator 本體（不經過 h.run，那個只測 filter 那一段）。
+  -- yield 借用、蓋掉再還回去，才不會污染同一支測試檔後面別的 h.run 呼叫。
+  local saved_yield = yield
+  local wildcard = require("aiphabi_wildcard")
+
+  local function run_wildcard(input)
+    local out = {}
+    yield = function(c) out[#out + 1] = c end
+    wildcard(input, { start = 0, _end = #input }, {})
+    yield = saved_yield
+    return out
+  end
+
+  local single = run_wildcard("`")
+  h.check("單獨 ` ：第一個候選是重複上字，不是原本萬用鍵隨便湊到的字",
+    single[1] and single[1].type == "ap_repeat" and single[1].text == "候",
+    "expected 候 (ap_repeat) first, got " .. h.fmt(single):sub(1, 60))
+  h.check("單獨 ` ：原本的萬用鍵（全表一碼以上）沒被拿掉，還在後面",
+    #single > 1, "expected more than just the repeat candidate")
+
+  local double = run_wildcard("``")
+  local has_repeat_in_double = false
+  for _, c in ipairs(double) do
+    if c.type == "ap_repeat" then has_repeat_in_double = true end
+  end
+  h.check("連續兩個 ``（剛好兩碼）完全不受影響，不會混進重複上字",
+    not has_repeat_in_double, "expected no ap_repeat candidate in `` output")
+
+  local prefixed = run_wildcard("w`")
+  local has_repeat_in_prefixed = false
+  for _, c in ipairs(prefixed) do
+    if c.type == "ap_repeat" then has_repeat_in_prefixed = true end
+  end
+  h.check("有帶字母的萬用鍵（W`）完全不受影響，不會混進重複上字",
+    not has_repeat_in_prefixed, "expected no ap_repeat candidate in w` output")
+
+  -- 實測回報的 bug（2026-08-27）：punct_translator 也認反引號，搶先生出「`」符號本身
+  -- 這個候選，排在 translators: 清單裡萬用鍵前面——重複上字排到第二個去了。這裡模擬
+  -- 那個排序（punct_translator 的候選先到），過完 order.lua 後 ap_repeat 該被撈到最前面。
+  local afterOrder = h.run{
+    code = "`",
+    cands = {
+      { text = "`" },                                       -- punct_translator：符號本身，搶第一
+      { text = "候", type = "ap_repeat", comment = "重複上字" },  -- 萬用鍵：重複上字
+      { text = "几" },
+    },
+  }
+  h.check("punct_translator 的「`」符號搶先，order.lua 還是要把重複上字撈到最前面",
+    afterOrder[1] and afterOrder[1].type == "ap_repeat" and afterOrder[1].text == "候",
+    "expected 候 (ap_repeat) first, got " .. h.fmt(afterOrder):sub(1, 60))
+end
+
+print()
+print("== 自動上屏也要記選字次數／重複上字，不能只靠 commit_notifier ==")
+do
+  -- 實測回報的 bug（2026-08-27）：打 當 自動上屏後按 `，重複上字不是 當。根因：
+  -- engine:commit_text() 不像正常選字經過 Context:Commit()，commit_notifier 收不到——
+  -- aiphabi_autocommit 現在要在 commit_text 之後自己呼叫 order.note_commit()。
+  -- 放在這支檔案最後：LAST_COMMIT 是 aiphabi_order 的模組級狀態，跟前面「重複上字」
+  -- 那組「開機還沒選過任何字」的 nil 檢查共用同一份記憶體，順序不能顛倒。
+  local order = require("aiphabi_order")
+  local ac = require("aiphabi_autocommit")
+
+  local committed = nil
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local cand = { text = "當", type = nil, comment = nil }
+  local menu = { prepare = function() end, candidate_count = function() return 1 end }
+  local seg = { menu = menu, get_candidate_at = function(_, i) return i == 0 and cand or nil end }
+  local ctx = {
+    input = "",
+    get_option = function(_, name) return name == "aiphabi_autocommit" end,
+    push_input = function(self, k) self.input = self.input .. k end,
+    composition = { back = function() return seg end },
+    clear = function(self) self.input = "" end,
+  }
+  local env = {
+    engine = { context = ctx, commit_text = function(_, text) committed = text end },
+  }
+  ac.func(fake_key("t"), env)
+  h.check("唯一上屏路徑：engine:commit_text() 真的被呼叫、收到「當」",
+    committed == "當", "expected 當, got " .. tostring(committed))
+  h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「當」",
+    order.get_last_commit() == "當", "expected 當, got " .. tostring(order.get_last_commit()))
+
+  -- 即時頂那條路（見上面 PPIN/開 那組）也是走 engine:commit_text()，要同一套檢查。
+  local topcand = { text = "開", type = nil, comment = nil }
+  local menu2 = { prepare = function() end, candidate_count = function() return 1 end }
+  local seg2 = { menu = menu2, get_candidate_at = function(_, i) return i == 0 and topcand or nil end }
+  local ctx2 = {
+    input = "ppin",
+    get_option = function(_, name) return name == "aiphabi_autocommit" end,
+    push_input = function(self, k) self.input = self.input .. k end,
+    composition = { back = function() return seg2 end },
+    clear = function(self) self.input = "" end,
+  }
+  local committed2 = nil
+  local env2 = { engine = { context = ctx2, commit_text = function(_, text) committed2 = text end } }
+  ac.func(fake_key("a"), env2)   -- PPIN+A 打死，該頂
+  h.check("即時頂路徑：engine:commit_text() 真的被呼叫、收到「開」",
+    committed2 == "開", "expected 開, got " .. tostring(committed2))
+  h.check("即時頂路徑：order.note_commit() 有跟著補記，get_last_commit() 是「開」",
+    order.get_last_commit() == "開", "expected 開, got " .. tostring(order.get_last_commit()))
+end
+
+print()
+print("== 萬用鍵候選也要照常用度排（不能照 pairs() 的雜湊順序）==")
+do
+  -- 實測回報的 bug（2026-08-27）：打 W`T，第一頁一堆生僻字。根因：
+  -- aiphabi_wildcard.lua 用 pairs(data.code2chars) 掃表，Lua 的 pairs() 不保證順序，
+  -- 跟常用度完全無關；order.lua 對含反引號的碼原本「不重排，原樣輸出」，等於整段
+  -- 排序都是雜湊順序。這裡故意把生僻字放第一個、常用字放最後，確認排序後常用字
+  -- 還是會被排到前面。
+  local afterOrder = h.run{
+    code = "w`t",
+    cands = {
+      { text = "嶸" },  -- 生僻
+      { text = "淅" },  -- 生僻
+      { text = "當" },  -- 常用（freq 遠高於前兩個）
+    },
+  }
+  h.check("W`T：常用字（當）該排到生僻字（嶸／淅）前面，不是照原本的雜湊順序",
+    afterOrder[1] and afterOrder[1].text == "當",
+    "expected 當 first, got " .. h.fmt(afterOrder))
+
+  -- 重複上字（ap_repeat）不吃排序影響，永遠墊最前面，即使字面上比其他候選生僻。
+  local afterOrder2 = h.run{
+    code = "`",
+    cands = {
+      { text = "當" },
+      { text = "嶸", type = "ap_repeat", comment = "重複上字" },
+    },
+  }
+  h.check("重複上字不參與常用度排序，永遠排最前面",
+    afterOrder2[1] and afterOrder2[1].type == "ap_repeat" and afterOrder2[1].text == "嶸",
+    "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
 end
 
 os.exit(h.report() == 0 and 0 or 1)

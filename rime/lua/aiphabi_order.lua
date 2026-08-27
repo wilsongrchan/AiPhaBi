@@ -12,6 +12,10 @@
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
 
+-- 上一次上屏的文字：給 aiphabi_wildcard 的「重複上字」（單獨 `）用，見該檔開頭註解。
+local LAST_COMMIT = nil
+local function get_last_commit() return LAST_COMMIT end
+
 local USERFREQ = {}
 -- 選字次數持久化：存在 Rime 使用者目錄（macOS：~/Library/Rime）。拿不到路徑或不能寫，
 -- 就退回「只記這次開機」——照樣能用，只是重開後不記得。格式：每行「字\t次數」。
@@ -46,11 +50,28 @@ local function bump(text)                 -- 詞本身也要加分，不能只�
   end
 end
 
+-- 記一次上屏：手動選字（commit_notifier 接得到）跟 aiphabi_autocommit 的自動上屏
+-- （唯一上屏／即時頂，見該檔）共用同一個入口。實測發現：engine:commit_text() 是
+-- 直接送字（跟 rime-ice select_character.lua 同一種寫法），不會像正常選字那樣經過
+-- Context:Commit()——commit_notifier 收不到，自動上屏出來的字選字次數／重複上字都
+-- 記不到（回報：打 當 自動上屏後按 `，重複上字不是 當）。所以 aiphabi_autocommit
+-- 每次呼叫 engine:commit_text() 也要自己呼叫這裡一次，不能只靠 notifier。
+--
 -- 選字次數整份寫回磁碟不便宜——選一次字就整份重寫一次，選越多字（USERFREQ 越大）
 -- 越慢，在手機上尤其明顯（每次選字都卡一下）。改成：每次選字只更新記憶體（很便宜），
 -- 攢到一定次數（或輸入法收起來時）才真的寫回磁碟一次，把 I/O 成本攤薄。
 local DIRTY_FLUSH = 15
 local dirty = 0
+local function note_commit(text)
+  if not text or text == "" then return end
+  LAST_COMMIT = text
+  bump(text)
+  dirty = dirty + 1
+  if dirty >= DIRTY_FLUSH then
+    dirty = 0
+    pcall(save)
+  end
+end
 
 local function init(env)
   pcall(load)                             -- 開機讀回上次的選字次數
@@ -60,12 +81,7 @@ local function init(env)
     env.ap_order_notifier = ctx.commit_notifier:connect(function(context)
       local got, text = pcall(function() return context:get_commit_text() end)
       if got and text and text ~= "" then
-        pcall(bump, text)
-        dirty = dirty + 1
-        if dirty >= DIRTY_FLUSH then
-          dirty = 0
-          pcall(save)
-        end
+        pcall(note_commit, text)
       end
     end)
   end)
@@ -82,6 +98,14 @@ end
 local function score(ch)                   -- 選過次數優先，其次常用度
   return (USERFREQ[ch] or 0) * 1000000000 + cf(ch)
 end
+
+-- 候選欄一次只顯示 8～10 個，沒人會不打字一路翻超過幾頁。I／J 這種常見字根補全、
+-- 萬用鍵掃全表都可能一次上萬個候選，每一鍵都整包排序會卡頓（量過：17727 個時
+-- table.sort 要 ~50ms，Squirrel 裡的真實 Candidate 物件比這裡的模擬更重，實際感受
+-- 到的卡頓比這個數字更久）。只排前 MAX_SORT 個，換算大概十頁的量，翻到那麼深的
+-- 機率極低；真翻到了，超過的部分維持原始順序（碼表已經照 weight 排過／萬用鍵維持
+-- pairs() 原序，還是堪用，只是沒精排）接在後面。
+local MAX_SORT = 40
 
 local function filter(input, env)
   local cands = {}
@@ -101,9 +125,36 @@ local function filter(input, env)
   if segStart == 1e9 then segStart = 0 end
   local code = full:sub(segStart + 1, segEnd)
 
-  -- 萬用鍵／空碼／含非字母：不重排，原樣輸出
+  -- 萬用鍵／空碼／含非字母：aiphabi_wildcard.lua 用 pairs(data.code2chars) 掃表，
+  -- Lua 的 pairs() 不保證順序（純雜湊順序，跟常用度無關）——照原樣輸出的話，候選欄
+  -- 第一頁常常是生僻字（回報：W`T 第一頁一堆冷門字）。這裡照常用度／選過次數重排一次，
+  -- 跟其餘一般候選同一套規矩；ap_repeat（重複上字，見 aiphabi_wildcard.lua）永遠
+  -- 墊最前面，不參與排序——那是「上一個上屏的字」，跟常用度無關。
   if not code or code == "" or code:find("[^a-z]") then
-    for _, c in ipairs(cands) do yield(c) end
+    local repeatCand = nil
+    local rest = {}
+    for _, c in ipairs(cands) do
+      if not repeatCand and c.type == "ap_repeat" then
+        repeatCand = c
+      else
+        rest[#rest + 1] = { c = c }
+      end
+    end
+    local head, tail = rest, nil
+    if #rest > MAX_SORT then
+      head, tail = {}, {}
+      for i = 1, MAX_SORT do head[i] = rest[i] end
+      for i = MAX_SORT + 1, #rest do tail[#tail + 1] = rest[i] end
+    end
+    for i, e in ipairs(head) do e.i = i end
+    table.sort(head, function(a, b)
+      local sa, sb = score(a.c.text), score(b.c.text)
+      if sa ~= sb then return sa > sb end
+      return a.i < b.i
+    end)
+    if repeatCand then yield(repeatCand) end
+    for _, e in ipairs(head) do yield(e.c) end
+    if tail then for _, e in ipairs(tail) do yield(e.c) end end
     return
   end
 
@@ -137,12 +188,7 @@ local function filter(input, env)
     return a.i < b.i
   end)
 
-  -- 池子上限：候選欄一次只顯示 8～10 個，沒人會不打字一路翻超過幾頁。I／J 這種常見
-  -- 字根補全一次可能上萬個候選，每一鍵都整包排序會卡頓（量過：17727 個時 table.sort
-  -- 要 ~50ms，Squirrel 裡的真實 Candidate 物件比這裡的模擬更重，實際感受到的卡頓比這
-  -- 個數字更久）。只排前 MAX_SORT 個，換算大概十頁的量，翻到那麼深的機率極低；真翻到
-  -- 了，超過的部分维持原始順序（碼表已經照 weight 排過，還是堪用，只是沒精排）接在後面。
-  local MAX_SORT = 40
+  -- 池子上限：見上面 MAX_SORT 定義處的說明。
   local plainHead, plainTail = plain, nil
   if #plain > MAX_SORT then
     plainHead, plainTail = {}, {}
@@ -173,4 +219,6 @@ local function filter(input, env)
 end
 
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
-return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump }
+-- get_last_commit／note_commit：給 aiphabi_wildcard／aiphabi_autocommit 用，是正式行為的一部分。
+return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
+         get_last_commit = get_last_commit, note_commit = note_commit }
