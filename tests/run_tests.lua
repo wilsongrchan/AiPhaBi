@@ -221,4 +221,59 @@ do
     ac._is_dead_extension("nk") == false, "expected alive")
 end
 
+print()
+print("== 重複上字（單獨 ` 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
+do
+  local order = require("aiphabi_order")
+  local captured_cb
+  local fake_ctx = {
+    option_update_notifier = { connect = function() return { disconnect = function() end } end },
+    commit_notifier = { connect = function(_, cb) captured_cb = cb; return { disconnect = function() end } end },
+  }
+  order.init({ engine = { context = fake_ctx } })
+
+  h.check("開機、還沒選過任何字：get_last_commit() 是空的",
+    order.get_last_commit() == nil, "expected nil")
+
+  captured_cb({ get_commit_text = function() return "候" end })
+  h.check("選過 候 之後：get_last_commit() 記得住",
+    order.get_last_commit() == "候", "expected 候")
+
+  -- 直接呼叫萬用鍵的 translator 本體（不經過 h.run，那個只測 filter 那一段）。
+  -- yield 借用、蓋掉再還回去，才不會污染同一支測試檔後面別的 h.run 呼叫。
+  local saved_yield = yield
+  local wildcard = require("aiphabi_wildcard")
+
+  local function run_wildcard(input)
+    local out = {}
+    yield = function(c) out[#out + 1] = c end
+    wildcard(input, { start = 0, _end = #input }, {})
+    yield = saved_yield
+    return out
+  end
+
+  local single = run_wildcard("`")
+  h.check("單獨 ` ：第一個候選是重複上字，不是原本萬用鍵隨便湊到的字",
+    single[1] and single[1].type == "ap_repeat" and single[1].text == "候",
+    "expected 候 (ap_repeat) first, got " .. h.fmt(single):sub(1, 60))
+  h.check("單獨 ` ：原本的萬用鍵（全表一碼以上）沒被拿掉，還在後面",
+    #single > 1, "expected more than just the repeat candidate")
+
+  local double = run_wildcard("``")
+  local has_repeat_in_double = false
+  for _, c in ipairs(double) do
+    if c.type == "ap_repeat" then has_repeat_in_double = true end
+  end
+  h.check("連續兩個 ``（剛好兩碼）完全不受影響，不會混進重複上字",
+    not has_repeat_in_double, "expected no ap_repeat candidate in `` output")
+
+  local prefixed = run_wildcard("w`")
+  local has_repeat_in_prefixed = false
+  for _, c in ipairs(prefixed) do
+    if c.type == "ap_repeat" then has_repeat_in_prefixed = true end
+  end
+  h.check("有帶字母的萬用鍵（W`）完全不受影響，不會混進重複上字",
+    not has_repeat_in_prefixed, "expected no ap_repeat candidate in w` output")
+end
+
 os.exit(h.report() == 0 and 0 or 1)

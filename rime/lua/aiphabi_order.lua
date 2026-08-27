@@ -12,6 +12,11 @@
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
 
+-- 上一次上屏的文字：給 aiphabi_wildcard 的「重複上字」（`` ``）用，見該檔開頭註解。
+-- 純記憶體、跟 USERFREQ 共用同一個 commit_notifier，不必另外接一次。
+local LAST_COMMIT = nil
+local function get_last_commit() return LAST_COMMIT end
+
 local USERFREQ = {}
 -- 選字次數持久化：存在 Rime 使用者目錄（macOS：~/Library/Rime）。拿不到路徑或不能寫，
 -- 就退回「只記這次開機」——照樣能用，只是重開後不記得。格式：每行「字\t次數」。
@@ -54,6 +59,7 @@ local function init(env)
     env.ap_order_notifier = ctx.commit_notifier:connect(function(context)
       local got, text = pcall(function() return context:get_commit_text() end)
       if got and text and text ~= "" then
+        LAST_COMMIT = text
         pcall(bump, text)
         pcall(save)                       -- 每次選完就寫回，重開也記得
       end
@@ -162,4 +168,6 @@ local function filter(input, env)
 end
 
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
-return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump }
+-- get_last_commit：給 aiphabi_wildcard 用，是正式行為的一部分（見上面 LAST_COMMIT）。
+return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
+         get_last_commit = get_last_commit }
