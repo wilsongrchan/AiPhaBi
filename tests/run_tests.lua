@@ -219,6 +219,26 @@ do
   -- （2026-08-26 實測 bug：打 NK 被誤頂成「几K」，候 完全打不出來）。
   h.check("N+K 沒打死（候 約定簡碼 NK）→ 不該頂",
     ac._is_dead_extension("nk") == false, "expected alive")
+
+  -- 實測回報的 bug（2026-08-27）：打 W`T，T 誤把 W` 第一個候選頂上屏、自己另起爐灶——
+  -- 查不了 W?T／W??T 這種樣式。根因：CODE_INDEX 純 a-z，含反引號的字串永遠不可能是
+  -- 任何一條的前綴，is_dead_extension 對萬用鍵組字狀態一律回真。func() 現在遇到
+  -- ctx.input 已經有反引號就整段讓開（return 2），不進即時頂那段判斷。
+  h.check("含反引號的字串對 is_dead_extension 一律回真（這就是萬用鍵會被誤頂的根因）",
+    ac._is_dead_extension("w`t") == true, "expected true (the trap)")
+
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local function fake_env(input, autocommit_on)
+    local ctx = {
+      input = input,
+      get_option = function(_, name) return name == "aiphabi_autocommit" and autocommit_on or false end,
+    }
+    return { engine = { context = ctx } }
+  end
+  h.check("W`T 的 T：func() 看到 ctx.input 已經有反引號，整段讓開（return 2），不誤頂",
+    ac.func(fake_key("t"), fake_env("w`", true)) == 2, "expected 2 (pass through to speller)")
 end
 
 print()
@@ -289,6 +309,60 @@ do
   h.check("punct_translator 的「`」符號搶先，order.lua 還是要把重複上字撈到最前面",
     afterOrder[1] and afterOrder[1].type == "ap_repeat" and afterOrder[1].text == "候",
     "expected 候 (ap_repeat) first, got " .. h.fmt(afterOrder):sub(1, 60))
+end
+
+print()
+print("== 自動上屏也要記選字次數／重複上字，不能只靠 commit_notifier ==")
+do
+  -- 實測回報的 bug（2026-08-27）：打 當 自動上屏後按 `，重複上字不是 當。根因：
+  -- engine:commit_text() 不像正常選字經過 Context:Commit()，commit_notifier 收不到——
+  -- aiphabi_autocommit 現在要在 commit_text 之後自己呼叫 order.note_commit()。
+  -- 放在這支檔案最後：LAST_COMMIT 是 aiphabi_order 的模組級狀態，跟前面「重複上字」
+  -- 那組「開機還沒選過任何字」的 nil 檢查共用同一份記憶體，順序不能顛倒。
+  local order = require("aiphabi_order")
+  local ac = require("aiphabi_autocommit")
+
+  local committed = nil
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local cand = { text = "當", type = nil, comment = nil }
+  local menu = { prepare = function() end, candidate_count = function() return 1 end }
+  local seg = { menu = menu, get_candidate_at = function(_, i) return i == 0 and cand or nil end }
+  local ctx = {
+    input = "",
+    get_option = function(_, name) return name == "aiphabi_autocommit" end,
+    push_input = function(self, k) self.input = self.input .. k end,
+    composition = { back = function() return seg end },
+    clear = function(self) self.input = "" end,
+  }
+  local env = {
+    engine = { context = ctx, commit_text = function(_, text) committed = text end },
+  }
+  ac.func(fake_key("t"), env)
+  h.check("唯一上屏路徑：engine:commit_text() 真的被呼叫、收到「當」",
+    committed == "當", "expected 當, got " .. tostring(committed))
+  h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「當」",
+    order.get_last_commit() == "當", "expected 當, got " .. tostring(order.get_last_commit()))
+
+  -- 即時頂那條路（見上面 PPIN/開 那組）也是走 engine:commit_text()，要同一套檢查。
+  local topcand = { text = "開", type = nil, comment = nil }
+  local menu2 = { prepare = function() end, candidate_count = function() return 1 end }
+  local seg2 = { menu = menu2, get_candidate_at = function(_, i) return i == 0 and topcand or nil end }
+  local ctx2 = {
+    input = "ppin",
+    get_option = function(_, name) return name == "aiphabi_autocommit" end,
+    push_input = function(self, k) self.input = self.input .. k end,
+    composition = { back = function() return seg2 end },
+    clear = function(self) self.input = "" end,
+  }
+  local committed2 = nil
+  local env2 = { engine = { context = ctx2, commit_text = function(_, text) committed2 = text end } }
+  ac.func(fake_key("a"), env2)   -- PPIN+A 打死，該頂
+  h.check("即時頂路徑：engine:commit_text() 真的被呼叫、收到「開」",
+    committed2 == "開", "expected 開, got " .. tostring(committed2))
+  h.check("即時頂路徑：order.note_commit() 有跟著補記，get_last_commit() 是「開」",
+    order.get_last_commit() == "開", "expected 開, got " .. tostring(order.get_last_commit()))
 end
 
 os.exit(h.report() == 0 and 0 or 1)

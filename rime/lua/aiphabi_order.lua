@@ -12,8 +12,7 @@
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
 
--- 上一次上屏的文字：給 aiphabi_wildcard 的「重複上字」（`` ``）用，見該檔開頭註解。
--- 純記憶體、跟 USERFREQ 共用同一個 commit_notifier，不必另外接一次。
+-- 上一次上屏的文字：給 aiphabi_wildcard 的「重複上字」（單獨 `）用，見該檔開頭註解。
 local LAST_COMMIT = nil
 local function get_last_commit() return LAST_COMMIT end
 
@@ -51,6 +50,19 @@ local function bump(text)                 -- 詞本身也要加分，不能只�
   end
 end
 
+-- 記一次上屏：手動選字（commit_notifier 接得到）跟 aiphabi_autocommit 的自動上屏
+-- （唯一上屏／即時頂，見該檔）共用同一個入口。實測發現：engine:commit_text() 是
+-- 直接送字（跟 rime-ice select_character.lua 同一種寫法），不會像正常選字那樣經過
+-- Context:Commit()——commit_notifier 收不到，自動上屏出來的字選字次數／重複上字都
+-- 記不到（回報：打 當 自動上屏後按 `，重複上字不是 當）。所以 aiphabi_autocommit
+-- 每次呼叫 engine:commit_text() 也要自己呼叫這裡一次，不能只靠 notifier。
+local function note_commit(text)
+  if not text or text == "" then return end
+  LAST_COMMIT = text
+  bump(text)
+  pcall(save)                             -- 每次上屏就寫回，重開也記得
+end
+
 local function init(env)
   pcall(load)                             -- 開機讀回上次的選字次數
   local ok, ctx = pcall(function() return env.engine.context end)
@@ -59,9 +71,7 @@ local function init(env)
     env.ap_order_notifier = ctx.commit_notifier:connect(function(context)
       local got, text = pcall(function() return context:get_commit_text() end)
       if got and text and text ~= "" then
-        LAST_COMMIT = text
-        pcall(bump, text)
-        pcall(save)                       -- 每次選完就寫回，重開也記得
+        pcall(note_commit, text)
       end
     end)
   end)
@@ -182,6 +192,6 @@ local function filter(input, env)
 end
 
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
--- get_last_commit：給 aiphabi_wildcard 用，是正式行為的一部分（見上面 LAST_COMMIT）。
+-- get_last_commit／note_commit：給 aiphabi_wildcard／aiphabi_autocommit 用，是正式行為的一部分。
 return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
-         get_last_commit = get_last_commit }
+         get_last_commit = get_last_commit, note_commit = note_commit }
