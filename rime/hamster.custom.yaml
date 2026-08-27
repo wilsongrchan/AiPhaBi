@@ -109,7 +109,10 @@ patch:
               label: "，"
               swipe:
                 - direction: up
-                  action: { character: { char: "." } }
+                  # 送 "." 給 Rime 讓 punctuator 轉全形（跟主鍵的 "," 一樣）在滑動手勢這條路
+                  # 上不會轉換（回報：滑出來的是半形 .，不是全形。）；直接送全形字元繞過
+                  # 這個問題，不依賴 punctuator 對滑動手勢也生效。
+                  action: { character: { char: "。" } }
                   label: "。"
                   display: true
             - action: enter
