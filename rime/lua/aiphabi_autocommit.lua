@@ -141,13 +141,14 @@ local function func(key, env)
   -- 底下沒有這個 guard 甚至會直接 crash，因為 harness 沒 stub ctx.composition）。
   if code:find("`", 1, true) then return 2 end
 
-  -- 一個字的第一碼：讓開，交給 speller 正常收。實測回報＋量過（見
-  -- aiphabi_autocommit_timing.log 診斷）：I／J 這種根大的字根，每次打第一碼都要
-  -- 90～410ms，比打第二碼起（20ms 內）慢二三十倍——因為 sole_real_candidate 會呼叫
-  -- seg.menu:prepare()，逼 Rime 在這一鍵就把整組候選（往往上千個）算出來，
-  -- 而單一字母的碼幾乎不可能是唯一解（26 個字根裡只有 月下厂十八 5 個字真的
-  -- 一碼打完，其餘全部有第二個字接在後面）。犧牲這 5 個字的「零多按」——它們
-  -- 照樣會被即時頂在下一鍵頂上屏，頂多多按一次空白——換全部字的第一碼不再卡頓。
+  -- 一個字的第一碼：讓開，交給 speller 正常收。實測回報＋量過：I／J 這種根大的
+  -- 字根，每次打第一碼都要 90～410ms，比打第二碼起（20ms 內）慢二三十倍——因為
+  -- sole_real_candidate 會呼叫 seg.menu:prepare()，逼 Rime 在這一鍵就把整組候選
+  -- （往往上千個）算出來，而單一字母的碼幾乎不可能是唯一解（26 個字根裡只有
+  -- 月下厂十八 5 個字真的一碼打完，其餘全部有第二個字接在後面）。犧牲這 5 個字的
+  -- 「零多按」——它們照樣會被即時頂在下一鍵頂上屏，頂多多按一次空白——換全部字的
+  -- 第一碼不再卡頓。詳見 aiphabi-side-b-ij-lag-2026-08-27 記憶（同一次順帶砍了
+  -- aiphabi_hint.lua 的 RAW_CAP，真正的大頭在那邊，這裡只是第一層）。
   if code == "" then return 2 end
 
   -- 即時頂暫時停用（2026-08-27）：量過（aiphabi_autocommit_timing.log），

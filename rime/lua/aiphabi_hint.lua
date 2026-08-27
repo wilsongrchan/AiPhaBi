@@ -63,12 +63,16 @@ local function fini(env)
 end
 
 -- 這是 filter 鏈第一個（見檔頭），所以這個上限會連帶讓 aiphabi_fuzzy／aiphabi_order 收到
--- 的候選也一起變少——不用在每個 filter 各自設一個。I／J 這種常見字根，打一碼就補全出
--- 上萬個候選，光是「跟每個候選拿一次 .text/.type」在真機的 Candidate 物件上開銷就不小，
--- 三個 filter 各自全部掃過一輪，這才是卡頓的大宗（比池子排序本身更貴，量過）。
--- 候選欄一次只顯示 8～10 個，1500 個已經是三位數頁——真的翻到那麼深不如多打一兩碼，
--- 字根補全的候選量本來就會隨碼變長而急遽變少，不需要靠翻頁翻出來。
-local RAW_CAP = 1500
+-- 的候選也一起變少——不用在每個 filter 各自設一個。
+-- 2026-08-27 再量一次（aiphabi_hint_timing.log）：1500 這個上限本身從沒被打 I／J
+-- 碰到過——「i」「j」實際從 input:iter() 拉出來的量只有 509～598 個，遠低於 1500，
+-- 但光拉這些就要 220～380ms；反觀量差不多的「d」（223 個）只要 31ms、「s」（163 個）
+-- 只要 17ms。不是純粹的量的問題（拉的每一個背後 Rime 自己要做多少事，I／J 顯然比
+-- 別的字根貴很多，這支 Lua 管不到），但拉得越少、總時間確實跟著少——「d」「s」那種
+-- 量能接受，就把上限砍到那個級數。候選欄一次只顯示 8～10 個，Wilson 自己也覺得
+-- 「大概 40 個就夠」，這裡抓 3 倍當緩衝（給 aiphabi_order 的選過字加分／捲頁留一點
+-- 空間），不是硬卡在剛好看得到的數字。
+local RAW_CAP = 120
 
 local function filter(input, env)
   local ctx = env.engine.context
@@ -307,4 +311,5 @@ local function filter(input, env)
   end
 end
 
-return { init = init, fini = fini, func = filter }
+-- _RAW_CAP：只給 tests/ 用，讓測試檔跟這裡的真實數字保持一致，不要各自硬編一份。
+return { init = init, fini = fini, func = filter, _RAW_CAP = RAW_CAP }

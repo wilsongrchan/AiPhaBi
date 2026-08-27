@@ -105,25 +105,32 @@ print()
 print("== 效能：三層上限（I／J 這種常見字根，一次補全上萬個不能卡頓）==")
 -- 量過：光是三個 filter（hint／fuzzy／order）各自把上萬個候選整包掃過一輪，比池子排序
 -- 本身更貴——這才是「加了排序上限還是卡」的真正原因。所以有三層，越前面越省：
---   1. RAW_CAP＝1500（aiphabi_hint.lua，filter 鏈最前面）：根本不跟上游多要——超過這個
+--   1. RAW_CAP（aiphabi_hint.lua，filter 鏈最前面）：根本不跟上游多要——超過這個
 --      數量的候選直接不存在，後面幾個 filter 收到的候選量也一起變小，不用各自設上限。
---   2. MAX_SORT＝40（aiphabi_order[_plus].lua）：RAW_CAP 之內的，也只有前 40 個做真的
+--   2. MAX_SORT（aiphabi_order[_plus].lua）：RAW_CAP 之內的，也只有前面這些做真的
 --      table.sort；超過的維持原始順序（碼表已經照 weight 排過）接在後面。
 --   3. 選過的字（USERFREQ／aiphabi_plus 的 top bucket）不受 MAX_SORT 影響——只要還在
 --      RAW_CAP 之內，一定排到前面。
 -- 這裡不直接斷言耗時（機器快慢會飄，門檻抓太鬆就測不出回歸、抓太緊會在慢機器上誤報），
 -- 改斷言「行為」——拿掉任一層上限（mutation test 驗過），對應的斷言就會變紅。
-local RAW_CAP, MAX_SORT = 1500, 40
+-- 兩個數字直接從真正的模組讀，不在這裡另外硬編一份——2026-08-27 把 RAW_CAP 從 1500
+-- 砍到 120（見 aiphabi_hint.lua 開頭），這裡不跟著改就會測錯（實際發生過一次）。
+local hint_mod_for_caps = require("aiphabi_hint")
+local order_mod_for_caps = require("aiphabi_order")
+local RAW_CAP, MAX_SORT = hint_mod_for_caps._RAW_CAP, order_mod_for_caps._MAX_SORT
+-- 「是」要落在「超過 MAX_SORT、但還在 RAW_CAP 之內」這個區間——用相對位置算，
+-- 不用寫死的絕對數字，RAW_CAP 再怎麼調整這個測試都還站得住。
+local midPos = MAX_SORT + math.max(1, (RAW_CAP - MAX_SORT) // 2)
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 兩萬個雜訊候選，混進三個真實字：「的」在第 10（兩層之內，該排到最前）；「是」在
-  -- 第 1000（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
+  -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
   -- 「占16000」代表「超過 RAW_CAP」的候選，該整個消失，連補全都補不出來——這是刻意的
   -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。（沒用「一」是因為它主碼剛好是 i，
   -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西。）
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i } end
   cands[10] = { text = "的" }
-  cands[1000] = { text = "是" }
+  cands[midPos] = { text = "是" }
 
   local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
 
@@ -136,7 +143,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   h.check(schema .. " · RAW_CAP 之內（第 10）的高頻字「的」排到前面",
     posDe ~= nil and posDe <= 20,
     string.format("的 landed at #%s", tostring(posDe)))
-  h.check(schema .. " · RAW_CAP 之內、MAX_SORT 之外（第 1000）的高頻字「是」還在、但不會被硬拉到最前",
+  h.check(schema .. " · RAW_CAP 之內、MAX_SORT 之外（第 " .. midPos .. "）的高頻字「是」還在、但不會被硬拉到最前",
     posShi ~= nil and posShi > MAX_SORT,
     string.format("是 landed at #%s", tostring(posShi)))
   h.check(schema .. " · 超過 RAW_CAP（第 16000）的候選整個不出現——這是取捨，不是漏洞",
@@ -149,17 +156,18 @@ do
   -- aiphabi_order.lua 把「選過次數」直接乘進排序分數（不像 aiphabi_plus 另開 top bucket），
   -- 所以排序上限得把「選過的字」跟「純字頻」分開處理，選過的一定要完整排序——不然選過的
   -- 字剛好落在 MAX_SORT 之外，就會排不到前面，等於選過次數白記了。字要擺在 RAW_CAP
-  -- （1500）之內，不然還沒排到這裡，先被 aiphabi_hint.lua 那層擋掉了。
+  -- 之內，不然還沒排到這裡，先被 aiphabi_hint.lua 那層擋掉了。
   local order_mod = require("aiphabi_order")
-  order_mod._USERFREQ["占1000"] = 99   -- 直接塞：模擬「這個字選過很多次」
+  local key = "占" .. midPos
+  order_mod._USERFREQ[key] = 99   -- 直接塞：模擬「這個字選過很多次」
 
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i } end
   local out = h.run{ schema = "aiphabi", code = "i", options = {}, cands = cands }
-  order_mod._USERFREQ["占1000"] = nil   -- 用完清掉，不要汙染其他測試
+  order_mod._USERFREQ[key] = nil   -- 用完清掉，不要汙染其他測試
 
-  h.checkAt("選過很多次的字（藏在第 1000 個，RAW_CAP 之內）該排第一，不受排序上限擋住",
-    out, 1, "占1000")
+  h.checkAt("選過很多次的字（藏在第 " .. midPos .. " 個，RAW_CAP 之內）該排第一，不受排序上限擋住",
+    out, 1, key)
 end
 
 print()

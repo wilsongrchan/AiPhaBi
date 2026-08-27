@@ -231,4 +231,5 @@ end
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
 -- get_last_commit／note_commit：給 aiphabi_wildcard／aiphabi_autocommit 用，是正式行為的一部分。
 return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
-         get_last_commit = get_last_commit, note_commit = note_commit, get_last_n = get_last_n }
+         get_last_commit = get_last_commit, note_commit = note_commit, get_last_n = get_last_n,
+         _MAX_SORT = MAX_SORT }
