@@ -64,7 +64,7 @@ local function is_dead_extension(newCode)
   if not CODE_INDEX then build_index() end
   local lo, hi = 1, #CODE_INDEX + 1
   while lo < hi do
-    local mid = (lo + hi) // 2
+    local mid = math.floor((lo + hi) / 2)
     if CODE_INDEX[mid] < newCode then lo = mid + 1 else hi = mid end
   end
   local hit = CODE_INDEX[lo]
