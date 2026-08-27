@@ -242,7 +242,7 @@ do
 end
 
 print()
-print("== 重複上字（單獨 ` 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
+print("== 重複上字（連續 N 個 `，N=1~5 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
 do
   local order = require("aiphabi_order")
   local captured_cb
@@ -254,10 +254,26 @@ do
 
   h.check("開機、還沒選過任何字：get_last_commit() 是空的",
     order.get_last_commit() == nil, "expected nil")
+  h.check("開機、還沒選過任何字：get_last_n(2) 也是空的（不夠 2 個字，不硬湊）",
+    order.get_last_n(2) == nil, "expected nil")
 
   captured_cb({ get_commit_text = function() return "候" end })
   h.check("選過 候 之後：get_last_commit() 記得住",
     order.get_last_commit() == "候", "expected 候")
+  h.check("只選過一個字：get_last_n(2) 還是空的（不夠 2 個）",
+    order.get_last_n(2) == nil, "expected nil")
+
+  captured_cb({ get_commit_text = function() return "選" end })
+  h.check("再選 選：get_last_n(2) 是「候選」（照時間順序接）",
+    order.get_last_n(2) == "候選", "expected 候選, got " .. tostring(order.get_last_n(2)))
+
+  -- 一次上屏一個詞（如詞組連打選出「候選人」）要拆成三個字依序推進歷史，
+  -- 不是整詞當一筆——不然「N 個 ` = 最近 N 個字」這件事對詞組使用者就不成立。
+  captured_cb({ get_commit_text = function() return "候選人" end })
+  h.check("上屏一個詞「候選人」後：get_last_n(3) 是「候選人」（拆成三個字）",
+    order.get_last_n(3) == "候選人", "expected 候選人, got " .. tostring(order.get_last_n(3)))
+  h.check("上屏一個詞「候選人」後：get_last_n(1) 只是最後一個字「人」",
+    order.get_last_n(1) == "人", "expected 人, got " .. tostring(order.get_last_n(1)))
 
   -- 直接呼叫萬用鍵的 translator 本體（不經過 h.run，那個只測 filter 那一段）。
   -- yield 借用、蓋掉再還回去，才不會污染同一支測試檔後面別的 h.run 呼叫。
@@ -272,20 +288,36 @@ do
     return out
   end
 
+  -- 到這裡歷史是：候、選、候、選、人（HISTORY_MAX=5，剛好裝滿）。
   local single = run_wildcard("`")
-  h.check("單獨 ` ：第一個候選是重複上字，不是原本萬用鍵隨便湊到的字",
-    single[1] and single[1].type == "ap_repeat" and single[1].text == "候",
-    "expected 候 (ap_repeat) first, got " .. h.fmt(single):sub(1, 60))
+  h.check("單獨 ` ：第一個候選是最近 1 個字「人」，不是原本萬用鍵隨便湊到的字",
+    single[1] and single[1].type == "ap_repeat" and single[1].text == "人",
+    "expected 人 (ap_repeat) first, got " .. h.fmt(single):sub(1, 60))
   h.check("單獨 ` ：原本的萬用鍵（全表一碼以上）沒被拿掉，還在後面",
     #single > 1, "expected more than just the repeat candidate")
 
   local double = run_wildcard("``")
-  local has_repeat_in_double = false
-  for _, c in ipairs(double) do
-    if c.type == "ap_repeat" then has_repeat_in_double = true end
+  h.check("連續兩個 `` ：第一個候選是最近 2 個字「選人」",
+    double[1] and double[1].type == "ap_repeat" and double[1].text == "選人",
+    "expected 選人 (ap_repeat) first, got " .. h.fmt(double):sub(1, 60))
+
+  local triple = run_wildcard("```")
+  h.check("連續三個 ``` ：第一個候選是最近 3 個字「候選人」",
+    triple[1] and triple[1].type == "ap_repeat" and triple[1].text == "候選人",
+    "expected 候選人 (ap_repeat) first, got " .. h.fmt(triple):sub(1, 60))
+
+  local five = run_wildcard("`````")
+  h.check("連續五個（HISTORY_MAX）：第一個候選是全部 5 個字「候選候選人」",
+    five[1] and five[1].type == "ap_repeat" and five[1].text == "候選候選人",
+    "expected 候選候選人 (ap_repeat) first, got " .. h.fmt(five):sub(1, 60))
+
+  local six = run_wildcard("``````")
+  local has_repeat_in_six = false
+  for _, c in ipairs(six) do
+    if c.type == "ap_repeat" then has_repeat_in_six = true end
   end
-  h.check("連續兩個 ``（剛好兩碼）完全不受影響，不會混進重複上字",
-    not has_repeat_in_double, "expected no ap_repeat candidate in `` output")
+  h.check("連續六個（超過 MAX_REPEAT=5）：完全不受影響，純萬用鍵，不混進重複上字",
+    not has_repeat_in_six, "expected no ap_repeat candidate in six-backtick output")
 
   local prefixed = run_wildcard("w`")
   local has_repeat_in_prefixed = false
@@ -312,6 +344,74 @@ do
 end
 
 print()
+print("== 互斥開關要把修正寫回 user.yaml，不能只改記憶體 ==")
+do
+  -- 實測回報的 bug（2026-08-27）：user.yaml 同時存了 aiphabi_autocommit: true
+  -- 跟 aiphabi_phrase: true——開機修正只改得動記憶體，檔案沒跟著改，使用者感覺
+  -- 「選的開關沒被記住」。這裡只測純字串那段（patch_option_line），不碰真的
+  -- user.yaml。
+  local ac = require("aiphabi_autocommit")
+  local sample = [[var:
+  last_build_time: 1787859631
+  option:
+    aiphabi_autocommit: true
+    aiphabi_comp: true
+    aiphabi_family: true
+    aiphabi_phrase: true
+    aiphabi_short100: true
+  previously_selected_schema: aiphabi
+]]
+  local patched = ac._patch_option_line(sample, "aiphabi_phrase", false)
+  h.check("aiphabi_phrase 那一行改成 false，其餘原封不動",
+    patched and patched:find("aiphabi_phrase: false", 1, true) ~= nil,
+    "expected aiphabi_phrase: false present")
+  h.check("aiphabi_autocommit 那一行沒被動到，還是 true",
+    patched and patched:find("aiphabi_autocommit: true", 1, true) ~= nil,
+    "expected aiphabi_autocommit: true untouched")
+  h.check("aiphabi_family 這種同一個字首的其他 key 沒被誤中",
+    patched and patched:find("aiphabi_family: true", 1, true) ~= nil,
+    "expected aiphabi_family untouched (regex must not over-match prefix)")
+
+  local noKey = ac._patch_option_line("var:\n  option:\n    aiphabi_family: true\n", "aiphabi_phrase", false)
+  h.check("檔案裡根本沒有這個 key（從沒切過）：回傳 nil，不硬插入",
+    noKey == nil, "expected nil, got " .. tostring(noKey))
+end
+
+print()
+print("== 這個字的第一碼不檢查唯一上屏／即時頂，讓開給 speller（效能）==")
+do
+  -- 實測回報＋量過的 bug（2026-08-27）：打 I／J 這種根大的字根感覺卡頓——
+  -- aiphabi_autocommit_timing.log 量到第一碼（ctx.input 還是空的那一鍵）90～410ms，
+  -- 第二碼起都在 20ms 內。根因：sole_real_candidate 呼叫 seg.menu:prepare()，逼
+  -- Rime 在這一鍵就把整組候選算出來——單一字母的碼幾乎不可能是唯一解（26 個裡
+  -- 只有 5 個真的一碼打完，見下面），檢查根本白做。func() 現在看到 ctx.input=""
+  -- 就直接 return 2，不呼叫 seg.menu:prepare()，也不會不小心觸發 seg.composition:back()。
+  local ac = require("aiphabi_autocommit")
+  local prepared = false
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local menu = {
+    prepare = function() prepared = true end,
+    candidate_count = function() return 1 end,
+  }
+  local seg = { menu = menu, get_candidate_at = function() return { text = "當" } end }
+  local ctx = {
+    input = "",   -- 這個字的第一碼
+    get_option = function(_, name) return name == "aiphabi_autocommit" end,
+    push_input = function(self, k) self.input = self.input .. k end,
+    composition = { back = function() prepared = "composition_accessed"; return seg end },
+    clear = function(self) self.input = "" end,
+  }
+  local env = { engine = { context = ctx, commit_text = function() end } }
+  local r = ac.func(fake_key("i"), env)
+  h.check("第一碼：func() 直接 return 2，讓開給 speller",
+    r == 2, "expected 2, got " .. tostring(r))
+  h.check("第一碼：完全沒碰 seg.menu:prepare()／ctx.composition:back()（真正省下的成本）",
+    prepared == false, "expected untouched, got " .. tostring(prepared))
+end
+
+print()
 print("== 自動上屏也要記選字次數／重複上字，不能只靠 commit_notifier ==")
 do
   -- 實測回報的 bug（2026-08-27）：打 當 自動上屏後按 `，重複上字不是 當。根因：
@@ -319,6 +419,11 @@ do
   -- aiphabi_autocommit 現在要在 commit_text 之後自己呼叫 order.note_commit()。
   -- 放在這支檔案最後：LAST_COMMIT 是 aiphabi_order 的模組級狀態，跟前面「重複上字」
   -- 那組「開機還沒選過任何字」的 nil 檢查共用同一份記憶體，順序不能顛倒。
+  --
+  -- 注意：故意不用 ctx.input=""（這個字的第一碼）——那條路現在直接 return 2 讓開
+  -- （見 aiphabi_autocommit.lua 的效能修正，2026-08-27），唯一上屏只在第二碼起才會
+  -- 檢查。這裡用 "ppi"+"n"＝"ppin"，沿用上面 PPIN 那組已經驗證過「不是死路」的碼，
+  -- 確保會落到 push_input+sole_real_candidate 那段，不會半路被即時頂攔走。
   local order = require("aiphabi_order")
   local ac = require("aiphabi_autocommit")
 
@@ -330,7 +435,7 @@ do
   local menu = { prepare = function() end, candidate_count = function() return 1 end }
   local seg = { menu = menu, get_candidate_at = function(_, i) return i == 0 and cand or nil end }
   local ctx = {
-    input = "",
+    input = "ppi",
     get_option = function(_, name) return name == "aiphabi_autocommit" end,
     push_input = function(self, k) self.input = self.input .. k end,
     composition = { back = function() return seg end },
@@ -339,17 +444,30 @@ do
   local env = {
     engine = { context = ctx, commit_text = function(_, text) committed = text end },
   }
-  ac.func(fake_key("t"), env)
+  ac.func(fake_key("n"), env)
   h.check("唯一上屏路徑：engine:commit_text() 真的被呼叫、收到「當」",
     committed == "當", "expected 當, got " .. tostring(committed))
   h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「當」",
     order.get_last_commit() == "當", "expected 當, got " .. tostring(order.get_last_commit()))
 
-  -- 即時頂那條路（見上面 PPIN/開 那組）也是走 engine:commit_text()，要同一套檢查。
+  -- 即時頂已停用（見 aiphabi_autocommit.lua 的效能量測說明，2026-08-27）：
+  -- seg.menu:prepare() 在「頂之前」那個舊 segment 上時好時壞，同一組碼量到
+  -- 10ms 也量到 268ms，找不出規律，犧牲 PPIN/開 這類的零多按換其餘都不卡頓。
+  -- 這裡故意用一個「看 ctx.input 當下是什麼再決定回什麼候選」的假 seg，才測得出
+  -- 「func() 有沒有在推這一鍵之前，先去查舊那段的候選」——查了就是即時頂還在跑
+  -- （不該再發生）；沒查、直接把這一鍵推上去變成 ppina（真正的死路，沒有候選），
+  -- 才是現在該有的行為。
   local topcand = { text = "開", type = nil, comment = nil }
-  local menu2 = { prepare = function() end, candidate_count = function() return 1 end }
-  local seg2 = { menu = menu2, get_candidate_at = function(_, i) return i == 0 and topcand or nil end }
-  local ctx2 = {
+  local ctx2
+  local menu2 = {
+    prepare = function() end,
+    candidate_count = function() return ctx2.input == "ppin" and 1 or 0 end,
+  }
+  local seg2 = {
+    menu = menu2,
+    get_candidate_at = function(_, i) return (ctx2.input == "ppin" and i == 0) and topcand or nil end,
+  }
+  ctx2 = {
     input = "ppin",
     get_option = function(_, name) return name == "aiphabi_autocommit" end,
     push_input = function(self, k) self.input = self.input .. k end,
@@ -358,11 +476,11 @@ do
   }
   local committed2 = nil
   local env2 = { engine = { context = ctx2, commit_text = function(_, text) committed2 = text end } }
-  ac.func(fake_key("a"), env2)   -- PPIN+A 打死，該頂
-  h.check("即時頂路徑：engine:commit_text() 真的被呼叫、收到「開」",
-    committed2 == "開", "expected 開, got " .. tostring(committed2))
-  h.check("即時頂路徑：order.note_commit() 有跟著補記，get_last_commit() 是「開」",
-    order.get_last_commit() == "開", "expected 開, got " .. tostring(order.get_last_commit()))
+  ac.func(fake_key("a"), env2)   -- PPIN+A：以前會被即時頂頂掉，現在該是死路（不該上屏）
+  h.check("即時頂已停用：PPIN+A 不再頂上屏，沒有 commit_text 被呼叫",
+    committed2 == nil, "expected nil (no commit), got " .. tostring(committed2))
+  h.check("即時頂已停用：這一鍵照舊推上去，ctx.input 變成 ppina（死路，留給使用者退格）",
+    ctx2.input == "ppina", "expected ppina, got " .. tostring(ctx2.input))
 end
 
 print()

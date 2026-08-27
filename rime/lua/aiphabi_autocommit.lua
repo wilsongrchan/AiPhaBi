@@ -8,13 +8,13 @@
 -- 「繼續打或許還有別的可能」，一律不上屏。唯獨容錯猜測（方括號標的）不算——那是
 -- 「怕你打錯鍵」的另一個碼的提醒，跟這碼本身有沒有打完無關，見下面 is_fuzzy_guess。
 --
--- 即時頂（2026-08-26 加）：唯一上屏只顧「打完了」，管不到「開 PPIN、闞 PPINX/PPINEX
--- 這種罕見字卡住常見字」——闞這種字太少見，開永遠等不到「唯一」。即時頂是另一條路：
--- 不管現在是不是唯一，只要「這一鍵會把碼打死」（打出來的這串碼，接下來不管碼表裡
--- 哪個字都接不上，見 is_dead_extension），就代表上一段已經確定沒有回頭路了——把
--- 上一段候選欄排最前面那個（一定要是「打完了」的，見 is_complete_match）頂上屏，
--- 這一鍵自己重新當下一個字的開頭。概念跟見 PROJECT_NOTES／Wilson 貼的文章一致，
--- 叫「規則頂屏・即時頂」：頂的是「N-1 碼」，不是往更早回溯（那是「延遲頂」，這裡沒做）。
+-- 即時頂（2026-08-26 加，2026-08-27 停用）：唯一上屏只顧「打完了」，管不到「開
+-- PPIN、闞 PPINX/PPINEX 這種罕見字卡住常見字」——闞這種字太少見，開永遠等不到
+-- 「唯一」。即時頂本來是另一條路：不管現在是不是唯一，只要「這一鍵會把碼打死」
+-- （見 is_dead_extension），就把上一段候選欄排最前面那個頂上屏。概念跟 Wilson
+-- 貼的文章一致，叫「規則頂屏・即時頂」。**目前停用**——量出來 seg.menu:prepare()
+-- 在頂之前那段沒收下這一鍵的舊 segment 上，成本時好時壞（10ms～268ms，找不出
+-- 規律），犧牲的是這批字的零多按，換其餘打字不再偶爾卡頓，見下面 func() 裡的說明。
 --
 -- 為什麼不用 update_notifier 呼叫 context:commit()：試過，會在候選還在算到一半時
 -- 重入，直接把打字打壞（症狀：完全打不出字）。這裡改成處理器＋
@@ -141,23 +141,25 @@ local function func(key, env)
   -- 底下沒有這個 guard 甚至會直接 crash，因為 harness 沒 stub ctx.composition）。
   if code:find("`", 1, true) then return 2 end
 
-  -- 即時頂：碼死之前先問——這一鍵加進去，碼還有沒有救。有救（還是某個碼的前綴）
-  -- 就照舊往下走；沒救就在「加進去、變成打死的殘局」之前，先把頂之前（也就是
-  -- 現在，這一鍵還沒收）的候選欄第一個頂上屏，這一鍵才另起爐灶當新字第一碼。
-  if code ~= "" and is_dead_extension(code .. k) then
-    local seg = ctx.composition:back()
-    local top = seg and top_complete_candidate(seg)
-    if top then
-      env.engine:commit_text(top.text)
-      order.note_commit(top.text)   -- engine:commit_text 不經過 Context:Commit()，
-                                     -- commit_notifier 收不到，這裡要自己補記一次
-                                     -- （見 aiphabi_order.lua 的 note_commit 說明）。
-      ctx:clear()
-      ctx:push_input(k)
-      return 1
-    end
-    -- 挑不到能頂的候選：不攔這一鍵，照舊往下走（含下面的正常收字流程）。
-  end
+  -- 一個字的第一碼：讓開，交給 speller 正常收。實測回報＋量過（見
+  -- aiphabi_autocommit_timing.log 診斷）：I／J 這種根大的字根，每次打第一碼都要
+  -- 90～410ms，比打第二碼起（20ms 內）慢二三十倍——因為 sole_real_candidate 會呼叫
+  -- seg.menu:prepare()，逼 Rime 在這一鍵就把整組候選（往往上千個）算出來，
+  -- 而單一字母的碼幾乎不可能是唯一解（26 個字根裡只有 月下厂十八 5 個字真的
+  -- 一碼打完，其餘全部有第二個字接在後面）。犧牲這 5 個字的「零多按」——它們
+  -- 照樣會被即時頂在下一鍵頂上屏，頂多多按一次空白——換全部字的第一碼不再卡頓。
+  if code == "" then return 2 end
+
+  -- 即時頂暫時停用（2026-08-27）：量過（aiphabi_autocommit_timing.log），
+  -- top_complete_candidate() 的 seg.menu:prepare() 在「頂之前」這個還沒收這一鍵的
+  -- 舊 segment 上，時好時壞——同一組碼量出 10ms 也量出 268ms，沒有找到跟碼長／
+  -- 分支數對得上的規律，看起來是 Rime 內部（可能是 enable_sentence 的整句重新
+  -- 分析）的成本，不是這支 Lua 自己能控制的。唯一上屏（下面 sole_real_candidate，
+  -- 量到的都在 4～26ms）沒有這個問題，繼續用。犧牲的是 PPIN/開 這類「常見字卡在
+  -- 罕見完整碼後面」的零多按——退回原本行為，多按一次空白，換其餘所有打字不再
+  -- 偶爾卡頓。is_dead_extension／top_complete_candidate 留著沒刪，將來想清楚怎麼
+  -- 避開 seg.menu:prepare()（例如純用 data.code2chars 自己判斷，不問 Rime 的
+  -- 候選欄）再重新接上。
 
   ctx:push_input(k)    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
   local seg = ctx.composition:back()
@@ -167,6 +169,7 @@ local function func(key, env)
       env.engine:commit_text(cand.text)
       order.note_commit(cand.text)  -- 同上，唯一上屏這條路也要自己補記
       ctx:clear()
+      return 1                    -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
     end
   end
   return 1                      -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
@@ -177,11 +180,49 @@ end
 -- 會正確判斷成「不只一個」而按兵不動，但這樣自動上屏形同虛設（詞組開著幾乎每個字
 -- 後面都可能接得出詞，永遠不會只剩一個）。乾脆兩個開關互斥：選單勾其中一個，
 -- 另一個自動關掉，不必先弄懂兩者會怎麼互相牽制。
+-- ctx:set_option() 改的是這次執行的即時狀態，不保證寫回 user.yaml——實測回報：
+-- 兩個開關互斥修正過後，user.yaml 卻同時存了 aiphabi_autocommit: true 跟
+-- aiphabi_phrase: true（兩個本來不該同時是 true），開機時 init() 的修正只改得動
+-- 記憶體，檔案還是舊的錯誤值，下次開機又要修一次——使用者看起來像是「選的開關
+-- 沒被記住」。switcher 選單自己點的那半（真的按下去的那個）Rime 會存，但另一半
+-- 被我們的互斥邏輯連帶關掉的，不會跟著存。這裡直接把該同步的那個值寫回
+-- user.yaml，不依賴 Rime 自動幫忙。只動 var: option: 底下那一行，抓不到就跳過
+-- （不強行破壞使用者檔案格式），全程 pcall，寫失敗也不影響正常打字。
+-- patch_option_line：純字串處理，不碰檔案——只給 tests/ 用來驗證這段 regex 到底
+-- 抓不抓得到、換不換得對，不用真的去動 user.yaml。
+local function patch_option_line(content, name, value)
+  local valueStr = value and "true" or "false"
+  local pattern = "(%s+" .. name:gsub("%p", "%%%1") .. ":%s*)%a+"
+  local newContent, n = content:gsub(pattern, "%1" .. valueStr, 1)
+  if n == 0 then return nil end   -- 檔案裡本來就沒有這個 key（從沒切過），不硬插入
+  return newContent
+end
+
+local USER_YAML = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/user.yaml")) or nil
+local function persist_option(name, value)
+  if not USER_YAML then return end
+  local f = io.open(USER_YAML, "r")
+  if not f then return end
+  local content = f:read("a")
+  f:close()
+  if not content then return end
+  local newContent = patch_option_line(content, name, value)
+  if not newContent then return end
+  local tmp = USER_YAML .. ".ap_tmp"
+  local out = io.open(tmp, "w")
+  if not out then return end
+  out:write(newContent)
+  out:close()
+  os.rename(tmp, USER_YAML)   -- 同檔案系統內是原子操作，比直接覆寫原檔安全
+end
+
 local function enforce_mutex(ctx, just_turned_on)
   if just_turned_on == "aiphabi_autocommit" and ctx:get_option("aiphabi_phrase") then
     ctx:set_option("aiphabi_phrase", false)
+    pcall(persist_option, "aiphabi_phrase", false)
   elseif just_turned_on == "aiphabi_phrase" and ctx:get_option("aiphabi_autocommit") then
     ctx:set_option("aiphabi_autocommit", false)
+    pcall(persist_option, "aiphabi_autocommit", false)
   end
 end
 
@@ -191,6 +232,7 @@ local function init(env)
   pcall(function()
     if ctx:get_option("aiphabi_autocommit") and ctx:get_option("aiphabi_phrase") then
       ctx:set_option("aiphabi_phrase", false)
+      pcall(persist_option, "aiphabi_phrase", false)
     end
   end)
   pcall(function()
@@ -207,4 +249,5 @@ local function fini(env)
 end
 
 -- _is_dead_extension：只給 tests/ 用，直接驗證即時頂的死路判斷對不對真正的碼表，不影響正式行為。
-return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension }
+return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension,
+         _patch_option_line = patch_option_line }
