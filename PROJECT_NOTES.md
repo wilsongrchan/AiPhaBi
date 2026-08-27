@@ -762,6 +762,31 @@ Hamster runs the same `rime/` files. It supports librime-lua **only if** the `lu
 dict weight column** — which is why weight columns must be sane on their own (see the mobile
 gotcha under Weights).
 
+#### Before shipping ANY mobile zip — checklist (read this first, every time)
+
+A whole session (2026-08-27) was burned on a mobile package that typed literally nothing, because
+step 1 below was skipped and nobody thought to check it until a device log forced the issue. Run
+through this in order, don't skip to the interesting parts:
+
+1. **Zip structure**: `aiphabi_data.lua` + all `rime/lua/*.lua` files go inside a **`lua/`
+   subfolder**, not flat at the zip root. `unzip -l` the built zip and *look at it* — you should
+   see a `lua/` directory entry containing 7-8 `.lua` files, not loose `.lua` files sitting next
+   to `aiphabi.schema.yaml`. Get this wrong and `rime.lua`'s first `require()` fails, which
+   silently kills the *entire* Lua bootstrap (not just one feature) — the schema still "deploys",
+   the custom keyboard still renders, but there are **zero candidates for any code, ever**. No
+   obvious error anywhere in the app UI. See the full incident writeup below.
+2. **`default.custom.yaml`'s `schema_list`**: rewrite it to just `- schema: aiphabi` before
+   zipping — don't ship the git file verbatim (it lists `aiphabi_plus`/`luna_pinyin` too, which
+   the mobile package never includes; some Hamster versions treat a missing listed schema as a
+   fatal deploy error for the whole config, not just that one entry).
+3. **`luajit -e "dofile('aiphabi_data.lua')"` on the stripped/packaged copy** — catches the
+   65,536-constant crash (see below). Don't skip this because "it worked last time"; the cliff
+   moves as the character set grows.
+4. **If a delivered zip is reported as "doesn't type" / "doesn't work"**, don't start
+   theory-crafting from the symptom — ask for the device's RIME log immediately (`RIME 日誌` in
+   the Hamster app, or `~/Documents/rime.log`). `grep -i error` or `grep "not found"` on it turns
+   an afternoon of guessing into minutes. A full writeup of why this matters is a few bullets down.
+
 #### The mobile packaging quirk — Hamster's LuaJIT has a hard constant limit
 
 Hamster runs Lua on **LuaJIT**, which caps any single chunk at **65,536 constants**. This is
