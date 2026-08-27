@@ -199,6 +199,8 @@ local function patch_option_line(content, name, value)
 end
 
 local USER_YAML = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/user.yaml")) or nil
+-- 只給 tests/ 用：把路徑指到暫存檔，測試才不會真的動到使用者的 user.yaml。
+local function _set_user_yaml_path_for_tests(path) USER_YAML = path end
 local function persist_option(name, value)
   if not USER_YAML then return end
   local f = io.open(USER_YAML, "r")
@@ -216,12 +218,25 @@ local function persist_option(name, value)
   os.rename(tmp, USER_YAML)   -- 同檔案系統內是原子操作，比直接覆寫原檔安全
 end
 
+-- 重入防護：ctx:set_option() 本身會再觸發一次 option_update_notifier——沒有這個
+-- 開關，「關掉另一個」這個動作自己會被當成又一次「剛剛切換」，反過來把使用者
+-- 這一次真正按下去的那個開關關掉（實測回報：autocommit 開著時要開詞組，得按兩次
+-- 才開得起來——第一次觸發「開詞組→關自動上屏→（重入）自動上屏剛被關、詞組還開著
+-- →誤判成又要關詞組」，兩個開關繞一圈變成全部關掉；第二次因為自動上屏已經是關的，
+-- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
+-- 再被自己的回呼解讀成一次新的切換。
+local suppressing = false
 local function enforce_mutex(ctx, just_turned_on)
+  if suppressing then return end
   if just_turned_on == "aiphabi_autocommit" and ctx:get_option("aiphabi_phrase") then
+    suppressing = true
     ctx:set_option("aiphabi_phrase", false)
+    suppressing = false
     pcall(persist_option, "aiphabi_phrase", false)
   elseif just_turned_on == "aiphabi_phrase" and ctx:get_option("aiphabi_autocommit") then
+    suppressing = true
     ctx:set_option("aiphabi_autocommit", false)
+    suppressing = false
     pcall(persist_option, "aiphabi_autocommit", false)
   end
 end
@@ -250,4 +265,5 @@ end
 
 -- _is_dead_extension：只給 tests/ 用，直接驗證即時頂的死路判斷對不對真正的碼表，不影響正式行為。
 return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension,
-         _patch_option_line = patch_option_line }
+         _patch_option_line = patch_option_line,
+         _set_user_yaml_path_for_tests = _set_user_yaml_path_for_tests }

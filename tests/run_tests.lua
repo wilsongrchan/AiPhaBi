@@ -344,6 +344,48 @@ do
 end
 
 print()
+print("== 互斥開關重入防護：開另一個不能連帶把剛按下去的這個也關掉 ==")
+do
+  -- 實測回報的 bug（2026-08-27）：自動上屏開著時要開詞組，得按兩次才開得起來。
+  -- 根因：ctx:set_option() 本身會再觸發一次 option_update_notifier——「關掉自動
+  -- 上屏」這個修正動作，沒有防護的話會被自己的回呼當成「又一次切換」，反過來把
+  -- 剛剛才被使用者打開的詞組關掉。這裡真的模擬 Rime 的重入行為（set_option 同步
+  -- 呼叫回呼），不是只呼叫 enforce_mutex 一次那種測不出重入問題的假測試。
+  local ac = require("aiphabi_autocommit")
+  -- 這組測試會真的觸發 enforce_mutex → persist_option 那條路，把路徑指到暫存檔，
+  -- 不要動到使用者真正的 user.yaml。
+  ac._set_user_yaml_path_for_tests("/tmp/aiphabi_test_user_" .. os.time() .. ".yaml")
+
+  local state = { aiphabi_autocommit = true, aiphabi_phrase = false }
+  local notifier_cb
+  local fake_ctx
+  fake_ctx = {
+    get_option = function(_, name) return state[name] or false end,
+    set_option = function(_, name, value)
+      state[name] = value
+      if notifier_cb then notifier_cb(fake_ctx, name) end   -- 模擬 Rime 同步重入
+    end,
+    option_update_notifier = { connect = function(_, cb) notifier_cb = cb; return { disconnect = function() end } end },
+    commit_notifier = { connect = function() return { disconnect = function() end } end },
+  }
+  ac.init({ engine = { context = fake_ctx } })
+
+  -- 模擬使用者從選單點一次「開詞組」（自動上屏當下是開著的）。
+  fake_ctx:set_option("aiphabi_phrase", true)
+  h.check("按一次「開詞組」：詞組真的是開的，沒有被自己的修正動作連帶關掉",
+    state.aiphabi_phrase == true, "expected true, got " .. tostring(state.aiphabi_phrase))
+  h.check("按一次「開詞組」：自動上屏正確被連帶關掉（互斥本來要做的事還是有做到）",
+    state.aiphabi_autocommit == false, "expected false, got " .. tostring(state.aiphabi_autocommit))
+
+  -- 反過來：詞組開著時開自動上屏，也要一次到位。
+  fake_ctx:set_option("aiphabi_autocommit", true)
+  h.check("反過來，按一次「開自動上屏」：自動上屏是開的",
+    state.aiphabi_autocommit == true, "expected true, got " .. tostring(state.aiphabi_autocommit))
+  h.check("反過來，按一次「開自動上屏」：詞組正確被連帶關掉",
+    state.aiphabi_phrase == false, "expected false, got " .. tostring(state.aiphabi_phrase))
+end
+
+print()
 print("== 互斥開關要把修正寫回 user.yaml，不能只改記憶體 ==")
 do
   -- 實測回報的 bug（2026-08-27）：user.yaml 同時存了 aiphabi_autocommit: true
