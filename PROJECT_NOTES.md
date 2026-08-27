@@ -835,6 +835,47 @@ load failure.
   folder, zip it, hand it to the user to overwrite-import into Hamster's Files app. Worth
   scripting (e.g. `package_hamster.py`) if this keeps recurring — currently just tribal knowledge
   re-derived each session.
+- **`default.custom.yaml`'s `schema_list` must be trimmed to `aiphabi` only for the mobile
+  package (found 2026-08-27, via a real on-device error log — first time one was actually
+  captured, not just guessed from symptoms).** The git-tracked `default.custom.yaml` lists three
+  schemas (`aiphabi`, `aiphabi_plus`, `luna_pinyin`) because desktop Squirrel builds all three
+  locally. The mobile flat package has only ever shipped `aiphabi.schema.yaml`. Result: Hamster's
+  `deployment_tasks.cc` logs `E ... missing input schema: aiphabi_plus` / `luna_pinyin` on every
+  deploy — and on this device that's a **hard failure that blocks the entire deployment**, not a
+  skip-and-continue: `aiphabi` itself never finishes compiling either, so **nothing types at all**
+  (matches user symptom exactly — not a ranking/hint bug, a total dead keyboard). Confirmed via
+  輸入方案設置 screenshot: `aiphabi_plus`/`luna_pinyin` show as raw unresolved schema_ids (not
+  their real display names) sitting right next to a correctly-resolved 愛發筆. This bug has been
+  in **every mobile delivery this project has ever shipped**, not something introduced by any
+  particular session's edits — it just took a user actually reading `~/Documents/rime.log` on a
+  real device to surface, since the failure mode (total silence, not a crash message anywhere
+  visible in the app UI) gives no hint where to look. **Fix for future mobile builds:** when
+  copying `default.custom.yaml` into the flat package, rewrite `schema_list:` to just
+  `- schema: aiphabi` before zipping — don't ship the git file verbatim. Add this as an explicit
+  step in the packaging recipe above, not just a implicit "copy default.custom.yaml" bullet.
+- **Getting a real device log at all was the actual unlock here.** Prior debugging rounds this
+  session (stale-cache theories, RIME reset guesses, pulling `aiphabi_autocommit` back out on
+  suspicion) were all plausible-sounding but wrong or incomplete, because they were reasoning from
+  symptoms only ("doesn't type") with no visibility into *why*. The fix only became obvious once
+  the user pasted `~/Documents/rime.log`'s tail. **If a future mobile-typing bug report is vague
+  ("doesn't work", "doesn't type"), ask for that log file early** instead of iterating on guesses —
+  it's the same file Hamster writes glog-style entries to, and greps like `grep -i error` or
+  `grep "missing input schema"` on it turn hours of guessing into minutes.
+- **Hamster's Lua runtime may not actually be LuaJIT — needs re-verification.** The *mobile
+  packaging quirk* section above (predates this note) asserts "Hamster runs Lua on LuaJIT." A
+  real device error log captured 2026-08-27 shows `require()` search paths like
+  `/usr/local/share/lua/5.4/...` and `/usr/share/lua/5.4/...` — these are **vanilla Lua 5.4's**
+  default `package.path` shape, not LuaJIT's (LuaJIT identifies as `5.1` in its default paths).
+  This wasn't re-tested rigorously this session (no real device access from this sandbox), so
+  don't treat it as settled either way — but it directly contradicts the existing LuaJIT
+  assumption the whole `AIPHABI_MOBILE_SI4_TOPN`/65,536-constant-limit workaround is built on.
+  Possibilities: Hamster switched interpreters in a recent update, the interpreter differs by iOS
+  version/build, or the original "LuaJIT" claim was never actually verified against a device log
+  and was wrong from the start. **Before trusting the 65,536-constant cliff number again, confirm
+  which interpreter is actually running** (ask the user for a fresh `rime.log`, or check Hamster's
+  own documentation/changelog) — if it's really Lua 5.4, the whole `AIPHABI_MOBILE_SI4_TOPN`
+  workaround may be solving a problem that no longer applies, and the packaging step could
+  potentially be simplified.
 
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
