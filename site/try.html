@@ -34,6 +34,7 @@
       <a href="conventional.html">約定字表</a>
       <a href="jianma.html">簡碼</a>
       <a href="cizu.html">詞組</a>
+      <a href="dingping.html">自動上屏</a>
       <a href="try.html">線上試打</a>
     </nav>
   </div>
@@ -62,11 +63,16 @@
       </div>
     </div>
 
-    <!-- 簡碼／三簡碼各自獨立開關，用真正的 checkbox（打勾方框）而不是彩色
-         藥丸鈕——開關關係一眼看懂，不用先猜「顏色深的是開還是關」
-         （Wilson：想要更直覺的方框打勾樣式）。兩種模式（試打文本／自由試打）
-         共用同一套查詢邏輯，所以這排跟模式切換一樣橫跨兩欄、不放進
-         tryarea-main。 -->
+    <!-- 設定分兩排（Wilson）：第一排是簡碼，第二排是「流暢模式」——
+         詞組連打與單字上屏兩者只能擇一，所以用單選鈕而不是兩個勾選格：
+         互斥是**結構上**的事實，讓它自己說出來，不要靠「勾一個另一個自己跳掉」
+         去暗示。互斥的理由見 rime/lua/aiphabi_autocommit.lua 的 enforce_mutex：
+         詞組開著時幾乎每個字後面都還接得出詞，候選永遠不只一個，單字上屏形同虛設。
+
+         簡碼／三簡碼用真正的 checkbox（打勾方框）而不是彩色藥丸鈕——開關關係一眼
+         看懂，不用先猜「顏色深的是開還是關」（Wilson）。兩種模式（試打文本／
+         自由試打）共用同一套查詢邏輯，所以這兩排跟模式切換一樣橫跨兩欄、
+         不放進 tryarea-main。 -->
     <div class="short-toggle">
       <span>套用簡碼</span>
       <label class="chk-toggle">
@@ -77,17 +83,30 @@
         <input type="checkbox" data-short="short3">
         三簡碼
       </label>
+    </div>
 
-      <!-- 詞組連打的詞庫有 3MB，關著的時候一個位元組都不抓（見 try.js 的
-           loadPhraseDict）。四碼快打**沒有**自己的開關，跟著詞組走——真正的
-           輸入法就是這樣接的，這裡不要好心多給一個，那等於在描述一個不存在的
-           設定。旁邊那句 #phrase-note 由 try.js 填（載入中／失敗／收了幾個詞）。 -->
-      <span class="short-toggle-sep" aria-hidden="true"></span>
-      <span>套用詞組</span>
+    <!-- 詞組連打的詞庫有 3MB，沒選它的時候一個位元組都不抓（見 try.js 的
+         loadPhraseDict）。四碼快打**沒有**自己的選項，跟著詞組走——真正的輸入法
+         就是這樣接的，這裡不要好心多給一個，那等於在描述一個不存在的設定。
+         #phrase-note／#auto-note 由 try.js 填（載入中／失敗／收了幾個詞、
+         單字上屏在做什麼）。 -->
+    <div class="short-toggle" role="radiogroup" aria-label="流暢模式">
+      <span>流暢模式</span>
       <label class="chk-toggle">
-        <input type="checkbox" data-phrase="phrase">
-        詞組連打＋四碼快打
+        <input type="radio" name="flow" data-flow="none" checked>
+        無
       </label>
+      <label class="chk-toggle">
+        <input type="radio" name="flow" data-flow="phrase">
+        詞組連打（包括四碼快打）
+      </label>
+      <label class="chk-toggle">
+        <input type="radio" name="flow" data-flow="auto">
+        單字上屏
+      </label>
+      <!-- 說明連結貼著「單字上屏」走（Wilson）：它講的只是這一個選項，
+           擺到整排最後會讀成「流暢模式」三個選項共用的說明。 -->
+      <a class="short-toggle-link" href="dingping.html">怎麼運作？</a>
       <span class="short-toggle-note" id="phrase-note"></span>
     </div>
 
@@ -132,6 +151,9 @@
     <aside class="practice-cell" data-practice-toggle hidden>
       <div data-mode-panel="practice">
         <div class="tianzi" id="tianzi"></div>
+        <!-- 單字上屏才會用到的一行：碼打完了，接下來會自己上屏（等一下）還是
+             得按空白選字（見 try.js 的 flowState）。其餘模式一直是空的。 -->
+        <p class="practice-flow" id="practice-flow" aria-live="polite"></p>
         <p class="practice-next" id="practice-next"></p>
         <div class="tz-hint" id="practice-hint"></div>
       </div>

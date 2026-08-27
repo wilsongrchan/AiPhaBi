@@ -33,6 +33,8 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
     states: [ 不打簡體關, 不打簡體開 ]
+  - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
+    states: [ 自動上屏關, 自動上屏開 ]
   - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼
     states: [ 簡碼關, 簡碼開 ]
   - name: aiphabi_short3            # 三簡碼：頭兩碼+末一碼，當 AB`C 查
@@ -55,6 +57,7 @@ engine:
     - recognizer
     - predictor
     - key_binder
+    - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
     - speller
     - punctuator
     - selector

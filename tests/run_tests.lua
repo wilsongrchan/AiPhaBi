@@ -162,4 +162,63 @@ do
     out, 1, "占1000")
 end
 
+print()
+print("== 選詞候選本身要記到選過次數，不能只拆單字（2026-08-26 明日/BDB 一直在第二頁那次）==")
+do
+  -- bump() 以前只拆 UTF-8 字加分：選「明日」只會加到 USERFREQ["明"]／["日"]，
+  -- USERFREQ["明日"]（score() 真正查的 key）永遠是 0，選幾百次候選都不會被拉到最前。
+  local order_mod = require("aiphabi_order")
+  for _ = 1, 5 do order_mod._bump("明日") end
+  h.check("bump(\"明日\") 五次後，USERFREQ[\"明日\"] 本身要有記到",
+    order_mod._USERFREQ["明日"] == 5,
+    string.format("got %s", tostring(order_mod._USERFREQ["明日"])))
+  h.check("單字 明／日 也照舊各自加分（沒有這個規矩不能破）",
+    order_mod._USERFREQ["明"] == 5 and order_mod._USERFREQ["日"] == 5,
+    string.format("明=%s 日=%s", tostring(order_mod._USERFREQ["明"]), tostring(order_mod._USERFREQ["日"])))
+  order_mod._USERFREQ["明日"] = nil
+  order_mod._USERFREQ["明"] = nil
+  order_mod._USERFREQ["日"] = nil
+
+  -- 端到端：明日 被選過、混在一堆雜訊候選裡，該排到最前（跟前面「占1000」那個測試同機制，
+  -- 差別是這裡驗證的是 bump() 真的把 key 記對了，不是排序邏輯本身）。
+  order_mod._bump("明日")
+  order_mod._bump("明日")
+  order_mod._bump("明日")
+  local cands = { { text = "明日" } }
+  for i = 1, 40 do cands[#cands + 1] = { text = "占" .. i } end
+  local out = h.run{ schema = "aiphabi", code = "bdb", options = {}, cands = cands }
+  order_mod._USERFREQ["明日"] = nil
+  order_mod._USERFREQ["明"] = nil
+  order_mod._USERFREQ["日"] = nil
+  h.checkAt("選過的詞候選「明日」排第一，不會卡在池子裡出不了頭", out, 1, "明日")
+end
+
+print()
+print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
+do
+  local ac = require("aiphabi_autocommit")
+  h.check("PPIN+A 打死（開闞之外沒別的路）→ 該頂",
+    ac._is_dead_extension("ppina") == true, "expected dead")
+  h.check("PPIN+X 沒打死（闞 PPINX 剛好完整）→ 不該頂",
+    ac._is_dead_extension("ppinx") == false, "expected alive")
+  h.check("PPIN+E 沒打死（還在通往 PPINEX 的路上）→ 不該頂",
+    ac._is_dead_extension("ppine") == false, "expected alive")
+  h.check("PPINEX 本身沒打死（完整闞碼自己）→ 不該頂",
+    ac._is_dead_extension("ppinex") == false, "expected alive")
+  h.check("PPINEZ 打死（闞的路走到 E 之後沒有 Z 這條）→ 該頂",
+    ac._is_dead_extension("ppinez") == true, "expected dead")
+  -- 左簡碼是即時頂最容易誤傷的地方：SMB 只活在 leftshort_pre／leftshort 兩張表，
+  -- 不在主碼表 code2chars 裡——build_index 漏查任一張，這裡就會誤判「打死了」，
+  -- 把還在打 SMBF（鯉）的人半路頂掉。
+  h.check("SMB+F 沒打死（左簡碼 鯉 SMBF）→ 不該頂",
+    ac._is_dead_extension("smbf") == false, "expected alive")
+  h.check("SM+B 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
+    ac._is_dead_extension("smb") == false, "expected alive")
+  -- 約定簡碼／三簡碼也只活在各自的表（shortcode／short3），不在主碼表 code2chars
+  -- 裡——漏查會把「N 几/刂/丌」誤判成打死，把還在打 候 的約定簡碼 NK 的人半路頂掉
+  -- （2026-08-26 實測 bug：打 NK 被誤頂成「几K」，候 完全打不出來）。
+  h.check("N+K 沒打死（候 約定簡碼 NK）→ 不該頂",
+    ac._is_dead_extension("nk") == false, "expected alive")
+end
+
 os.exit(h.report() == 0 and 0 or 1)

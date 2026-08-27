@@ -1765,11 +1765,17 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  /* 三組開關（簡碼／詞組／自動上屏）擠不下時整組換行，不要讓標籤自己斷成兩行
+     ——「套用簡／碼」那樣斷開之後，看不出哪個標籤管哪幾個勾選格。 */
+  flex-wrap: wrap;
+  gap: .55rem 1.1rem;
   font-size: .82rem;
   color: var(--ink-dim);
   margin: 0 0 .8rem;
 }
+.short-toggle > span,
+.short-toggle .chk-toggle,
+.short-toggle-link { white-space: nowrap; }
 
 .chk-toggle {
   display: inline-flex;
@@ -1778,6 +1784,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   cursor: pointer;
 }
 
+.chk-toggle input[type="radio"],
 .chk-toggle input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
@@ -1802,15 +1809,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
   padding: .05rem .4rem;
 }
 
-/* 簡碼那組跟詞組那組之間的分隔。用一條細線而不是加大 gap —— 這排是
-   「標籤＋兩個勾選格」重複兩次，沒有線的話讀起來像四個並列的勾選格，
-   分不出哪個標籤管哪幾個。 */
-.short-toggle-sep {
-  width: 1px;
-  align-self: stretch;
-  margin: .1rem 0;
-  background: var(--line);
-}
+/* 設定分兩排（簡碼／流暢模式）之後，同一排裡不再需要分隔線 —— 換行本身就是
+   分隔。第二排貼著第一排走，中間不要留一整個段落的空白。 */
+.short-toggle + .short-toggle { margin-top: -.35rem; }
 
 /* 詞組詞庫的狀態（載入中／失敗／收了幾個詞）。這是這一排唯一會等待的開關，
    沒有這句話，打開之後還沒有詞候選會看起來像壞掉。 */
@@ -1822,9 +1823,14 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 
 .short-toggle-note.is-bad { color: var(--warn); }
 
-@media (max-width: 46rem) {
-  .short-toggle { flex-wrap: wrap; row-gap: .45rem; }
-  .short-toggle-sep { display: none; }
+/* 自動上屏那組旁邊的說明連結。這一排本來全是開關，唯獨這個功能光看名字看不出
+   在做什麼（「即時頂」不是常用詞），所以直接把說明頁擺在手邊。 */
+.short-toggle-link {
+  font-size: .78rem;
+  color: var(--accent);
+  /* 貼著前面那個選項走 —— 整排的 gap 是 1.1rem，照那個距離看起來像獨立的一項，
+     而它其實是「單字上屏」的附註（Wilson）。 */
+  margin-inline-start: -.75rem;
 }
 
 /* 這一頁的大標題貼著底下的試打區 —— 中間那塊空白沒有作用，擠掉可以讓按鍵指南
@@ -2410,3 +2416,107 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 @media (max-width: 40rem) {
   .cz-why { padding-inline-start: 0; }
 }
+
+/* ── 〈自動上屏〉頁 ─────────────────────────────────────────────────────
+ * 唯一上屏／即時頂的說明頁（dingping.html）。內容全部由 dingping.js 從碼表現算，
+ * 這裡只管排版。顏色一律走既有的 token，不另立一組。 */
+
+/* 三種上屏方式、什麼時候不該開：兩處都是「名詞＋一段解釋」，用 dl 而不是清單，
+   名詞才站得住（清單會讓三個名詞讀起來一樣重）。 */
+.ac-kinds { margin: 1.1rem 0 1.6rem; }
+.ac-kinds dt {
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: .9rem;
+}
+.ac-kinds dd { margin: .25rem 0 0; }
+
+.ac-demo {
+  margin: 1.2rem 0 1.6rem;
+  padding: .9rem 1rem 1rem;
+  background: var(--surface);
+  border-radius: 6px;
+}
+.ac-demo-cap { margin: 0 0 .7rem; font-size: .88rem; color: var(--ink-dim); }
+
+/* 按鍵流程表：一列一鍵（按鍵／碼欄／結果）。用 grid 而不是 table —— 窄螢幕時
+   第三欄的說明字很長，table 會把整張表撐到要橫向捲。 */
+.ac-row {
+  display: grid;
+  grid-template-columns: 2.4rem 6.5rem 1fr;
+  gap: .5rem;
+  align-items: baseline;
+  padding: .3rem 0;
+  border-top: 1px solid var(--line);
+}
+.ac-row.is-head {
+  border-top: none;
+  font-size: .76rem;
+  color: var(--ink-faint);
+  padding-top: 0;
+}
+/* 有上屏發生的那一列標出來 —— 整張表大部分的列都是「等下一鍵」，不標的話
+   真正發生事情的那兩列會被淹掉。 */
+.ac-row.is-fire { background: var(--bg); }
+
+.ac-key {
+  font-family: inherit;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: .05rem 0;
+  background: var(--bg);
+}
+.ac-buf { color: var(--ink-dim); letter-spacing: .04em; }
+.ac-act { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem; }
+.ac-act b { font-size: 1.15rem; }
+.ac-tag {
+  font-style: normal;
+  font-size: .72rem;
+  padding: .1rem .35rem;
+  border-radius: 3px;
+  color: var(--surface);
+}
+.ac-tag.is-sole { background: var(--accent); }
+/* 即時頂用另一個顏色：兩種上屏在同一張表裡並排，同色就分不出誰是誰。
+   走〈取碼原則〉那組彩虹色的紫，跟四碼快打那邊「最後一碼」同一個色位。 */
+.ac-tag.is-push { background: var(--rb-4); }
+.ac-why { font-size: .8rem; color: var(--ink-faint); }
+
+/* 「碼打完了卻不算唯一」：打中的那個 vs 還在排隊的那個，並排比較 */
+.ac-pair { display: flex; flex-wrap: wrap; gap: .8rem; }
+.ac-card {
+  flex: 1 1 9rem;
+  padding: .7rem .8rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.ac-card.is-hit { border-color: var(--accent); }
+.ac-card-ch { display: block; font-size: 2rem; line-height: 1.2; }
+.ac-card-code { display: block; color: var(--ink-dim); letter-spacing: .04em; }
+.ac-card-tag { display: block; margin-top: .25rem; font-size: .78rem; color: var(--ink-faint); }
+.ac-card.is-hit .ac-card-tag { color: var(--accent); }
+
+.ac-caveat { font-size: .92rem; color: var(--ink-dim); }
+
+@media (max-width: 40rem) {
+  .ac-row { grid-template-columns: 2.2rem 5rem 1fr; }
+}
+
+/* 〈自動上屏〉頁開頭那句對照：試打頁把這個功能叫「流暢模式 · 單字上屏」，
+   兩個名字要在同一畫面上綁起來，不然讀者會以為是兩個不同的東西。 */
+.ac-alias { font-size: .92rem; color: var(--ink-dim); margin-top: -.4rem; }
+
+/* 單字上屏底下、田字格下面那一行：碼打完之後接下來會發生什麼（見 try.js 的
+   flowState）。多數時候是空的 —— 只有「這個碼不只一個字，得自己按空白」那一種
+   才要說話，會自己上屏的那一種不必說，隔一拍它就上屏了，說了反而是噪音。 */
+.practice-flow {
+  margin: .4rem 0 0;
+  min-height: 1.2em;               /* 佔著位子：出現／消失時底下那行不要跳 */
+  font-size: .8rem;
+  color: var(--ink-faint);
+  text-align: center;
+}
+.practice-flow.is-space { color: var(--accent); }
