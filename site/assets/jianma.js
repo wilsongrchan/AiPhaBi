@@ -47,15 +47,19 @@
   }
 
   function renderConvention(entries) {
-    var tbodyA = document.querySelector('#jm-convention tbody');
-    var tbodyB = document.querySelector('#jm-convention-2 tbody');
-    tbodyA.textContent = '';
-    tbodyB.textContent = '';
-    // 拆兩欄減少捲動：前一半在左欄，後一半在右欄（不是逐行左右交錯），
-    // 這樣同一欄裡的字仍照原本的順序連續排列，找字比較好找。
-    var half = Math.ceil(entries.length / 2);
-    entries.slice(0, half).forEach(function (e) { tbodyA.appendChild(convRow(e)); });
-    entries.slice(half).forEach(function (e) { tbodyB.appendChild(convRow(e)); });
+    // 拆三欄減少捲動（Wilson）：整份依序切成三段，第一段在左欄，依此類推
+    // ——不是逐行左右交錯，這樣同一欄裡的字仍照原本的順序連續排列，找字比較好找。
+    // 字數不一定整除，用 ceil 讓前面的欄先滿，最後一欄短一兩行（.jm-cols 是
+    // align-items: start，短的那一欄不會被拉伸）。
+    var tbodies = ['#jm-convention', '#jm-convention-2', '#jm-convention-3']
+      .map(function (sel) { return document.querySelector(sel + ' tbody'); });
+    tbodies.forEach(function (tb) { if (tb) tb.textContent = ''; });
+    var per = Math.ceil(entries.length / tbodies.length);
+    tbodies.forEach(function (tb, i) {
+      if (!tb) return;
+      entries.slice(i * per, (i + 1) * per)
+             .forEach(function (e) { tb.appendChild(convRow(e)); });
+    });
     var count = document.getElementById('jm-conv-count');
     if (count) count.textContent = entries.length;
   }

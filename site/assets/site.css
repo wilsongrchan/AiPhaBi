@@ -1476,19 +1476,20 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   color: #fff;
 }
 
-/* 約定簡碼：63 個字擠在一欄要捲很久，橫向空間卻用不完——拆兩欄並排，
-   行距同時收緊，兩欄各自完整連續（不是逐行交錯），比較好找字。 */
+/* 約定簡碼：六十幾個字擠在一欄要捲很久，橫向空間卻用不完——拆三欄並排（Wilson），
+   行距同時收緊，每欄各自完整連續（不是逐行交錯），比較好找字。 */
 .jm-cols {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  /* start，不是預設的 stretch：63 是奇數，兩欄一定差一行，不要為了湊齊高度把
-     矮的那欄的列高拉伸——寧可矮一行，也不要兩欄的行距對不上（Wilson）。 */
+  grid-template-columns: repeat(3, 1fr);
+  /* start，不是預設的 stretch：字數很少整除，最後一欄一定短一兩行，不要為了湊齊
+     高度把矮的那欄的列高拉伸——寧可矮一行，也不要各欄的行距對不上（Wilson）。 */
   align-items: start;
-  column-gap: 1.8rem;
+  column-gap: 1.4rem;
   margin: 1.4rem 0;
   overflow-x: auto;
 }
-.jm-compact th, .jm-compact td { padding: .28rem 1.5rem; }
+/* 三欄之後每欄變窄，左右內距跟著收，不然表頭會折行 */
+.jm-compact th, .jm-compact td { padding: .28rem 1rem; }
 
 /* 大／甲、馬／己兩對字數少的組並排放，省掉上下堆疊的空間（見 conventional.js 的
    SIDE_BY_SIDE_PAIRS）。align-items: start 理由跟 .jm-cols 一樣：兩組字數不同，
@@ -1509,6 +1510,11 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
    自己算才穩。） */
 .cv-tbl { width: max-content; max-width: 100%; }
 .cv-tbl th:nth-child(4), .cv-tbl td:nth-child(4) { padding-inline-start: 0; }
+
+/* 中等寬度先退兩欄，再到窄螢幕才變一欄——三欄硬撐會把表頭擠到折行 */
+@media (max-width: 62rem) {
+  .jm-cols { grid-template-columns: 1fr 1fr; }
+}
 
 @media (max-width: 40rem) {
   .jm-cols { grid-template-columns: 1fr; row-gap: 0; }
