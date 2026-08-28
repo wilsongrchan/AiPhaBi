@@ -57,6 +57,9 @@
   /* 全站字級倍率（頁面上的 小／標準／大，每一頁的頁首都有）。html 的 font-size
      乘上它，rem 全部跟著縮放，三段只要改這一個值。 */
   --zg-scale: 1;
+  /* 小字：出處、授權、圖說、頁尾版權共用一個字級（Wilson 2026-08-28）。
+     原本 .zg-credit .78 / footer .82 / figcaption .85 三個尺寸做同一件事。 */
+  --credit-size: .78rem;
 
   /* 「正確拆法 vs 錯誤拆法」小圖對照專用（見字母欄底下的 .zg-altmini）。跟上面的
      --accent-* 刻意不同一套：那組色階表示「同一個字根」，這裡要表示「筆畫分成幾組」，
@@ -878,7 +881,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* 字形資料的出處與授權。Arphic PL 要求隨附授權全文，這一行是給人看的入口。 */
 .zg-credit {
-  font-size: .78rem;
+  font-size: var(--credit-size);
   color: var(--ink-dim);
   border-top: 1px solid var(--line);
   padding-top: .8rem;
@@ -1043,7 +1046,7 @@ footer.wrap {
   margin-top: 1.75rem;
   padding-block: 1.8rem 3.5rem;
   color: var(--ink-dim);
-  font-size: .82rem;
+  font-size: var(--credit-size);
 }
 
 footer p { max-width: none; margin: 0 0 .4rem; }
@@ -2580,7 +2583,9 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 /* 手稿圖：跟正文同寬（Wilson）。縮到這個寬度鉛筆字會看不清楚，所以點圖開原圖，
    1600px 那一張才讀得出來。 */
 .hj-fig { margin: 2rem 0 2.4rem; max-width: var(--hj-measure); }
-.hj-fig a { display: block; }
+/* 只有包住圖片的那個連結是 block（圖下面才不會多出一條基線空隙）——
+   用 > a 限定直接子代，不然圖說裡的出處連結也會各自佔一行。 */
+.hj-fig > a { display: block; }
 .hj-fig img {
   display: block;
   width: 100%;
@@ -2590,7 +2595,7 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 }
 .hj-fig figcaption {
   margin-top: .65rem;
-  font-size: .85rem;
+  font-size: var(--credit-size);
   color: var(--ink-faint);
   line-height: 1.7;
 }
