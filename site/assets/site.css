@@ -2440,6 +2440,10 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 
 /* 三種上屏方式、什麼時候不該開：兩處都是「名詞＋一段解釋」，用 dl 而不是清單，
    名詞才站得住（清單會讓三個名詞讀起來一樣重）。 */
+/* 唯一上屏／頂功上屏這兩個小節標題用主色（Wilson）—— 它們本來是 .ac-kinds 的 dt，
+   升成 h3 之後不該把綠色丟掉，那是「這是一個名詞」的記號。字級照全站的 h3。 */
+.ac-page h3 { color: var(--accent); }
+
 .ac-kinds { margin: 1.1rem 0 1.6rem; }
 .ac-kinds dt {
   font-weight: 600;
