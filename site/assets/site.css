@@ -1305,7 +1305,8 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
      上面八條標題也要一起，同一批東西不該兩種顏色。編號 .pr-num 維持淡灰，
      它是序號不是名字。 */
   color: var(--accent);
-  font-size: 1rem;
+  /* ⚠️ 不要在這裡改 font-size：節標題的字級全站統一由上面的 h2 決定（Wilson
+     2026-08-28：各分頁的標題、副標題字級必須一致）。這裡只調顏色和掛式縮排。 */
   margin: 1.3rem 0 .5rem;
   padding-top: .7rem;
   padding-inline-start: 1.1rem;
@@ -1841,7 +1842,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .tryarea-main { display: flex; flex-direction: column; min-height: 0; }
 
 .practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; flex: none; }
-.practice-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
+.practice-head h2 { margin: 0; color: var(--accent); }
 .practice-src { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 
 .practice-text {
@@ -2209,6 +2210,8 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    同一種東西不該兩種顏色。只借顏色，不借 .pr-page h2 的字級與掛式縮排：那是為
    編號標題（「1. 筆順原則」）做的，這一頁的標題沒有編號。 */
 .cz-page h2 { color: var(--accent); }
+/* 節末的補充小字（例如「四碼快打沒有自己的開關」）—— 與正文同級但不搶戲 */
+.cz-note { font-size: .92rem; color: var(--ink-dim); }
 
 /* ---------------------------------------------------------------------------
    〈詞組〉頁（cizu.html）—— 詞組連打與四碼快打

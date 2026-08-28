@@ -195,6 +195,30 @@
     }
     put('ac-n-blocked', nf(blocked));
 
+    /* 〈流暢模式〉那一節要的數字：把三簡碼、左簡碼、偏旁碼、容錯碼都關掉之後，
+       有多少字打完主碼就自己出字。上面的 solo 用的是 dict.json 的 codes ——
+       那張表另外併了兼容碼與未截斷的完整碼，等於「全開」的情況；這裡另外只用
+       main（字 → 主碼）搭一張表重算一次，兩個數字的差就是關掉那些設定換來的。 */
+    var mkeys = [], mown = {}, mc2;
+    for (ch in D.main) {
+      mc2 = D.main[ch];
+      if (!mc2) continue;
+      if (!(mc2 in mown)) { mown[mc2] = ch; mkeys.push(mc2); }
+      else mown[mc2] = null;                  // 主碼撞了，就不是「唯一」
+    }
+    mkeys.sort();
+    var off = 0;
+    for (ch in D.main) {
+      mc2 = D.main[ch];
+      if (!mc2 || mown[mc2] !== ch) continue;
+      var rr = range(mkeys, mc2), lone = true;
+      for (var z = rr[0]; z < rr[1]; z++) if (mkeys[z] !== mc2) { lone = false; break; }
+      if (lone) off++;
+    }
+    put('ac-off-line', '關掉之後，全部 ' + nf(all) + ' 個已取碼的字裡，有 ' + nf(off) +
+        ' 個（' + Math.round(off * 100 / all) + '%）打完主碼就自己出字（上面那個 ' +
+        Math.round(solo * 100 / all) + '% 是連兼容碼一起算的）。');
+
     put('ac-solo-line', '全部 ' + nf(all) + ' 個已取碼的字裡，有 ' + nf(solo) +
         ' 個（' + Math.round(solo * 100 / all) + '%）是這一種——打完就走，一下空白都不必按。');
 

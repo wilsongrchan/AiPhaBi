@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>詞組 · 愛發筆 AiPhaBi</title>
-<meta name="description" content="愛發筆輸入法的詞組連打與四碼快打：常用詞由各字的碼串接而成，不必另外背詞庫。">
+<title>詞組連打 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法兩種流暢打字模式之一：詞組連打與四碼快打，常用詞由各字的碼串接而成，不必另外背詞庫。">
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
       <a href="principles.html">取碼原則</a>
       <a href="conventional.html">約定字表</a>
       <a href="jianma.html">簡碼</a>
-      <a href="cizu.html">詞組</a>
+      <a href="cizu.html">詞組連打</a>
       <ul class="pr-sidenav">
         <li><a href="#cz-1">1. 詞組連打</a></li>
         <li><a href="#cz-4">2. 四碼快打</a></li>
@@ -49,12 +49,12 @@
 <main class="wrap cz-page">
 
   <p class="eyebrow">愛發筆輸入法</p>
-  <h1>詞組</h1>
+  <h1>詞組連打</h1>
 
   <p class="lede">
-    打詞比打字快，但多數形碼輸入法的詞庫要另外背一套詞的碼。愛發筆不另立規則——
-    <strong>詞的碼就是每個字的碼接起來</strong>。會拆單字，就會打詞；
-    而三字以上的長詞還可以壓成固定四碼，同樣推得出來，不必記。
+    詞組連打是愛發筆支持的兩種流暢打字模式之一，另一種為<a href="dingping.html">單字自動上屏</a>。
+    詞組連打讓打詞組的時候更加流暢快捷；特別是三字或以上的詞組，還另外支持「四碼快打」，
+    將冗長的碼串固定縮短成四碼。
   </p>
 
   <div class="cz-stats stats">
@@ -65,9 +65,10 @@
 
   <h2 id="cz-1">詞組連打</h2>
   <p>
-    規則只有一句：<strong>把每個字的碼依序接起來，就是這個詞的碼。</strong>
-    沒有詞庫專用的碼，也沒有例外——所以詞組連打不增加任何學習成本，
-    你在<a href="principles.html">取碼原則</a>學到的東西全部照用。
+    詞組連打開啟時，可以將每個字的取碼依次連續輸入，減省中途打空格選字的時間，
+    也讓打字的節奏更加一氣呵成。規則只有一句：<strong>把每個字的碼依序接起來，
+    就是這個詞的碼。</strong>詞組連打所用的就是之前所學的拆碼，
+    所以無需額外學習或記憶，<a href="principles.html">取碼原則</a>學到的東西全部照用。
   </p>
   <p>
     唯一要知道的是「每個字的碼」不只一條。同一個字可能有主碼、
@@ -94,15 +95,18 @@
   <h2 id="cz-4">四碼快打</h2>
   <p>
     長詞逐字接下來會很長——「<span id="cz-long-w">…</span>」照規則接要打
-    <span id="cz-long-n">…</span> 碼。所以三字以上的詞另外壓成<strong>固定四碼</strong>，
-    取哪四碼也是推得出來的：
+    <span id="cz-long-n">…</span> 碼。所以三字或以上的詞組，可以按照以下規則縮短成
+    <strong>固定四碼</strong>：
   </p>
   <ul class="jm-conditions">
-    <li><b>三字詞</b>：前兩字的首碼，加末字的<strong>首碼和末碼</strong>（末字補一碼消歧）</li>
-    <li><b>四字詞</b>：四個字各取首碼</li>
-    <li><b>五字或以上</b>：兩式都收——<strong>取前四字首碼</strong>（從頭打就行、好記），
-      或<strong>取前三字首碼及末字首碼</strong>（記得整個詞時比較不會撞碼）</li>
+    <li><b>三字詞</b>：取前兩字的首碼，加末字的<strong>首尾兩碼</strong></li>
+    <li><b>四字詞</b>：取每個字的首碼</li>
+    <li><b>五字或以上</b>：有兩種取法，兩式都收——<strong>取前四字首碼</strong>（從頭打就行、好記），
+      或<strong>取前三字首碼，加末字的首碼</strong>（記得整個詞時比較不會撞碼）</li>
   </ul>
+  <p class="cz-note">
+    四碼快打沒有自己的開關，跟著詞組連打一起開啟。
+  </p>
   <div id="cz-si4"><p class="cz-loading">詞組資料載入中……</p></div>
   <h2 id="cz-5">智能分詞</h2>
   <p>
