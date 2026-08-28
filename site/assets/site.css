@@ -2552,10 +2552,15 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
    這是「後記」這個標籤本來就在做的事：換一種語域，就換一種排版。要收回統一
    字級的話，把 font-size 那一行刪掉即可，其餘不受影響。
    --------------------------------------------------------------------------- */
+/* 行寬只定義這一次，段落、落款、手稿圖都引用它 —— 分開寫遲早會走鐘（圖片本來就
+   比段落寬了一截）。用 rem 不用 em：.hj-fig 沒有自己的 font-size，em 會依它繼承到
+   的 body 字級去算，跟段落的 34em 對不上。 */
+.hj-page { --hj-measure: 34rem; }
+
 .hj-page p {
   font-size: 1rem;
   line-height: 2;
-  max-width: 34em;
+  max-width: var(--hj-measure);
   margin: 0 0 1.45rem;
 }
 .hj-page p.eyebrow { font-size: .88rem; line-height: 1.8; margin: 0 0 .45rem; }
@@ -2568,13 +2573,13 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   color: var(--ink-dim);
   font-size: .92rem;
   margin-top: 2.4rem;
-  max-width: 34em;
+  max-width: var(--hj-measure);
   text-align: end;
 }
 
-/* 手稿圖：比正文的 34em 寬一些（手寫字太小會看不清），但仍收在版心裡。
-   點圖開原圖 —— 1600px 那一張才讀得出鉛筆字。 */
-.hj-fig { margin: 2rem 0 2.4rem; max-width: 42rem; }
+/* 手稿圖：跟正文同寬（Wilson）。縮到這個寬度鉛筆字會看不清楚，所以點圖開原圖，
+   1600px 那一張才讀得出來。 */
+.hj-fig { margin: 2rem 0 2.4rem; max-width: var(--hj-measure); }
 .hj-fig a { display: block; }
 .hj-fig img {
   display: block;
