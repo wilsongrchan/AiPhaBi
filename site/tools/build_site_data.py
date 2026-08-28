@@ -2538,6 +2538,23 @@ def main():
     t2s = {k: (v[0] if isinstance(v, list) else v) for k, v in t2s_raw.items()}
     t2s = {k: v for k, v in t2s.items() if k != v}
 
+    # ⚠️「著」：OpenCC 的單字表故意不收它 —— 它在繁→簡這個方向也是一對多
+    # （趁著／看著 要作「着」，但 著名／顯著／著作 維持「著」），字級的轉換分不出來，
+    # OpenCC 自己是靠詞表處理的。這個網站只有字表，所以在這裡明寫成「着」：
+    # 站上目前每一處「著」都是助詞（Wilson 2026-08-28 確認）。
+    # 底下那道檢查是配套 —— 哪天有人寫了「著名」之類的詞，建置就會出聲，
+    # 不然頁面會在簡體檢視下悄悄印出「着名」，而且沒有人會發現。
+    t2s["著"] = "着"
+    keep_zhu = ("著名", "顯著", "著作", "著述", "土著", "名著", "編著", "原著",
+                "著手", "巨著", "鉅著", "論著", "專著", "著眼", "著想", "昭著",
+                "著重", "著稱", "卓著", "著色")
+    zhu_hits = []
+    for page in sorted((ROOT / "site").glob("*.html")):
+        text = page.read_text("utf-8")
+        for word in keep_zhu:
+            if word in text:
+                zhu_hits.append(f"{page.name} 的「{word}」")
+
     zigen_raw = load("zigen.json")
     warn = []
     picks = load_example_picks(warn)
@@ -2694,7 +2711,9 @@ def main():
         print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {kb:.0f} KB（載入就抓）")
         print(f"pinyin_glyphs.json {len(pinyin_glyphs['segs'])} 字有拆碼圖 / {mb:.1f} MB"
               f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個）")
-    print(f"t2s.json   {len(t2s)} 組繁簡對照")
+    print(f"t2s.json   {len(t2s)} 組繁簡對照"
+          + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
+             f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else ""))
     if n_glyph:
         kb = (OUT / "glyphs.json").stat().st_size / 1024
         print(f"glyphs.json {n_glyph} 字的筆畫輪廓 / {kb:.0f} KB  （Arphic PL，見 site/ARPHICPL.txt）")
