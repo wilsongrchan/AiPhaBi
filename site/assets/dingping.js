@@ -102,7 +102,7 @@
         r.appendChild(el('i', 'ac-tag is-sole', '唯一上屏'));
         r.appendChild(el('b', null, s.ch));
       } else if (s.act === 'push') {
-        r.appendChild(el('i', 'ac-tag is-push', '即時頂'));
+        r.appendChild(el('i', 'ac-tag is-push', '頂功上屏'));
         r.appendChild(el('b', null, s.ch));
         r.appendChild(el('span', 'ac-why',
           '（' + s.dead.toUpperCase() + ' 接不下去，這一鍵改當下一個字的開頭）'));

@@ -361,11 +361,21 @@ h3 {
 
 p { margin: 0 0 1.1rem; max-width: var(--measure); }
 
-.lede {
-  font-size: 1.02rem;
-  color: var(--ink-dim);
-  max-width: var(--measure);
-  margin-bottom: 1.4rem;
+/* 導語（每頁標題底下那一段）—— ⚠️ 大小以〈字根表〉那一段為準（Wilson 2026-08-28）：
+   全站只有這一個尺寸，.zg-intro 與 .lede 是同一種東西的兩個名字，別再讓它們分家。
+   .doc-prose 底下的正文也是同一個 .92rem，導語不可以比正文大。 */
+.lede,
+
+
+/* 說明頁的正文：段落、清單、定義列表全部跟導語同一個字級。掛在 main 上，而且只認
+   **直接子代** —— 卡片、圖例、註腳那些元件自己有字級，套進去會亂。 */
+/* ⚠️ :where() 是刻意的 —— 它讓這條規則的權重停在「一個 class」，跟 .cz-src、
+   .cz-legend 那些自己訂了字級的元件同級，於是後面出現的元件規則照樣蓋得過來。
+   寫成 .doc-prose > p 權重會高一級，把每一個註腳、圖例都拉成正文大小。
+   .eyebrow 排在這條之前，蓋不過來，只能明寫排除。 */
+.doc-prose > :where(p:not(.eyebrow), ul, ol, dl) {
+  font-size: .92rem;
+  line-height: 1.6;
 }
 
 ul, ol { max-width: var(--measure); padding-inline-start: 1.3rem; }
@@ -1270,6 +1280,9 @@ nav.site .pr-sidenav a {
   color: var(--ink-dim);
 }
 nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
+/* 小節（h3）在側欄再縮一層，讓「唯一上屏／頂功上屏 屬於 自動上屏」一眼看得出來。
+   縮排加在 a 上而不是 li，不然 hover 的底色會缺一角。 */
+nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 
 /* 顏色圖例：紅／黃／綠／藍／紫依序對應拆碼順序第一到第五組，跟例字圖示同一套色階
    （見 .zg-altsvg 的 rb-* class），放在頁面最上面，讀圖之前先講清楚顏色的意思。 */
@@ -1315,7 +1328,7 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
 .pr-num { color: var(--ink-dim); }
 /* body 的 line-height 是 1.8，正文用還好，但這一頁短句子多、例字方塊本身
    又有留白，1.8 疊起來行距、段落間距都顯得鬆散——這裡另外收緊。 */
-.pr-page p, .pr-page ul, .pr-page ol { font-size: .92rem; line-height: 1.5; }
+.pr-page :where(p:not(.eyebrow), ul, ol) { font-size: .92rem; line-height: 1.5; }
 .pr-page p { margin: 0 0 .45rem; }
 .pr-page li { margin-bottom: .2rem; }
 
@@ -2210,8 +2223,9 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    同一種東西不該兩種顏色。只借顏色，不借 .pr-page h2 的字級與掛式縮排：那是為
    編號標題（「1. 筆順原則」）做的，這一頁的標題沒有編號。 */
 .cz-page h2 { color: var(--accent); }
-/* 節末的補充小字（例如「四碼快打沒有自己的開關」）—— 與正文同級但不搶戲 */
-.cz-note { font-size: .92rem; color: var(--ink-dim); }
+/* 節末的補充小字（例如「四碼快打沒有自己的開關」）。
+   ⚠️ 不要叫 .cz-note —— 那個 class 是 cizu.js 給詞卡用的，撞名會互相蓋。 */
+.cz-aside { font-size: .86rem; color: var(--ink-dim); margin-top: -.5rem; }
 
 /* ---------------------------------------------------------------------------
    〈詞組〉頁（cizu.html）—— 詞組連打與四碼快打
