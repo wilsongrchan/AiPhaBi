@@ -1066,8 +1066,8 @@
     if (!done) return null;
     /* 下一個字的第一鍵會不會把這串碼打死。簡碼的頭幾碼照抄主碼（見 shortPlan），
        所以第一個字母拿主碼的就對，不必猜他會打簡碼還是主碼。
-       沒有下一個字（打到最後一個了）、下一個是標點（走 PUNCT 那條，會把碼丟掉）
-       → 都算「要自己按空白」。 */
+       沒有下一個字（打到最後一個了）就算「要自己按空白」；下一個是標點則相反，
+       標點自己會把碼頂上屏。 */
     var nx = nextTypedChar();
     // 下一個是標點：標點自己會把打好的碼頂上屏（見 keydown 的 PUNCT 那一段）
     if (nx && PUNCT_CH[nx]) return 'auto';
@@ -1730,16 +1730,20 @@
 
     if (PUNCT[k]) {
       e.preventDefault();
-      /* 碼還在、而且已經打完某個字 → 標點先把它頂上屏，再放標點（Wilson：
-         打完 DI 接一個逗號，那個逗號就該把 目 頂出去，不必先按空白）。
-         以前這裡是 setBuf('')，等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，
-         流 就這樣沒了，連錯誤都不算，畫面上什麼都沒發生。
-         ⚠️ 只在**已經打完**某個字時才頂（跟即時頂同一條 firstComplete 規矩）；
-         碼只打一半就沒東西好頂，維持原本的行為把它清掉。IME 那邊實際怎麼處理
-         標點鍵還在問 Side B，答案回來再對齊細節。 */
+      /* 碼還在 → 標點先把候選欄第一個頂上屏，再放標點（Wilson：打完 DI 接一個
+         逗號，那個逗號就該把 目 頂出去，不必先按空白）。以前這裡是 setBuf('')，
+         等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，流 就這樣沒了，連錯誤都
+         不算，畫面上什麼都沒發生。
+         ⚠️ 這裡跟即時頂**不同規矩**：即時頂要 firstComplete（碼本身就是那個字的
+         碼）才敢頂，標點不要 —— 它頂的是候選欄第一個，補全的也照頂，跟空白鍵
+         一模一樣。Rime 的 punctuator 沒有 is_complete_match 的概念，它 commit 的
+         就是當下反白那個候選。
+         實機驗證（Wilson 2026-08-28，Squirrel）：DI， 出「目，」，NC， 出「候，」。
+         di 是 目 的完整碼所以本來就過得了 firstComplete；nc 只是 候（ncyk）的前綴，
+         舊的寫法在這裡回 null，把 nc 整串丟掉，畫面上什麼都沒有 —— 兩邊就是差在
+         這一種。 */
       if (state.buf) {
-        var pc = firstComplete(state.cands);
-        if (pc) commit(pc.ch);
+        if (state.cands.length) commit(state.cands[0].ch);
         else setBuf('');
       }
       insert(PUNCT[k]);
