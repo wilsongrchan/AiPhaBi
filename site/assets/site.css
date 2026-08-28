@@ -2544,3 +2544,48 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   text-align: center;
 }
 .practice-flow.is-space { color: var(--accent); }
+
+/* ---------------------------------------------------------------------------
+   〈後記〉（houji.html）—— 全站唯一一頁長文，Wilson 的自述。
+   其餘各頁是查閱用的（表格、原則、碼），這一頁是從頭讀到尾的散文，所以字級比
+   .doc-prose 大一級、行距放寬、行寬收窄到 34em（中文一行約三十幾字最好讀）。
+   這是「後記」這個標籤本來就在做的事：換一種語域，就換一種排版。要收回統一
+   字級的話，把 font-size 那一行刪掉即可，其餘不受影響。
+   --------------------------------------------------------------------------- */
+.hj-page p {
+  font-size: 1rem;
+  line-height: 2;
+  max-width: 34em;
+  margin: 0 0 1.45rem;
+}
+.hj-page p.eyebrow { font-size: .88rem; line-height: 1.8; margin: 0 0 .45rem; }
+/* 行內的碼（JBA／BFY）在散文裡不要太搶眼，跟著正文走 */
+.hj-page code { font-size: .95em; }
+
+/* 結語與落款：跟正文拉開距離，落款淡一階、靠右，像信末署名 */
+.hj-close { margin-top: 2.2rem; }
+.hj-date {
+  color: var(--ink-dim);
+  font-size: .92rem;
+  margin-top: 2.4rem;
+  max-width: 34em;
+  text-align: end;
+}
+
+/* 手稿圖：比正文的 34em 寬一些（手寫字太小會看不清），但仍收在版心裡。
+   點圖開原圖 —— 1600px 那一張才讀得出鉛筆字。 */
+.hj-fig { margin: 2rem 0 2.4rem; max-width: 42rem; }
+.hj-fig a { display: block; }
+.hj-fig img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.hj-fig figcaption {
+  margin-top: .65rem;
+  font-size: .85rem;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
