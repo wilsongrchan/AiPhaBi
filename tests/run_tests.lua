@@ -163,6 +163,26 @@ do
 end
 
 print()
+print("== 偏旁碼／同類等提示不能被埋在補全堆裡（2026-08-29 回報：K 打不到 大）==")
+do
+  -- extra/extra3/extraL/extra4（偏旁碼／同類／三簡／左簡／四碼前綴）以前排在 cands
+  -- 之後才 yield：aiphabi_order.lua 的 MAX_SORT 只把「排進來的前 40 個」真的排序，
+  -- 其餘維持原序墊底。K／W 這種常見字根一次補全可能上千個候選，這些提示（人工挑過，
+  -- 數量本來就少）排在後面，會被擠到第 1000+ 名，MAX_SORT／RAW_CAP 都構不到，等於
+  -- 提示完全失效。修法：extra 系列先 yield，才能真的排進會被排序的那前 40 名。
+  local cands = {}
+  for i = 1, 3000 do cands[i] = { text = "占" .. i, start = 0, _end = 1 } end
+  local out = h.run{ schema = "aiphabi", code = "k", options = { aiphabi_comp = true }, cands = cands }
+  local pos = nil
+  for i, c in ipairs(out) do
+    if c.text == "大" then pos = i; break end
+  end
+  h.check("K 打「大」的偏旁碼提示：混進 3000 個雜訊候選也該排到前面（不是第 1000+ 名）",
+    pos ~= nil and pos <= 40,
+    string.format("大 landed at #%s", tostring(pos)))
+end
+
+print()
 print("== 選詞候選本身要記到選過次數，不能只拆單字（2026-08-26 明日/BDB 一直在第二頁那次）==")
 do
   -- bump() 以前只拆 UTF-8 字加分：選「明日」只會加到 USERFREQ["明"]／["日"]，

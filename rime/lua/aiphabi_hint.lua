@@ -288,18 +288,21 @@ local function filter(input, env)
     return cand
   end
 
-  -- 約定簡碼命中的字 → 全部正常候選（含補全）→ 同類／偏旁碼等提示 → 三簡碼。
+  -- 約定簡碼命中的字 → 同類／偏旁碼等提示 → 三簡碼 → 左簡碼 → 四碼前綴 → 全部正常候選（含補全）。
   -- short_hit 那個字如果本來就在 cands 裡（常見：這個碼補全得到它，只是排比較後面），
   -- 底下要把原本那個位置濾掉，不然會兩個一模一樣的候選一起出現。
   -- ap_repeat（重複上字，見 aiphabi_wildcard.lua）自己已經標好註解，跳過 markHints——
   -- 不然剛好命中兼容碼／約定簡碼的字，註解會被蓋掉，變成看起來像另一種提示。
+  --
+  -- extra/extra3/extraL/extra4 要排在 cands 之前才能 yield：aiphabi_order.lua 的 MAX_SORT
+  -- 只把池子「排進來的前 40 個」（依 yield 順序，不是依常用度）真的排序，其餘維持原序墊底
+  -- 不會被翻到（避免整包排序卡頓，見該檔註解）。I／J、K、W 這種常見字根一次補全可能上千個
+  -- 候選，這些提示（人工挑過、數量本來就少，不像補全會爆量）若排在 cands 後面 yield，
+  -- 會被擠到第 1000+ 名，MAX_SORT 根本碰不到，等於提示完全失效（回報：K 找不到 大 的偏旁碼
+  -- 提示——量過，3000 個候選時 大 排在第 1501 名，MAX_SORT=40／舊 RAW_CAP=1500 都構不到）。
+  -- 這裡先讓開，把它們排到最前面，才能真的進到會被排序的那前 40 名，照常用度公平競爭。
   local shortText = short_hit and short_hit.text
   if short_hit and keep(short_hit) then yield(short_hit) end
-  for i = 1, #cands do
-    if cands[i].text ~= shortText and keep(cands[i]) then
-      yield(cands[i].type == "ap_repeat" and cands[i] or markHints(cands[i]))
-    end
-  end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end
   end
@@ -311,6 +314,11 @@ local function filter(input, env)
   end
   for _, c in ipairs(extra4) do
     if keep(c) then yield(c) end
+  end
+  for i = 1, #cands do
+    if cands[i].text ~= shortText and keep(cands[i]) then
+      yield(cands[i].type == "ap_repeat" and cands[i] or markHints(cands[i]))
+    end
   end
 end
 
