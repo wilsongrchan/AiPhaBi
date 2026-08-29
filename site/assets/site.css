@@ -1714,6 +1714,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .cm-opts > .short-toggle,
 .cm-opts > .short-toggle + .short-toggle { margin: 0; }
 
+/* 拆碼圖關掉時，「字根顏色」跟著失效 —— 淡掉並換成不可點的游標，讓「現在
+   按不動」看得出來，而不是按了沒反應。 */
+.cm-opts .chk-toggle.is-off { opacity: .45; cursor: not-allowed; }
+.cm-opts .chk-toggle.is-off input { cursor: not-allowed; }
+
 /* 勾選格／圓鈕本身也要跟旁邊的字對齊：瀏覽器給 input 的預設外距是上下不對稱的
    （上 3px、下 0），在 align-items: center 底下會把控制項壓低約 1.5px。
    只在這一頁歸零，不動試打頁既有的長相。 */

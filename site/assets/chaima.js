@@ -30,7 +30,7 @@
   var G = { state: null, segs: null, glyphs: null };   // pinyin_glyphs.json
   var PP = { state: null, idx: null };                // pyphrase.json：拼音串 → 詞
 
-  var pyIn, txIn, wall, note;
+  var pyIn, txIn, wall, note, cbColour, cbGrid;
   var src = null;               // 'py' | 'tx'：現在牆上這批是誰查出來的
 
   /* 一次最多畫幾張卡。貼一整篇文章進來的話，幾百張田字格的 SVG 會讓頁面明顯
@@ -313,8 +313,19 @@
   var opts = { size: 'md', colour: true, grid: true, conv: false, short3: false };
 
   function applyOpts() {
+    /* ⚠️ 沒有拆碼圖就一律黑白（Wilson）：彩色的碼格是在指路 —— 每一格的顏色
+       對應田字格裡那幾筆。田字格不在了，那些顏色就沒有指向任何東西，只剩一排
+       莫名其妙的彩色方塊。所以「字根顏色」只有在拆碼圖開著時才作數。
+       使用者原本的選擇留在 opts.colour 裡，拆碼圖開回來就照舊 —— 不要因為他
+       關過一次拆碼圖，就把他的顏色偏好也一起洗掉。 */
+    var colour = opts.colour && opts.grid;
     wall.className = 'cm-wall is-' + opts.size +
-      (opts.colour ? '' : ' is-mono') + (opts.grid ? '' : ' is-nogrid');
+      (colour ? '' : ' is-mono') + (opts.grid ? '' : ' is-nogrid');
+    if (cbColour) {
+      cbColour.checked = colour;
+      cbColour.disabled = !opts.grid;
+      cbColour.parentNode.classList.toggle('is-off', !opts.grid);
+    }
   }
 
   function saveOpts() {
@@ -343,9 +354,9 @@
       });
     });
 
-    var cc = document.getElementById('cm-colour'), cg = document.getElementById('cm-grid'),
+    var cc = cbColour = document.getElementById('cm-colour'),
+        cg = cbGrid = document.getElementById('cm-grid'),
         cv = document.getElementById('cm-conv'), c3 = document.getElementById('cm-short3');
-    cc.checked = opts.colour;
     cg.checked = opts.grid;
     cv.checked = opts.conv;
     c3.checked = opts.short3;
