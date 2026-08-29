@@ -732,15 +732,32 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
     if not chars:
         return None, None
 
+    # ⚠️ pypinyin 的 heteronym 會把**所有**記載過的讀音都吐出來，包括早就沒人在
+    # 用的古音，而且不分主次：蝕 是 ['shi', 'li', 'long']，於是打 long 會查到 蝕
+    # （Wilson 2026-08-28 發現）。龐 ['pang', 'long']、寵 ['chong', 'long'] 同理。
+    # 兩道處理：
+    # 處理方式是**排序，不是砍掉**（Wilson：查得到沒關係，但要排到最後面去，
+    # 連 壟、簡體的 龙 都該排在它前面）：同一個拼音底下照「這是那個字的第幾個
+    # 讀音」分層，本音的字在最前面，第二讀音的次之，古音的墊底，每一層裡面再
+    # 照字頻排。於是 long 底下是 龍隆籠龙壟（本音）→ 寵龐弄（第二讀音）→ 蝕
+    # （第三讀音）。一個字都沒少，但打 long 的人第一眼看到的是 龍。
+    #
+    # 砍掉第三個以後的讀音也試過（3000 個字裡有 385 條，幾乎全是古音：單 tan、
+    # 需 ruan、奇 ai、俊 dun…），但那會讓那些字在那個讀音下**完全查不到**，
+    # 而排序已經解決了「為什麼 long 會跑出 蝕」這個問題，不必再砍。
     index = {}
     for ch in chars:
         readings = pypinyin.pinyin(ch, style=pypinyin.Style.NORMAL, heteronym=True)
-        for py in set(readings[0]):
-            py = py.lower()
-            if py:
-                index.setdefault(py, []).append(ch)
-    for bucket in index.values():
-        bucket.sort(key=lambda c: -charfreq.get(c, 0))
+        seen = set()
+        for rank, py in enumerate(readings[0]):
+            py = (py or "").lower()
+            if not py or py in seen:
+                continue
+            seen.add(py)
+            index.setdefault(py, []).append((rank, ch))
+    for py, bucket in index.items():
+        bucket.sort(key=lambda t: (t[0], -charfreq.get(t[1], 0)))
+        index[py] = [ch for _rank, ch in bucket]
 
     segs = build_practice_hints(chars, codes, zigen_raw, max_rule)
     glyphs = _practice_glyphs(chars)

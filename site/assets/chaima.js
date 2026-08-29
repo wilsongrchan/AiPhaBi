@@ -131,22 +131,13 @@
     return out;
   }
 
-  /* 一個音節的候選字，照現代字頻排。
-     ⚠️ pinyin.json 裡每個音節的字**不是**照字頻排的（實測 bai 是「敗派白百…」，
-     白 排第三）。那一份的字頻只用在「挑哪 3000 個字收進來」，收進來之後就沒再
-     排過。查字的人要的是最常用的排前面，所以這裡自己照 dict.json 的 order
-     （現代字頻序）排一次。 */
-  var rank = null;
-  function byFreq(list) {
-    if (!rank) {
-      rank = {};
-      var o = (D && D.order) || '';
-      for (var i = 0; i < o.length; i++) rank[o.charAt(i)] = i;
-    }
-    return list.slice().sort(function (a, b) {
-      return (rank[a] == null ? 1e9 : rank[a]) - (rank[b] == null ? 1e9 : rank[b]);
-    });
-  }
+  /* ⚠️ 候選字的順序**照 pinyin.json 給的**，這裡不要再排一次。
+     build_pinyin() 已經排好兩層：本音的字在前、破音的字在後，各自再照
+     charfreq（台港新聞用字）排。客戶端要是拿 dict.json 的 order 重排一次，
+     第一層就沒了 —— 打 long 會再看到 寵龐弄 混在 龍隆籠 裡面。
+     （dict.json 的 order 來自 freq.json，跟 charfreq 是**兩份不同的字頻**，
+     排出來不一樣：bai 底下 charfreq 給 敗 在前、freq.json 給 白 在前。
+     要換成哪一份是另一個問題，換的話應該在 build_pinyin 裡換，不是在這裡。） */
 
   /* 把一串拼音切成音節：bairi → ['bai','ri']（Wilson 要能查詞）。
      貪心取最長 —— 每一步都拿還接得下去的最長音節，這是拼音切分的通例，
@@ -195,14 +186,14 @@
     }
 
     if (PY.index[q]) {                               // 整串就是一個音節
-      byFreq(PY.index[q]).forEach(push);
+      PY.index[q].forEach(push);
       return out;
     }
 
     var syls = splitPinyin(q);
     if (!syls) return out;
     syls.forEach(function (sy) {
-      byFreq(PY.index[sy]).slice(0, PER_SYL).forEach(push);
+      PY.index[sy].slice(0, PER_SYL).forEach(push);
     });
     return out;
   }
