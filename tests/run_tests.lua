@@ -275,6 +275,12 @@ do
     ac._has_longer_code("iy") == true, "expected true")
   h.check("夜 IYAR 自己是葉節點（沒有 IYAR* 的單字碼）→ has_longer_code 為假",
     ac._has_longer_code("iyar") == false, "expected false")
+  -- ≥6 碼的完整碼不算數：兗 IVOJL 上面只有 競 的完整碼 IVOJLIVOJL（10 碼），
+  -- 沒人打 IVOJL 是要去打那條——五碼字打滿就該即收，不必多按一次空白。
+  h.check("兗 IVOJL（滿 5 碼，只被 ≥6 的完整碼 IVOJLIVOJL 蓋著）→ has_longer_code 為假",
+    ac._has_longer_code("ivojl") == false, "expected false")
+  h.check("任何滿 5 碼的碼一律當葉節點（延伸只可能是 ≥6 的完整碼）",
+    ac._has_longer_code("yhjuh") == false, "expected false (備 主碼)")
 
   -- 整段模擬：候選欄「只剩一個」時，has_longer_code 仍該擋下打 IY 的即收
   local committed = nil

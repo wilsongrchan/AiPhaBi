@@ -72,20 +72,30 @@ local function is_dead_extension(newCode)
   return not (hit and hit:sub(1, #newCode) == newCode)
 end
 
--- code 還能不能再往下接出「更長的碼」——碼表裡有沒有哪個碼「嚴格以 code 開頭、比 code 長」。
--- 有的話現在上屏太早：使用者可能正在打那個更長的字（夜＝IYAR 卡在 大＝IY 上面，
--- sole_real_candidate 只看候選欄「剩幾個」，補全沒被算進去時就誤判 大 是唯一解、
--- 打 IY 直接頂掉 大，IYAR 永遠打不出來——回報 2026-08-29）。CODE_INDEX 只收單字碼
--- （見 build_index），跟自動上屏／詞組連打互斥的前提一致，不會被詞組的長碼干擾。
+-- code 還能不能再往下接出「更長、但仍在正常主碼長度（≤5 碼）內」的碼。有的話現在
+-- 上屏太早：使用者可能正打那個更長的字（夜＝IYAR 卡在 大＝IY 上面，sole_real_candidate
+-- 只看候選欄「剩幾個」，補全沒被算進去時就誤判 大 是唯一解、打 IY 直接頂掉 大——回報
+-- 2026-08-29）。
+--
+-- ≥6 碼的完整碼（一般是別的字的整串拆碼，如 競 IVOJLIVOJL、飄 IHEMNJOG）不算：
+-- 沒人打 兗 的 IVOJL 是要接去打那條，讓它擋自動上屏只是白白讓 239 個五碼字得多按
+-- 一次空白。完整碼照樣收得進來當輸入（完整碼一律接受），只是不進這個「還沒打完」
+-- 的判斷。兼容碼（≤5，人工收的另一種拆法）仍算——那是有人真的會習慣打的路。
+-- CODE_INDEX 只收單字碼（見 build_index），跟自動上屏／詞組連打互斥的前提一致。
 local function has_longer_code(code)
   if not CODE_INDEX then build_index() end
+  if #code >= 5 then return false end   -- 5 碼已滿，任何延伸都是 ≥6 的完整碼
   local lo, hi = 1, #CODE_INDEX + 1
   while lo < hi do
     local mid = (lo + hi) // 2
     if CODE_INDEX[mid] <= code then lo = mid + 1 else hi = mid end
   end
-  local nxt = CODE_INDEX[lo]           -- 第一個「嚴格大於 code」的碼
-  return nxt ~= nil and #nxt > #code and nxt:sub(1, #code) == code
+  for i = lo, #CODE_INDEX do
+    local c = CODE_INDEX[i]
+    if c:sub(1, #code) ~= code then break end   -- 出了 code 的前綴範圍，後面不會再有
+    if #c > #code and #c <= 5 then return true end
+  end
+  return false
 end
 
 -- 容錯（aiphabi_fuzzy 標的）只是「怕你打錯鍵，另外提醒一個可能」，跟「這串碼本身
