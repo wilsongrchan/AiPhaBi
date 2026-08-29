@@ -66,26 +66,32 @@
   }
 
 
-  /* 這個字的簡碼用到哪幾條字根。
-       · 約定簡碼（dict.json 的 short_rev，67 個）優先 —— 它是人挑的，沒有規則
-         可循，所以拿簡碼的字母去跟這個字的字根字母**由左到右貪心比對**，
-         比到的那幾條就是它用到的（的 JA 對上 J…A，我 JKQ 對上 JK…Q）。
-       · 沒有約定簡碼、而字根有四條以上 → 三簡碼，規則是「頭兩條＋最後一條」。
-         這裡直接用**位置**（0、1、末），不用字母比對 —— 末碼的字母要是在中間
-         也出現過，貪心會比到前面那一個，淡錯字根。
-       · 三條以下又沒有約定簡碼 → 沒有簡碼可講，回 null，照原樣顯示。
-     回傳的是「要保留顏色的字根序號」。 */
+  /* 這個字的簡碼用到哪幾條字根。兩種簡碼**各自一個開關**（Wilson），跟試打頁
+     那一排「套用簡碼」是同一組詞、同一個關係：
+
+       · 約定簡碼（dict.json 的 short_rev，67 個）—— 人挑的，沒有規則可循，所以
+         拿簡碼的字母去跟這個字的字根字母**由左到右貪心比對**，比到的那幾條就是
+         它用到的（的 JA 對上 J…A，我 JKQ 對上 JK…Q）。比不完就整個放棄，不亂淡。
+       · 三簡碼 —— 四條字根以上的字才有，規則是「頭兩條＋最後一條」。這裡直接用
+         **位置**（0、1、末），不用字母比對：末碼的字母要是在中間也出現過，貪心
+         會比到前面那一個，淡錯字根。
+
+     兩個都開的時候約定簡碼優先，那 67 個字走約定、其餘走三簡 —— 跟輸入法裡的
+     關係一致（約定簡碼是手挑的例外，三簡碼是自動的通則）。
+     回傳「要保留顏色的字根序號」，沒有簡碼可講就回 null，照原樣顯示。 */
   function shortIdx(ch, segs) {
     if (!segs || !D) return null;
-    var conv = D.short_rev && D.short_rev[ch];
-    if (conv) {
-      var want = conv.toUpperCase(), keep = [], k = 0;
-      for (var i = 0; i < segs.length && k < want.length; i++) {
-        if (segs[i].L.toUpperCase() === want.charAt(k)) { keep.push(i); k++; }
+    if (opts.conv) {
+      var conv = D.short_rev && D.short_rev[ch];
+      if (conv) {
+        var want = conv.toUpperCase(), keep = [], k = 0;
+        for (var i = 0; i < segs.length && k < want.length; i++) {
+          if (segs[i].L.toUpperCase() === want.charAt(k)) { keep.push(i); k++; }
+        }
+        return k === want.length ? keep : null;
       }
-      return k === want.length ? keep : null;   // 比不完就別亂淡
     }
-    if (segs.length >= 4) return [0, 1, segs.length - 1];
+    if (opts.short3 && segs.length >= 4) return [0, 1, segs.length - 1];
     return null;
   }
 
@@ -207,7 +213,7 @@
     var segs = segsFrom(G.segs, ch);
     var code = D && D.main[ch];
 
-    var keep = opts.short ? shortIdx(ch, segs) : null;
+    var keep = shortIdx(ch, segs);
 
     var cell = el('div', 'tianzi');
     paintGlyph(cell, ch, G.glyphs && G.glyphs[ch], fullColourMap(segs, keep));
@@ -304,7 +310,7 @@
        拆碼圖     is-nogrid（藏起田字格，只剩字與碼）
      選擇記在 localStorage，跟站上其他開關同一個做法。 */
   var OPT_KEY = 'aiphabi-chaima-opts';
-  var opts = { size: 'md', colour: true, grid: true, short: false };
+  var opts = { size: 'md', colour: true, grid: true, conv: false, short3: false };
 
   function applyOpts() {
     wall.className = 'cm-wall is-' + opts.size +
@@ -322,7 +328,8 @@
         if (saved.size === 'lg' || saved.size === 'md' || saved.size === 'sm') opts.size = saved.size;
         opts.colour = saved.colour !== false;
         opts.grid = saved.grid !== false;
-        opts.short = saved.short === true;
+        opts.conv = saved.conv === true;
+        opts.short3 = saved.short3 === true;
       }
     } catch (e) {}
 
@@ -337,15 +344,17 @@
     });
 
     var cc = document.getElementById('cm-colour'), cg = document.getElementById('cm-grid'),
-        cs = document.getElementById('cm-short');
+        cv = document.getElementById('cm-conv'), c3 = document.getElementById('cm-short3');
     cc.checked = opts.colour;
     cg.checked = opts.grid;
-    cs.checked = opts.short;
+    cv.checked = opts.conv;
+    c3.checked = opts.short3;
     cc.addEventListener('change', function () { opts.colour = cc.checked; applyOpts(); saveOpts(); });
     cg.addEventListener('change', function () { opts.grid = cg.checked; applyOpts(); saveOpts(); });
-    /* ⚠️ 簡碼跟另外兩個不一樣：它改的是**每張卡要畫成什麼樣子**，不是整片牆的
-       長相，所以不能只換 class，要重畫。 */
-    cs.addEventListener('change', function () { opts.short = cs.checked; saveOpts(); render(); });
+    /* ⚠️ 兩個簡碼開關跟另外兩個不一樣：它們改的是**每張卡要畫成什麼樣子**，
+       不是整片牆的長相，所以不能只換 class，要重畫。 */
+    cv.addEventListener('change', function () { opts.conv = cv.checked; saveOpts(); render(); });
+    c3.addEventListener('change', function () { opts.short3 = c3.checked; saveOpts(); render(); });
 
     applyOpts();
   }

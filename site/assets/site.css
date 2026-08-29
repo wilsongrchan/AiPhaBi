@@ -1799,6 +1799,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 .cm-wall.is-mono .tz-hintcodes { gap: calc(var(--cm-chip-gap) + .12rem); }
 
+/* 沒有被任何字根取到的筆畫（主要是「頭四尾一」略過的那幾段）本來畫成正文墨色，
+   在這一頁改成跟「簡碼略過」同一個淺灰（Wilson）—— 兩者是同一件事的兩種說法：
+   「這幾筆你不用打」。用兩種顏色講同一句話，只會讓人以為它們不一樣。
+   ⚠️ 選擇器要三個 class 才蓋得過 `.tianzi .tz-ink`（兩個 class，而且排在這條
+   後面）—— 這個檔案裡已經為了同樣的理由踩過兩次。 */
+.cm-wall .tianzi .tz-ink { fill: var(--zg-off); }
+
 /* 「顯示簡碼」淡掉的碼格：簡碼沒用到的那幾條字根。整條碼照樣看得見，只是
    退到背景去 —— 拿走的話就看不出簡碼是從哪裡簡出來的（Wilson）。
    用 opacity 而不是換顏色：六種字根色各有各的深淺，統一調透明度才會一致淡。 */
