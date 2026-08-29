@@ -2428,6 +2428,45 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
     }
 
 
+def build_pyphrase(phrase_dict):
+    """〈拆碼查詢〉的拼音查詞：一串拼音 → 那些詞。
+
+    打 bairi 想看到的是「白日」，不是 bai 的十二個字接著 ri 的一個字
+    （Wilson）。詞本身出貨碼表裡就有了，缺的只是「怎麼從拼音找到它」，所以
+    這裡拿 phrase_dict 的詞去算拼音，建一張反查表。
+
+    · 只收 2–4 字的詞。一個字的用 pinyin.json 就夠了；五字以上查得到也沒人
+      會整串打拼音。
+    · 拼音去聲調、直接串起來（白日 → bairi），跟使用者會打的東西一致。
+    · 多音字只取 pypinyin 的第一個讀音 —— 查詞的人打的通常就是那個常見讀音，
+      為了罕見讀音把表撐大不划算。
+
+    產出約 0.9 MB，所以跟拆碼圖一樣是「真的查了才抓」，不在開頁時載。
+    """
+    if not phrase_dict:
+        return None
+    try:
+        import pypinyin
+    except ImportError:
+        # pypinyin 是 requirements.txt 裡的必要相依，但 build_pinyin 也是這樣
+        # 防一手的——沒有它就少一個功能，不要讓整個 build 掛掉。
+        return None
+    words = set()
+    for ws in phrase_dict.get("codes", {}).values():
+        words.update(ws)
+    idx = {}
+    for w in words:
+        if not (2 <= len(w) <= 4):
+            continue
+        py = "".join(pypinyin.lazy_pinyin(w, style=pypinyin.Style.NORMAL,
+                                          errors="ignore"))
+        if py:
+            idx.setdefault(py, []).append(w)
+    for k in idx:
+        idx[k].sort()
+    return idx
+
+
 def main():
     codes = load("codes.json")
     rules = load("rules.json")
@@ -2695,6 +2734,10 @@ def main():
     if phrase_dict:
         (OUT / "phrase_dict.json").write_text(
             json.dumps(phrase_dict, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    pyphrase = build_pyphrase(phrase_dict)
+    if pyphrase:
+        (OUT / "pyphrase.json").write_text(
+            json.dumps(pyphrase, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
     if practice:
@@ -2742,6 +2785,10 @@ def main():
         pd = phrase_dict["stats"]
         print(f"phrase_dict.json {pd['words']} 詞 / {pd['codes']} 個詞組碼 / "
               f"{pd['si4']} 個四碼 / {mb:.1f} MB（詞組連打預設關，打開才抓）")
+    if pyphrase:
+        mb = (OUT / "pyphrase.json").stat().st_size / 1024 / 1024
+        print(f"pyphrase.json {len(pyphrase)} 串拼音 → 詞 / {mb:.1f} MB"
+              f"（〈拆碼查詢〉用，打了拼音才抓）")
 
 
 if __name__ == "__main__":

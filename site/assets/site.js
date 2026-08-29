@@ -19,6 +19,52 @@
     if (path === here) a.setAttribute('aria-current', 'page');
   });
 
+  /* ---------- 側邊欄章節清單：可以收起來 ----------
+     目前這一頁的章節（.pr-sidenav）掛在它自己那條連結底下。頁面長的時候那串
+     錨點會把「線上試打／拆碼查詢／後記」推到很下面，所以給它一個箭頭可以收。
+
+     ⚠️ 按鈕是這裡長出來的，不寫在 HTML 裡：沒有 JS 的時候不該出現一顆按不動的
+     按鈕，而「展開」本來就是正確的預設狀態，什麼都不做剛好就是對的。
+     收合狀態記在 localStorage，跨頁共用一個鍵 —— 使用者收起來的是「章節清單」
+     這個東西，不是「自動上屏那一頁的章節清單」。 */
+  var SUB_KEY = 'aiphabi-site-subnav';
+  var sub = document.querySelector('nav.site .pr-sidenav');
+  if (sub) {
+    var link = sub.previousElementSibling;
+    if (link && link.tagName === 'A') {
+      var head = document.createElement('div');
+      head.className = 'pr-navhead';
+      link.parentNode.insertBefore(head, link);
+      head.appendChild(link);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pr-toggle';
+      head.appendChild(btn);
+
+      if (!sub.id) sub.id = 'pr-subnav';
+      btn.setAttribute('aria-controls', sub.id);
+
+      var collapsed = false;
+      try { collapsed = localStorage.getItem(SUB_KEY) === '1'; } catch (e) {}
+
+      var apply = function () {
+        sub.hidden = collapsed;
+        btn.setAttribute('aria-expanded', String(!collapsed));
+        // 名字要講「按下去會發生什麼」，不是「現在是什麼狀態」
+        btn.setAttribute('aria-label', collapsed ? '展開章節' : '收合章節');
+        btn.title = btn.getAttribute('aria-label');
+      };
+      apply();
+
+      btn.addEventListener('click', function () {
+        collapsed = !collapsed;
+        apply();
+        try { localStorage.setItem(SUB_KEY, collapsed ? '1' : '0'); } catch (e) {}
+      });
+    }
+  }
+
   /* ---------- 繁簡切換 ---------- */
   var KEY = 'aiphabi-site-lang';
   var SKIP = { SCRIPT: 1, STYLE: 1, CODE: 1, PRE: 1, KBD: 1, TEXTAREA: 1 };

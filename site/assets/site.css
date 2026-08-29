@@ -216,6 +216,11 @@ kbd {
   background: var(--surface);
   z-index: 10;
   overflow-y: auto;
+  /* ⚠️ 一定要留著捲軸的位置。收合章節清單會讓側邊欄的內容變短、捲軸消失，
+     內容區當場寬 15px，整排連結（連同那顆收合箭頭）就往右跳一下 —— 看起來
+     像按鈕自己變寬了，其實是側邊欄變寬（實測 145.63 → 160.63px，按鈕本身
+     一直是 25.59px）。 */
+  scrollbar-gutter: stable;
 }
 
 .topbar .wrap {
@@ -1593,6 +1598,225 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 .cv-color .jm-tbl code .rb-5 { color: var(--rb-5); }
 .cv-color .jm-tbl code .off  { color: var(--ink-faint); }
 
+
+/* 章節清單的收合箭頭。整排（連結＋箭頭）是一個 flex 列，連結照樣佔滿剩下的
+   寬度，所以目前頁面那塊底色與左邊的橙色框線看起來跟改之前一樣。
+   箭頭本身是 CSS 畫的三角形（border 那一招），收起來時轉 -90°。 */
+.pr-navhead { display: flex; align-items: stretch; }
+.pr-navhead > a { flex: 1; min-width: 0; }
+
+.pr-toggle {
+  flex: none;
+  width: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.pr-toggle:hover { color: var(--ink); background: var(--code-bg); }
+.pr-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.pr-toggle::before {
+  content: "";
+  width: 0; height: 0;
+  border-inline: .3rem solid transparent;
+  border-top: .34rem solid currentColor;
+  transition: transform .15s ease;
+}
+.pr-toggle[aria-expanded="false"]::before { transform: rotate(-90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-toggle::before { transition: none; }
+}
+
+/* ---------- 拆碼查詢 ---------- */
+
+/* 兩個查法擺在同一塊面板裡，跟〈線上試打〉那個面板同一個長相（surface 底、
+   一條細框、同一個圓角）—— 這一頁跟試打頁是同一組「動手玩玩看」的工具，
+   看起來就該是一家人（Wilson）。 */
+.cm-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem 1.2rem;
+  margin: 0 0 1.5rem;
+  max-width: var(--measure);
+}
+
+/* 拼音短、貼字長，所以貼字那個吃掉剩下的寬度。窄螢幕自己換行（flex-wrap），
+   不必另寫斷點。 */
+.cm-inputs { display: flex; flex-wrap: wrap; gap: 1rem; }
+.cm-field { display: flex; flex-direction: column; gap: .4rem; flex: 1 1 12rem; }
+.cm-field-wide { flex: 2.4 1 22rem; }
+
+.cm-field label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: .04em;
+}
+
+/* 框要大、要好按 —— 這一頁除了打字就沒別的事做（Wilson：要更 inviting）。
+   ⚠️ 字級分開寫，不要用 `font:` 簡寫配 inherit，那整條會被丟掉（試打頁那個
+   textarea 就是這樣被吃掉三次才查出來，見 .typebox textarea 的註）。 */
+.cm-in {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .75rem .85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input.cm-in { height: 3.1rem; }
+textarea.cm-in { min-height: 5.4rem; resize: vertical; }
+
+.cm-in:hover { border-color: var(--accent); }
+.cm-in:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.cm-in::placeholder { color: var(--ink-faint); opacity: 1; font-size: .88rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-in { transition: none; }
+}
+
+/* 顯示選項那一排，沿用試打頁的 .short-toggle／.chk-toggle，不另開一套長相 */
+.cm-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.6rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--line);
+}
+
+/* ⚠️ 兩組開關要對齊在同一條線上。.short-toggle 那一套是給試打頁**上下堆疊**用
+   的，帶了 margin-bottom: .8rem，第二排還多一條 `.short-toggle + .short-toggle
+   { margin-top: -.35rem }`（讓第二排貼著第一排走）。在這裡是橫排，那個負的上外
+   距把第二組整個往上提，兩組中線差 2.8px（實測 g0 top=369.1、g1 top=366.3，
+   g1 的 computed margin-top 是 -5.6px）。
+   ⚠️ 第二條選擇器不能只寫 `.cm-opts > .short-toggle` —— 那跟 `.short-toggle +
+   .short-toggle` 同樣是兩個 class 的權重，而後者排在這個檔案後面，後來者贏，
+   歸零完全沒有作用。要把相鄰選擇器整條寫出來才蓋得過去。 */
+.cm-opts > .short-toggle,
+.cm-opts > .short-toggle + .short-toggle { margin: 0; }
+
+/* 勾選格／圓鈕本身也要跟旁邊的字對齊：瀏覽器給 input 的預設外距是上下不對稱的
+   （上 3px、下 0），在 align-items: center 底下會把控制項壓低約 1.5px。
+   只在這一頁歸零，不動試打頁既有的長相。 */
+.cm-opts .chk-toggle input { margin: 0; }
+
+/* 卡牆：一個字一張。auto-fill 讓一行塞得下幾張就幾張，窄螢幕自己掉成幾張、
+   一張，不必為它另寫斷點。欄寬與碼格大小綁在一起（見下面三個尺寸），因為
+   「五個字母的碼不准換行」這條要求是靠兩者的比例撐住的。 */
+.cm-wall {
+  display: grid;
+  gap: .9rem .6rem;
+  align-items: start;
+  max-width: var(--measure);
+  margin: 0 0 .8rem;
+}
+
+.cm-card { display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+.cm-foot { display: flex; justify-content: center; }
+
+/* ⚠️ 碼一律排成一行，不准折行（Wilson）。主碼最長就是五個字母（實測 dict.json：
+   1–5 碼，五碼的有 3097 個字），所以每個尺寸的欄寬都是照「五格排得下」倒推的。
+
+   ⚠️ 縮小的時候縮的是**格子的寬度與內距，不是字級**（Wilson：小尺寸也要看得清
+   楚碼）。.tz-chip 預設 min-width 是 1.5rem，對單一個大寫字母來說很寬鬆，先砍
+   這裡就能在字級幾乎不動的情況下把整排收窄。三個尺寸的字級是 .85 / .72 / .66rem
+   ——最小的那一級也還在看得清楚的範圍，之前照比例縮成 .46rem 是不能讀的。 */
+.cm-wall .tz-hintcodes { flex-wrap: nowrap; gap: var(--cm-chip-gap); }
+.cm-wall .tz-chip {
+  font-size: var(--cm-chip-fs);
+  min-width: var(--cm-chip-w);
+  padding: var(--cm-chip-pad);
+  border-radius: 3px;
+}
+
+/* 大：一行六個上下（正文寬 54.8rem） */
+.cm-wall.is-lg {
+  grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr));
+  --cm-chip-fs: .85rem; --cm-chip-w: 1.2rem; --cm-chip-pad: .06rem .16rem; --cm-chip-gap: .16rem;
+}
+.cm-wall.is-lg .tianzi { max-width: 8.4rem; }
+.cm-wall.is-lg .tianzi .tz-fallback { font-size: 4.4rem; }
+
+/* 中：一行九個上下 */
+.cm-wall.is-md {
+  grid-template-columns: repeat(auto-fill, minmax(5.8rem, 1fr));
+  --cm-chip-fs: .78rem; --cm-chip-w: .8rem; --cm-chip-pad: .03rem .1rem; --cm-chip-gap: .08rem;
+}
+.cm-wall.is-md .tianzi { max-width: 5.8rem; }
+.cm-wall.is-md .tianzi .tz-fallback { font-size: 3rem; }
+
+/* 小：一行十一個上下。字級只比大號小 .11rem —— 縮的是田字格，不是碼（Wilson
+   兩次要求把小尺寸的碼再放大）。碼那一排因此會比田字格略寬一點點（4.6 對
+   4.4rem），往兩側各溢出約 .1rem，欄距有 .6rem，不會撞到隔壁。 */
+.cm-wall.is-sm {
+  grid-template-columns: repeat(auto-fill, minmax(4.4rem, 1fr));
+  --cm-chip-fs: .74rem; --cm-chip-w: .72rem; --cm-chip-pad: .02rem .08rem; --cm-chip-gap: .05rem;
+}
+.cm-wall.is-sm .tianzi { max-width: 4.4rem; }
+.cm-wall.is-sm .tianzi .tz-fallback { font-size: 2.2rem; }
+
+/* 沒有拆碼圖的字：同一種碼格，但配不出顏色，所以整排中性深灰（Wilson）。
+   --ink-dim 在深淺主題各有值，配 .tz-chip 的 --surface 字色，兩邊對比都在
+   5.5:1 以上，不必為深色主題另寫一條。 */
+.tz-chip.is-plain { background: var(--ink-dim); }
+
+/* 關掉字根顏色：筆畫與碼一律用正文的墨色。
+   ⚠️ 碼不是換個底色，是**整個色塊拿掉**（Wilson）—— 反白的字母格本身就是在
+   說「這一格屬於某一條字根」，沒有顏色資訊的時候還留著格子，等於留下一個沒有
+   意義的裝飾。拿掉之後就是一串深色字母，該說的都說了。
+   ⚠️ 用 --ink（#1c2322，很深的灰）而不是純黑（Wilson）—— 全站的正文都是這個
+   色，這裡寫死 #000 會比周圍的字還重。 */
+.cm-wall.is-mono .tianzi .tz-z0,
+.cm-wall.is-mono .tianzi .tz-z1,
+.cm-wall.is-mono .tianzi .tz-z2,
+.cm-wall.is-mono .tianzi .tz-z3,
+.cm-wall.is-mono .tianzi .tz-z4,
+.cm-wall.is-mono .tianzi .tz-z5 { fill: var(--ink); }
+.cm-wall.is-mono .tz-chip {
+  background: none;
+  color: var(--ink);
+  padding-inline: 0;
+  min-width: 0;
+}
+.cm-wall.is-mono .tz-hintcodes { gap: calc(var(--cm-chip-gap) + .12rem); }
+
+/* 純文字的字：有拆碼圖的時候不需要它（格子裡就是那個字），關掉才出場。
+   關掉之後卡片只剩「字＋碼」，欄寬跟著縮一半，一行塞得下更多。 */
+.cm-ch { display: none; font-size: 1.5rem; line-height: 1.2; color: var(--ink); }
+.cm-wall.is-nogrid .tianzi { display: none; }
+.cm-wall.is-nogrid .cm-ch { display: block; }
+.cm-wall.is-nogrid { grid-template-columns: repeat(auto-fill, minmax(3.2rem, 1fr)); }
+.cm-wall.is-nogrid.is-lg { grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); }
+.cm-wall.is-nogrid.is-lg .cm-ch { font-size: 2.1rem; }
+.cm-wall.is-nogrid.is-sm { grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr)); }
+.cm-wall.is-nogrid.is-sm .cm-ch { font-size: 1.15rem; }
+
+.cm-none { font-size: .62rem; color: var(--ink-faint); }
+.cm-card.is-none .tianzi { opacity: .55; }
+
+.cm-none { font-size: .72rem; color: var(--ink-faint); }
+.cm-card.is-none .tianzi { opacity: .55; }
+
+.cm-note { font-size: .82rem; color: var(--ink-dim); max-width: var(--measure); }
 
 /* ---------- 窄螢幕：導覽改回頂部橫列 ----------
    側邊欄在手機上會吃掉一半可用寬度，所以在這個斷點還原成原本的橫列。

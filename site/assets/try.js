@@ -12,6 +12,13 @@
 (function () {
   'use strict';
 
+  /* 田字格與分段解讀搬到 assets/glyphbox.js，跟〈拆碼查詢〉共用（那一頁畫的是
+     同一種格子、讀的是同一種分段格式，抄一份就是埋一個改了一邊忘了另一邊的坑）。
+     這裡接成同名的區域變數，底下所有呼叫端都不用改。 */
+  var el = ZG.el, segsOfEntry = ZG.segsOfEntry, segsFrom = ZG.segsFrom,
+      paintGlyph = ZG.paintGlyph;
+
+
   var out   = document.getElementById('out');
   var rail  = document.getElementById('rail');
   var state = { buf: '', cands: [], data: null };
@@ -547,18 +554,7 @@
     P.qstep = 0;                        // 四碼快打那四格也一起收回去
   }
 
-  // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
-  // 字形的 y 軸要翻過來 —— graphics.txt 的座標系原點在左下，位移是 900 不是 1024。
-  // 字形本身正好填滿 0–1024，直接畫會頂到格線。縮到 86% 置中，看起來才像
-  // 練習簿上的田字格（標註頁不縮是因為那裡要看字跟框的關係，這裡不用）。
-  var INSET = 0.86;
-  var SVG_TF = 'translate(' + (1024 * (1 - INSET) / 2).toFixed(1) + ',' +
-               (1024 * (1 - INSET) / 2).toFixed(1) + ') scale(' + INSET + ') ' +
-               'scale(1,-1) translate(0,-900)';
-  var GRID =
-    '<rect class="tz-grid" x="2" y="2" width="1020" height="1020" rx="20"/>' +
-    '<line class="tz-grid" x1="512" y1="2" x2="512" y2="1022"/>' +
-    '<line class="tz-grid" x1="2" y1="512" x2="1022" y2="512"/>';
+
 
   function isHan(c) { return c >= '\u4e00' && c <= '\u9fff'; }
 
@@ -576,13 +572,7 @@
      親 的分段是 I V T D J L，主碼卻是 IVTDL，第五碼是最後那段的 L 而不是 J。
      提示、上色、進度全部走這一份，不然會叫人打一個打下去是錯的碼（Wilson 抓到）。
      被略過的那幾段沒有對應的碼，就一直是黑的 —— 那正好看得出「頭四尾一」丟掉了誰。 */
-  function segsOfEntry(e) {
-    if (!e || !e.s || !e.s.length) return null;
-    var list = [];
-    for (var i = 0; i < e.c.length; i++) if (e.s[e.c[i]]) list.push(e.s[e.c[i]]);
-    return list.length ? list : null;
-  }
-  function segsFrom(table, ch) { return segsOfEntry(table && table[ch]); }
+
   function segsOf(ch) { return segsFrom(P.segs, ch); }
 
   function codeOfSegs(segs) {
@@ -791,23 +781,7 @@
 
   /* 田字格畫格子：跟著打（P.cell，逐碼漸進上色）跟拼音查字（PY.cell，選字後
    * 整個字一次上色）共用同一支——差別只在呼叫的人給的 colour map 怎麼算。 */
-  function paintGlyph(target, ch, strokes, colour) {
-    if (strokes) {
-      var paths = '';
-      for (var i = 0; i < strokes.length; i++) {
-        var gi = colour && colour[i] != null ? colour[i] : -1;
-        var cls = gi >= 0 ? 'tz-z' + (gi % 6) : 'tz-ink';
-        paths += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
-      }
-      target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
-        GRID + '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
-    } else {
-      // 標點、或者沒有字形資料的字：照樣放進格子裡，只是用系統字型
-      target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + (ch || '') + '">' +
-        GRID + '</svg>' +
-        '<span class="tz-fallback">' + (ch || '') + '</span>';
-    }
-  }
+
 
   function drawCell(ch) {
     var strokes = ch && P.glyphs ? P.glyphs[ch] : null;
@@ -1592,12 +1566,7 @@
     clearPyqCell();
   }
 
-  function el(tag, cls, text) {
-    var n = document.createElement(tag);
-    n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
-  }
+
 
   function insert(text) {
     var s = out.selectionStart, e = out.selectionEnd, v = out.value;
