@@ -1799,11 +1799,23 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 .cm-wall.is-mono .tz-hintcodes { gap: calc(var(--cm-chip-gap) + .12rem); }
 
+/* 「顯示簡碼」淡掉的碼格：簡碼沒用到的那幾條字根。整條碼照樣看得見，只是
+   退到背景去 —— 拿走的話就看不出簡碼是從哪裡簡出來的（Wilson）。
+   用 opacity 而不是換顏色：六種字根色各有各的深淺，統一調透明度才會一致淡。 */
+.cm-wall .tz-chip.is-dim { opacity: .28; }
+.cm-wall.is-mono .tz-chip.is-dim { opacity: .34; }
+
 /* 純文字的字：有拆碼圖的時候不需要它（格子裡就是那個字），關掉才出場。
    關掉之後卡片只剩「字＋碼」，欄寬跟著縮一半，一行塞得下更多。 */
 .cm-ch { display: none; font-size: 1.5rem; line-height: 1.2; color: var(--ink); }
 .cm-wall.is-nogrid .tianzi { display: none; }
 .cm-wall.is-nogrid .cm-ch { display: block; }
+
+/* 沒有田字格的時候，字與它的碼要**貼緊**，行與行之間反而要拉開（Wilson）：
+   格子不在了，字跟碼之間就沒有東西界定「這兩個是一組」，靠的全是遠近 ——
+   碼離自己的字太遠、離下一行的字太近，讀起來會黏到下一行去。 */
+.cm-wall.is-nogrid { row-gap: 1.6rem; }
+.cm-wall.is-nogrid .cm-card { gap: .1rem; }
 .cm-wall.is-nogrid { grid-template-columns: repeat(auto-fill, minmax(3.2rem, 1fr)); }
 .cm-wall.is-nogrid.is-lg { grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); }
 .cm-wall.is-nogrid.is-lg .cm-ch { font-size: 2.1rem; }

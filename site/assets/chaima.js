@@ -65,12 +65,39 @@
       .catch(function () { PP.state = null; });
   }
 
+
+  /* 這個字的簡碼用到哪幾條字根。
+       · 約定簡碼（dict.json 的 short_rev，67 個）優先 —— 它是人挑的，沒有規則
+         可循，所以拿簡碼的字母去跟這個字的字根字母**由左到右貪心比對**，
+         比到的那幾條就是它用到的（的 JA 對上 J…A，我 JKQ 對上 JK…Q）。
+       · 沒有約定簡碼、而字根有四條以上 → 三簡碼，規則是「頭兩條＋最後一條」。
+         這裡直接用**位置**（0、1、末），不用字母比對 —— 末碼的字母要是在中間
+         也出現過，貪心會比到前面那一個，淡錯字根。
+       · 三條以下又沒有約定簡碼 → 沒有簡碼可講，回 null，照原樣顯示。
+     回傳的是「要保留顏色的字根序號」。 */
+  function shortIdx(ch, segs) {
+    if (!segs || !D) return null;
+    var conv = D.short_rev && D.short_rev[ch];
+    if (conv) {
+      var want = conv.toUpperCase(), keep = [], k = 0;
+      for (var i = 0; i < segs.length && k < want.length; i++) {
+        if (segs[i].L.toUpperCase() === want.charAt(k)) { keep.push(i); k++; }
+      }
+      return k === want.length ? keep : null;   // 比不完就別亂淡
+    }
+    if (segs.length >= 4) return [0, 1, segs.length - 1];
+    return null;
+  }
+
   /* 選出來的字，所有字根一次全部上色（不像〈跟著打〉是打對幾碼亮幾條）。 */
-  function fullColourMap(segs) {
+  function fullColourMap(segs, keep) {
     if (!segs) return null;
     var map = {};
-    for (var i = 0; i < segs.length; i++)
-      for (var k = 0; k < segs[i].st.length; k++) map[segs[i].st[k]] = i;
+    for (var i = 0; i < segs.length; i++) {
+      // keep 有給、而且這一條不在裡面 → -2，paintGlyph 會畫成淺灰（見 glyphbox.js）
+      var v = (keep && keep.indexOf(i) < 0) ? -2 : i;
+      for (var k = 0; k < segs[i].st.length; k++) map[segs[i].st[k]] = v;
+    }
     return map;
   }
 
@@ -180,8 +207,10 @@
     var segs = segsFrom(G.segs, ch);
     var code = D && D.main[ch];
 
+    var keep = opts.short ? shortIdx(ch, segs) : null;
+
     var cell = el('div', 'tianzi');
-    paintGlyph(cell, ch, G.glyphs && G.glyphs[ch], fullColourMap(segs));
+    paintGlyph(cell, ch, G.glyphs && G.glyphs[ch], fullColourMap(segs, keep));
     box.appendChild(cell);
 
     /* 純文字的字，永遠畫、平常用 CSS 藏起來。關掉「拆碼圖」之後田字格會
@@ -191,8 +220,13 @@
 
     var foot = el('div', 'cm-foot');
     if (segs) {
+      /* 碼一律整條顯示，簡碼沒用到的那幾格只是淡掉，不是拿走（Wilson）——
+         看得到完整的主碼，才知道簡碼是從哪裡簡出來的。 */
       var row = el('span', 'tz-hintcodes');
-      segs.forEach(function (s, i) { row.appendChild(el('span', 'tz-chip z' + (i % 6), s.L)); });
+      segs.forEach(function (s, i) {
+        var dim = keep && keep.indexOf(i) < 0;
+        row.appendChild(el('span', 'tz-chip z' + (i % 6) + (dim ? ' is-dim' : ''), s.L));
+      });
       foot.appendChild(row);
     } else if (code) {
       /* 沒有拆碼圖，但碼還是照同一個樣子排：一個字母一格、白字。只是沒有分段
@@ -270,7 +304,7 @@
        拆碼圖     is-nogrid（藏起田字格，只剩字與碼）
      選擇記在 localStorage，跟站上其他開關同一個做法。 */
   var OPT_KEY = 'aiphabi-chaima-opts';
-  var opts = { size: 'md', colour: true, grid: true };
+  var opts = { size: 'md', colour: true, grid: true, short: false };
 
   function applyOpts() {
     wall.className = 'cm-wall is-' + opts.size +
@@ -288,6 +322,7 @@
         if (saved.size === 'lg' || saved.size === 'md' || saved.size === 'sm') opts.size = saved.size;
         opts.colour = saved.colour !== false;
         opts.grid = saved.grid !== false;
+        opts.short = saved.short === true;
       }
     } catch (e) {}
 
@@ -301,11 +336,16 @@
       });
     });
 
-    var cc = document.getElementById('cm-colour'), cg = document.getElementById('cm-grid');
+    var cc = document.getElementById('cm-colour'), cg = document.getElementById('cm-grid'),
+        cs = document.getElementById('cm-short');
     cc.checked = opts.colour;
     cg.checked = opts.grid;
+    cs.checked = opts.short;
     cc.addEventListener('change', function () { opts.colour = cc.checked; applyOpts(); saveOpts(); });
     cg.addEventListener('change', function () { opts.grid = cg.checked; applyOpts(); saveOpts(); });
+    /* ⚠️ 簡碼跟另外兩個不一樣：它改的是**每張卡要畫成什麼樣子**，不是整片牆的
+       長相，所以不能只換 class，要重畫。 */
+    cs.addEventListener('change', function () { opts.short = cs.checked; saveOpts(); render(); });
 
     applyOpts();
   }

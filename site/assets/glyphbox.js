@@ -44,7 +44,11 @@
       var paths = '';
       for (var i = 0; i < strokes.length; i++) {
         var gi = colour && colour[i] != null ? colour[i] : -1;
-        var cls = gi >= 0 ? 'tz-z' + (gi % 6) : 'tz-ink';
+        /* -1（或沒給）＝這一筆不屬於任何取到的字根，畫成正文的墨色。
+           -2 ＝屬於某條字根、但這次刻意不強調它（〈拆碼查詢〉的「顯示簡碼」把
+           簡碼沒用到的那幾條字根淡掉），畫成 --zg-off 的淺灰。try.js 從來不傳
+           -2，所以這一條對它沒有任何影響。 */
+        var cls = gi >= 0 ? 'tz-z' + (gi % 6) : (gi === -2 ? 'tz-off' : 'tz-ink');
         paths += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
       }
       target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
