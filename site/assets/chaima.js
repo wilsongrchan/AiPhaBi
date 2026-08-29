@@ -82,7 +82,8 @@
 
      兩個都開的時候約定簡碼優先，那 67 個字走約定、其餘走三簡 —— 跟輸入法裡的
      關係一致（約定簡碼是手挑的例外，三簡碼是自動的通則）。
-     回傳「要保留顏色的字根序號」，沒有簡碼可講就回 null，照原樣顯示。 */
+     回傳 { keep: 要保留顏色的字根序號, kind: 'conv' | 'short3' }，沒有簡碼可講
+     就回 null，照原樣顯示。kind 是給卡片右上角那個角標用的。 */
   function shortIdx(ch, segs) {
     if (!segs || !D) return null;
     if (opts.conv) {
@@ -95,10 +96,11 @@
         // 對不起來就不要亂淡（將來多一條不照規則的簡碼，寧可什麼都不做）
         for (var i = 0; i < keep.length; i++)
           if (segs[keep[i]].L.toUpperCase() !== want.charAt(i)) return null;
-        return keep;
+        return { keep: keep, kind: 'conv' };
       }
     }
-    if (opts.short3 && segs.length >= 4) return [0, 1, segs.length - 1];
+    if (opts.short3 && segs.length >= 4)
+      return { keep: [0, 1, segs.length - 1], kind: 'short3' };
     return null;
   }
 
@@ -220,7 +222,7 @@
     var segs = segsFrom(G.segs, ch);
     var code = D && D.main[ch];
 
-    var keep = shortIdx(ch, segs);
+    var sh = shortIdx(ch, segs), keep = sh && sh.keep;
 
     var cell = el('div', 'tianzi');
     paintGlyph(cell, ch, G.glyphs && G.glyphs[ch], fullColourMap(segs, keep));
@@ -230,6 +232,16 @@
        display:none，那時字就只剩在 SVG 的 aria-label 裡了 —— 看不見的字等於
        沒查到。放在這裡而不是在切換時才補，是為了讓切換只動 class，不重畫。 */
     box.appendChild(el('span', 'cm-ch', ch));
+
+    /* 右上角的角標：這個字現在是照簡碼在顯示（Wilson）。沒有它，淡掉的碼格
+       跟「這個字本來就沒有那幾條字根」看起來一樣。兩種簡碼各一個字，全名放在
+       title／aria-label 裡 —— 卡片只有幾 rem 寬，塞不下四個字。 */
+    if (sh) {
+      var tag = el('span', 'cm-tag is-' + sh.kind, sh.kind === 'conv' ? '簡' : '三');
+      tag.title = sh.kind === 'conv' ? '約定簡碼' : '三簡碼';
+      tag.setAttribute('aria-label', tag.title);
+      box.appendChild(tag);
+    }
 
     var foot = el('div', 'cm-foot');
     if (segs) {

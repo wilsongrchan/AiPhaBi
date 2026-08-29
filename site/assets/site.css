@@ -1735,7 +1735,34 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   margin: 0 0 .8rem;
 }
 
-.cm-card { display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+.cm-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: .35rem; }
+
+/* 右上角的簡碼角標。約定簡碼用主色、三簡碼用比較安靜的灰 —— 約定簡碼是人挑
+   出來的少數常用字，值得比自動規則搶眼一點。
+   底色用 --surface 而不是透明：角標會壓在田字格的筆畫上，透明會糊成一團。 */
+.cm-tag {
+  position: absolute;
+  top: -.2rem;
+  inset-inline-end: -.2rem;
+  z-index: 1;
+  /* 圓的（Wilson）：寬高相等＋50% 圓角。字擺正靠 flex 置中，不要靠 line-height
+     去湊 —— 中文字的字面在行高裡本來就不置中，湊出來的圓永遠偏一點。 */
+  width: 1.05rem;
+  height: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: .56rem;
+  line-height: 1;
+  color: var(--surface);
+  background: var(--ink-faint);
+}
+/* 約定簡碼用主色，三簡碼用安靜的灰 —— 約定簡碼是人挑出來的少數常用字，
+   值得比自動規則搶眼一點。 */
+.cm-tag.is-conv { background: var(--accent); }
+.cm-wall.is-lg .cm-tag { width: 1.3rem; height: 1.3rem; font-size: .7rem; }
+.cm-wall.is-sm .cm-tag { width: .92rem; height: .92rem; font-size: .5rem; }
 .cm-foot { display: flex; justify-content: center; }
 
 /* ⚠️ 碼一律排成一行，不准折行（Wilson）。主碼最長就是五個字母（實測 dict.json：
