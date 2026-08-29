@@ -307,6 +307,69 @@ do
 end
 
 print()
+print("== 頂屏補碼：補完碼／補到一半的碼 → 候選（translator）==")
+do
+  local cand = require("aiphabi_supp_cand")
+  local data = require("aiphabi_data")
+  local seg = { start = 0, _end = 4 }
+  local function run(input, supp_on)
+    local out = {}
+    local old = yield
+    yield = function(c) out[#out + 1] = c end
+    local env = { engine = { context = {
+      get_option = function(_, n) return n == "aiphabi_supp" and supp_on or false end } } }
+    cand(input, seg, env)
+    yield = old
+    local texts = {}
+    for _, c in ipairs(out) do texts[#texts + 1] = c.text end
+    return texts
+  end
+  -- 資料本身（build_rime.py 產的真表）：2/3 碼補 UU、4 碼補 U
+  h.check("大 IY → 補完碼 IYUU", (data.suppcode["iyuu"] or {})[1] == "大", "expected 大")
+  h.check("上 JII → 補完碼 JIIUU", (data.suppcode["jiiuu"] or {})[1] == "上", "expected 上")
+  h.check("三 III → 補完碼 IIIUU", (data.suppcode["iiiuu"] or {})[1] == "三", "expected 三")
+  h.check("重碼 TOUU → 2 字以上，依字頻排",
+    #(data.suppcode["touu"] or {}) > 1, "expected 2+ chars on touu")
+
+  h.check("開關關：打 IYUU 什麼都不出", #run("iyuu", false) == 0, "expected nothing")
+  h.check("開關開：打 IYUU → 大", run("iyuu", true)[1] == "大", "expected 大 first")
+  h.check("開關開：補到一半 IYU → 大（suppcode_pre）", run("iyu", true)[1] == "大", "expected 大")
+  do
+    local t = run("touu", true)
+    h.check("開關開：重碼 TOUU → 整排都出（≥2）", #t >= 2, "got " .. #t)
+  end
+  h.check("含非字母不理", #run("iy`", true) == 0, "expected nothing for wildcard input")
+end
+
+print()
+print("== 三個開關互斥：開頂屏補碼 → 自動上屏／詞組連打連帶關掉 ==")
+do
+  local ac = require("aiphabi_autocommit")
+  local state = { aiphabi_autocommit = true, aiphabi_phrase = false, aiphabi_supp = false }
+  local notifier_cb
+  local fake_ctx
+  fake_ctx = {
+    get_option = function(_, n) return state[n] end,
+    set_option = function(_, n, v) state[n] = v end,
+    option_update_notifier = { connect = function(_, cb) notifier_cb = cb; return { disconnect = function() end } end },
+    commit_notifier = { connect = function() return { disconnect = function() end } end },
+  }
+  ac._set_user_yaml_path_for_tests("/dev/null")
+  ac.init({ engine = { context = fake_ctx } })
+  -- 使用者從選單點「開頂屏補碼」
+  state.aiphabi_supp = true
+  notifier_cb(fake_ctx, "aiphabi_supp")
+  h.check("開頂屏補碼後：頂屏補碼是開的", state.aiphabi_supp == true, "expected true")
+  h.check("開頂屏補碼後：自動上屏被連帶關掉", state.aiphabi_autocommit == false,
+    "expected false, got " .. tostring(state.aiphabi_autocommit))
+  -- 反過來：開自動上屏，頂屏補碼要關掉
+  state.aiphabi_autocommit = true
+  notifier_cb(fake_ctx, "aiphabi_autocommit")
+  h.check("再開自動上屏：頂屏補碼被連帶關掉", state.aiphabi_supp == false,
+    "expected false, got " .. tostring(state.aiphabi_supp))
+end
+
+print()
 print("== 重複上字（連續 N 個 `，N=1~5 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
 do
   local order = require("aiphabi_order")
@@ -638,6 +701,56 @@ do
   h.check("重複上字不參與常用度排序，永遠排最前面",
     afterOrder2[1] and afterOrder2[1].type == "ap_repeat" and afterOrder2[1].text == "嶸",
     "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
+end
+
+print()
+print("== 頂屏補碼：補完固定長度就頂上屏（processor）==")
+do
+  -- 放檔案最後：commit() 會呼叫 order.note_commit()，動 aiphabi_order 的模組級狀態。
+  local supp = require("aiphabi_supp")
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local function mk(input)
+    local committed
+    local ctx = {
+      input = input,
+      get_option = function(_, n) return n == "aiphabi_supp" end,
+      push_input = function(self, k) self.input = self.input .. k end,
+      clear = function(self) self.input = "" end,
+    }
+    local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
+    return env, ctx, function() return committed end
+  end
+
+  -- 大 IY → IYUU：打到第 4 碼（最後一個 U）就頂上屏
+  local env, ctx, got = mk("iyu")
+  supp.func(fake_key("u"), env)
+  h.check("打 IYUU（大，獨一無二補完碼）→ 頂上屏「大」", got() == "大", "got " .. tostring(got()))
+  h.check("頂完 ctx.input 清空", ctx.input == "", "got " .. tostring(ctx.input))
+
+  -- 沒補完不頂（IY + U = IYU，還差一個 U）
+  local env2, ctx2, got2 = mk("iy")
+  supp.func(fake_key("u"), env2)
+  h.check("打 IYU（還沒補完）→ 不頂", got2() == nil, "expected no commit, got " .. tostring(got2()))
+  h.check("打 IYU → ctx.input 累到 iyu", ctx2.input == "iyu", "got " .. tostring(ctx2.input))
+
+  -- 重碼 TOUU：打完不頂，候選欄留著；下一個字母才即時頂第一個
+  local env3, ctx3, got3 = mk("tou")
+  supp.func(fake_key("u"), env3)   -- 打到 touu
+  h.check("打 TOUU（重碼）→ 先不頂，候選欄留著", got3() == nil, "expected no commit yet, got " .. tostring(got3()))
+  h.check("打 TOUU（重碼）→ ctx.input 還是 touu", ctx3.input == "touu", "got " .. tostring(ctx3.input))
+  supp.func(fake_key("j"), env3)   -- 下一個字的開頭 → 即時頂 touu 的第一個
+  local first_touu = require("aiphabi_data").suppcode["touu"][1]
+  h.check("再打一個字母 → 即時頂 TOUU 排第一的字（" .. first_touu .. "）",
+    got3() == first_touu, "expected " .. first_touu .. ", got " .. tostring(got3()))
+  h.check("即時頂後 ctx.input 是新那一鍵 j", ctx3.input == "j", "got " .. tostring(ctx3.input))
+
+  -- 開關關 → 完全不管
+  local env4, _, got4 = mk("iyu")
+  env4.engine.context.get_option = function() return false end
+  local r = supp.func(fake_key("u"), env4)
+  h.check("開關關：func 直接讓開（return 2）、不頂", r == 2 and got4() == nil, "expected pass-through")
 end
 
 os.exit(h.report() == 0 and 0 or 1)

@@ -254,29 +254,43 @@ end
 -- →誤判成又要關詞組」，兩個開關繞一圈變成全部關掉；第二次因為自動上屏已經是關的，
 -- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
 -- 再被自己的回呼解讀成一次新的切換。
+-- 自動上屏／詞組連打／頂屏補碼三個開關互斥：三種「不必按空白」的機制彼此會打架
+--（詞組連打時每個字後面都可能接得出詞、頂屏補碼自己收鍵…），選單勾其中一個，另兩個
+-- 自動關掉。順序＝優先權（開機發現多個同時 true 時留最前面那個）。
+local MUTEX = { "aiphabi_autocommit", "aiphabi_phrase", "aiphabi_supp" }
+local function is_mutex(name)
+  for _, n in ipairs(MUTEX) do if n == name then return true end end
+  return false
+end
 local suppressing = false
 local function enforce_mutex(ctx, just_turned_on)
   if suppressing then return end
-  if just_turned_on == "aiphabi_autocommit" and ctx:get_option("aiphabi_phrase") then
-    suppressing = true
-    ctx:set_option("aiphabi_phrase", false)
-    suppressing = false
-    pcall(persist_option, "aiphabi_phrase", false)
-  elseif just_turned_on == "aiphabi_phrase" and ctx:get_option("aiphabi_autocommit") then
-    suppressing = true
-    ctx:set_option("aiphabi_autocommit", false)
-    suppressing = false
-    pcall(persist_option, "aiphabi_autocommit", false)
+  if not is_mutex(just_turned_on) then return end
+  if not ctx:get_option(just_turned_on) then return end   -- 剛剛是「關掉」，不必連動
+  suppressing = true
+  for _, n in ipairs(MUTEX) do
+    if n ~= just_turned_on and ctx:get_option(n) then
+      ctx:set_option(n, false)
+      pcall(persist_option, n, false)
+    end
   end
+  suppressing = false
 end
 
 local function init(env)
   local ctx = env.engine.context
-  -- 開機當下兩個都是 true（例如手改設定檔）也一併修正一次，不用等使用者動一次選單。
+  -- 開機當下多個同時 true（例如手改設定檔）也一併修正一次，留 MUTEX 裡最前面那個。
   pcall(function()
-    if ctx:get_option("aiphabi_autocommit") and ctx:get_option("aiphabi_phrase") then
-      ctx:set_option("aiphabi_phrase", false)
-      pcall(persist_option, "aiphabi_phrase", false)
+    local kept = nil
+    for _, n in ipairs(MUTEX) do
+      if ctx:get_option(n) then
+        if kept then
+          ctx:set_option(n, false)
+          pcall(persist_option, n, false)
+        else
+          kept = n
+        end
+      end
     end
   end)
   pcall(function()

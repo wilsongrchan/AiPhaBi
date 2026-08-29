@@ -9,3 +9,5 @@ aiphabi_phrase     = require("aiphabi_phrase")   -- 詞組連打開關（純愛�
 aiphabi_order      = require("aiphabi_order")   -- 候選重排（簡碼→exact→其餘照常用度）
 aiphabi_order_plus = require("aiphabi_order_plus") -- 二合一版重排（選過衰減>簡碼>exact>常用度）
 aiphabi_autocommit = require("aiphabi_autocommit") -- 自動上屏（processor，排在 speller 前面）
+aiphabi_supp       = require("aiphabi_supp")       -- 頂屏補碼（processor）：補完固定長度就頂上屏
+aiphabi_supp_cand  = require("aiphabi_supp_cand")  -- 頂屏補碼的候選（translator）
