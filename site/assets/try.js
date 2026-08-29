@@ -1461,9 +1461,21 @@
    * build_pinyin()）：已取碼的字裡現代字頻最高的 3000 個，查拼音（不分聲調）
    * 帶出候選字，選了就用上面同一套 paintGlyph／segsFrom 畫出拆碼圖，
    * 跟〈跟著打〉共用畫法，差別是不分步驟、選了就整個字一次上色——
-   * 這裡不是在「練打」，是在「查這個字怎麼打」。 */
+   * 這裡不是在「練打」，是在「查這個字怎麼打」。
+   *
+   * 注音查字（Wilson）：跟拼音共用同一個輸入框跟候選邏輯，只是查的是
+   * zhuyin_index、輸入的字元是注音符號不是英文字母。兩條路都能打出
+   * 注音符號：
+   *   1. 鍵盤直接對應——跟實體注音鍵盤同一個鍵位（Q=ㄆ、W=ㄊ…），
+   *      熟悉鍵盤的人不用看畫面就能打。
+   *   2. 螢幕鍵盤點選——不記得鍵位的人，直接點畫面上的符號。
+   * 兩條路都是「把對應的注音符號塞進同一個輸入框」，查詢邏輯不用分兩套。 */
+
+  // 鍵位表、螢幕鍵盤畫法、鍵盤直接對應，全部在 assets/bpmf.js（〈拆碼查詢〉
+  // 共用同一份，見那支檔案開頭的說明）。
+
   var PY = { data: null, conv: null, cands: [], sel: null, input: null, candsBox: null,
-             cell: null, hintBox: null, heavy: null };
+             cell: null, hintBox: null, heavy: null, mode: 'pinyin', bpmfBox: null };
 
   /* 拆碼圖與字形（pinyin_glyphs.json，約 8MB）等使用者真的要用查字才抓 —— 併在
      pinyin.json 裡的話，每個開這一頁的人都得先下載 8MB 才能開始打字，而絕大多數
@@ -1501,7 +1513,8 @@
       // 只在真的查無結果時才出聲，順便講收字範圍（Wilson：兩個框現在排一起，
       // 沒查詢也放一整句「輸入拼音查字」是重複的）。
       if (PY.input.value.trim()) PY.candsBox.appendChild(el('span', 'empty',
-        '查無這個拼音的字（目前只收已取碼的字，最多 3000 個）'));
+        PY.mode === 'zhuyin' ? '查無這個注音的字（目前只收已取碼的字）'
+                             : '查無這個拼音的字（目前只收已取碼的字，最多 3000 個）'));
       return;
     }
     PY.cands.forEach(function (ch, i) {
@@ -1544,11 +1557,40 @@
   }
 
   function onPyqInput() {
-    var q = PY.input.value.trim().toLowerCase();
-    PY.cands = q ? (PY.data.index[q] || []).slice(0, 12) : [];
+    var zh = PY.mode === 'zhuyin';
+    var raw = PY.input.value.trim();
+    var q = zh ? raw : raw.toLowerCase();
+    // 打了調號鍵就查帶調的那份（只找那個聲調），沒打就查不分調的那份
+    // （四聲全找）——調號鍵因此真的有作用，不是插好看的（Wilson）。
+    var idx = !zh ? PY.data.index
+      : raw.search(BPMF.TONE_MARKS) >= 0 ? PY.data.zhuyin_tone_index : PY.data.zhuyin_index;
+    PY.cands = q && idx ? (idx[q] || []).slice(0, 12) : [];
     if (PY.cands.length && PY.cands.indexOf(PY.sel) < 0) selectPyq(PY.cands[0]);
     else renderPyqCands();
     if (!PY.cands.length) { PY.sel = null; clearPyqCell(); }
+  }
+
+  /* 插入字元到輸入框游標位置——鍵盤直接對應跟螢幕鍵盤點選共用這一個函式，
+   * 兩條路填的是同一個框（見上面「注音查字」那段說明）。 */
+  function insertPyqChar(ch) {
+    var s = PY.input.selectionStart, e = PY.input.selectionEnd, v = PY.input.value;
+    PY.input.value = v.slice(0, s) + ch + v.slice(e);
+    PY.input.selectionStart = PY.input.selectionEnd = s + ch.length;
+    onPyqInput();
+  }
+
+  /* 切拼音／注音：清掉現有查詢（兩邊查的索引不一樣，舊的查詢字串留著沒
+   * 意義），換 placeholder，注音模式才展開螢幕鍵盤。 */
+  function setPyqMode(mode) {
+    PY.mode = mode;
+    var zh = mode === 'zhuyin';
+    PY.input.value = '';
+    PY.input.placeholder = zh ? '在這裡輸入注音，或點選下面鍵盤' : '在這裡輸入拼音即可查字';
+    PY.bpmfBox.hidden = !zh;
+    [].forEach.call(document.querySelectorAll('[data-pyq-mode]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.pyqMode === mode));
+    });
+    onPyqInput();
   }
 
   function setupPyq(pyd) {
@@ -1559,9 +1601,17 @@
     PY.candsBox = document.getElementById('pyq-cands');
     PY.cell = document.getElementById('pyq-tianzi');
     PY.hintBox = document.getElementById('pyq-hint');
+    PY.bpmfBox = document.getElementById('pyq-bpmf');
     PY.input.addEventListener('input', onPyqInput);
+    // 鍵盤直接對應、螢幕鍵盤畫法都在 assets/bpmf.js（跟〈拆碼查詢〉共用）。
+    BPMF.attachKeydown(PY.input, function () { return PY.mode === 'zhuyin'; }, insertPyqChar);
     // 一點進查字框就開始抓重的那一份，使用者還在打拼音、挑字的時候它就在路上了
     PY.input.addEventListener('focus', loadPyqGlyphs);
+    BPMF.build(PY.bpmfBox, function (ch) { insertPyqChar(ch); PY.input.focus(); },
+               function () { PY.input.value = PY.input.value.slice(0, -1); onPyqInput(); PY.input.focus(); });
+    [].forEach.call(document.querySelectorAll('[data-pyq-mode]'), function (b) {
+      b.addEventListener('click', function () { setPyqMode(b.dataset.pyqMode); PY.input.focus(); });
+    });
     renderPyqCands();
     clearPyqCell();
   }

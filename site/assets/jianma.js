@@ -34,14 +34,29 @@
 
   var CONVENTION = [];
 
-  // 「預設」＝ rules.json 原本的收字順序（不重排，原地回傳）；筆劃數／簡碼字母序
-  // 兩種都是穩定排序（Array#sort 自 ES2019 起保證穩定），同筆劃或同碼時仍照預設順序排。
+  // 「預設」＝ rules.json 原本的收字順序（不重排，原地回傳）；其餘都是穩定排序
+  // （Array#sort 自 ES2019 起保證穩定），同筆劃／同碼／同讀音時仍照預設順序排。
+  // 拼音／注音排序用的是 build_jianma() 現算的「第一個讀音」（py／zy 欄位，
+  // 沒裝 pypinyin 就不存在）——查不到的字（理論上不會發生，67 個字全部
+  // 手核過）就沉到最後，而不是讓 undefined 排序把整批打亂。
+  function cmpStr(ka, kb) {
+    return function (a, b) {
+      var va = a[ka], vb = b[kb];
+      if (va == null) return vb == null ? 0 : 1;
+      if (vb == null) return -1;
+      return va < vb ? -1 : va > vb ? 1 : 0;
+    };
+  }
   function sortedConvention(mode) {
     var arr = CONVENTION.slice();
     if (mode === 'strokes') {
       arr.sort(function (a, b) { return a.strokes - b.strokes; });
     } else if (mode === 'alpha') {
-      arr.sort(function (a, b) { return a.short < b.short ? -1 : a.short > b.short ? 1 : 0; });
+      arr.sort(cmpStr('short', 'short'));
+    } else if (mode === 'py') {
+      arr.sort(cmpStr('py', 'py'));
+    } else if (mode === 'zy') {
+      arr.sort(cmpStr('zy', 'zy'));
     }
     return arr;
   }

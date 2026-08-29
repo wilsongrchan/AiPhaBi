@@ -752,7 +752,21 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
     # 砍掉第三個以後的讀音也試過（3000 個字裡有 385 條，幾乎全是古音：單 tan、
     # 需 ruan、奇 ai、俊 dun…），但那會讓那些字在那個讀音下**完全查不到**，
     # 而排序已經解決了「為什麼 long 會跑出 蝕」這個問題，不必再砍。
-    index = {}
+    # 注音索引跟拼音索引同一套排序邏輯（本音排前、古音排後，見上面那段說明），
+    # 只是查詢字串換成注音——兩者是同一批讀音資料的兩種寫法，不是分開查兩次。
+    # 調號另外收一份帶調的索引（zhuyin_tone_index）：打字的人通常不刻意標調，
+    # 所以預設（zhuyin_index）不分聲調；但注音鍵盤上本來就有調號鍵，打了就該
+    # 有用——查「ㄊㄢˊ」該只有 tán 這個音，不是連 tàn 也一起出來
+    # （Wilson 指出：調號鍵打了沒反應）。前端自己決定查哪一份：字串裡有調號
+    # 記號就查帶調的，沒有就查不分調的（見 try.js／chaima.js 的 onPyqInput）。
+    _ZHUYIN_TONE_MARKS = str.maketrans("", "", "ˇˊˋ˙")
+
+    def _rank_sort(idx):
+        for key, bucket in idx.items():
+            bucket.sort(key=lambda t: (t[0], -charfreq.get(t[1], 0)))
+            idx[key] = [ch for _rank, ch in bucket]
+
+    index, zhuyin_index, zhuyin_tone_index = {}, {}, {}
     for ch in coded:
         readings = pypinyin.pinyin(ch, style=pypinyin.Style.NORMAL, heteronym=True)
         seen = set()
@@ -762,9 +776,21 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
                 continue
             seen.add(py)
             index.setdefault(py, []).append((rank, ch))
-    for py, bucket in index.items():
-        bucket.sort(key=lambda t: (t[0], -charfreq.get(t[1], 0)))
-        index[py] = [ch for _rank, ch in bucket]
+
+        zreadings = pypinyin.pinyin(ch, style=pypinyin.Style.BOPOMOFO, heteronym=True)
+        zseen, ztseen = set(), set()
+        for rank, zy_raw in enumerate(zreadings[0]):
+            zy_raw = zy_raw or ""
+            zy = zy_raw.translate(_ZHUYIN_TONE_MARKS)
+            if zy and zy not in zseen:
+                zseen.add(zy)
+                zhuyin_index.setdefault(zy, []).append((rank, ch))
+            if zy_raw and zy_raw not in ztseen:
+                ztseen.add(zy_raw)
+                zhuyin_tone_index.setdefault(zy_raw, []).append((rank, ch))
+    _rank_sort(index)
+    _rank_sort(zhuyin_index)
+    _rank_sort(zhuyin_tone_index)
 
     segs = build_practice_hints(chars, codes, zigen_raw, max_rule)
     glyphs = _practice_glyphs(chars)
@@ -788,6 +814,8 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
     return {
         "note": meta["note"],
         "index": index,
+        "zhuyin_index": zhuyin_index,
+        "zhuyin_tone_index": zhuyin_tone_index,
         # 跟 practice.json 同一個理由：約定字不是照筆畫拆的，查到這種字要標出來。
         "conv": sorted(chars & conv_chars),
     }, dict(meta, segs=segs, glyphs=glyphs)
@@ -1133,6 +1161,19 @@ def build_jianma(codes, rules):
                      f"MANUAL_STROKE_COUNT 裡——筆劃數查不出來，先填 0")
         return 0
 
+    # 拼音／注音排序（〈簡碼〉頁的排序列）要每個字一個「主要讀音」可比較，
+    # 跟 build_pinyin() 的 zhuyin_index 不一樣——那邊是「查這個音有哪些字」，
+    # 收全部讀音；這裡是「這個字排在哪」，只要**第一個**讀音（pypinyin 沒給
+    # heteronym 時本來就是最常用的那個）。沒裝 pypinyin 就不加這兩個欄位，
+    # 前端排序鈕照樣顯示，只是點了排序不變——跟拼音查字同一套「沒裝就跳過」
+    # 的降級方式（Wilson，不要因為缺一個選用套件就讓整頁掛掉）。
+    try:
+        import pypinyin
+        _ZHUYIN_TONE_MARKS = str.maketrans("", "", "ˇˊˋ˙")
+    except ImportError as e:
+        pypinyin = None
+        print(f"  ⚠️ 沒裝 pypinyin（{e}）—— 簡碼頁不會有拼音／注音排序")
+
     convention = []
     sc = rules_by_id.get("short_code")
     if sc:
@@ -1141,10 +1182,14 @@ def build_jianma(codes, rules):
             rec = codes.get(ch)
             if not ch or not short or not rec:
                 continue
-            convention.append({
+            entry = {
                 "c": ch, "code": rec["final"], "short": short,
                 "strokes": stroke_count(ch, rec),
-            })
+            }
+            if pypinyin:
+                entry["py"] = pypinyin.pinyin(ch, style=pypinyin.Style.NORMAL)[0][0].lower()
+                entry["zy"] = pypinyin.pinyin(ch, style=pypinyin.Style.BOPOMOFO)[0][0].translate(_ZHUYIN_TONE_MARKS)
+            convention.append(entry)
     for w in warn:
         print(f"  ⚠️ {w}")
 

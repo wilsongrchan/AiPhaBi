@@ -61,9 +61,16 @@
   <div class="cm-panel">
     <div class="cm-inputs">
       <div class="cm-field">
-        <label for="cm-py-input">拼音查碼</label>
+        <label for="cm-py-input">字音查碼</label>
+        <!-- 拼音／注音二選一，跟〈線上試打〉的拼音查字同一套（assets/bpmf.js
+             共用，不要抄，見那支檔案開頭的說明）。 -->
+        <div class="jm-sortbar-btns pyq-mode-btns">
+          <button type="button" data-pyq-mode="pinyin" aria-pressed="true">拼音</button>
+          <button type="button" data-pyq-mode="zhuyin" aria-pressed="false">注音</button>
+        </div>
         <input type="text" id="cm-py-input" class="cm-in" placeholder="例如：bai 或 bairi"
                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="pyq-bpmf" id="cm-bpmf" hidden></div>
       </div>
       <div class="cm-field cm-field-wide">
         <label for="cm-tx-input">貼字查碼</label>
@@ -110,6 +117,7 @@
 
 <script src="assets/site.js"></script>
 <script src="assets/glyphbox.js"></script>
+<script src="assets/bpmf.js"></script>
 <script src="assets/chaima.js"></script>
 </body>
 </html>

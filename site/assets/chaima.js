@@ -27,11 +27,13 @@
 
   var D = null;                 // dict.json：main（字 → 碼）
   var PY = null;                // pinyin.json：index（拼音 → 字）、conv（約定字）
+  var convSet = null;           // PY.conv 轉成 Set，卡片角標查詢用
   var G = { state: null, segs: null, glyphs: null };   // pinyin_glyphs.json
   var PP = { state: null, idx: null };                // pyphrase.json：拼音串 → 詞
 
-  var pyIn, txIn, wall, note, cbColour, cbGrid;
+  var pyIn, txIn, wall, note, cbColour, cbGrid, bpmfBox;
   var src = null;               // 'py' | 'tx'：現在牆上這批是誰查出來的
+  var pyMode = 'pinyin';        // 'pinyin' | 'zhuyin'：拼音框現在收哪種輸入
 
   /* 一次最多畫幾張卡。貼一整篇文章進來的話，幾百張田字格的 SVG 會讓頁面明顯
      卡頓，而且也不是查閱該有的樣子 —— 超過就只畫前面這些，並且說清楚。 */
@@ -168,12 +170,24 @@
   /* 打 bairi 的人要的是「白日」，不是 bai 的十二個字接著 ri 的一個字（Wilson）。
      所以整串拼音先去 pyphrase.json 配詞：配到就把那些詞的字**排在最前面**，
      照詞裡的順序，後面才接每個音節的常用字。詞是出貨碼表裡本來就有的，這裡
-     只是多一條從拼音找到它的路。 */
+     只是多一條從拼音找到它的路。
+     ⚠️ 注音模式不查詞、不切多音節——螢幕鍵盤跟鍵盤直接對應（見 assets/bpmf.js）
+     一次就是一個注音符號一個注音符號地拼，拼出來的是**一個音節**，跟拼音那種
+     可以貼一整串字母、要靠 splitPinyin() 猜切法的情況不一樣，直接查
+     zhuyin_index 就好，不必比照辦理。 */
   function pyChars() {
-    var q = pyIn.value.trim().toLowerCase().replace(/[\s'’]+/g, '');
+    var raw = pyIn.value.trim();
     pyWords = null;
-    if (!q || !PY) return [];
+    if (!raw || !PY) return [];
 
+    if (pyMode === 'zhuyin') {
+      // 打了調號鍵就查帶調的那份（只找那個聲調），沒打就查不分調的那份
+      // （四聲全找）——跟〈線上試打〉同一套規則（見 try.js 的 onPyqInput）。
+      var zidx = raw.search(BPMF.TONE_MARKS) >= 0 ? PY.zhuyin_tone_index : PY.zhuyin_index;
+      return raw && zidx ? (zidx[raw] || []).slice() : [];
+    }
+
+    var q = raw.toLowerCase().replace(/[\s'’]+/g, '');
     var out = [], seen = {};
     function push(ch) { if (!seen[ch]) { seen[ch] = 1; out.push(ch); } }
 
@@ -231,6 +245,23 @@
       box.appendChild(tag);
     }
 
+    /* 右上角另一顆角標，疊在簡碼角標正下方：這個字本身不是照筆畫拆的，是
+       取碼原則第 8 條「約定俗成」整字認的（見〈約定字表〉）——跟上面那顆
+       簡碼角標是兩件不相干的事（一個講「這個字有沒有更短的簡碼」，這個講
+       「這個字本身怎麼取碼」）。放左上角會被讀成「左邊那張卡的角標溢出來」
+       （卡牆一排一排排，Wilson 指出這個歧義），所以跟簡碼角標同一側，
+       用兩行字疊起來（見 site.css 的 .cm-tag.is-except）維持窄版面。 */
+    if (convSet && convSet.has(ch)) {
+      // 簡碼角標不在的話，約定角標直接佔右上角那個位置；兩顆都要出現時
+      // 才把約定角標往下推（is-bumped，見 site.css），免得疊在一起
+      // （Wilson：預設要在右上角，兩顆都有才往下擠）。
+      var exTag = el('span', 'cm-tag is-except' + (sh ? ' is-bumped' : ''));
+      exTag.innerHTML = '約<br>定';
+      exTag.title = '約定字：不是照筆畫拆的，取碼原則第 8 條整字認';
+      exTag.setAttribute('aria-label', exTag.title);
+      box.appendChild(exTag);
+    }
+
     var foot = el('div', 'cm-foot');
     if (segs) {
       /* 碼一律整條顯示，簡碼沒用到的那幾格只是淡掉，不是拿走（Wilson）——
@@ -267,8 +298,10 @@
     if (!chars.length) {
       // 只在真的打了東西卻查不到時才出聲。空白的框不必被唸。
       if (src === 'py' && pyIn.value.trim())
-        note.textContent = '查無這個拼音的字。拼音查字只收已取碼的字裡最常用的 3000 個，' +
-                           '冷僻字請直接把字貼進右邊的框。';
+        note.textContent = pyMode === 'zhuyin'
+          ? '查無這個注音的字，冷僻字請直接把字貼進右邊的框。'
+          : '查無這個拼音的字。拼音查字只收已取碼的字裡最常用的 3000 個，' +
+            '冷僻字請直接把字貼進右邊的框。';
       return;
     }
 
@@ -306,6 +339,15 @@
       other.value = '';
       render();
     };
+  }
+
+  /* 插入注音符號到拼音框游標位置——鍵盤直接對應跟螢幕鍵盤點選共用這一個
+   * 函式（跟〈線上試打〉的 insertPyqChar 同一個做法）。 */
+  function insertPy(ch) {
+    var s = pyIn.selectionStart, e = pyIn.selectionEnd, v = pyIn.value;
+    pyIn.value = v.slice(0, s) + ch + v.slice(e);
+    pyIn.selectionStart = pyIn.selectionEnd = s + ch.length;
+    onInput('py', txIn)();
   }
 
 
@@ -383,8 +425,30 @@
     txIn = document.getElementById('cm-tx-input');
     wall = document.getElementById('cm-wall');
     note = document.getElementById('cm-note');
+    bpmfBox = document.getElementById('cm-bpmf');
 
     setupOpts();
+
+    // 拼音／注音切換：跟〈線上試打〉共用 assets/bpmf.js，切模式時清掉輸入框
+    // （兩邊查的索引不一樣，舊的查詢字串留著沒意義），換 placeholder，
+    // 注音模式才展開螢幕鍵盤。
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pyq-mode]'), function (b) {
+      b.addEventListener('click', function () {
+        pyMode = b.dataset.pyqMode;
+        var zh = pyMode === 'zhuyin';
+        pyIn.value = '';
+        pyIn.placeholder = zh ? '在這裡輸入注音，或點選下面鍵盤' : '例如：bai 或 bairi';
+        bpmfBox.hidden = !zh;
+        Array.prototype.forEach.call(document.querySelectorAll('[data-pyq-mode]'), function (btn) {
+          btn.setAttribute('aria-pressed', String(btn.dataset.pyqMode === pyMode));
+        });
+        src = 'py'; txIn.value = ''; render();
+        pyIn.focus();
+      });
+    });
+    BPMF.attachKeydown(pyIn, function () { return pyMode === 'zhuyin'; }, insertPy);
+    BPMF.build(bpmfBox, function (ch) { insertPy(ch); pyIn.focus(); },
+               function () { pyIn.value = pyIn.value.slice(0, -1); onInput('py', txIn)(); pyIn.focus(); });
 
     pyIn.addEventListener('input', onInput('py', txIn));
     txIn.addEventListener('input', onInput('tx', pyIn));
@@ -408,6 +472,7 @@
       .then(function (p) {
         if (!p || !p.index) throw new Error('no index');
         PY = p;
+        convSet = new Set(p.conv || []);
         if (src === 'py') render();
       })
       .catch(function () {
