@@ -69,9 +69,13 @@
   /* 這個字的簡碼用到哪幾條字根。兩種簡碼**各自一個開關**（Wilson），跟試打頁
      那一排「套用簡碼」是同一組詞、同一個關係：
 
-       · 約定簡碼（dict.json 的 short_rev，67 個）—— 人挑的，沒有規則可循，所以
-         拿簡碼的字母去跟這個字的字根字母**由左到右貪心比對**，比到的那幾條就是
-         它用到的（的 JA 對上 J…A，我 JKQ 對上 JK…Q）。比不完就整個放棄，不亂淡。
+       · 約定簡碼（dict.json 的 short_rev，67 個）—— **也是照位置**：兩碼取
+         「首＋末」，三碼取「首二＋末」。〈簡碼〉頁講的就是這條規則，建置時也
+         驗過（56 條兩碼、11 條三碼，零例外）。
+         ⚠️ 一開始這裡寫成「拿簡碼字母去貪心比對」，錯在字母會重複：個 的字根是
+         Y O T O、簡碼 YO 指的是**首與末**那兩個 O 裡的後面那個，貪心卻比到第二
+         條字根（Wilson 抓到）。全部 66 個有字形資料的約定簡碼跑過一遍：位置法
+         全對，貪心法在 個 能 看 幾 從 這五個字上淡錯字根。
        · 三簡碼 —— 四條字根以上的字才有，規則是「頭兩條＋最後一條」。這裡直接用
          **位置**（0、1、末），不用字母比對：末碼的字母要是在中間也出現過，貪心
          會比到前面那一個，淡錯字根。
@@ -84,11 +88,14 @@
     if (opts.conv) {
       var conv = D.short_rev && D.short_rev[ch];
       if (conv) {
-        var want = conv.toUpperCase(), keep = [], k = 0;
-        for (var i = 0; i < segs.length && k < want.length; i++) {
-          if (segs[i].L.toUpperCase() === want.charAt(k)) { keep.push(i); k++; }
-        }
-        return k === want.length ? keep : null;
+        var want = conv.toUpperCase(), last = segs.length - 1;
+        var keep = want.length === 2 ? [0, last]
+                 : want.length === 3 ? [0, 1, last] : null;
+        if (!keep || last < keep.length - 1) return null;
+        // 對不起來就不要亂淡（將來多一條不照規則的簡碼，寧可什麼都不做）
+        for (var i = 0; i < keep.length; i++)
+          if (segs[keep[i]].L.toUpperCase() !== want.charAt(i)) return null;
+        return keep;
       }
     }
     if (opts.short3 && segs.length >= 4) return [0, 1, segs.length - 1];
