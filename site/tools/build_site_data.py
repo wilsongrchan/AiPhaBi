@@ -697,8 +697,11 @@ def _practice_glyphs(want):
     return out
 
 
-# 拼音查字（自由試打用）：收現代字頻最高的這麼多字。500→3000（Wilson，
-# 2026-08-22，覺得堪用後擴大範圍）。
+# 拼音查字**的拆碼圖**收現代字頻最高的這麼多字。500→3000（Wilson，2026-08-22，
+# 覺得堪用後擴大範圍）。
+# ⚠️ 這個數字只管**圖**，不管查得到誰：拼音索引收的是全部已取碼的字（見
+# build_pinyin）。冷僻字查得到、有碼、只是沒有圖 —— Wilson 2026-08-28：
+# 「即使看不到拆碼圖，我至少也想拿到它的碼」。
 PINYIN_TOP_N = 3000
 
 
@@ -727,9 +730,13 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
         return None, None
 
     coded = [c for c, rec in codes.items() if rec.get("segments")]
+    # 索引收**全部**已取碼的字；只有拆碼圖那一份限縮到字頻最高的 PINYIN_TOP_N 個。
+    # 兩者分開之後，打 long 查得到 笼（AAXCQ）、攏（KIVDE）這些沒有圖但有碼的字，
+    # 它們的碼會排成深灰的碼格。索引本身只有 61 KB（限縮成 3000 個是 29 KB），
+    # 而 7.9 MB 的那一份完全沒有變大。
     top = sorted(coded, key=lambda c: -charfreq.get(c, 0))[:PINYIN_TOP_N]
     chars = set(top)
-    if not chars:
+    if not coded:
         return None, None
 
     # ⚠️ pypinyin 的 heteronym 會把**所有**記載過的讀音都吐出來，包括早就沒人在
@@ -746,7 +753,7 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
     # 需 ruan、奇 ai、俊 dun…），但那會讓那些字在那個讀音下**完全查不到**，
     # 而排序已經解決了「為什麼 long 會跑出 蝕」這個問題，不必再砍。
     index = {}
-    for ch in chars:
+    for ch in coded:
         readings = pypinyin.pinyin(ch, style=pypinyin.Style.NORMAL, heteronym=True)
         seen = set()
         for rank, py in enumerate(readings[0]):
@@ -2768,7 +2775,9 @@ def main():
     if pinyin:
         kb = (OUT / "pinyin.json").stat().st_size / 1024
         mb = (OUT / "pinyin_glyphs.json").stat().st_size / 1024 / 1024
-        print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {kb:.0f} KB（載入就抓）")
+        n_chars = len({c for v in pinyin["index"].values() for c in v})
+        print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {n_chars} 字 / {kb:.0f} KB"
+              f"（載入就抓；查得到全部已取碼的字，其中 {PINYIN_TOP_N} 個有拆碼圖）")
         print(f"pinyin_glyphs.json {len(pinyin_glyphs['segs'])} 字有拆碼圖 / {mb:.1f} MB"
               f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個）")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
