@@ -1832,7 +1832,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   padding-inline: 0;
   min-width: 0;
 }
-.cm-wall.is-mono .tz-hintcodes { gap: calc(var(--cm-chip-gap) + .12rem); }
+/* 沒有色塊就不需要色塊的縫（Wilson）。彩色模式的 gap 是為了讓相鄰兩塊顏色
+   分得開；拿掉色塊之後，那個縫變成字母之間的空白 —— 實測每格字母只有 7.5px，
+   縫卻有 3.2px，等於字寬的四成，整串碼散成一個一個字母。
+   改成 gap 歸零、改用 letter-spacing 撐開一點點：它跟著字級走，三個尺寸都不
+   用各調一次。 */
+.cm-wall.is-mono .tz-hintcodes { gap: 0; }
+.cm-wall.is-mono .tz-chip { letter-spacing: .1em; padding-inline: .04em; }
 
 /* 沒有被任何字根取到的筆畫（主要是「頭四尾一」略過的那幾段）本來畫成正文墨色，
    在這一頁改成跟「簡碼略過」同一個淺灰（Wilson）—— 兩者是同一件事的兩種說法：
