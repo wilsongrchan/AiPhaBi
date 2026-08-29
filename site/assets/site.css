@@ -291,6 +291,34 @@ nav.site a[aria-current="page"] {
   background: var(--accent-soft);
 }
 
+/* 側邊欄分組：九頁平鋪看不出關係，用一條**不能點**的小標＋上下留白把它們分成
+   「基礎學習」（字根表／取碼原則／約定字表／簡碼）與「流暢模式」（詞組連打／
+   自動上屏）兩區，簡介、線上試打、後記維持頂層。⚠️ 小標刻意不是 <a> —— 這兩組
+   沒有自己的頁面，做成連結就是騙點擊（Wilson 明講不要為它們開頁）。
+   「流暢模式」這個詞不是新造的：試打頁那組單選鈕本來就叫這個名字，涵蓋的也正是
+   這兩頁，兩邊用同一個詞，改名要一起改。 */
+.nav-sec {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  margin-block: .5rem;      /* 分組之間的留白，比 nav.site 的 gap（.1rem）大得多 */
+}
+
+.nav-sec-t {
+  padding: .1rem .6rem .15rem;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: .1em;
+}
+
+/* 組員縮排一階。縮排加在 padding 而不是整個 .nav-sec 上：目前頁面那條橙色左框
+   要跟簡介／線上試打／後記對齊成同一條直線，整組推進去的話框線會參差不齊。 */
+nav.site .nav-sec > a { padding-inline-start: 1.35rem; }
+
+/* 章節錨點本來就縮一階（.pr-sidenav 的 1.1rem），在組裡要再讓開組員那一階 */
+nav.site .nav-sec .pr-sidenav { padding-inline-start: 1.85rem; }
+
 /* .pr-sidenav 的錨點連結（#pr-1 之類）跟「取碼原則」共用同一個網址路徑，
    site.js 判斷目前頁面只看路徑、不看 hash，所以九條連結全部會被標成
    aria-current="page"——這裡取消粗體／橙色框線／橙色底色，這組樣式是給
@@ -1596,6 +1624,11 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   nav.site a { padding: .2rem 0; border-radius: 0; border-inline-start: 0;
                border-bottom: 2px solid transparent; }
   nav.site a[aria-current="page"] { background: none; border-bottom-color: var(--accent); }
+  /* 橫列裡沒有「上下分組」這回事：display:contents 讓 .nav-sec 自己從版面消失，
+     組員直接變成橫列的項目，排出來跟沒分組時一模一樣。 */
+  .nav-sec { display: contents; }
+  .nav-sec-t { display: none; }
+  nav.site .nav-sec > a { padding-inline-start: 0; }
   .brand .en { display: inline; margin-inline-start: .45em; }
 
   .topbar-controls { order: 2; flex-direction: row; align-items: center; gap: .7rem; }
