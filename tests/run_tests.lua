@@ -266,6 +266,41 @@ do
 end
 
 print()
+print("== 唯一上屏：碼還能接出更長的字就先別收（夜 IYAR 卡在 大 IY 上面）==")
+do
+  local ac = require("aiphabi_autocommit")
+  -- 回報（2026-08-29）：打 IY 直接頂掉 大，夜（IYAR）永遠打不出來——sole_real_candidate
+  -- 只看候選欄剩幾個，enable_completion 的補全沒被算進去時就誤判 大 是唯一解。
+  h.check("大 IY 上面還有更長的碼（夜 IYAR…）→ has_longer_code 為真",
+    ac._has_longer_code("iy") == true, "expected true")
+  h.check("夜 IYAR 自己是葉節點（沒有 IYAR* 的單字碼）→ has_longer_code 為假",
+    ac._has_longer_code("iyar") == false, "expected false")
+
+  -- 整段模擬：候選欄「只剩一個」時，has_longer_code 仍該擋下打 IY 的即收
+  local committed = nil
+  local function mk_env(input, key, sole_text)
+    local menu = { prepare = function() end, candidate_count = function() return 1 end }
+    local seg = { menu = menu, get_candidate_at = function() return { text = sole_text } end }
+    local ctx = {
+      input = input,
+      get_option = function(_, n) return n == "aiphabi_autocommit" end,
+      push_input = function(self, k) self.input = self.input .. k end,
+      composition = { back = function() return seg end },
+      clear = function(self) self.input = "" end,
+    }
+    return { engine = { context = ctx, commit_text = function(_, t) committed = t end } }, ctx
+  end
+
+  committed = nil
+  local env1 = mk_env("i", "y", "大")
+  ac.func({ release = function() return false end, repr = function() return "y" end }, env1)
+  h.check("打 IY（候選欄只剩 大）→ 不即收，等使用者打完或按空白", committed == nil,
+    "expected no commit, got " .. tostring(committed))
+  -- 「葉節點還是照樣即收」由檔案最後那組（打 IYAR → 夜）驗證——那條會動 aiphabi_order
+  -- 的模組級 LAST_COMMIT，得排在「重複上字」的 nil 檢查之後。
+end
+
+print()
 print("== 重複上字（連續 N 個 `，N=1~5 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
 do
   local order = require("aiphabi_order")
@@ -504,8 +539,9 @@ do
   --
   -- 注意：故意不用 ctx.input=""（這個字的第一碼）——那條路現在直接 return 2 讓開
   -- （見 aiphabi_autocommit.lua 的效能修正，2026-08-27），唯一上屏只在第二碼起才會
-  -- 檢查。這裡用 "ppi"+"n"＝"ppin"，沿用上面 PPIN 那組已經驗證過「不是死路」的碼，
-  -- 確保會落到 push_input+sole_real_candidate 那段，不會半路被即時頂攔走。
+  -- 檢查。用 "iya"+"r"＝"iyar"（夜）：夜 是葉節點（沒有 IYAR* 的更長單字碼），
+  -- 過得了 has_longer_code 那道新關卡，會落到 push_input+sole_real_candidate 那段。
+  -- （不用 PPIN 了——闞 PPINX 讓 ppin 不是葉節點，新關卡會擋下，測不到 note_commit。）
   local order = require("aiphabi_order")
   local ac = require("aiphabi_autocommit")
 
@@ -513,11 +549,11 @@ do
   local function fake_key(repr)
     return { release = function() return false end, repr = function() return repr end }
   end
-  local cand = { text = "當", type = nil, comment = nil }
+  local cand = { text = "夜", type = nil, comment = nil }
   local menu = { prepare = function() end, candidate_count = function() return 1 end }
   local seg = { menu = menu, get_candidate_at = function(_, i) return i == 0 and cand or nil end }
   local ctx = {
-    input = "ppi",
+    input = "iya",
     get_option = function(_, name) return name == "aiphabi_autocommit" end,
     push_input = function(self, k) self.input = self.input .. k end,
     composition = { back = function() return seg end },
@@ -526,11 +562,11 @@ do
   local env = {
     engine = { context = ctx, commit_text = function(_, text) committed = text end },
   }
-  ac.func(fake_key("n"), env)
-  h.check("唯一上屏路徑：engine:commit_text() 真的被呼叫、收到「當」",
-    committed == "當", "expected 當, got " .. tostring(committed))
-  h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「當」",
-    order.get_last_commit() == "當", "expected 當, got " .. tostring(order.get_last_commit()))
+  ac.func(fake_key("r"), env)
+  h.check("唯一上屏路徑：葉節點（IYAR＝夜）→ engine:commit_text() 真的被呼叫、收到「夜」",
+    committed == "夜", "expected 夜, got " .. tostring(committed))
+  h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「夜」",
+    order.get_last_commit() == "夜", "expected 夜, got " .. tostring(order.get_last_commit()))
 
   -- 即時頂已停用（見 aiphabi_autocommit.lua 的效能量測說明，2026-08-27）：
   -- seg.menu:prepare() 在「頂之前」那個舊 segment 上時好時壞，同一組碼量到

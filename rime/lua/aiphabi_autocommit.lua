@@ -72,6 +72,22 @@ local function is_dead_extension(newCode)
   return not (hit and hit:sub(1, #newCode) == newCode)
 end
 
+-- code 還能不能再往下接出「更長的碼」——碼表裡有沒有哪個碼「嚴格以 code 開頭、比 code 長」。
+-- 有的話現在上屏太早：使用者可能正在打那個更長的字（夜＝IYAR 卡在 大＝IY 上面，
+-- sole_real_candidate 只看候選欄「剩幾個」，補全沒被算進去時就誤判 大 是唯一解、
+-- 打 IY 直接頂掉 大，IYAR 永遠打不出來——回報 2026-08-29）。CODE_INDEX 只收單字碼
+-- （見 build_index），跟自動上屏／詞組連打互斥的前提一致，不會被詞組的長碼干擾。
+local function has_longer_code(code)
+  if not CODE_INDEX then build_index() end
+  local lo, hi = 1, #CODE_INDEX + 1
+  while lo < hi do
+    local mid = (lo + hi) // 2
+    if CODE_INDEX[mid] <= code then lo = mid + 1 else hi = mid end
+  end
+  local nxt = CODE_INDEX[lo]           -- 第一個「嚴格大於 code」的碼
+  return nxt ~= nil and #nxt > #code and nxt:sub(1, #code) == code
+end
+
 -- 容錯（aiphabi_fuzzy 標的）只是「怕你打錯鍵，另外提醒一個可能」，跟「這串碼本身
 -- 打完了沒」無關——它講的是別的碼，不是這碼還沒完。方括號 [ 碼 ] 是容錯專用格式
 -- （見 aiphabi_hint.lua 開頭），拿掉這批猜測後如果只剩一個，一樣算「沒有第二個排隊」。
@@ -165,7 +181,9 @@ local function func(key, env)
   ctx:push_input(k)    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
   local seg = ctx.composition:back()
   if seg then
-    local cand = sole_real_candidate(seg)
+    -- 這串碼還能接出更長的字（大 IY 上面有 夜 IYAR）就先別收——sole_real_candidate
+    -- 只數候選欄剩幾個，補全沒被算進去時會誤判「唯一」，把還沒打完的常見短碼字頂掉。
+    local cand = not has_longer_code(ctx.input or "") and sole_real_candidate(seg)
     if cand then
       env.engine:commit_text(cand.text)
       order.note_commit(cand.text)  -- 同上，唯一上屏這條路也要自己補記
@@ -264,7 +282,8 @@ local function fini(env)
   end
 end
 
--- _is_dead_extension：只給 tests/ 用，直接驗證即時頂的死路判斷對不對真正的碼表，不影響正式行為。
+-- _is_dead_extension／_has_longer_code：只給 tests/ 用，直接對真正的碼表驗證前綴判斷，不影響正式行為。
 return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension,
+         _has_longer_code = has_longer_code,
          _patch_option_line = patch_option_line,
          _set_user_yaml_path_for_tests = _set_user_yaml_path_for_tests }
