@@ -172,8 +172,7 @@
      十二個字加 ri 的一個字全部攤開。單音節不設限 —— 那時使用者要的正是
      「這個音有哪些字」。 */
   var PER_SYL = 8;
-  var pySplit = null;                   // 這次是怎麼切的，給下面那句說明用
-  var pyWords = null;                   // 這次配到的詞
+  var pyWords = null;                   // 這次配到的詞（排在最前面，不對外解釋）
 
   /* 打 bairi 的人要的是「白日」，不是 bai 的十二個字接著 ri 的一個字（Wilson）。
      所以整串拼音先去 pyphrase.json 配詞：配到就把那些詞的字**排在最前面**，
@@ -181,7 +180,6 @@
      只是多一條從拼音找到它的路。 */
   function pyChars() {
     var q = pyIn.value.trim().toLowerCase().replace(/[\s'’]+/g, '');
-    pySplit = null;
     pyWords = null;
     if (!q || !PY) return [];
 
@@ -203,7 +201,6 @@
 
     var syls = splitPinyin(q);
     if (!syls) return out;
-    pySplit = syls;
     syls.forEach(function (sy) {
       byFreq(PY.index[sy]).slice(0, PER_SYL).forEach(push);
     });
@@ -287,10 +284,11 @@
     var shown = chars.slice(0, WALL_MAX);
     shown.forEach(function (ch) { wall.appendChild(card(ch)); });
 
+    /* ⚠️ 這裡**不要**解釋自己是怎麼查的（Wilson）。「配到詞：你好、妳好」、
+       「拼音切成 ni・hao」那類話講的是程式的內部推論，不是使用者的問題的答案 ——
+       他要的是「這些字怎麼打」，答案就在卡片上。留下來的兩句都是他真的需要
+       知道的事：畫不完，以及有字還沒取碼。 */
     var notes = [];
-    if (pyWords) notes.push('配到詞：' + pyWords.join('、') + '（排在最前面）');
-    if (pySplit)
-      notes.push('拼音切成 ' + pySplit.join('・') + '，每個音節列最常用的 ' + PER_SYL + ' 個字');
     if (chars.length > WALL_MAX)
       notes.push('這裡只畫前 ' + WALL_MAX + ' 個（一共 ' + chars.length + ' 個字）');
 
