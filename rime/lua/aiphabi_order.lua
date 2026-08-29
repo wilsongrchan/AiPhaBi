@@ -1,13 +1,16 @@
 -- 愛發筆 · 候選重排（filter，排在 hint / fuzzy 之後、simplifier 之前）
--- 順序固定成三層：
+-- 順序固定成幾層：
 --   1. 約定簡碼（type=ap_short）—— 認定過「就這個字」，永遠第一。
 --   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
 --      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
 --      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
---      那個是猜的，留在第 3 層。）
---   3. 其餘全部一池：補全、偏旁碼、同類、三簡、容錯（後四者都標 type=ap_pool）。
---      這一池不分類別，一律照「本次開機選過幾次（降冪）→ 常用度（降冪）」排。
---      例：打 W，心（偏旁碼）比一堆冷僻的三點水補全常用，就會排到它們前面。
+--      那個是猜的，留在下面。）
+--   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
+--      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
+--      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
+--   4. 補全（type=completion，librime 標的「碼還沒打完」）—— 整批墊在第 3 層之後。
+--      打滿的 碰巧（jovnvis）不該輸給還差一碼、但詞頻較高的 碰瓷（jovnvisq）。
+--   5. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
@@ -140,12 +143,17 @@ local function filter(input, env)
   -- 第一頁常常是生僻字（回報：W`T 第一頁一堆冷門字）。這裡照常用度／選過次數重排一次，
   -- 跟其餘一般候選同一套規矩；ap_repeat（重複上字，見 aiphabi_wildcard.lua）永遠
   -- 墊最前面，不參與排序——那是「上一個上屏的字」，跟常用度無關。
+  -- 標點候選（type=punct，如打 ` 想要的 ·／`／~）緊跟在重複上字之後，維持 punctuator
+  -- 裡定義的順序——不然萬用鍵掃出來的整表把這幾個符號壓到幾頁之後，想打符號的人找不到。
   if not code or code == "" or code:find("[^a-z]") then
     local repeatCand = nil
+    local puncts = {}
     local rest = {}
     for _, c in ipairs(cands) do
       if not repeatCand and c.type == "ap_repeat" then
         repeatCand = c
+      elseif c.type == "punct" then
+        puncts[#puncts + 1] = c
       else
         rest[#rest + 1] = { c = c }
       end
@@ -163,6 +171,7 @@ local function filter(input, env)
       return a.i < b.i
     end)
     if repeatCand then yield(repeatCand) end
+    for _, c in ipairs(puncts) do yield(c) end
     for _, e in ipairs(head) do yield(e.c) end
     if tail then for _, e in ipairs(tail) do yield(e.c) end end
     return
@@ -173,16 +182,17 @@ local function filter(input, env)
 
   -- 覆蓋：enable_sentence 會冒出吃前段（水[K]）或吃後段（民[CLX]）的切分候選。吃不滿整段
   -- [segStart,segEnd]（缺頭或缺尾）的一律墊底，別讓常用單字壓過打滿的詞（水瓶座＝KVRF、人民＝YCLX）。
-  local short, exact, pool, part = {}, {}, {}, {}
+  local short, exact, pool, comp, part = {}, {}, {}, {}, {}
   for _, c in ipairs(cands) do
     if (c.start or 0) > segStart or (c._end or 0) < segEnd then
       part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = c  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
+    elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = c
-    else pool[#pool + 1] = { c = c } end                 -- 補全（沒中完整碼）也丟進池子
+    else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
   end
 
   -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
@@ -216,6 +226,24 @@ local function filter(input, env)
   end
   pool = boosted
   for _, e in ipairs(plainHead) do pool[#pool + 1] = e end
+  -- 補全：整批墊在打滿的候選之後，彼此照 選過→常用度。同樣吃 MAX_SORT 上限——打 I／J
+  -- 這種常見字根一次補全上萬個，全排會卡頓（見上面 MAX_SORT 說明）；超過的維持原序接後面。
+  local compHead, compTail = comp, nil
+  if #comp > MAX_SORT then
+    compHead, compTail = {}, {}
+    for i = 1, MAX_SORT do compHead[i] = comp[i] end
+    for i = MAX_SORT + 1, #comp do compTail[#compTail + 1] = comp[i] end
+  end
+  for i, e in ipairs(compHead) do e.i = i end
+  table.sort(compHead, function(a, b)
+    local sa, sb = score(a.c.text), score(b.c.text)
+    if sa ~= sb then return sa > sb end
+    return a.i < b.i
+  end)
+  if compTail then
+    for _, e in ipairs(compTail) do compHead[#compHead + 1] = e end
+  end
+  comp = compHead
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
     if a.cov ~= b.cov then return a.cov > b.cov end
@@ -224,8 +252,9 @@ local function filter(input, env)
 
   for _, c in ipairs(short) do yield(c) end              -- 1. 簡碼
   for _, c in ipairs(exact) do yield(c) end              -- 2. 主碼 exact
-  for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘（照 選過→常用度）
-  for _, e in ipairs(part) do yield(e.c) end             -- 4. 只吃前綴的切分候選，墊底
+  for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
+  for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
+  for _, e in ipairs(part) do yield(e.c) end             -- 5. 只吃前綴的切分候選，墊底
 end
 
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。

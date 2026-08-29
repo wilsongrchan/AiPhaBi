@@ -43,6 +43,22 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== 補全 vs 打滿：碼還沒打完的補全（type=completion）不該排在打滿整段的候選前面 ==")
+for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+  -- 打 JOVNVIS：碰巧（jovnvis）打滿了；碰瓷（jovnvisq）還差一碼、是 librime 標的 completion。
+  -- 碰瓷 詞頻較高（2110 vs 1286），舊行為會讓補全排到打滿的前面（回報的畫面）。
+  local out = h.run{
+    schema = schema, code = "jovnvis", options = ALL_ON,
+    cands = {
+      { text = "碰瓷", type = "completion", comment = "- Q" },  -- 補全：Rime 標的「還沒打完」
+      { text = "碰巧" },                                         -- 打滿整段
+    },
+  }
+  h.checkAt(schema .. " · 打滿的 碰巧 排在補全 碰瓷 前面", out, 1, "碰巧")
+  h.checkPresent(schema .. " · 補全 碰瓷 還在（只是墊後）", out, "碰瓷", true)
+end
+
+print()
 print("== 提示寫法：圓括號＝參考用主碼，沒括號＝可以改打的捷徑碼 ==")
 do
   -- 打簡碼 JKQ：我 要排第一，並標「簡碼 (主碼)」
@@ -337,18 +353,34 @@ do
 
   -- 實測回報的 bug（2026-08-27）：punct_translator 也認反引號，搶先生出「`」符號本身
   -- 這個候選，排在 translators: 清單裡萬用鍵前面——重複上字排到第二個去了。這裡模擬
-  -- 那個排序（punct_translator 的候選先到），過完 order.lua 後 ap_repeat 該被撈到最前面。
+  -- 那個排序（punct_translator 的候選先到），過完 order.lua 後：
+  --   1. ap_repeat（重複上字）撈到最前面
+  --   2. 標點候選（· ` ~，type=punct）緊跟其後、維持 punctuator 的順序——不被萬用鍵
+  --      掃出來的整表壓到幾頁之後（打 ` 想打符號的人要找得到）
   local afterOrder = h.run{
     code = "`",
     cands = {
-      { text = "`" },                                       -- punct_translator：符號本身，搶第一
+      { text = "·", type = "punct" },                        -- punctuator: ` → [ ·, `, ~ ]
+      { text = "`", type = "punct" },
+      { text = "~", type = "punct" },
       { text = "候", type = "ap_repeat", comment = "重複上字" },  -- 萬用鍵：重複上字
+      { text = "的" },                                          -- 萬用鍵掃全表的高頻雜訊
       { text = "几" },
     },
   }
-  h.check("punct_translator 的「`」符號搶先，order.lua 還是要把重複上字撈到最前面",
-    afterOrder[1] and afterOrder[1].type == "ap_repeat" and afterOrder[1].text == "候",
-    "expected 候 (ap_repeat) first, got " .. h.fmt(afterOrder):sub(1, 60))
+  h.checkAt("打 ` → 重複上字排第一", afterOrder, 1, "候")
+  h.checkAt("打 ` → · 緊跟在重複上字之後（iOS 注音的預設）", afterOrder, 2, "·")
+  h.checkAt("打 ` → 接著是 ` 本身", afterOrder, 3, "`")
+  h.checkAt("打 ` → 接著是 ~（同一顆鍵）", afterOrder, 4, "~")
+  h.check("打 ` → 符號排在萬用鍵掃出來的高頻字（的）之前",
+    (function()
+      local pDot, pDe
+      for i, c in ipairs(afterOrder) do
+        if c.text == "·" then pDot = i end
+        if c.text == "的" then pDe = i end
+      end
+      return pDot and pDe and pDot < pDe
+    end)(), "expected · before 的, got " .. h.fmt(afterOrder):sub(1, 80))
 end
 
 print()
