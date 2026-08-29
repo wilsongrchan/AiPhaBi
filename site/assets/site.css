@@ -1696,7 +1696,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .cm-opts {
   display: flex;
   flex-wrap: wrap;
-  gap: .5rem 1.6rem;
+  /* 組與組之間拉開到 2.6rem：三組各有自己的小標（大小／套用簡碼／顯示），
+     組內的間距是 1.1rem（.short-toggle 的 gap），組間要明顯大過它，才看得出
+     哪個勾選格歸哪個小標管（Wilson）。 */
+  gap: .5rem 2.6rem;
   align-items: center;
   margin-top: 1rem;
   padding-top: .9rem;
