@@ -83,13 +83,15 @@
         <label class="chk-toggle"><input type="radio" name="cmsize" data-cmsize="sm">小</label>
       </div>
       <div class="short-toggle">
-        <label class="chk-toggle"><input type="checkbox" id="cm-colour" checked>字根顏色</label>
-        <label class="chk-toggle"><input type="checkbox" id="cm-grid" checked>拆碼圖</label>
-      </div>
-      <div class="short-toggle">
         <span>套用簡碼</span>
         <label class="chk-toggle"><input type="checkbox" id="cm-conv">約定簡碼</label>
         <label class="chk-toggle"><input type="checkbox" id="cm-short3">三簡碼</label>
+      </div>
+      <!-- 拆碼圖排在字根顏色前面：顏色是它的附屬選項（拆碼圖關掉，顏色跟著
+           停用），先出現的那個才是管事的那個。 -->
+      <div class="short-toggle">
+        <label class="chk-toggle"><input type="checkbox" id="cm-grid" checked>拆碼圖</label>
+        <label class="chk-toggle"><input type="checkbox" id="cm-colour" checked>字根顏色</label>
       </div>
     </div>
   </div>
