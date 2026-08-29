@@ -275,16 +275,15 @@
     if (chars.length > WALL_MAX)
       notes.push('這裡只畫前 ' + WALL_MAX + ' 個（一共 ' + chars.length + ' 個字）');
 
-    /* 底下這兩句講的是「有幾個字沒有圖／沒有碼」，算的是**不重複**的字 ——
-       牆上不去重，一句話裡出現五次的同一個冷僻字要是算成五個，這句話就變成
-       在嚇人。 */
+    /* 「有幾個字沒有拆碼圖」這句話**不要講**（Wilson）——查到的人要的是碼，
+       碼已經在那裡了；補一句「有一個字沒有圖」只是在提醒他一件他沒有損失的事。
+       深灰的碼格本身就說明了那個字沒有圖，不必再用文字重複一次。
+       「還沒取碼」那句留著：那是真的查不到東西，不說他會以為是壞了。
+
+       ⚠️ 算的是**不重複**的字 —— 牆上不去重，一句話裡出現五次的同一個字要是
+       算成五個，這句話就變成在嚇人。 */
     var uniq = [], seen = {};
     shown.forEach(function (ch) { if (!seen[ch]) { seen[ch] = 1; uniq.push(ch); } });
-    if (G.state === 'ready') {
-      var noGlyph = uniq.filter(function (ch) { return D && D.main[ch] && !segsFrom(G.segs, ch); });
-      if (noGlyph.length)
-        notes.push(noGlyph.length + ' 個字只有碼、沒有拆碼圖（拆碼圖只做了最常用的 3000 個字）');
-    }
     var noCode = uniq.filter(function (ch) { return !(D && D.main[ch]); });
     if (noCode.length) notes.push(noCode.length + ' 個字還沒取碼');
     if (notes.length) note.textContent = notes.join('；') + '。';
