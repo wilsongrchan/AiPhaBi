@@ -76,16 +76,15 @@
 
   /* ---------- 現在要畫哪些字 ---------- */
 
-  /* 貼進來的東西 → 要查的字。只留漢字（標點、英數、空白都跳過），而且**去重**：
-     一句話裡出現三次的「的」查出來是同一個答案，畫三張一模一樣的卡沒有意義。
-     順序照第一次出現的位置。 */
+  /* 貼進來的東西 → 要查的字。只留漢字（標點、英數、空白都跳過），**不去重**：
+     重複出現的字要照樣一張一張畫出來（Wilson）。貼一句話進來的人是照著這排
+     卡片一個一個往下打的，把第二次出現的「的」抽掉，卡片的順序就跟他要打的
+     順序對不上了。 */
   function charsOf(text) {
-    var seen = {}, out = [];
+    var out = [];
     for (var i = 0; i < text.length; i++) {
       var c = text.charAt(i);
-      if (!isHan(c) || seen[c]) continue;
-      seen[c] = 1;
-      out.push(c);
+      if (isHan(c)) out.push(c);
     }
     return out;
   }
@@ -234,13 +233,19 @@
     if (pySplit)
       notes.push('拼音切成 ' + pySplit.join('・') + '，每個音節列最常用的 ' + PER_SYL + ' 個字');
     if (chars.length > WALL_MAX)
-      notes.push('這裡只畫前 ' + WALL_MAX + ' 個（一共 ' + chars.length + ' 個不重複的字）');
+      notes.push('這裡只畫前 ' + WALL_MAX + ' 個（一共 ' + chars.length + ' 個字）');
+
+    /* 底下這兩句講的是「有幾個字沒有圖／沒有碼」，算的是**不重複**的字 ——
+       牆上不去重，一句話裡出現五次的同一個冷僻字要是算成五個，這句話就變成
+       在嚇人。 */
+    var uniq = [], seen = {};
+    shown.forEach(function (ch) { if (!seen[ch]) { seen[ch] = 1; uniq.push(ch); } });
     if (G.state === 'ready') {
-      var noGlyph = shown.filter(function (ch) { return D && D.main[ch] && !segsFrom(G.segs, ch); });
+      var noGlyph = uniq.filter(function (ch) { return D && D.main[ch] && !segsFrom(G.segs, ch); });
       if (noGlyph.length)
         notes.push(noGlyph.length + ' 個字只有碼、沒有拆碼圖（拆碼圖只做了最常用的 3000 個字）');
     }
-    var noCode = shown.filter(function (ch) { return !(D && D.main[ch]); });
+    var noCode = uniq.filter(function (ch) { return !(D && D.main[ch]); });
     if (noCode.length) notes.push(noCode.length + ' 個字還沒取碼');
     if (notes.length) note.textContent = notes.join('；') + '。';
   }
