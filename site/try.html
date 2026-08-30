@@ -191,33 +191,52 @@
         <div class="tz-hint" id="pyq-hint"></div>
       </div>
     </aside>
+  </section>
 
-    <!-- 姓名常用字：橫跨兩欄整列，跟模式切換／簡碼開關那幾排一樣（Wilson）。
-         點一個字不會自動打進試打框——跟拼音查字共用同一格拆碼圖（右邊
-         #pyq-tianzi），先讓人認出自己名字裡的字怎麼拆，再自己動手在上面的
-         試打框把碼打出來，比直接查拼音、注音多一步「自己找路」的樂趣
-         （Wilson 2026-08-30：也可以直接去查字框打拼音/注音查，但這樣更有參與感）。
-         清單是 site/assets/try.js 裡的常數（NAME_SURNAMES／NAME_MALE／
-         NAME_FEMALE），不是寫死在這裡——姓氏兩岸常見的挑著收，男女名用字
-         鎖定 80後～00後這個世代常見的（換句話說故意避開「建國」「秀英」
-         那類明顯偏老一輩的字）。 -->
-    <div class="namechars" data-mode-panel="free" hidden>
-      <h3 class="namechars-h">姓名常用字</h3>
+  <!-- 姓名常用字：刻意擺在 #tryarea 這個 grid **外面**，不是裡面另一列。
+       它本來是 grid-column:1/-1 的第三列，緊接在「試打框／拆碼圖」那兩欄
+       下面——但拆碼圖那欄是固定高度（.pyq .tianzi 13rem＋.tz-hint 3.3rem，
+       故意撐住不隨選字變動，見那邊的說明），比左欄的拼音查字框高出一截，
+       grid 的列高只能取兩欄裡較高的那個，逼出一段左欄拼音框下面、姓名
+       常用字上面的空白（Wilson 抓到：「拼音/注音那排」跟「姓名常用字」
+       之間有一段怪異的空白）。挪到 grid 外面，姓名常用字的位置就只看它
+       自己前面實際畫出來的內容，不再被拆碼圖那欄的固定高度拖著走。
+       可見度照舊用 data-mode-panel="free" 控制，只是 setMode() 裡查找的
+       範圍從 #tryarea 底下擴大到整頁（見 try.js）。
 
-      <div class="namechars-row">
+       點一個字不會自動打進試打框——跟拼音查字共用同一格拆碼圖（右邊
+       #pyq-tianzi），先讓人認出自己名字裡的字怎麼拆，再自己動手在上面的
+       試打框把碼打出來，比直接查拼音、注音多一步「自己找路」的樂趣
+       （Wilson 2026-08-30：也可以直接去查字框打拼音/注音查，但這樣更有參與感）。
+       清單是 site/assets/try.js 裡的常數（NAME_SURNAMES／NAME_MALE／
+       NAME_FEMALE），不是寫死在這裡——姓氏兩岸常見的挑著收，男女名用字
+       鎖定 80後～00後這個世代常見的（換句話說故意避開「建國」「秀英」
+       那類明顯偏老一輩的字）。
+
+       姓氏／男女名左右並排兩欄，不是上下疊兩排（Wilson：一個橫向捲一個
+       直向捲疊在一起會很怪）——並排之後兩邊各自維持自己原本的捲動方向
+       （姓氏橫向、名字直向），只是排版變成兩個平行的小面板，不是一路
+       往下接的兩排。男/女名切換鈕改成直的兩顆疊起來（Wilson），跟左邊
+       「常用姓氏」那顆純文字標籤並排看起來是同一種「標籤在左、內容在
+       右」的結構，兩欄才對得整齊。 -->
+  <div class="namechars" data-mode-panel="free" hidden>
+    <p class="namechars-tag">試一下打自己的名字吧！</p>
+
+    <div class="namechars-cols">
+      <div class="namechars-col">
         <span class="namechars-label">常用姓氏</span>
         <div class="namechars-scroll" id="namechars-surname"></div>
       </div>
 
-      <div class="namechars-row">
-        <div class="jm-sortbar-btns namechars-gender" role="group" aria-label="男名／女名">
-          <button type="button" data-namechars-gender="male" aria-pressed="true">男名常用字</button>
-          <button type="button" data-namechars-gender="female" aria-pressed="false">女名常用字</button>
+      <div class="namechars-col">
+        <div class="namechars-gender" role="group" aria-label="男名／女名">
+          <button type="button" data-namechars-gender="male" aria-pressed="true">男名</button>
+          <button type="button" data-namechars-gender="female" aria-pressed="false">女名</button>
         </div>
         <div class="namechars-wrap" id="namechars-given"></div>
       </div>
     </div>
-  </section>
+  </div>
 
   <h2>按鍵指南</h2>
 

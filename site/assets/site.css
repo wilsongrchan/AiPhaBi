@@ -2457,14 +2457,6 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .tianzi { max-width: 10rem; }
 }
 
-/* 姓名常用字在窄螢幕：男/女名切換鈕跟字卡牆原本同一排，欄寬不夠時
-   切換鈕會把字卡牆擠成只剩兩欄寬的窄直條（比橫向捲還難掃視，這組
-   本來就沒設計成要捲）。改成切換鈕自己一行、字卡牆下面另起一行，
-   字卡牆才拿得到整個欄寬去換行。常用姓氏那排維持原樣——它本來就是
-   設計成橫向捲，欄寬不夠正是預期中的情況。 */
-@media (max-width: 34rem) {
-  .namechars-row:has(.namechars-gender) { flex-direction: column; align-items: flex-start; gap: .5rem; }
-}
 
 /* 田字格的提示：被提示到的筆畫用取碼原則頁那一套彩虹分組色 —— 同一條字根
  * 同一個顏色。沒按 / 之前整個字是黑的（.tz-ink）。 */
@@ -2586,11 +2578,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .pyq-bpmf-key {
   flex: 1;
   min-width: 0;
-  height: 2.3rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 600 .95rem/1 inherit;
+  font: 600 1.05rem/1 inherit;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
@@ -2601,11 +2593,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .pyq-bpmf-key:hover { border-color: var(--accent); color: var(--accent); }
 /* 清除鍵比字母鍵寬一點、字級小一點——它是文字不是符號，跟旁邊的注音符號
    混在一起大小一樣會很擠。 */
-.pyq-bpmf-key.is-wide { flex: 1.6; font-size: .78rem; }
+.pyq-bpmf-key.is-wide { flex: 1.6; font-size: .85rem; }
 /* 調號鍵（ˊˇˋ˙）：符號本身很小，字級比字母鍵拉大一點才看得清楚；顏色
    淡一階（ink-dim）暗示「這個可打可不打」——查詢不分聲調（見 try.js
    onPyqInput），不是真的操作要求。 */
-.pyq-bpmf-key.is-tone { font-size: 1.3rem; color: var(--ink-dim); }
+.pyq-bpmf-key.is-tone { font-size: 1.25rem; color: var(--ink-dim); }
 
 /* 拆碼圖那一塊：跟 .typebox 的上外距（.9rem）一樣，讓這個面板的上緣跟
    左邊試打框的 textarea 上緣切齊（Wilson）。田字格跟色塊碼都給固定高度
@@ -2623,18 +2615,52 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    一般字，側欄高度不該不一樣。 */
 .pyq .tz-hint { margin-top: .6rem; height: 3.3rem; min-height: 0; }
 
-/* 姓名常用字：橫跨兩欄整列，跟模式切換／簡碼開關那幾排同一套（.try-mode／
-   .short-toggle 都是 grid-column: 1 / -1），貼在拆碼圖那組（拼音查字＋
-   拆碼圖）下面。詳見 try.html 裡這一塊的說明。 */
-.namechars { grid-column: 1 / -1; margin-top: 1.1rem; padding-top: .9rem; border-top: 1px dashed var(--line); }
-.namechars-h { margin: 0 0 .7rem; font-size: .95rem; color: var(--ink-dim); }
-.namechars-row { display: flex; align-items: center; gap: .7rem; }
-.namechars-row + .namechars-row { margin-top: .6rem; }
+/* 姓名常用字：故意擺在 #tryarea 這個 grid 外面，不跟著拆碼圖那欄的固定
+   高度被拖出一段空白——詳見 try.html 裡這一塊的說明。上外距換成跟
+   .tryarea 自己的下外距一樣（1.4rem）：這一塊現在是接在卡片後面的新
+   段落，不是卡片裡的最後一列，用卡片本來的外距當作跟卡片的距離，
+   比另外量一個數字更不容易兜不起來。 */
+.namechars { margin: 1.4rem 0; padding-top: .5rem; border-top: 1px dashed var(--line); }
+.namechars-tag { margin: 0 0 .7rem; font-size: .82rem; color: var(--accent); }
+
+/* 姓氏／男女名左右並排兩欄，各欄自己是「標籤在左、內容在右」——見
+   try.html 裡的說明：並排之後兩邊各自維持自己原本的捲動方向（姓氏橫向、
+   男女名直向），只是排成兩個平行的小面板。 */
+/* 40 / 60 分——男女名的字卡牆字比姓氏多（45 對 40，但姓氏字卡本身也窄），
+   實際佔用的欄寬用視覺抓：字卡牆要有比姓氏更寬的欄位才不會被擠成一直捲
+   （Wilson）。 */
+.namechars-cols {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  /* 兩欄各自算自己的高度，不要互相拉齊——姓氏那欄天生矮（就一條橫向捲
+   * 的字卡），男女名那欄天生高（三行字卡牆），拉齊只會逼姓氏欄多出一大截
+   * 沒東西的空白。 */
+  align-items: start;
+  gap: .6rem 1.6rem;
+}
+/* 窄螢幕：兩欄並排收成上下疊，各自維持自己原本「標籤在左、內容在右」的
+   排法——欄寬只剩一欄寬時，並排會把兩邊都擠成窄直條，兩個都比原本難用。
+   ⚠️ 這條**必須**接在上面 .namechars-cols 的基礎規則後面，不能擺在檔案
+   前段的其他窄螢幕 media query 堆裡——CSS 层叠是照檔案順序，擺前面的話
+   即使 media query 條件成立，還是會被後面那條沒有 media query、選擇器
+   優先度一樣高的基礎規則蓋掉，媒體查詢形同虛設（親眼在 400px 寬量到還是
+   2fr 3fr，才發現是這個順序問題）。 */
+@media (max-width: 34rem) {
+  .namechars-cols { grid-template-columns: 1fr; gap: 1rem; }
+}
+/* min-width: 0 不能省——grid 欄位預設 min-width: auto，會拿裡面那條可以
+   橫向捲的姓氏列的「完整展開寬度」（40 個字卡連成一排）當作這一欄的最小
+   寬度，把 2fr／3fr 的比例整個沖垮，變成姓氏那欄自己撐到 1700+px、
+   男女名那欄被擠到剩不到 8rem（親眼在 devtools 量到的）。 */
+.namechars-col { display: flex; align-items: flex-start; gap: .7rem; min-width: 0; }
 .namechars-label {
   flex: none;
   font-size: .82rem;
   color: var(--ink-dim);
   white-space: nowrap;
+  /* 跟旁邊那條橫向捲的字卡列垂直置中對齊，不是貼著頂端——字卡列本身
+     比純文字標籤高一點，貼頂會讓標籤看起來偏上面。 */
+  align-self: center;
 }
 
 /* 常用姓氏：一整排不換行，欄寬不夠就橫向捲——跟〈字根表〉的 A–Z 跳轉列
@@ -2649,7 +2675,34 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   overflow-x: auto;
   gap: .35rem;
   padding: .1rem .05rem .6rem;
+  min-width: 0;   /* grid 欄位裡的 flex 子項目預設不會縮小過內容寬度，要蓋掉 */
 }
+
+/* 男/女名切換鈕：直的兩顆疊起來，不是橫的並排（Wilson）——跟左邊
+   「常用姓氏」那顆純文字標籤放在同一條垂直線上，兩欄才對得整齊，也剛好
+   對得上右邊字卡牆的高度。長相是自己一套（不是借 .jm-sortbar-btns 那組
+   橫排慣用的圓角／分隔線），按下去實心，跟站上其他切換鈕的邏輯一致。 */
+.namechars-gender {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 4.4rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;   /* 兩顆方角按鈕跟著外框收圓角 */
+}
+.namechars-gender button {
+  font: inherit;
+  font-size: .82rem;
+  padding: .4rem 0;
+  border: none;
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.namechars-gender button + button { border-top: 1px solid var(--line); }
+.namechars-gender button:hover { color: var(--ink); }
+.namechars-gender button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
 
 /* 男名／女名常用字：固定三行高、超出的部分往下捲，不是不斷換行撐高
    整個面板——45 個字全部攤開會把面板拉得很長，固定高度讓這一塊跟姓氏
@@ -2665,6 +2718,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   max-height: 6.6rem;
   overflow-y: auto;
   padding-right: .3rem;   /* 捲軸旁留一點空隙，不要貼死最後一欄字卡 */
+  min-width: 0;
 }
 
 /* 兩個捲動容器共用同一套細捲軸——瀏覽器原生捲軸太粗，會搶走字卡的注意力，
@@ -2702,9 +2756,6 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* 剛點過的那個字：跟拆碼圖右欄現在顯示的是同一個字，加個底色呼應一下，
    不然點了字、答案跑到右邊側欄去，看不出兩邊是同一件事。 */
 .namechars-chip.is-sel { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-
-.namechars-gender { flex: none; font-size: .82rem; }
-.namechars-gender button { padding: 0 .7rem; }
 
 /* 窄螢幕：.tryarea 收成單欄時姓名常用字自然也是滿版，不用另外處理；
    姓氏列維持橫向捲（不然 40 個字疊成一直排會把整頁拉得很長）。 */

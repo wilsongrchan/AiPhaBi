@@ -1378,7 +1378,9 @@
     P.on = !free;
     [].forEach.call(P.host.querySelectorAll('[data-practice]'), function (n) { n.hidden = free; });
     [].forEach.call(P.host.querySelectorAll('[data-mode-panel="practice"]'), function (n) { n.hidden = free; });
-    [].forEach.call(P.host.querySelectorAll('[data-mode-panel="free"]'), function (n) { n.hidden = !free; });
+    // 姓名常用字（.namechars）故意擺在 #tryarea 外面（見 try.html 裡的
+    // 說明），這裡查 document 而不是 P.host，不然它永遠切不出來。
+    [].forEach.call(document.querySelectorAll('[data-mode-panel="free"]'), function (n) { n.hidden = !free; });
     [].forEach.call(P.host.querySelectorAll('[data-mode]'), function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.mode === m));
     });
