@@ -335,9 +335,11 @@ def main():
 
     # ---- 上屏補碼（aiphabi_supp 開關）：把主碼補「U」補到固定長度，打滿就頂上屏，
     #      不必按空白——2/3 碼 +UU、4 碼 +U、5 碼不變、1 碼一律按空白。U 是全表最少
-    #      當末碼的字母（28 次），補上去幾乎撞不到真碼。補完碼剛好是別的字補完碼的
-    #      前綴（極少數 ~5 個）就不收，那幾個字照舊按空白。重碼（一個補完碼多字）頂
-    #      第一個（字頻最高），候選欄照樣出，看的人可以按數字改選。
+    #      當末碼的字母（28 次），補上去幾乎撞不到真碼。
+    #      補完碼 S1 剛好是另一個補完碼 S2 的前綴（極少數 ~7 個，如 女 LJUU ⊂ 姗 LJUUI）：
+    #      S1 照收，但它是「補完了、還沒定案」的狀態——把 S2 的字掛到 suppcode_pre[S1]，
+    #      打 LJUU 先顯示常用的 女，接 I 才走 姗；接別的鍵（LJUUD）就即時頂 女、D 另起。
+    #      重碼（一個補完碼多字）同理：頂第一個（字頻最高），候選欄照樣出，可按數字改選。
     supp_pad = {}
     for _c, _mc in char2code.items():
         L = len(_mc)
@@ -347,24 +349,32 @@ def main():
             supp_pad[_c] = _mc + "u"
         elif L == 5:
             supp_pad[_c] = _mc
-    _supp5_pre4 = {s[:4] for s in supp_pad.values() if len(s) == 5}
     suppcode = defaultdict(list)
     suppcode_pre = defaultdict(list)
-    supp_skip = []
     for _c, _pc in supp_pad.items():
-        if len(_pc) == 4 and _pc in _supp5_pre4:      # 補完碼是別的補完碼的前綴 → 不收
-            supp_skip.append(_c)
-            continue
         suppcode[_pc].append(_c)
         _base = char2code[_c]
-        for _n in range(len(_base) + 1, len(_pc)):
+        for _n in range(len(_base) + 1, len(_pc)):      # 補到一半的前綴 → 目標字
             suppcode_pre[_pc[:_n]].append(_c)
+    # 補完碼 S1 是另一個補完碼 S2 的真前綴 → S2 的字也掛到 suppcode_pre[S1]
+    _all_supp = sorted(suppcode)
+    for _si, _s1 in enumerate(_all_supp):
+        _j = _si + 1
+        while _j < len(_all_supp) and _all_supp[_j].startswith(_s1):
+            for _c2 in suppcode[_all_supp[_j]]:
+                suppcode_pre[_s1].append(_c2)
+            _j += 1
     for _tbl in (suppcode, suppcode_pre):
         for _k, _v in _tbl.items():
-            _tbl[_k] = [c for _, c in sorted((-freq_w(c), c) for c in _v)]
+            _seen, _out = set(), []
+            for _c in (c for _, c in sorted((-freq_w(c), c) for c in _v)):
+                if _c not in _seen:
+                    _seen.add(_c); _out.append(_c)
+            _tbl[_k] = _out
     supp_dups = sum(1 for v in suppcode.values() if len(v) > 1)
+    supp_notleaf = sum(1 for k in suppcode if k in suppcode_pre)
     print(f"上屏補碼 {sum(len(v) for v in suppcode.values())} 字 → {len(suppcode)} 個補完碼"
-          f"（{supp_dups} 個補完碼撞 2 字以上、頂第一個；{len(supp_skip)} 字補完碼撞別人前綴，照舊按空白）")
+          f"（{supp_dups} 個補完碼撞 2 字以上、{supp_notleaf} 個補完碼還是別人的前綴，都頂第一個、候選欄照出）")
 
     # alts（兼容碼）＝另一條也打得出這個字的路，跟左簡碼曾經犯過同一種錯（cca07ff）：
     # 詞組連打／四碼快打以前只採主碼，字有 alts 卻完全沒被用上——用 alts 那條路拼出來的

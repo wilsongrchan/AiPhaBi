@@ -795,6 +795,25 @@ do
   h.check("資料表 suppcode.iyaru 就是「夜」",
     (require("aiphabi_data").suppcode["iyaru"] or {})[1] == "夜", "expected 夜")
 
+  -- 補完碼還是別人的前綴（女 LJUU ⊂ 姗 LJUUI）：不即收，女 當候選欄第一個
+  local data2 = require("aiphabi_data")
+  h.check("資料：suppcode.ljuu = 女、suppcode_pre.ljuu 含 姗",
+    (data2.suppcode["ljuu"] or {})[1] == "女" and (data2.suppcode_pre["ljuu"] or {})[1] == "姗",
+    "suppcode.ljuu=" .. tostring((data2.suppcode["ljuu"] or {})[1]))
+  local m7 = machine()
+  m7.type_letters("ljuu")
+  h.check("打 LJUU → 先不上屏（還能接成 姗 LJUUI）", m7.committed() == nil, "got " .. tostring(m7.committed()))
+  h.check("打 LJUU → ctx.input 留成 ljuu 給候選欄", m7.input() == "ljuu", "got " .. tostring(m7.input()))
+  m7.key("d")   -- 接 D（接不出更長）→ 即時頂 女，D 另起
+  h.check("LJUU 接 D → 即時頂「女」", m7.committed() == "女", "got " .. tostring(m7.committed()))
+  h.check("LJUU 接 D → D 當新字開頭", m7.buf() == "d" and m7.input() == "d",
+    "buf=" .. tostring(m7.buf()) .. " input=" .. tostring(m7.input()))
+
+  local m8 = machine()
+  m8.type_letters("ljuu")
+  m8.key("i")   -- 接 I → 走 姗 LJUUI
+  h.check("LJUU 接 I → 上屏「姗」（不是 女）", m8.committed() == "姗", "got " .. tostring(m8.committed()))
+
   -- 按鍵放開（release）事件：直接讓開，不誤收、不動 buffer
   local rel_ctx = { get_option = function() return true end, push_input = function() end, clear = function() end }
   local rel_env = { engine = { context = rel_ctx, commit_text = function() end }, buf = "iyu" }
