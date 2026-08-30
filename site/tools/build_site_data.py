@@ -2027,12 +2027,22 @@ CORPUS_SKIP = {
 # 量級（>10萬／5–10萬／1–5萬／1萬以下），讀者才看得出「近3萬9千個日常用語」實際
 # 涵蓋多廣，不是只有招呼語等級的詞才收得到（Wilson 2026-08-30）。也刻意避開地名、
 # 人名這類本來就有自己分類的詞（見上面 CORPUS_GROUPS）——日常用語這組要讓讀者
-# 看到的是「其他組舉不到的那種詞」，不是重複別組已經在講的東西。
+# 看到的是「其他組舉不到的那種詞」，不是重複別組已經在講的東西（蘋果、獅子這種
+# 已經被品牌／星座那兩組認領走的詞，即使長得像日常詞彙也不會出現在這裡）。
+# 也刻意混進具體名詞、形容詞（水果／盒子／熊貓／玫瑰／便宜／高興／龐大），不是
+# 全部堆在中性動詞、連接詞——具體的詞才讓讀者聯想到一整類相鄰詞彙（看到「電影」
+# 會想到「電視劇、電影院」；看到「水果」會想到「蔬菜、青菜」），比字面上那個詞
+# 本身更有代表性（Wilson 2026-08-30）。
+# 這一組收錄量最大（近3萬9千個），例詞名額多給一點——見下面 DAILY_PICKS_N，
+# 不動全域的 CORPUS_PICKS（那個是給其他有精選檔的分類用的，維持 10 個）。
 # 權重數字見 rime/aiphabi.dict.yaml 第三欄，2026-08-30 建置時：
-#   我們 47.9萬　電影 10.3萬｜也可以 8.0萬　客戶 6.0萬｜
-#   一個人 4.7萬　流量 3.2萬　你好 2.1萬｜最後一次 4529　加班費 1227　複診 864
+#   我們 47.9萬　電影 10.3萬｜也可以 8.0萬　客戶 6.0萬｜一個人 4.7萬　流量 3.2萬
+#   你好 2.1萬｜便宜 15487　水果 12988　高興 9469　盒子 6257　玫瑰 4732
+#   最後一次 4529　龐大 4257　熊貓 2622｜信封 1285　加班費 1227　複診 864
+DAILY_PICKS_N = 18
 DAILY_PICKS = ("我們", "電影", "也可以", "客戶", "一個人", "流量", "你好",
-               "最後一次", "加班費", "複診")
+               "便宜", "水果", "高興", "盒子", "玫瑰", "最後一次", "龐大",
+               "熊貓", "信封", "加班費", "複診")
 
 
 def _first_strokes(ch, codes):
@@ -2251,9 +2261,10 @@ def build_corpus(pc, ship, weight, warn, codes):
 
     # 精選檔以外的詞＝rime-essay 高頻詞表那一批（日常用語），量最大的一塊。
     # 它沒有分類可言；數字是「總數減掉精選檔收得到的」。例詞照 DAILY_PICKS 手排
-    # （見上面註解），順序就是排版順序。手排的詞如果哪天從出貨碼表消失了（essay.txt
-    # 換過一批、詞被砍掉），就跳過並警告，不讓建置直接壞掉；名額不夠時照舊按詞頻
-    # 補滿，保證這張卡片一定有 CORPUS_PICKS 個例子。
+    # （見上面註解），順序就是排版順序，名額是 DAILY_PICKS_N（比其他組的
+    # CORPUS_PICKS 多，這一組收錄量最大）。手排的詞如果哪天從出貨碼表消失了
+    # （essay.txt 換過一批、詞被砍掉），就跳過並警告，不讓建置直接壞掉；
+    # 名額不夠時照舊按詞頻補滿，保證這張卡片一定有 DAILY_PICKS_N 個例子。
     curated = {w for secs in files.values() for _t, ws in secs for w in ws}
     daily = [w for w in ship if w not in curated and w not in pinned_extra]
     daily_set = set(daily)
@@ -2269,16 +2280,16 @@ def build_corpus(pc, ship, weight, warn, codes):
             continue
         picks.append(e)
         chosen.add(w)
-        if len(picks) >= CORPUS_PICKS:
+        if len(picks) >= DAILY_PICKS_N:
             break
-    if len(picks) < CORPUS_PICKS:
+    if len(picks) < DAILY_PICKS_N:
         for w in sorted(daily, key=rank):
             if w in chosen:
                 continue
             e = entry(w)
             if e:
                 picks.append(e)
-            if len(picks) >= CORPUS_PICKS:
+            if len(picks) >= DAILY_PICKS_N:
                 break
     if picks:
         groups.insert(0, {"name": "日常用語", "n": len(daily), "picks": picks,
