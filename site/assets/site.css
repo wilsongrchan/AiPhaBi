@@ -2963,9 +2963,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* ---------------------------------------------------------------------------
    首頁 landing（index.html）—— 2026-08-30 改版：首頁不再是〈簡介〉那篇文件的
    開頭，是獨立的入口頁。原本的九點清單搬去 jieshao.html，首頁只留品牌名、
-   幾個關鍵詞、一個真的能查表的打字示範，跟兩顆按鈕。側邊欄本來就列了全站
-   每一頁，首頁不用再擺一份導覽卡片（Wilson：新訪客什麼都不懂，應該先讓他們
-   看到「打字會變成中文字」這件事本身，不是一堆連結）。
+   幾個關鍵詞、一段拆件動畫、跟一顆按鈕（連去 jieshao.html）。側邊欄本來就
+   列了全站每一頁，首頁不用再擺一份導覽卡片（Wilson：新訪客什麼都不懂，應該
+   先讓他們看到「打字會變成中文字」這件事本身，不是一堆連結）。
    --------------------------------------------------------------------------- */
 :root {
   /* hero 背景那三團色暈的顏色——刻意沿用 --accent／--rb-1，不另開一組色相
@@ -3097,58 +3097,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .btn:hover { text-decoration: none; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
-.btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 
-/* 打字示範——上面的拆件動畫是「看」的，這裡是「自己動手打打看」的，兩者分開。
-   任何字母組合都查得到（查的是 dict.json 真正的碼表），不像拆件動畫只有三個
-   手選的字有拆件資料。見 assets/landing.js。 */
-.landing-demo {
-  max-width: 26rem;
-  margin: 0 auto 2.6rem;
-  text-align: center;
-}
-.landing-demo-label {
-  font-size: .88rem;
-  color: var(--ink-dim);
-  margin: 0 0 .7rem;
-}
-.landing-demo-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .8rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: .9rem 1.1rem;
-}
-.ld-input {
-  flex: 0 0 auto;
-  width: 6.5rem;
-  font: inherit;
-  font-size: 1.3rem;
-  letter-spacing: .18em;
-  text-align: center;
-  text-transform: uppercase;
-  color: var(--ink);
-  background: var(--code-bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: .4rem .3rem;
-}
-.ld-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.landing-demo-out {
-  min-width: 3.5rem;
-  font-size: 1.6rem;
-  color: var(--ink-faint);
-}
-.landing-demo-out.is-hit { color: var(--accent); }
-.landing-demo-hint {
-  font-size: .82rem;
-  color: var(--ink-faint);
-  margin: .7rem 0 0;
-}
 
 /* ---------------------------------------------------------------------------
    〈後記〉（houji.html）—— 全站唯一一頁長文，Wilson 的自述。

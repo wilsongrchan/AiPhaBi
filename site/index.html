@@ -56,15 +56,15 @@
   <!-- 首頁不是〈簡介〉那篇文件頁，是獨立的入口——2026-08-30 依 Wilson 指示改版：
        新訪客什麼都不懂，第一眼要看到「打字會變成中文字」這件事本身，不是九點
        特色清單。原本的文件內容整篇搬去 jieshao.html，側邊欄的「簡介」現在連過去。
-       這裡只留品牌名、幾個關鍵詞、一段拆件動畫、跟兩顆按鈕。 -->
+       這裡只留品牌名、幾個關鍵詞、一段拆件動畫、跟一顆按鈕。 -->
   <section class="hero--landing">
     <div class="hero-bg" aria-hidden="true"></div>
     <p class="hero-kicker">中文字形輸入法</p>
     <h1 class="hero-title">愛發筆 <span class="en" data-keep>AiPhaBi</span></h1>
 
-    <!-- 拆件動畫：字根字母炸開、上色、飛回原位組成字，輪流播哈／竹／晶三個字。
-         由 assets/landing.js 接 assets/landing-glyphs.json 畫出來；沒有 JS
-         就是空的，不影響下面按鈕跟查詢框。 -->
+    <!-- 拆件動畫：字母先登場，定住一下再淡出換成這個字根真正的筆畫，逐字根
+         疊出整個字，輪流播哈／竹／晶三個字。由 assets/landing.js 接
+         assets/landing-glyphs.json 畫出來；沒有 JS 就是空的，不影響下面按鈕。 -->
     <div class="lg-stage">
       <svg id="lg-svg" viewBox="0 0 1024 1024" aria-hidden="true"></svg>
     </div>
@@ -74,21 +74,8 @@
       <span>字根即字母形狀</span><span class="dot">·</span><span>免記鍵位</span><span class="dot">·</span><span>低重碼</span>
     </p>
     <div class="hero-cta">
-      <a class="btn btn-primary" href="try.html">立即試打</a>
-      <a class="btn btn-ghost" href="jieshao.html">深入了解</a>
+      <a class="btn btn-primary" href="jieshao.html">立即了解</a>
     </div>
-  </section>
-
-  <section class="landing-demo">
-    <p class="landing-demo-label">打打看——自己打字母，看看變成哪個字</p>
-    <div class="landing-demo-box">
-      <label class="sr-only" for="ld-input">試打框根字母</label>
-      <input type="text" id="ld-input" maxlength="5" autocomplete="off"
-             autocapitalize="off" autocorrect="off" spellcheck="false" data-keep>
-      <div class="landing-demo-out" id="ld-out" aria-live="polite"></div>
-    </div>
-    <p class="landing-demo-hint">任何字母組合都查得到；想練真正打字，見<a href="try.html">線上試打</a>。</p>
-    <noscript><p class="landing-demo-hint">這個小工具需要 JavaScript 才查得到字。</p></noscript>
   </section>
 
 </main>
