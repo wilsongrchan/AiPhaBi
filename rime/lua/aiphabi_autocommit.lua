@@ -155,6 +155,8 @@ end
 local function func(key, env)
   if not is_plain_letter(key) then return 2 end
   local ctx = env.engine.context
+  -- 上屏補碼開著時，收鍵、上屏整段交給 aiphabi_supp（純補完碼、固定長度，不做自然碼的提早上屏）。
+  if ctx:get_option("aiphabi_supp") then return 2 end
   if not ctx:get_option("aiphabi_autocommit") then return 2 end
 
   local code = ctx.input or ""
@@ -254,43 +256,51 @@ end
 -- →誤判成又要關詞組」，兩個開關繞一圈變成全部關掉；第二次因為自動上屏已經是關的，
 -- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
 -- 再被自己的回呼解讀成一次新的切換。
--- 自動上屏／詞組連打／頂屏補碼三個開關互斥：三種「不必按空白」的機制彼此會打架
---（詞組連打時每個字後面都可能接得出詞、頂屏補碼自己收鍵…），選單勾其中一個，另兩個
--- 自動關掉。順序＝優先權（開機發現多個同時 true 時留最前面那個）。
-local MUTEX = { "aiphabi_autocommit", "aiphabi_phrase", "aiphabi_supp" }
-local function is_mutex(name)
-  for _, n in ipairs(MUTEX) do if n == name then return true end end
-  return false
+-- 三個「不必按空白」的開關，關係如下：
+--   * aiphabi_phrase（詞組連打）跟另兩個都互斥——它濾掉多字候選、每個字後面都可能接出
+--     詞，跟「打完就收」的判斷打架。開詞組會關掉另兩個；開另兩個會關詞組。
+--   * aiphabi_supp（上屏補碼）＝ aiphabi_autocommit（自動上屏）的固定長度版，靠它才能用：
+--     開上屏補碼會順便打開自動上屏；關自動上屏會一起關掉上屏補碼。
+--     上屏補碼開著時，收鍵／上屏整段由 aiphabi_supp 處理（純補完碼、固定長度，不做自然碼
+--     的提早上屏），aiphabi_autocommit 這支處理器讓開（見 func 開頭）。
+local function set(ctx, name, value)
+  ctx:set_option(name, value)
+  pcall(persist_option, name, value)
 end
 local suppressing = false
 local function enforce_mutex(ctx, just_turned_on)
   if suppressing then return end
-  if not is_mutex(just_turned_on) then return end
-  if not ctx:get_option(just_turned_on) then return end   -- 剛剛是「關掉」，不必連動
   suppressing = true
-  for _, n in ipairs(MUTEX) do
-    if n ~= just_turned_on and ctx:get_option(n) then
-      ctx:set_option(n, false)
-      pcall(persist_option, n, false)
+  local on = ctx:get_option(just_turned_on)
+  if just_turned_on == "aiphabi_phrase" and on then
+    -- 開詞組 → 關掉自動上屏＋上屏補碼
+    if ctx:get_option("aiphabi_autocommit") then set(ctx, "aiphabi_autocommit", false) end
+    if ctx:get_option("aiphabi_supp") then set(ctx, "aiphabi_supp", false) end
+  elseif just_turned_on == "aiphabi_autocommit" then
+    if on then
+      if ctx:get_option("aiphabi_phrase") then set(ctx, "aiphabi_phrase", false) end
+    elseif ctx:get_option("aiphabi_supp") then
+      set(ctx, "aiphabi_supp", false)             -- 關自動上屏 → 上屏補碼一起關（它靠自動上屏）
     end
+  elseif just_turned_on == "aiphabi_supp" and on then
+    -- 開上屏補碼 → 關詞組、順便把自動上屏打開（上屏補碼是它的固定長度版，沒它不能用）
+    if ctx:get_option("aiphabi_phrase") then set(ctx, "aiphabi_phrase", false) end
+    if not ctx:get_option("aiphabi_autocommit") then set(ctx, "aiphabi_autocommit", true) end
   end
   suppressing = false
 end
 
 local function init(env)
   local ctx = env.engine.context
-  -- 開機當下多個同時 true（例如手改設定檔）也一併修正一次，留 MUTEX 裡最前面那個。
   pcall(function()
-    local kept = nil
-    for _, n in ipairs(MUTEX) do
-      if ctx:get_option(n) then
-        if kept then
-          ctx:set_option(n, false)
-          pcall(persist_option, n, false)
-        else
-          kept = n
-        end
-      end
+    -- 詞組跟「不必按空白」的機制同時 true（例如手改設定檔）：關掉詞組。
+    if ctx:get_option("aiphabi_phrase")
+       and (ctx:get_option("aiphabi_autocommit") or ctx:get_option("aiphabi_supp")) then
+      set(ctx, "aiphabi_phrase", false)
+    end
+    -- 上屏補碼開著、自動上屏沒開：補開自動上屏（上屏補碼靠它）。
+    if ctx:get_option("aiphabi_supp") and not ctx:get_option("aiphabi_autocommit") then
+      set(ctx, "aiphabi_autocommit", true)
     end
   end)
   pcall(function()
@@ -307,7 +317,8 @@ local function fini(env)
 end
 
 -- _is_dead_extension／_has_longer_code：只給 tests/ 用，直接對真正的碼表驗證前綴判斷，不影響正式行為。
-return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension,
+return { init = init, fini = fini, func = func,
+         _is_dead_extension = is_dead_extension,
          _has_longer_code = has_longer_code,
          _patch_option_line = patch_option_line,
          _set_user_yaml_path_for_tests = _set_user_yaml_path_for_tests }

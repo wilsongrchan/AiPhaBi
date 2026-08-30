@@ -327,7 +327,7 @@ do
 end
 
 print()
-print("== 頂屏補碼：補完碼／補到一半的碼 → 候選（translator）==")
+print("== 上屏補碼：補完碼／補到一半的碼 → 候選（translator）==")
 do
   local cand = require("aiphabi_supp_cand")
   local data = require("aiphabi_data")
@@ -362,31 +362,42 @@ do
 end
 
 print()
-print("== 三個開關互斥：開頂屏補碼 → 自動上屏／詞組連打連帶關掉 ==")
+print("== 開關連動：上屏補碼靠自動上屏；詞組連打 ⊥ 兩者 ==")
 do
   local ac = require("aiphabi_autocommit")
-  local state = { aiphabi_autocommit = true, aiphabi_phrase = false, aiphabi_supp = false }
+  local state = {}
   local notifier_cb
   local fake_ctx
   fake_ctx = {
-    get_option = function(_, n) return state[n] end,
-    set_option = function(_, n, v) state[n] = v end,
+    get_option = function(_, n) return state[n] or false end,
+    set_option = function(_, n, v) state[n] = v; if notifier_cb then notifier_cb(fake_ctx, n) end end,
     option_update_notifier = { connect = function(_, cb) notifier_cb = cb; return { disconnect = function() end } end },
     commit_notifier = { connect = function() return { disconnect = function() end } end },
   }
-  ac._set_user_yaml_path_for_tests("/dev/null")
+  ac._set_user_yaml_path_for_tests("/tmp/aiphabi_supp_mutex_" .. os.time() .. ".yaml")
   ac.init({ engine = { context = fake_ctx } })
-  -- 使用者從選單點「開頂屏補碼」
-  state.aiphabi_supp = true
-  notifier_cb(fake_ctx, "aiphabi_supp")
-  h.check("開頂屏補碼後：頂屏補碼是開的", state.aiphabi_supp == true, "expected true")
-  h.check("開頂屏補碼後：自動上屏被連帶關掉", state.aiphabi_autocommit == false,
-    "expected false, got " .. tostring(state.aiphabi_autocommit))
-  -- 反過來：開自動上屏，頂屏補碼要關掉
-  state.aiphabi_autocommit = true
-  notifier_cb(fake_ctx, "aiphabi_autocommit")
-  h.check("再開自動上屏：頂屏補碼被連帶關掉", state.aiphabi_supp == false,
-    "expected false, got " .. tostring(state.aiphabi_supp))
+
+  -- 開上屏補碼 → 自動上屏自己跟著開
+  fake_ctx:set_option("aiphabi_supp", true)
+  h.check("開上屏補碼 → 上屏補碼是開的", state.aiphabi_supp == true, "expected true")
+  h.check("開上屏補碼 → 自動上屏被連帶打開（靠它才能用）", state.aiphabi_autocommit == true, "expected true")
+
+  -- 關自動上屏 → 上屏補碼跟著關
+  fake_ctx:set_option("aiphabi_autocommit", false)
+  h.check("關自動上屏 → 上屏補碼一起關掉", state.aiphabi_supp == false, "expected false")
+
+  -- 開詞組連打 → 自動上屏＋上屏補碼都關
+  fake_ctx:set_option("aiphabi_autocommit", true)
+  fake_ctx:set_option("aiphabi_supp", true)          -- 這時兩個都開
+  fake_ctx:set_option("aiphabi_phrase", true)
+  h.check("開詞組連打 → 詞組是開的", state.aiphabi_phrase == true, "expected true")
+  h.check("開詞組連打 → 自動上屏被關", state.aiphabi_autocommit == false, "expected false")
+  h.check("開詞組連打 → 上屏補碼被關", state.aiphabi_supp == false, "expected false")
+
+  -- 詞組開著時開上屏補碼 → 詞組關、自動上屏連帶開
+  fake_ctx:set_option("aiphabi_supp", true)
+  h.check("詞組開著時開上屏補碼 → 詞組被關", state.aiphabi_phrase == false, "expected false")
+  h.check("詞組開著時開上屏補碼 → 自動上屏連帶開", state.aiphabi_autocommit == true, "expected true")
 end
 
 print()
@@ -724,7 +735,7 @@ do
 end
 
 print()
-print("== 頂屏補碼：補完固定長度就頂上屏（processor）==")
+print("== 上屏補碼：補完固定長度就頂上屏（processor）==")
 do
   -- 放檔案最後：commit() 會呼叫 order.note_commit()，動 aiphabi_order 的模組級狀態。
   local supp = require("aiphabi_supp")
@@ -771,6 +782,23 @@ do
   env4.engine.context.get_option = function() return false end
   local r = supp.func(fake_key("u"), env4)
   h.check("開關關：func 直接讓開（return 2）、不頂", r == 2 and got4() == nil, "expected pass-through")
+
+  -- 上屏補碼開著：只認補完碼，不做自然碼的提早上屏。夜 一定要打到 IYARU，IYAR 不算。
+  do
+    local committed
+    local ctx = {
+      input = "iyar",
+      get_option = function(_, n) return n == "aiphabi_supp" end,
+      push_input = function(self, k) self.input = self.input .. k end,
+      clear = function(self) self.input = "" end,
+    }
+    local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
+    supp.func(fake_key("u"), env)   -- IYAR + U = IYARU（夜 的補完碼）
+    h.check("上屏補碼：打到 IYARU 才收「夜」（IYAR 不算）", committed == "夜",
+      "expected 夜, got " .. tostring(committed))
+    h.check("上屏補碼：資料表 suppcode.iyaru 就是「夜」",
+      (require("aiphabi_data").suppcode["iyaru"] or {})[1] == "夜", "expected 夜")
+  end
 end
 
 os.exit(h.report() == 0 and 0 or 1)
