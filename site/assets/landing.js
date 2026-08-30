@@ -361,7 +361,7 @@
   var guessEl = document.getElementById('guess');
   if (!tianziEl || !input || !checkBtn || !answerEl || !nextBtn || !guessEl) return;
 
-  var GUESS_CHARS = ['回', '岩', '唱', '凶', '今'];
+  var GUESS_CHARS = ['回', '岩', '唱', '凶', '今', '叮', '兀'];
   var codeOf = {};
   var strokesOf = {};
   var qi = 0;
