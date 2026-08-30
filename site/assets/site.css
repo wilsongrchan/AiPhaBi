@@ -3166,7 +3166,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   color: var(--ink-dim);
   margin: 0 0 1.8rem;
 }
-.hero-keywords .dot { margin: 0 .6em; color: var(--line); }
+/* 用 --line（邊框那組很淡的灰）當分隔點的顏色，在淺色主題底下（#d8e6e5
+   對 #fcfefe 的背景）幾乎看不見（Wilson：「otherwise cant see」）。換成
+   --accent——這個 token 本來就是主色綠，淺色／深色主題各自有對比夠的版本，
+   不用另外寫 media query 分兩套。 */
+.hero-keywords .dot { margin: 0 .6em; color: var(--accent); }
 
 .hero-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
 
