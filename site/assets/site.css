@@ -3153,6 +3153,14 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   font-size: .92rem;
   text-decoration: none;
   border: 1px solid transparent;
+  /* .btn 大多掛在 <a> 上，<a> 本來就繼承頁面字體，這行對它是沒差的無操作；
+     但〈猜猜看〉的「看答案」是唯一一個掛在 <button> 上的 .btn —— 表單控制項
+     不像 <a> 會自動繼承頁面字體，瀏覽器預設給它套系統原生控制項字型（Mac 是
+     San Francisco），不是 body 的 Noto Sans TC。旁邊「換一個字」(.guess-next)
+     有寫 font: inherit 所以吃得到 Noto Sans TC；兩顆按鈕字型不同，即使都寫
+     line-height: normal，各自字型量出來的「normal」還是不一樣高，兩顆按鈕
+     還是對不齊（Wilson 回報過兩次，上一次只修了 line-height 那一半）。 */
+  font-family: inherit;
 }
 .btn:hover { text-decoration: none; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
