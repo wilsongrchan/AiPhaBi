@@ -36,11 +36,15 @@
   // ⚠️ 原本改用襯線字體（Georgia）讓 J 的字腳帶一橫，跟石字 J 那組字根的
   // 取形意圖對得上；但改完不久 Wilson 就開始回報 A 飛的時候留殘影，時間點
   // 很接近，換過三種完全不同的動畫排程方式（CSS transition、Web
-  // Animations API、手動 requestAnimationFrame）都沒解決，懷疑問題其實
-  // 出在襯線字體本身的複雜筆畫路徑，不是排程方式——先退回無襯線字體驗證
-  // 這個猜測，J 的字腳一橫暫時看不出來了（等殘影問題確認跟字體有沒有關係
-  // 再回頭處理）。
+  // Animations API、手動 requestAnimationFrame）都沒解決，懷疑問題出在
+  // 襯線字體本身，不是排程方式——退回無襯線字體之後改用別的辦法解決 J：
+  // 截圖比對過一輪常見系統字型（見 scratchpad 的 j_test.html，這份沒收進
+  // repo），Verdana／Tahoma 這兩個無襯線字體剛好在 J 的頂端天生就帶一條
+  // 橫槓（不是襯線，是這兩套字型自己的設計），其他字母走一般無襯線字體，
+  // 只有 J 這個字母單獨指定字型（見下面 fontFor()）。
   var LETTER_FONT = 'sans-serif';
+  var LETTER_FONT_J = "Verdana, Tahoma, 'DejaVu Sans', sans-serif";
+  function fontFor(letter) { return letter === 'J' ? LETTER_FONT_J : LETTER_FONT; }
 
   /* 整體節奏的倍率——嫌動畫太趕就調大這個數字，其他時間值都跟著它縮放，
      不用整支檔案一個一個改（Wilson 2026-08-30：原本的節奏「有點 overwhelming」）。
@@ -115,7 +119,7 @@
           '<g transform="scale(1,-1)">' +
             '<g class="lg-letter" style="opacity:0">' +
               '<text text-anchor="middle" dominant-baseline="central" ' +
-                'font-family="' + LETTER_FONT + '" font-weight="700" ' +
+                'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="700" ' +
                 'font-size="' + LETTER_SIZE + '">' + entry.groups[gi].L + '</text>' +
             '</g>' +
           '</g>' +
