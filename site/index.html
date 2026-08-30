@@ -62,13 +62,43 @@
     <p class="hero-kicker">中文字形輸入法</p>
     <h1 class="hero-title">愛發筆 <span class="en" data-keep>AiPhaBi</span></h1>
 
-    <!-- 拆件動畫：字母先登場，定住一下再淡出換成這個字根真正的筆畫，逐字根
-         疊出整個字，輪流播哈／竹／晶三個字。由 assets/landing.js 接
-         assets/landing-glyphs.json 畫出來；沒有 JS 就是空的，不影響下面按鈕。 -->
-    <div class="lg-stage">
-      <svg id="lg-svg" class="lg-svg" viewBox="0 0 1024 1024" aria-hidden="true"></svg>
+    <!-- 這個位置先播一輪拆件動畫（哈／竹／昌／石各播一次：字母先登場、飛到
+         定點、淡出換成真正的筆畫，逐字根疊出整個字），播完原地換成「猜猜看」
+         小遊戲——同一個位置，不是切去另一個區塊。見 assets/landing.js。 -->
+    <div class="lg-box">
+      <!-- 跳過動畫，直接看猜猜看（見 assets/landing.js 的 showGuess()）——
+           只有圖示不寫字（Wilson），疊在重播圖示正上方。 -->
+      <button type="button" class="lg-skip" id="lg-skip" aria-label="跳過動畫，直接看猜猜看">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+      <!-- 重播圖示——不管現在是動畫還是猜猜看階段都看得到，按了就從頭重播
+           動畫（見 assets/landing.js 的 restart()）。位置貼著範例字的高度
+           置中，不是釘死在角落（Wilson）。 -->
+      <button type="button" class="lg-restart" id="lg-restart" aria-label="重新播放拆件動畫">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      </button>
+      <div class="lg-stage" id="lg-stage">
+        <svg id="lg-svg" class="lg-svg" viewBox="-650 0 1674 1024" aria-hidden="true"></svg>
+      </div>
+      <p class="lg-code" id="lg-code" aria-live="polite"></p>
+
+      <!-- 猜猜看：動畫播完才會出現（見 assets/landing.js 尾端）。答案不是寫死
+           在 HTML／JS 裡的——開頁就去查 dict.json 真正的碼表，碼表換了這裡
+           自動跟著換。字形跟上面拆件動畫同一種（真正的筆畫，不是系統字型），
+           田字格也是全站共用的那個 .tianzi（見 assets/glyphbox.js）。 -->
+      <div class="guess" id="guess" hidden>
+        <p class="guess-label">猜猜看，這個字怎麼打？</p>
+        <div class="tianzi" id="guess-tianzi"></div>
+        <label class="sr-only" for="guess-input">猜猜看要打哪幾個字母</label>
+        <input type="text" id="guess-input" class="guess-input" maxlength="5" autocomplete="off"
+               autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母" data-keep>
+        <div class="guess-actions">
+          <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
+          <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>
+        </div>
+        <p class="guess-answer" id="guess-answer" aria-live="polite"></p>
+      </div>
     </div>
-    <p class="lg-code" id="lg-code" aria-live="polite"></p>
 
     <p class="hero-keywords">
       <span>字根即字母形狀</span><span class="dot">·</span><span>免記鍵位</span><span class="dot">·</span><span>低重碼</span>
@@ -87,6 +117,7 @@
 </footer>
 
 <script src="assets/site.js"></script>
+<script src="assets/glyphbox.js"></script>
 <script src="assets/landing.js"></script>
 </body>
 </html>
