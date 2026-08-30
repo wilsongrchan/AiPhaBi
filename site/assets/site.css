@@ -3130,6 +3130,31 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .lg-restart { transform: translateY(-50%); }
 .lg-skip:hover, .lg-restart:hover { color: var(--accent); border-color: var(--accent); }
 .lg-skip svg, .lg-restart svg { width: 1.15rem; height: 1.15rem; fill: currentColor; }
+/* 滑鼠停留才顯示的文字提示——原本用 title 屬性，但瀏覽器原生 title 的
+   停留時間是瀏覽器自己控制的，網頁沒辦法調（Wilson：「hover threshold is
+   too long」）。改成自己畫的小氣泡，用 transition-delay 控制停留多久才顯示
+   （.75s），滑開的時候不等，立刻淡出。往左彈出，不往上或往右——按鈕貼著
+   .lg-box 右邊緣，.hero--landing 又是 overflow:hidden，往右會被切掉；往上
+   彈在 .lg-skip 那顆（本來就已經站得比較高）risk 頂到 hero 區塊上緣。往左
+   是唯一保證有空間的方向。 */
+.lg-tip {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: .55rem;
+  white-space: nowrap;
+  font-size: .74rem;
+  line-height: 1.4;
+  padding: .3rem .6rem;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+.lg-skip:hover .lg-tip, .lg-restart:hover .lg-tip { opacity: 1; transition-delay: .75s; }
 
 /* 關鍵詞——不是完整的句子，就是幾個詞用點隔開，跟下面的長文分開語氣 */
 .hero-keywords {
