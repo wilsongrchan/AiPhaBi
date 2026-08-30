@@ -180,12 +180,19 @@
         /* 〈簡介〉頁：教育部甲表收滿了就講「全部收錄」，沒收滿就講分數——哪一句
            由資料決定，不要在 HTML 裡手寫死其中一句（2026-08-17 Wilson 的指示，
            原本寫在 index.html 移除〈目前進度〉那段旁邊的註解裡；首頁改版成
-           landing 頁之後，這個位置跟著〈簡介〉的內容一起搬進 jieshao.html）。 */
+           landing 頁之後，這個位置跟著〈簡介〉的內容一起搬進 jieshao.html）。
+           「教育部常用國字甲表」連到教育部語文成果入口網的常用字下載頁（Wilson
+           要求加連結）——那一頁掛的是「教育部4808個常用字」的 ODF／PDF 下載，
+           4,808 字這個數字跟 data/standards/tw_common_4808.txt 的來源說明
+           一致。HTML 裡的靜態後備值（沒 JS／抓不到 dict.json 時）也要是同一顆
+           連結，兩處手動保持一致。 */
         if (tw4808El && d.stats && d.stats.tw4808) {
           var s = d.stats.tw4808;
-          tw4808El.textContent = s.done >= s.total
-            ? ('教育部常用國字甲表 ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
-            : ('教育部常用國字甲表已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
+          var tw4808Link = '<a href="https://language.moe.gov.tw/material/info?m=9fe3ff5a-5a8c-4817-9e60-6337dd55a509" ' +
+            'target="_blank" rel="noopener">教育部常用國字甲表</a>';
+          tw4808El.innerHTML = s.done >= s.total
+            ? (tw4808Link + ' ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
+            : (tw4808Link + '已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
         }
       })
       .catch(function () { /* 留著 HTML 裡的後備值 */ });
