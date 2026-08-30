@@ -126,6 +126,40 @@
       });
     }
 
+    // 字母消失、筆畫出現那一刻——不是簡單的一個淡出一個淡入，是字母被拉開、
+    // 模糊、揉散掉，筆畫同時從同一個點「長」出來（clip-path 從一個點擴散開，
+    // 配模糊度收斂），兩邊時間重疊，讀起來像一個形狀流動變成另一個形狀，
+    // 不是兩張圖疊在一起切換。真正逐點對應筆畫去做形變太複雜（一個字母常常
+    // 要對應兩三筆各自獨立的筆畫，沒有天然的對應關係，勉強做只會看起來亂），
+    // 這是不需要那套數學、但看起來夠「流動」的替代做法。
+    function dissolveLetter(el) {
+      el.style.transition =
+        'transform .42s cubic-bezier(.4,0,1,1), opacity .36s ease .08s, filter .42s ease';
+      el.style.transform = 'scale(1.55) skewX(-10deg)';
+      el.style.opacity = '0';
+      el.style.filter = 'blur(11px)';
+    }
+
+    function materializePiece(el) {
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+      el.style.clipPath = 'circle(0% at 50% 50%)';
+      el.style.filter = 'blur(10px)';
+      el.style.transform = 'scale(.86)';
+      el.getBoundingClientRect();
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () {
+          el.style.transition =
+            'clip-path .6s cubic-bezier(.22,.68,0,1), filter .55s ease, ' +
+            'opacity .3s ease, transform .6s cubic-bezier(.22,.68,0,1)';
+          el.style.opacity = '1';
+          el.style.clipPath = 'circle(150% at 50% 50%)';
+          el.style.filter = 'blur(0px)';
+          el.style.transform = 'scale(1)';
+        });
+      });
+    }
+
     // 1. 全部字母先一起在排隊位置登場（一點點錯開，像排成一列走進畫面）
     for (var pi = 0; pi < n; pi++) {
       (function (letter, delay) {
@@ -144,12 +178,10 @@
       pos.style.transform = 'translate(' + c.x.toFixed(1) + 'px,' + c.y.toFixed(1) + 'px)';
 
       timers.push(window.setTimeout(function () {
-        // 3. 落定之後，字母淡出、真正的筆畫在同一個點淡入——這一刻是
+        // 3. 落定之後，字母揉散、真正的筆畫在同一個點長出來——這一刻是
         //    「這個字母＝這幾筆」的重點，所以慢一點、清楚一點。
-        letter.style.transition = 'transform .34s ease, opacity .34s ease';
-        letter.style.transform = 'scale(1.25)';
-        letter.style.opacity = '0';
-        popIn(piece, 'cubic-bezier(.22,.68,0,1)');
+        dissolveLetter(letter);
+        materializePiece(piece);
 
         timers.push(window.setTimeout(function () {
           flyAndLand(idx + 1, done);

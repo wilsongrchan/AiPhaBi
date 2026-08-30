@@ -3055,9 +3055,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    不是〈拆碼查詢〉那種要教「筆畫分成幾組」的頁面，彩虹色在這裡沒有意思，
    只會讓人以為顏色代表什麼。 */
 .lg-piece, .lg-letter { fill: var(--accent); }
-.lg-piece {
-  transition: transform .95s cubic-bezier(.22, .68, 0, 1), opacity .6s ease;
-}
+/* 正常情況下筆畫怎麼「長出來」（clip-path／filter／transform 那組）都是
+   assets/landing.js 的 materializePiece() 直接用行內 style 設定跟做動畫的，
+   這裡不用重複寫一次 transition。減少動態偏好的訪客會走 JS 裡的另一條路
+   （見 REDUCED 那個分支）：直接把 opacity 設回 1，不套 clip-path／filter，
+   這裡的 transition 只負責讓那一下 opacity 變化不要太生硬。 */
 @media (prefers-reduced-motion: reduce) {
   .lg-piece { transition: opacity .55s ease; }
 }
