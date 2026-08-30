@@ -954,6 +954,25 @@ load failure.
   interpreter Hamster turns out to actually run. If `luajit` throws `unexpected symbol near '/'`
   on a `rime/lua/*.lua` file, that's almost certainly a stray `//` from someone writing on real
   Lua — grep for `//` and replace with `math.floor(x / y)`, don't assume it's a new class of bug.
+- **`librime-lua`'s `Context` binding has no `set_input` — only `push_input`/`pop_input`/`clear`.**
+  (2026-08-29, confirmed against the dylib symbol table by a Side B session.) A first attempt at
+  fixing `aiphabi_supp`'s segmentation-tracking bug (see the `enable_sentence` note in `aiphabi_supp`
+  history) called `ctx:set_input(buf)` to force the composition to match a self-tracked buffer —
+  plausible-sounding API, doesn't exist. Calling a nil method throws inside the **processor**,
+  which silently killed that half of the pipeline for every keystroke — but the **translator**
+  half (a separate Lua module, unaffected) kept running normally, so the candidate bar still
+  showed correct candidates the whole time. Net symptom: candidates looked completely fine,
+  nothing ever committed — very easy to misdiagnose as a *logic* bug (wrong condition, wrong
+  lookup) rather than a *crash* silently swallowed by one specific processor. **Caught by
+  `tests/run_tests.lua`'s own mock `ctx` object *not* modeling this correctly** — the test suite's
+  fake `ctx` had a `set_input` stub of its own, so the test happily passed (113/113) even though
+  the *real* librime-lua binding would throw on that exact call. **Lesson: when a Lua processor's
+  own mock `ctx` in tests defines a method, double-check that method actually exists on the real
+  Rime `Context` API before trusting the mock** — the mock's job is to model reality, and a
+  too-permissive mock (implementing a method the real API lacks) can make a broken feature look
+  fully tested. If unsure whether a `ctx`/`env`/`seg` method is real, grep this file's other
+  working Lua modules for prior use, or verify against upstream librime-lua source/docs rather
+  than assuming.
 
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
