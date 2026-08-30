@@ -1619,6 +1619,75 @@
   }
 
 
+  /* ---- 自由試打：姓名常用字 -------------------------------------------
+   * 常用姓氏＋男/女名常用字，點一個字就借拼音查字那一套（selectPyq）秀在
+   * 右邊的拆碼圖——不會自動打進試打框，是刻意的：這裡的重點是先讓人在一堆
+   * 字裡認出自己名字用的那個字，再自己動手在試打框把碼打出來，比直接在
+   * 查字框打拼音/注音多一步「自己找路」的參與感（Wilson 2026-08-30）。
+   * 選了字之後把焦點放回試打框（out.focus()），順著這個「查完就去打」的
+   * 動線走。
+   *
+   * 名單怎麼挑：姓氏是兩岸常見姓氏的交集（維基〈最常見名字列表〉＋內政部
+   * 統計常見姓氏），男/女名常用字則鎖定 80後～00後這個世代——維基〈最常見
+   * 名字列表〉按年代分開列的那幾欄（大陸「1980s-1990s」「2000s-2010s」、
+   * 台灣「1981-1990」「2001-2010」「2021-2023」），把複詞名拆成單字取交集，
+   * 刻意不用「歷代總排行」那幾欄（會被更早的世代帶偏，例如「建國」
+   * 「秀英」明顯是更早的世代才有的取名風格）。全部字都已經有碼
+   * （build_site_data.py 沒收就是還沒取碼，等取了碼再補，不要瞎猜著先放）。 */
+  var NAME_SURNAMES = '陳林黃張李王吳劉蔡楊許鄭謝郭洪邱曾廖賴徐周葉蘇莊呂江何蕭羅高潘朱詹游簡鍾趙孫馮蔣'.split('');
+  var NAME_MALE   = '偉磊勇濤超傑浩鑫然宇軒家豪志承恩翰冠廷碩宥子睿辰'.split('');
+  var NAME_FEMALE = '婷怡欣悅梓涵雅雯君宜蓁妤詩妍語桐雨霏靜敏娜諾依晴'.split('');
+
+  var NC = { given: null, sel: null };   // sel：目前選中的字卡（跨姓氏／名字兩區只會有一個）
+
+  function nameCharClick(ch, btn) {
+    // 拼音查字的資料可能還沒到（跟 dict.json 分開抓），還沒到就先不動作，
+    // 不要點了沒反應也不吭聲，但也犯不著另外寫一句錯誤訊息去講一個多半
+    // 一兩秒內就會自己好的狀態。
+    if (!PY.data) return;
+    loadPyqGlyphs();
+    selectPyq(ch);
+    if (NC.sel) NC.sel.classList.remove('is-sel');
+    btn.classList.add('is-sel');
+    NC.sel = btn;
+    out.focus();
+  }
+
+  function renderNameChips(box, chars) {
+    box.innerHTML = '';
+    chars.forEach(function (ch) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'namechars-chip';
+      b.textContent = ch;
+      b.addEventListener('click', function () { nameCharClick(ch, b); });
+      box.appendChild(b);
+    });
+  }
+
+  function setupNameChars() {
+    var surnameBox = document.getElementById('namechars-surname');
+    var givenBox = document.getElementById('namechars-given');
+    if (!surnameBox || !givenBox) return;
+    NC.given = givenBox;
+    renderNameChips(surnameBox, NAME_SURNAMES);
+    renderNameChips(givenBox, NAME_MALE);
+    [].forEach.call(document.querySelectorAll('[data-namechars-gender]'), function (b) {
+      b.addEventListener('click', function () {
+        [].forEach.call(document.querySelectorAll('[data-namechars-gender]'), function (bb) {
+          bb.setAttribute('aria-pressed', String(bb === b));
+        });
+        // 換一邊之後原本選的字卡不一定還在畫面上（男/女名那組整個重畫，
+        // 但姓氏那排不會跟著動）——不管哪一種，舊的高亮都要先摘掉，不然
+        // 選過姓氏之後切男/女名，姓氏那顆會留著對不到拆碼圖的選中狀態。
+        if (NC.sel) NC.sel.classList.remove('is-sel');
+        NC.sel = null;
+        clearPyqCell();
+        renderNameChips(givenBox, b.dataset.namecharsGender === 'female' ? NAME_FEMALE : NAME_MALE);
+      });
+    });
+  }
+
 
   function insert(text) {
     var s = out.selectionStart, e = out.selectionEnd, v = out.value;
@@ -1871,6 +1940,10 @@
       out.focus();
     });
   });
+
+  // 姓名常用字：清單是寫死的常數，不等任何資料抓回來就能先把字卡排出來
+  // ——點下去才需要 PY.data（拼音查字那份），見 nameCharClick 自己的判斷。
+  setupNameChars();
 
   fetch('assets/dict.json')
     .then(function (r) { return r.json(); })

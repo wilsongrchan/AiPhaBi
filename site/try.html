@@ -191,6 +191,32 @@
         <div class="tz-hint" id="pyq-hint"></div>
       </div>
     </aside>
+
+    <!-- 姓名常用字：橫跨兩欄整列，跟模式切換／簡碼開關那幾排一樣（Wilson）。
+         點一個字不會自動打進試打框——跟拼音查字共用同一格拆碼圖（右邊
+         #pyq-tianzi），先讓人認出自己名字裡的字怎麼拆，再自己動手在上面的
+         試打框把碼打出來，比直接查拼音、注音多一步「自己找路」的樂趣
+         （Wilson 2026-08-30：也可以直接去查字框打拼音/注音查，但這樣更有參與感）。
+         清單是 site/assets/try.js 裡的常數（NAME_SURNAMES／NAME_MALE／
+         NAME_FEMALE），不是寫死在這裡——姓氏兩岸常見的挑著收，男女名用字
+         鎖定 80後～00後這個世代常見的（換句話說故意避開「建國」「秀英」
+         那類明顯偏老一輩的字）。 -->
+    <div class="namechars" data-mode-panel="free" hidden>
+      <h3 class="namechars-h">姓名常用字</h3>
+
+      <div class="namechars-row">
+        <span class="namechars-label">常用姓氏</span>
+        <div class="namechars-scroll" id="namechars-surname"></div>
+      </div>
+
+      <div class="namechars-row">
+        <div class="jm-sortbar-btns namechars-gender" role="group" aria-label="男名／女名">
+          <button type="button" data-namechars-gender="male" aria-pressed="true">男名常用字</button>
+          <button type="button" data-namechars-gender="female" aria-pressed="false">女名常用字</button>
+        </div>
+        <div class="namechars-wrap" id="namechars-given"></div>
+      </div>
+    </div>
   </section>
 
   <h2>按鍵指南</h2>

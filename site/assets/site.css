@@ -2457,6 +2457,15 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .tianzi { max-width: 10rem; }
 }
 
+/* 姓名常用字在窄螢幕：男/女名切換鈕跟字卡牆原本同一排，欄寬不夠時
+   切換鈕會把字卡牆擠成只剩兩欄寬的窄直條（比橫向捲還難掃視，這組
+   本來就沒設計成要捲）。改成切換鈕自己一行、字卡牆下面另起一行，
+   字卡牆才拿得到整個欄寬去換行。常用姓氏那排維持原樣——它本來就是
+   設計成橫向捲，欄寬不夠正是預期中的情況。 */
+@media (max-width: 34rem) {
+  .namechars-row:has(.namechars-gender) { flex-direction: column; align-items: flex-start; gap: .5rem; }
+}
+
 /* 田字格的提示：被提示到的筆畫用取碼原則頁那一套彩虹分組色 —— 同一條字根
  * 同一個顏色。沒按 / 之前整個字是黑的（.tz-ink）。 */
 .tianzi .tz-z0 { fill: var(--rb-0); }
@@ -2613,6 +2622,61 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    跟固定高度那套邏輯一致（見上面拆碼圖／田字格的說明），選到約定字跟選到
    一般字，側欄高度不該不一樣。 */
 .pyq .tz-hint { margin-top: .6rem; height: 3.3rem; min-height: 0; }
+
+/* 姓名常用字：橫跨兩欄整列，跟模式切換／簡碼開關那幾排同一套（.try-mode／
+   .short-toggle 都是 grid-column: 1 / -1），貼在拆碼圖那組（拼音查字＋
+   拆碼圖）下面。詳見 try.html 裡這一塊的說明。 */
+.namechars { grid-column: 1 / -1; margin-top: 1.1rem; padding-top: .9rem; border-top: 1px dashed var(--line); }
+.namechars-h { margin: 0 0 .7rem; font-size: .95rem; color: var(--ink-dim); }
+.namechars-row { display: flex; align-items: center; gap: .7rem; }
+.namechars-row + .namechars-row { margin-top: .6rem; }
+.namechars-label {
+  flex: none;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+/* 常用姓氏：一整排不換行，欄寬不夠就橫向捲——跟〈字根表〉的 A–Z 跳轉列
+   （.zg-jump）同一招，40 個字一行擠不下，比折成兩三行更好找。 */
+.namechars-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: .35rem;
+  padding: .1rem .05rem;
+}
+.namechars-scroll::-webkit-scrollbar { display: none; }
+
+/* 男名／女名常用字：不必橫向捲，擠不下就換行——這組是拿來瀏覽找自己名字
+   用的字，不像姓氏一定要維持一整排好掃視。 */
+.namechars-wrap { display: flex; flex-wrap: wrap; gap: .35rem; }
+
+/* 字卡本身沿用 .practice-pickbtn 的藥丸鈕長相（邊框／底色／hover 變主色），
+   但字級拉大——這裡放的是單一個漢字，要一眼認出來，不是一句話。 */
+.namechars-chip {
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: .35rem .55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  flex: none;
+}
+.namechars-chip:hover { border-color: var(--accent); color: var(--accent); }
+/* 剛點過的那個字：跟拆碼圖右欄現在顯示的是同一個字，加個底色呼應一下，
+   不然點了字、答案跑到右邊側欄去，看不出兩邊是同一件事。 */
+.namechars-chip.is-sel { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.namechars-gender { flex: none; font-size: .82rem; }
+.namechars-gender button { padding: 0 .7rem; }
+
+/* 窄螢幕：.tryarea 收成單欄時姓名常用字自然也是滿版，不用另外處理；
+   姓氏列維持橫向捲（不然 40 個字疊成一直排會把整頁拉得很長）。 */
 
 /* 按鍵指南：兩欄並排。用 grid 而不是表格 —— 表格要橫向捲才塞得下兩組，
  * grid 在窄螢幕自己收成一欄。每一格是「鍵｜說明」，鍵那一欄寬度看內容，
