@@ -34,11 +34,29 @@
     var end = p.slice(0, -1) + String.fromCharCode(p.charCodeAt(p.length - 1) + 1);
     return [a, lowerBound(keys, end, a)];
   }
-  // 比這串碼更長、而且以它開頭的碼（＝還在排隊的那些）
+  // 比這串碼更長、而且以它開頭的碼（＝還在排隊的那些）——**不管長度**，給
+  // cands()／pickPartial() 這種「還有什麼字接得下去」的完整候選清單用。
   function longer(code) {
     var r = range(D.keys, code), out = [];
     for (var i = r[0]; i < r[1]; i++) if (D.keys[i] !== code) out.push(D.keys[i]);
     return out;
+  }
+  /* code 還能不能接出「更長、但仍在正常主碼長度（≤5 碼）內」的碼——跟
+     rime/lua/aiphabi_autocommit.lua 的 has_longer_code 完全對應，是唯一
+     上屏／即時頂實際問的問題，跟上面 longer() 不一樣：longer() 是「還有什麼
+     字接得下去」（給候選清單用），這裡問的是「接下去的那個算不算數」
+     （給自動上屏的判斷用）。5 碼已滿就不算（沒有 ≤5 的更長路），≥6 碼的
+     完整碼（別的字未截斷的完整碼，例如 競 的 IVOJLIVOJL）也不算——那不是
+     「這個字還沒打完」，是另一個字的另一條路，不該擋這個字上屏
+     （Side B 2026-08-29 修正：兗 IVOJL 曾被 競 擋住；這裡跟著更新）。 */
+  function hasLongerCode(code) {
+    if (code.length >= 5) return false;
+    var r = range(D.keys, code);
+    for (var i = r[0]; i < r[1]; i++) {
+      var k = D.keys[i];
+      if (k !== code && k.length > code.length && k.length <= 5) return true;
+    }
+    return false;
   }
   function alive(code) {
     var r = range(D.keys, code);
@@ -77,8 +95,15 @@
       }
       buf += k;
       var now = cands(buf);
-      if (now.length === 1 && now[0].exact) {
-        steps.push({ key: k, buf: buf, act: 'sole', ch: now[0].ch });
+      /* 唯一上屏：真正打中的候選只有一個、而且沒有更長的路還在排隊
+         （hasLongerCode）。⚠️ 不能只看 now.length===1——cands() 連「還沒打完、
+         繼續打下去會通往別的字」的補全（exact:false）也一起列出來，那是給人
+         看「還接得下去什麼」的完整清單，跟「這個字還沒打完」是兩件事：
+         完整碼一律接受，但不該讓它擋住唯一上屏（見 hasLongerCode 的說明）。 */
+      var nowExact = 0, soleNow = null;
+      for (var ni = 0; ni < now.length; ni++) if (now[ni].exact) { nowExact++; soleNow = now[ni]; }
+      if (nowExact === 1 && !hasLongerCode(buf)) {
+        steps.push({ key: k, buf: buf, act: 'sole', ch: soleNow.ch });
         buf = '';
       } else {
         steps.push({ key: k, buf: buf, act: '' });
@@ -115,22 +140,25 @@
   }
 
   /* ── 例字：從字頻表現挑，不寫死 ─────────────────────────────────────── */
-  // 唯一上屏的例子：碼只屬於它自己、也沒有更長的碼接在後面，而且是照主碼打的
+  // 唯一上屏的例子：碼只屬於它自己、也沒有 ≤5 碼的更長碼接在後面，而且是照主碼打的
   function pickSolo() {
     for (var i = 0; i < D.order.length; i++) {
       var ch = D.order[i], mc = D.main[ch];
       if (!mc || mc.length < 3 || D.short_rev[ch]) continue;
-      if (D.codes[mc] === ch && !longer(mc).length) return ch;
+      if (D.codes[mc] === ch && !hasLongerCode(mc)) return ch;
     }
     return null;
   }
-  // 即時頂的例子：碼只屬於它自己，卻被更長的碼擋著（愈常用愈說明問題）
+  // 即時頂的例子：碼只屬於它自己，卻被 ≤5 碼的更長碼擋著（愈常用愈說明問題）。
+  // 展示牌用的是完整的 longer() 清單（給人看「接下去會通往哪些字」），但要不要
+  // 算「被擋住」得先用 hasLongerCode 篩過——只挑真的會擋住唯一上屏的例子。
   function pickBlocked() {
     for (var i = 0; i < D.order.length; i++) {
       var ch = D.order[i], mc = D.main[ch];
       if (!mc || D.short_rev[ch]) continue;
+      if (D.codes[mc] !== ch || !hasLongerCode(mc)) continue;
       var ext = longer(mc);
-      if (D.codes[mc] === ch && ext.length) return { ch: ch, code: mc, ext: ext };
+      if (ext.length) return { ch: ch, code: mc, ext: ext };
     }
     return null;
   }
@@ -155,6 +183,118 @@
       }
     }
     return null;
+  }
+
+  /* ── 上屏補碼：自動上屏的固定長度版 ──────────────────────────────────
+     規則移植自 rime/lua/aiphabi_supp.lua（M.suppcode 的產生規則，不是照抄
+     那張表本身——這裡跟主碼一樣現算，理由同檔頭）：
+       1 碼字 —— 不補，一律按空白／數字選字（全表僅有的例外）。
+       2、3 碼字 —— 補兩個 U。
+       4 碼字 —— 補一個 U。
+       5 碼字 —— 不變（主碼本來就是固定長度）。
+     少數 2 碼字的補完碼（4 碼）剛好是某個 5 碼補完碼的前綴（例：女 LJUU 是
+     姍 LJUUI 的前綴）——這種字**不是**退回按空白，是併進「撞碼」那條路走
+     即時頂：候選欄照樣先出現這個字，繼續打下一個字的第一鍵，沒接成那個
+     更長的碼，就把它頂上屏（Side B 2026-08-29 second correction：一開始
+     以為這批字要排除，其實跟真正的重碼是同一種收法）。 */
+  function suppPad(mc) {
+    if (!mc) return null;
+    if (mc.length === 1) return null;             // 字根，不補
+    if (mc.length === 2 || mc.length === 3) return mc + 'uu';
+    if (mc.length === 4) return mc + 'u';
+    return mc;                                    // 5 碼，不變
+  }
+
+  var SUPP = null;   // { table: 補完碼→[字，依字頻排]，committed: Set(打滿就對) }
+  function buildSupp() {
+    var raw = {}, ch, mc, pc;
+    for (ch in D.main) {
+      mc = D.main[ch];
+      pc = suppPad(mc);
+      if (!pc) continue;
+      (raw[pc] || (raw[pc] = [])).push(ch);
+    }
+    var keys = Object.keys(raw).sort();
+    // 這個補完碼後面還有沒有更長的補完碼掛著（跟自動上屏的 hasLongerCode
+    // 同一種問法，但問的是補完碼的世界——只有 4 碼的補完碼可能撞到，因為
+    // 這套規則裡沒有比 5 碼更長的補完碼）。
+    function hasLongerSupp(k) {
+      var lo = lowerBound(keys, k, 0), hi = keys.length;
+      for (var i = lo; i < hi; i++) {
+        if (keys[i].indexOf(k) !== 0) break;
+        if (keys[i] !== k) return true;
+      }
+      return false;
+    }
+    // 各碼底下依字頻排（跟真正的即時頂一致：撞碼時頂最常用的那個）
+    var rank = {};
+    for (var i = 0; i < D.order.length; i++) rank[D.order[i]] = i;
+    var far = D.order.length + 1;
+    keys.forEach(function (k) {
+      raw[k].sort(function (a, b) { return (rank[a] == null ? far : rank[a]) - (rank[b] == null ? far : rank[b]); });
+    });
+    // 打滿就對＝這個補完碼只對到一個字，而且後面沒有更長的補完碼在排隊；
+    // 其餘（真的撞碼、或雖然目前只有一個字但還有更長的碼可能接下去）都算
+    // 「靠即時頂決定」。
+    var committed = {};
+    keys.forEach(function (k) {
+      if (raw[k].length === 1 && !hasLongerSupp(k)) committed[raw[k][0]] = true;
+    });
+    return { table: raw, committed: committed };
+  }
+
+  // 補完碼打滿就對的例子（示範用，挑常用、2 或 3 碼的字）
+  function pickSuppExample() {
+    for (var i = 0; i < D.order.length; i++) {
+      var ch = D.order[i], mc = D.main[ch];
+      if (!mc || (mc.length !== 2 && mc.length !== 3) || !SUPP.committed[ch]) continue;
+      return { ch: ch, mc: mc, pc: suppPad(mc) };
+    }
+    return null;
+  }
+  // 補完碼要靠即時頂決定的例子——優先找「補完碼本身只對到一個字，但還有
+  // 更長的補完碼接下去」這種（女／姍那種），比單純的撞碼更能說明「即時頂
+  // 不是只有重碼才用得到」。找不到就退回一般的撞碼例子。
+  function pickSuppClash() {
+    var fallback = null;
+    for (var i = 0; i < D.order.length; i++) {
+      var ch = D.order[i], mc = D.main[ch];
+      if (!mc || SUPP.committed[ch]) continue;
+      var pc = suppPad(mc);
+      if (!pc) continue;
+      var bucket = SUPP.table[pc];
+      if (!bucket || bucket[0] !== ch) continue;   // 只挑「即時頂會頂到它」的那個
+      if (bucket.length === 1) return { ch: ch, mc: mc, pc: pc, clash: bucket, longer: true };
+      if (!fallback) fallback = { ch: ch, mc: mc, pc: pc, clash: bucket, longer: false };
+    }
+    return fallback;
+  }
+
+  /* 補碼demo 是純線性的：一路打到補完碼的最後一碼才上屏，中間沒有分支——
+     不必比照 trace() 那套判斷引擎，直接把每一步的動作排出來就好。 */
+  function drawSuppTape(box, ex) {
+    box.innerHTML = '';
+    var head = el('div', 'ac-row is-head');
+    ['按鍵', '碼欄', '結果'].forEach(function (t) { head.appendChild(el('span', null, t)); });
+    box.appendChild(head);
+    var buf = '';
+    for (var i = 0; i < ex.pc.length; i++) {
+      var k = ex.pc.charAt(i);
+      buf += k;
+      var last = i === ex.pc.length - 1;
+      var row = el('div', 'ac-row' + (last ? ' is-fire' : ''));
+      row.appendChild(el('kbd', 'ac-key', k.toUpperCase()));
+      row.appendChild(el('code', 'ac-buf', buf.toUpperCase()));
+      var r = el('span', 'ac-act');
+      if (last) {
+        r.appendChild(el('i', 'ac-tag is-sole', '補完上屏'));
+        r.appendChild(el('b', null, ex.ch));
+      } else {
+        r.appendChild(el('span', 'ac-why', i < ex.mc.length ? '主碼還沒打完' : '補碼還沒補完，等下一鍵'));
+      }
+      row.appendChild(r);
+      box.appendChild(row);
+    }
   }
 
   function drawPair(box, b) {
@@ -183,7 +323,7 @@
       var mc = D.main[ch];
       if (!mc) continue;
       all++;
-      if (D.codes[mc] === ch && !longer(mc).length) solo++;
+      if (D.codes[mc] === ch && !hasLongerCode(mc)) solo++;
     }
     put('ac-n-solo', nf(solo));
     put('ac-n-pct', Math.round(solo * 100 / all) + '%');
@@ -191,7 +331,7 @@
     var blocked = 0, top = Math.min(COMMON, D.order.length);
     for (var i = 0; i < top; i++) {
       var c = D.order[i], m = D.main[c];
-      if (m && D.codes[m] === c && longer(m).length) blocked++;
+      if (m && D.codes[m] === c && hasLongerCode(m)) blocked++;
     }
     put('ac-n-blocked', nf(blocked));
 
@@ -260,6 +400,64 @@
       if (seq) drawTrace(mixBox, seq);
       else mixBox.parentNode.hidden = true;    // 挑不到就整塊不出現，不要示範一半
     }
+
+    /* 上屏補碼：獨立算一次，跟自動上屏的統計不共用（規則完全不同——這裡是
+       固定長度，不是「還有沒有更長的路」）。百分比一律除以全部已取碼的字數
+       （all），不是只除以「有補完碼」的那一部分——這樣三個數字加起來才會
+       是全部。 */
+    SUPP = buildSupp();
+    var singleN = 0;
+    for (ch in D.main) { if (D.main[ch] && D.main[ch].length === 1) singleN++; }
+    var committedN = Object.keys(SUPP.committed).length;
+    var resolvedN = all - singleN - committedN;
+    var committedPct = Math.round(committedN * 100 / all);
+    var resolvedPct = Math.round(resolvedN * 100 / all);
+    var singlePct = Math.round(singleN * 100 / all * 10) / 10;   // 0.7% 這種小數，四捨五入到一位
+
+    // U 當末碼有多罕見：掃一遍全部主碼，數末字母是 u 的有幾個（不分大小寫，
+    // 主碼本來就存小寫）。這是「為什麼選 U 來補」的證據，跟補碼規則本身
+    // 是兩件事——U 罕見是因，補碼用它是果。
+    var uFinal = 0;
+    for (ch in D.main) {
+      mc = D.main[ch];
+      if (mc && mc.charAt(mc.length - 1) === 'u') uFinal++;
+    }
+
+    put('supp-n-total', nf(committedN));
+    put('supp-n-pct', committedPct + '%');
+    put('supp-single-n', nf(singleN));
+    put('supp-u-n', nf(uFinal));
+
+    put('supp-rule-line', '全部 ' + nf(all) + ' 個已取碼的字裡，除了 ' + nf(singleN) +
+        ' 個一碼字根（' + singlePct + '%，只能按空白或數字選）以外都有補完碼；其中 ' +
+        nf(committedN) + ' 個（' + committedPct + '%）補完碼獨一無二、後面也沒有更長的補完碼' +
+        '在排隊，打滿就對；其餘 ' + nf(resolvedN) + ' 個（' + resolvedPct +
+        '%）——真的撞到別的字，或者雖然目前只有它、但還有更長的補完碼可能接下去——' +
+        '都靠即時頂決定先上哪一個，跟自動上屏的頂功上屏是同一招。');
+
+    var ex = pickSuppExample();
+    if (ex) {
+      put('supp-example-line', '譬如「' + ex.ch + '」（' + ex.mc.toUpperCase() + '）補完碼是 ' +
+          ex.pc.toUpperCase() + '。');
+      var suppBox = document.querySelector('[data-tape="supp"]');
+      if (suppBox) drawSuppTape(suppBox, ex);
+    }
+
+    var cl = pickSuppClash();
+    if (cl) {
+      if (cl.longer) {
+        put('supp-clash-line', '譬如「' + cl.ch + '」（' + cl.mc.toUpperCase() + '）補完碼 ' +
+            cl.pc.toUpperCase() + ' 本身只對到它，但後面還接得出更長的碼（例如再多打一鍵接成' +
+            '別的字）——所以不直接打滿就收，一樣靠下一鍵的即時頂決定。');
+      } else {
+        put('supp-clash-line', '譬如「' + cl.mc.toUpperCase() + '」的補完碼 ' + cl.pc.toUpperCase() +
+            '，同時是「' + cl.clash.join('、') + '」共 ' + nf(cl.clash.length) +
+            ' 個字的碼——先上字頻最高的「' + cl.clash[0] + '」。');
+      }
+    }
+
+    put('supp-except-line', '只有這 ' + nf(singleN) + ' 個一碼字根不補碼，因為已經是最短的碼，' +
+        '沒有再補的空間——一律按空白或數字選字，跟開不開這個模式無關。');
   }
 
   fetch('assets/dict.json')

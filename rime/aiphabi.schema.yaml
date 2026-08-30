@@ -45,8 +45,6 @@ switches:
   - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打
     states: [ 詞組關, 詞組開 ]
     reset: 1
-  - name: aiphabi_supp              # 上屏補碼：自動上屏的固定長度版，主碼補 U（2/3碼+UU、4碼+U）
-    states: [ 上屏補碼關, 上屏補碼開 ]
   - name: prediction                # 智能聯想：選完字，猜下一個字／詞
     states: [ 聯想關, 聯想開 ]
     reset: 1
@@ -60,7 +58,6 @@ engine:
     - predictor
     - key_binder
     - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
-    - lua_processor@aiphabi_supp        # 上屏補碼：打滿補完碼（固定長度）就上屏（開著時 aiphabi_autocommit 整段讓開）
     - speller
     - punctuator
     - selector
@@ -75,7 +72,6 @@ engine:
   translators:
     - predict_translator
     - punct_translator
-    - lua_translator@aiphabi_supp_cand   # 上屏補碼：補完碼／補到一半的碼 → 對應的字（aiphabi_supp 關就不出）
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:

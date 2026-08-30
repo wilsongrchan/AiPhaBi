@@ -1678,6 +1678,24 @@
      補進 build_index()，兩邊現在是同一套判斷。
      差別只有一處：這裡照**開關**現查（簡碼關著就不收進索引），跟 lookup() 現查
      SHORT_ON 是同一條規矩 —— 畫面上打不出來的東西不該讓它擋住判斷。 */
+  /* code 還能不能接出「更長、但仍在正常主碼長度（≤5 碼）內」的碼——跟
+     rime/lua/aiphabi_autocommit.lua 的 has_longer_code 完全對應。5 碼已滿
+     就不算（沒有 ≤5 的更長路），≥6 碼的完整碼（別的字未截斷的完整碼，例如
+     競 的 IVOJLIVOJL）也不算——那不是「這個字還沒打完」，是另一個字的
+     另一條路，不該擋這個字上屏（Side B 2026-08-29 修正：兗 IVOJL 曾被
+     競 擋住；這裡跟著更新，不然試打頁會演給人看一個真正的輸入法已經
+     不會做的行為）。 */
+  function hasLongerCode(code) {
+    var d = state.data;
+    if (!d || code.length >= 5) return false;
+    var r = prefixRange(d.keys, code);
+    for (var i = r[0]; i < r[1]; i++) {
+      var k = d.keys[i];
+      if (k !== code && k.length > code.length && k.length <= 5) return true;
+    }
+    return false;
+  }
+
   var _alive = { short: null, short3: null };
   function codeAlive(code) {
     var d = state.data;
@@ -1709,8 +1727,18 @@
       if (top) { commit(top.ch); setBuf(k); return true; }
     }
     setBuf(state.buf + k);
-    // 唯一上屏：沒有第二個排隊，而且那一個的碼本身已經打完
-    if (state.cands.length === 1 && state.cands[0].exact) commit(state.cands[0].ch);
+    /* 唯一上屏：真正打中的候選（exact）只有一個、而且沒有更長的路還在排隊
+       （hasLongerCode）。⚠️ 不能只看 state.cands.length===1——候選欄裡打中
+       的那個之外，常常還跟著幾個「還沒打完、繼續打下去會通往別的字」的補全
+       （exact:false），那些是**列出來給人看的完整碼路徑**，跟「這個字還沒
+       打完」是兩件事：完整碼一律接受，但不該讓它擋住唯一上屏（見上面
+       hasLongerCode 的說明）。以前這裡沒分開算，效果是任何補全都會擋住
+       上屏，跟舊版 Lua 一樣舊，現在要跟 Side B 修過的新版對上。 */
+    var exactHits = 0, soleExact = null;
+    for (var ci = 0; ci < state.cands.length; ci++) {
+      if (state.cands[ci].exact) { exactHits++; soleExact = state.cands[ci]; }
+    }
+    if (exactHits === 1 && !hasLongerCode(state.buf)) commit(soleExact.ch);
     return true;
   }
 
