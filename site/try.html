@@ -214,24 +214,30 @@
        那類明顯偏老一輩的字）。
 
        姓氏／男女名左右並排兩欄，不是上下疊兩排（Wilson：一個橫向捲一個
-       直向捲疊在一起會很怪）——並排之後兩邊各自維持自己原本的捲動方向
-       （姓氏橫向、名字直向），只是排版變成兩個平行的小面板，不是一路
-       往下接的兩排。男/女名切換鈕改成直的兩顆疊起來（Wilson），跟左邊
-       「常用姓氏」那顆純文字標籤並排看起來是同一種「標籤在左、內容在
-       右」的結構，兩欄才對得整齊。 -->
+       直向捲疊在一起會很怪）。兩欄現在也用同一種捲法——姓氏原本是橫向
+       捲的一整排，後來也改成跟男/女名一樣、換行成字卡牆、固定高度往下捲
+       （Wilson：姓氏也要上下捲），兩欄從此連捲動方向都一致，共用同一顆
+       .namechars-wrap。
+
+       每一欄自己是「標籤／切換鈕在上，字卡牆在下」，不是標籤在左、內容
+       在右（Wilson）——「常用姓氏」跟男/女名切換鈕都貼在自己那欄字卡牆
+       的正上方。男/女名切換鈕因此也從直的兩顆疊起來改回橫的並排
+       （Wilson），借用拼音／注音那顆切換鈕同一套 .jm-sortbar-btns 長相：
+       標籤挪到上面之後，橫排比窄窄的直排更貼合「一整條在字卡牆上面」
+       的版面。 -->
   <div class="namechars" data-mode-panel="free" hidden>
     <p class="namechars-tag">試一下打自己的名字吧！</p>
 
     <div class="namechars-cols">
       <div class="namechars-col">
         <span class="namechars-label">常用姓氏</span>
-        <div class="namechars-scroll" id="namechars-surname"></div>
+        <div class="namechars-wrap" id="namechars-surname"></div>
       </div>
 
       <div class="namechars-col">
-        <div class="namechars-gender" role="group" aria-label="男名／女名">
-          <button type="button" data-namechars-gender="male" aria-pressed="true">男名</button>
-          <button type="button" data-namechars-gender="female" aria-pressed="false">女名</button>
+        <div class="jm-sortbar-btns namechars-gender" role="group" aria-label="男名／女名">
+          <button type="button" data-namechars-gender="male" aria-pressed="true">男名常用字</button>
+          <button type="button" data-namechars-gender="female" aria-pressed="false">女名常用字</button>
         </div>
         <div class="namechars-wrap" id="namechars-given"></div>
       </div>
