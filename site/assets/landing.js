@@ -1,11 +1,16 @@
 /* 首頁拆件動畫——只有 index.html 用得到。
  *
  * 輪流播三個手選的字（哈／竹／晶）。每個字按字根分好組（跟〈拆碼查詢〉田字格
- * 揭碼同一種資料格式，見 assets/landing-glyphs.json 自己的 note），一組一組
- * 依序登場：先出現那個字根的英文字母本身（跟字根表講的「這個字根長這樣」一致），
- * 定住一下，再讓字母淡出、同時真正的筆畫淡入、疊在同一個位置——不是找一個
- * 「看起來像」的過場，就是字母消失的瞬間換成這個字真正的那幾筆。下一個字母接著
- * 登場，一路把整個字疊出來。
+ * 揭碼同一種資料格式，見 assets/landing-glyphs.json 自己的 note）：
+ *
+ *   1. 這個字要用到的英文字母（O／A／O…）先一起在左邊排成一排登場——
+ *      跟打字時「這幾個鍵」是同一組。
+ *   2. 一個一個飛到自己真正該在的位置（跟打字的先後順序一樣，由左邊排隊
+ *      依序出發，不是同時飛）。
+ *   3. 飛到定點後，字母原地淡出、真正的筆畫在同一個點淡入——這一刻就是
+ *      「這個字母＝這幾筆」，不是找一個「看起來像」的過場。
+ *
+ * 下一個字母等前一個字母完全變成筆畫之後才出發，一路把整個字疊出來。
  */
 (function () {
   'use strict';
@@ -69,27 +74,46 @@
       return;
     }
 
-    // 字母疊在跟筆畫同一個點上——外層先 translate 到那個點、再 scale(1,-1)
-    // 抵消 SVG_TF 的 y 軸翻轉（不然字母會上下顛倒），字母本身用 text-anchor
-    // /dominant-baseline 置中在 (0,0)，動畫只動裡面這層 .lg-letter 的
-    // transform／opacity，外層的定位 transform 不動。
+    // 排隊位置：全部字母先在左邊排成一直排（依碼的順序由上到下），等飛的時候
+    // 才一個一個離隊，往右飛到自己真正該在的位置——跟打字的先後順序一樣，
+    // 由左邊排隊依序出發。x 用負值，特意站到可視範圍（0–1024）外面，讀起來
+    // 才像「排隊等著上場」而不是「已經在畫面裡了」。
+    var n = pieces.length;
+    var sumY = 0;
+    for (var s = 0; s < n; s++) sumY += centers[s].y;
+    var midY = sumY / n;
+    var spacing = 260;
+    var queueX = -170;
+    var queue = [];
+    for (var qi = 0; qi < n; qi++) {
+      queue.push({ x: queueX, y: midY + (qi - (n - 1) / 2) * spacing });
+    }
+
+    // 字母的位置分兩層：外層 .lg-letter-pos 只管「人在哪」（排隊位置飛到定點，
+    // CSS transition 動這一層的 translate）；裡層 scale(1,-1) 抵消 SVG_TF 的
+    // y 軸翻轉（不然字母會上下顛倒），是固定的 SVG transform 屬性，不參與動畫；
+    // 最裡層 .lg-letter 只管「登場的彈跳」跟跟筆畫交接時的淡出，字母本身用
+    // text-anchor／dominant-baseline 置中在 (0,0)。三層互不干擾。
     var lettersHtml = '';
     for (gi = 0; gi < entry.groups.length; gi++) {
-      var c = centers[gi];
+      var c = centers[gi], q = queue[gi];
       lettersHtml +=
-        '<g transform="translate(' + c.x.toFixed(1) + ',' + c.y.toFixed(1) + ') scale(1,-1)">' +
-          '<g class="lg-letter lg-z' + (gi % 6) + '" style="opacity:0">' +
-            '<text text-anchor="middle" dominant-baseline="central" ' +
-              'font-family="sans-serif" font-weight="700" ' +
-              'font-size="' + c.size.toFixed(0) + '">' + entry.groups[gi].L + '</text>' +
+        '<g class="lg-letter-pos" style="transform:translate(' + q.x + 'px,' + q.y.toFixed(1) + 'px)">' +
+          '<g transform="scale(1,-1)">' +
+            '<g class="lg-letter lg-z' + (gi % 6) + '" style="opacity:0">' +
+              '<text text-anchor="middle" dominant-baseline="central" ' +
+                'font-family="sans-serif" font-weight="700" ' +
+                'font-size="' + c.size.toFixed(0) + '">' + entry.groups[gi].L + '</text>' +
+            '</g>' +
           '</g>' +
         '</g>';
     }
     outer.insertAdjacentHTML('beforeend', lettersHtml);
+    var letterPos = svg.querySelectorAll('.lg-letter-pos');
     var letters = svg.querySelectorAll('.lg-letter');
 
-    // 逼一次重排，讓上面設好的「字母/筆畫都還沒登場」狀態先真的畫出來，
-    // 下面才有東西可以做 transition。
+    // 逼一次重排，讓上面設好的「字母都還在排隊、筆畫都還沒登場」狀態先真的
+    // 畫出來，下面才有東西可以做 transition。
     svg.getBoundingClientRect();
 
     function popIn(el, easing) {
@@ -105,15 +129,25 @@
       });
     }
 
-    function revealPiece(idx, done) {
-      if (idx >= pieces.length) { done(); return; }
-      var letter = letters[idx], piece = pieces[idx];
+    // 1. 全部字母先一起在排隊位置登場（一點點錯開，像排成一列走進畫面）
+    for (var pi = 0; pi < n; pi++) {
+      (function (letter, delay) {
+        timers.push(window.setTimeout(function () {
+          popIn(letter, 'cubic-bezier(.34,1.56,.64,1)');
+        }, delay));
+      })(letters[pi], pi * 100);
+    }
 
-      // 1. 字母先登場（一點回彈，像是「啪」一下冒出來）
-      popIn(letter, 'cubic-bezier(.34,1.56,.64,1)');
+    function flyAndLand(idx, done) {
+      if (idx >= n) { done(); return; }
+      var pos = letterPos[idx], letter = letters[idx], piece = pieces[idx], c = centers[idx];
+
+      // 2. 離隊，飛到自己真正該在的位置
+      pos.style.transition = 'transform .62s cubic-bezier(.32,.68,.14,1)';
+      pos.style.transform = 'translate(' + c.x.toFixed(1) + 'px,' + c.y.toFixed(1) + 'px)';
 
       timers.push(window.setTimeout(function () {
-        // 2. 定住一下之後，字母淡出、真正的筆畫在同一個點淡入——這一刻是
+        // 3. 落定之後，字母淡出、真正的筆畫在同一個點淡入——這一刻是
         //    「這個字母＝這幾筆」的重點，所以慢一點、清楚一點。
         letter.style.transition = 'transform .34s ease, opacity .34s ease';
         letter.style.transform = 'scale(1.25)';
@@ -121,19 +155,23 @@
         popIn(piece, 'cubic-bezier(.22,.68,0,1)');
 
         timers.push(window.setTimeout(function () {
-          revealPiece(idx + 1, done);
+          flyAndLand(idx + 1, done);
         }, 480));
-      }, 760));
+      }, 620));
     }
 
-    revealPiece(0, function () {
-      var hold = 1500;
-      timers.push(window.setTimeout(function () {
-        svg.style.transition = 'opacity .35s ease';
-        svg.style.opacity = '0';
-        timers.push(window.setTimeout(playNext, 380));
-      }, hold));
-    });
+    // 全部字母排隊登場的動畫跑完（最後一個 delay + popIn 的 .38s）之後，
+    // 留一小段時間讓人看清楚「這幾個字母排在這裡」，才開始第一個出發。
+    timers.push(window.setTimeout(function () {
+      flyAndLand(0, function () {
+        var hold = 1500;
+        timers.push(window.setTimeout(function () {
+          svg.style.transition = 'opacity .35s ease';
+          svg.style.opacity = '0';
+          timers.push(window.setTimeout(playNext, 380));
+        }, hold));
+      });
+    }, (n - 1) * 100 + 380 + 450));
   }
 
   var idx = 0;
