@@ -2638,20 +2638,51 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 
 /* 常用姓氏：一整排不換行，欄寬不夠就橫向捲——跟〈字根表〉的 A–Z 跳轉列
-   （.zg-jump）同一招，40 個字一行擠不下，比折成兩三行更好找。 */
+   （.zg-jump）同一招，40 個字一行擠不下，比折成兩三行更好找。
+   ⚠️ 這裡刻意**不**照 .zg-jump 把捲軸藏起來（scrollbar-width: none）——
+   那排字母就在畫面能一次看完的寬度旁邊，捲不捲得動一眼就知道；這裡 40
+   個姓氏一次只看得到七八個，沒有可見的捲軸，很容易讓人以為列表到此為止
+   （Wilson：要讓人知道可以捲）。 */
 .namechars-scroll {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  scrollbar-width: none;
   gap: .35rem;
-  padding: .1rem .05rem;
+  padding: .1rem .05rem .6rem;
 }
-.namechars-scroll::-webkit-scrollbar { display: none; }
 
-/* 男名／女名常用字：不必橫向捲，擠不下就換行——這組是拿來瀏覽找自己名字
-   用的字，不像姓氏一定要維持一整排好掃視。 */
-.namechars-wrap { display: flex; flex-wrap: wrap; gap: .35rem; }
+/* 男名／女名常用字：固定三行高、超出的部分往下捲，不是不斷換行撐高
+   整個面板——45 個字全部攤開會把面板拉得很長，固定高度讓這一塊跟姓氏
+   那排一樣「看得出還有更多」，捲軸本身就是提示（Wilson）。
+   align-content: flex-start 不能省：flex-wrap 容器给了固定高度之後，
+   預設的 align-content: normal 會把行距拉開去撐滿整個高度，字卡會變成
+   一行一行分散開，不是「捲軸以外看不到」該有的樣子。 */
+.namechars-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: .35rem;
+  max-height: 6.6rem;
+  overflow-y: auto;
+  padding-right: .3rem;   /* 捲軸旁留一點空隙，不要貼死最後一欄字卡 */
+}
+
+/* 兩個捲動容器共用同一套細捲軸——瀏覽器原生捲軸太粗，會搶走字卡的注意力，
+   但完全藏起來（scrollbar-width: none）又會讓人看不出能捲（見上面的說明），
+   細一點、顏色淡一點剛好在「看得到」跟「不礙眼」中間。
+   Firefox／新版 Safari 走 scrollbar-width／scrollbar-color；
+   Chrome／舊版 Safari 走 ::-webkit-scrollbar，兩套都要寫。 */
+.namechars-scroll,
+.namechars-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.namechars-scroll::-webkit-scrollbar,
+.namechars-wrap::-webkit-scrollbar { width: 7px; height: 7px; }
+.namechars-scroll::-webkit-scrollbar-track,
+.namechars-wrap::-webkit-scrollbar-track { background: transparent; }
+.namechars-scroll::-webkit-scrollbar-thumb,
+.namechars-wrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
 
 /* 字卡本身沿用 .practice-pickbtn 的藥丸鈕長相（邊框／底色／hover 變主色），
    但字級拉大——這裡放的是單一個漢字，要一眼認出來，不是一句話。 */
