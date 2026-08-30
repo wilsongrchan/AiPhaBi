@@ -2022,6 +2022,18 @@ CORPUS_SKIP = {
     "世界地名": ("中國", "南韓", "韓國", "北韓", "朝鮮"),
 }
 
+# 日常用語沒有精選檔可循，原本照詞頻挑最高的幾個，結果全是「就是／但是／所以」
+# 這類文法虛詞——高頻不代表讀者看得出詞庫收錄的廣度。改成手排，橫跨真實的詞頻
+# 量級（>10萬／5–10萬／1–5萬／1萬以下），讀者才看得出「近3萬9千個日常用語」實際
+# 涵蓋多廣，不是只有招呼語等級的詞才收得到（Wilson 2026-08-30）。也刻意避開地名、
+# 人名這類本來就有自己分類的詞（見上面 CORPUS_GROUPS）——日常用語這組要讓讀者
+# 看到的是「其他組舉不到的那種詞」，不是重複別組已經在講的東西。
+# 權重數字見 rime/aiphabi.dict.yaml 第三欄，2026-08-30 建置時：
+#   我們 47.9萬　電影 10.3萬｜也可以 8.0萬　客戶 6.0萬｜
+#   一個人 4.7萬　流量 3.2萬　你好 2.1萬｜最後一次 4529　加班費 1227　複診 864
+DAILY_PICKS = ("我們", "電影", "也可以", "客戶", "一個人", "流量", "你好",
+               "最後一次", "加班費", "複診")
+
 
 def _first_strokes(ch, codes):
     """這個字幾筆。跟 build_jianma 的 stroke_count 同一招：codes.json 沒有筆劃數
@@ -2238,16 +2250,36 @@ def build_corpus(pc, ship, weight, warn, codes):
                             f"沒有分到任何一組，那 {len(ws)} 個詞不會出現在網站上")
 
     # 精選檔以外的詞＝rime-essay 高頻詞表那一批（日常用語），量最大的一塊。
-    # 它沒有分類可言，所以只按詞頻舉例；數字是「總數減掉精選檔收得到的」。
+    # 它沒有分類可言；數字是「總數減掉精選檔收得到的」。例詞照 DAILY_PICKS 手排
+    # （見上面註解），順序就是排版順序。手排的詞如果哪天從出貨碼表消失了（essay.txt
+    # 換過一批、詞被砍掉），就跳過並警告，不讓建置直接壞掉；名額不夠時照舊按詞頻
+    # 補滿，保證這張卡片一定有 CORPUS_PICKS 個例子。
     curated = {w for secs in files.values() for _t, ws in secs for w in ws}
     daily = [w for w in ship if w not in curated and w not in pinned_extra]
-    picks = []
-    for w in sorted(daily, key=rank):
+    daily_set = set(daily)
+    picks, chosen = [], set()
+    for w in DAILY_PICKS:
+        if w not in daily_set:
+            warn.append(f"日常用語：手排的例詞「{w}」舉不出來"
+                        f"（{'已被別組收走' if w in curated or w in pinned_extra else '不在出貨碼表裡'}）")
+            continue
         e = entry(w)
-        if e:
-            picks.append(e)
+        if not e:
+            warn.append(f"日常用語：手排的例詞「{w}」算不出碼，跳過")
+            continue
+        picks.append(e)
+        chosen.add(w)
         if len(picks) >= CORPUS_PICKS:
             break
+    if len(picks) < CORPUS_PICKS:
+        for w in sorted(daily, key=rank):
+            if w in chosen:
+                continue
+            e = entry(w)
+            if e:
+                picks.append(e)
+            if len(picks) >= CORPUS_PICKS:
+                break
     if picks:
         groups.insert(0, {"name": "日常用語", "n": len(daily), "picks": picks,
                           "src": "rime-essay 高頻詞表"})
