@@ -3051,19 +3051,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   height: 100%;
   overflow: visible;
 }
+/* 字母跟筆畫統一都用網站自己的主色，不按字根分組上色——這是首頁的展示動畫，
+   不是〈拆碼查詢〉那種要教「筆畫分成幾組」的頁面，彩虹色在這裡沒有意思，
+   只會讓人以為顏色代表什麼。 */
+.lg-piece, .lg-letter { fill: var(--accent); }
 .lg-piece {
   transition: transform .95s cubic-bezier(.22, .68, 0, 1), opacity .6s ease;
 }
-/* 排隊／飛行階段的英文字母——統一用網站自己的主色，不跟著筆畫分組上色：
-   字母階段講的是「這是哪個鍵」，色彩不用在這裡就先劇透「等一下分成幾組」，
-   那是筆畫淡入之後（.lg-z0..5）才要講的事。 */
-.lg-letter { fill: var(--accent); }
-.lg-z0 { fill: var(--rb-0); }
-.lg-z1 { fill: var(--rb-1); }
-.lg-z2 { fill: var(--rb-2); }
-.lg-z3 { fill: var(--rb-3); }
-.lg-z4 { fill: var(--rb-4); }
-.lg-z5 { fill: var(--rb-5); }
 @media (prefers-reduced-motion: reduce) {
   .lg-piece { transition: opacity .55s ease; }
 }

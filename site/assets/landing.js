@@ -45,7 +45,7 @@
       for (var j = 0; j < group.st.length; j++) {
         d += '<path d="' + entry.strokes[group.st[j]] + '"/>';
       }
-      piecesHtml += '<g class="lg-piece lg-z' + (gi % 6) + '" style="opacity:0">' + d + '</g>';
+      piecesHtml += '<g class="lg-piece" style="opacity:0">' + d + '</g>';
     }
     svg.innerHTML = '<g transform="' + SVG_TF + '">' + piecesHtml + '</g>';
     codeEl.innerHTML = entry.code.split('').join(' ') + ' → <b>' + ch + '</b>';
