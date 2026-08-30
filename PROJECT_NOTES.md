@@ -804,6 +804,18 @@ load failure.
   to `data/phrases_preview.tsv` — see *Phrase input* above) and then has **`M.wordfreq` body
   emptied to `{}`** before shipping. `M.wordfreq` is only read by `aiphabi_order_plus.lua`
   (the plus/pinyin schema), which the mobile build doesn't ship, so this is safe to drop.
+- **`M.suppcode`/`M.suppcode_pre` (2026-08-30, added by the 頂屏補碼/`aiphabi_supp` feature)
+  must also be emptied to `{}` for mobile** — same reasoning as `wordfreq`. These two tables
+  alone add ~8,050 lines / thousands of entries, and stacking them on top of the already-capped
+  `si4`/`si4_rev` (`AIPHABI_MOBILE_SI4_TOPN=18000`) pushed the file back over LuaJIT's
+  65,536-constant limit even with `wordfreq` already stripped — `luajit -e "dofile(...)"` caught
+  it immediately. Safe to drop: `aiphabi_supp.lua`/`aiphabi_supp_cand.lua` both do plain
+  `data.suppcode[code]` table lookups with no assumption the table is non-empty — an emptied
+  table just means the switch (already off by default) silently does nothing if the user enables
+  it on mobile, not a crash. **Whenever a new large `M.*` table gets added to `aiphabi_data.lua`
+  in a future feature, assume it needs the same mobile-stripping treatment until proven otherwise
+  — don't wait for a crash to check, run the `luajit -e "dofile(...)"` verification every time,
+  every table.**
 - All 6 `rime/lua/*.lua` files **and** `rime.lua` itself must all be present — `rime.lua`
   unconditionally `require()`s all of them at load; **omitting any one crashes the entire Lua
   bootstrap**, not just the feature that file implements. This was the second crash found (after
@@ -927,6 +939,21 @@ load failure.
   own documentation/changelog) — if it's really Lua 5.4, the whole `AIPHABI_MOBILE_SI4_TOPN`
   workaround may be solving a problem that no longer applies, and the packaging step could
   potentially be simplified.
+- **This sandbox's own test runner should use `lua5.4` (`apt-get install lua5.4`), not `luajit`.**
+  `tests/run_tests.lua`'s own header says "跑法： ~/.local/bin/lua tests/run_tests.lua" — it's
+  written against real Lua, and Wilson's own commits use Lua 5.3+ syntax (`//` floor division)
+  freely, since his machine runs real Lua. `luajit` chokes on `//` with `unexpected symbol near
+  '/'` — hit this **three separate times** across sessions (`aiphabi_autocommit.lua` twice, in two
+  different functions added by two different commits, plus once in `tests/run_tests.lua` itself).
+  Each time it looked like a fresh bug; it's actually the same recurring gotcha. **Two separate
+  Lua binaries now have two separate jobs, don't conflate them:** `lua5.4` for running
+  `tests/run_tests.lua` (matches the syntax Wilson actually writes, and per the note above, quite
+  possibly matches the real device runtime too); `luajit` reserved specifically for the
+  `luajit -e "dofile('aiphabi_data.lua')"` mobile-data verification step, where the whole point
+  *is* simulating LuaJIT's 65,536-constant limit as a conservative check regardless of which
+  interpreter Hamster turns out to actually run. If `luajit` throws `unexpected symbol near '/'`
+  on a `rime/lua/*.lua` file, that's almost certainly a stray `//` from someone writing on real
+  Lua — grep for `//` and replace with `math.floor(x / y)`, don't assume it's a new class of bug.
 
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
