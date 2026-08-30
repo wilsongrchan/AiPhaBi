@@ -3029,6 +3029,48 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 .hero-title .en { color: var(--accent); }
 
+/* 拆件動畫——首頁最主要的視覺，見 assets/landing.js 跟 assets/landing-glyphs.json。
+   三個字（哈／竹／晶）輪流播：每個字的筆畫先按字根分好組（跟〈拆碼查詢〉田字格
+   分組揭碼是同一套資料格式），每組先炸開到字外面、上色，再一起飛回原位、疊成
+   完整的字——飛回去的終點就是這個字真正的筆畫座標，不是另外做一份假動畫去湊
+   「看起來像」。字根表那頁講「B 像日、D 像月」，這裡直接讓看得到的字母形狀
+   飛進去拼成字，是同一件事的動態版本。
+
+   顏色沿用 .tianzi 那組 tz-z0..5／--rb-0..5（哪個字根第幾個顏色），跟其他頁面
+   「同一個字根同一個顏色」的講法一致，不另開一組色相。減少動態偏好的訪客看到的
+   是每個字直接組好、淡入淡出換下一個，不會有東西飛。 */
+.lg-stage {
+  position: relative;
+  width: 13.5rem;
+  height: 13.5rem;
+  margin: 0 auto 1.2rem;
+}
+.lg-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.lg-piece {
+  transition: transform .95s cubic-bezier(.22, .68, 0, 1), opacity .6s ease;
+}
+.lg-z0 { fill: var(--rb-0); }
+.lg-z1 { fill: var(--rb-1); }
+.lg-z2 { fill: var(--rb-2); }
+.lg-z3 { fill: var(--rb-3); }
+.lg-z4 { fill: var(--rb-4); }
+.lg-z5 { fill: var(--rb-5); }
+@media (prefers-reduced-motion: reduce) {
+  .lg-piece { transition: opacity .55s ease; }
+}
+.lg-code {
+  font-size: .92rem;
+  color: var(--ink-dim);
+  letter-spacing: .04em;
+  margin: 0 0 1.3rem;
+}
+.lg-code b { color: var(--ink); font-weight: 600; }
+
 /* 關鍵詞——不是完整的句子，就是幾個詞用點隔開，跟下面的長文分開語氣 */
 .hero-keywords {
   display: flex;
@@ -3058,10 +3100,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 
-/* 打字示範——首頁唯一的互動元件。見 assets/landing.js：沒人動它的時候自動
-   把範例碼一個字母一個字母打進框裡、查表、秀出結果；使用者一聚焦／打字，
-   自動播放就讓路，框子變成真的能查的小工具（查的是 dict.json 的碼表本身，
-   不是另外寫死一份假資料）。 */
+/* 打字示範——上面的拆件動畫是「看」的，這裡是「自己動手打打看」的，兩者分開。
+   任何字母組合都查得到（查的是 dict.json 真正的碼表），不像拆件動畫只有三個
+   手選的字有拆件資料。見 assets/landing.js。 */
 .landing-demo {
   max-width: 26rem;
   margin: 0 auto 2.6rem;
