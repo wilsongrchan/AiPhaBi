@@ -715,70 +715,85 @@ do
 end
 
 print()
-print("== 上屏補碼：補完固定長度就頂上屏（processor）==")
+print("== 上屏補碼：一鍵一鍵累積自己的 buffer，補完固定長度就上屏（processor）==")
 do
   -- 放檔案最後：commit() 會呼叫 order.note_commit()，動 aiphabi_order 的模組級狀態。
   local supp = require("aiphabi_supp")
-  local function fake_key(repr)
-    return { release = function() return false end, repr = function() return repr end }
+  local function fake_key(repr, release)
+    return { release = function() return release == true end, repr = function() return repr end }
   end
-  local function mk(input)
-    local committed
+  -- 一台「機器」：env 持久（env.buf 跨鍵存活），ctx.input 由 set_input 壓成 buffer 的樣子。
+  local function machine(supp_on)
+    local committed, cleared = nil, 0
     local ctx = {
-      input = input,
-      get_option = function(_, n) return n == "aiphabi_supp" end,
-      push_input = function(self, k) self.input = self.input .. k end,
-      clear = function(self) self.input = "" end,
+      input = "",
+      get_option = function(_, n) return n == "aiphabi_supp" and (supp_on ~= false) end,
+      set_input = function(self, s) self.input = s end,
+      clear = function(self) self.input = ""; cleared = cleared + 1 end,
     }
     local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
-    return env, ctx, function() return committed end
+    return {
+      type_letters = function(s)
+        for i = 1, #s do supp.func(fake_key(s:sub(i, i)), env) end
+      end,
+      key = function(rep) return supp.func(fake_key(rep), env) end,
+      committed = function() return committed end,
+      input = function() return ctx.input end,
+      buf = function() return env.buf end,
+    }
   end
 
-  -- 大 IY → IYUU：打到第 4 碼（最後一個 U）就頂上屏
-  local env, ctx, got = mk("iyu")
-  supp.func(fake_key("u"), env)
-  h.check("打 IYUU（大，獨一無二補完碼）→ 頂上屏「大」", got() == "大", "got " .. tostring(got()))
-  h.check("頂完 ctx.input 清空", ctx.input == "", "got " .. tostring(ctx.input))
+  -- 大 IY → 補完碼 IYUU：打到第 4 碼就上屏
+  local m = machine()
+  m.type_letters("iyuu")
+  h.check("打 I·Y·U·U → 上屏「大」", m.committed() == "大", "got " .. tostring(m.committed()))
+  h.check("上屏後 buffer 清掉", m.buf() == nil, "got " .. tostring(m.buf()))
+  h.check("上屏後 ctx.input 清空", m.input() == "", "got " .. tostring(m.input()))
 
-  -- 沒補完不頂（IY + U = IYU，還差一個 U）
-  local env2, ctx2, got2 = mk("iy")
-  supp.func(fake_key("u"), env2)
-  h.check("打 IYU（還沒補完）→ 不頂", got2() == nil, "expected no commit, got " .. tostring(got2()))
-  h.check("打 IYU → ctx.input 累到 iyu", ctx2.input == "iyu", "got " .. tostring(ctx2.input))
+  -- 只打到 IYU（還沒補完）→ 不上屏；ctx.input 被壓成 iyu
+  local m2 = machine()
+  m2.type_letters("iyu")
+  h.check("打 I·Y·U（還沒補完）→ 不上屏", m2.committed() == nil, "got " .. tostring(m2.committed()))
+  h.check("buffer ＝ iyu、ctx.input 也被 set_input 壓成 iyu",
+    m2.buf() == "iyu" and m2.input() == "iyu", "buf=" .. tostring(m2.buf()) .. " input=" .. tostring(m2.input()))
 
-  -- 重碼 TOUU：打完不頂，候選欄留著；下一個字母才即時頂第一個
-  local env3, ctx3, got3 = mk("tou")
-  supp.func(fake_key("u"), env3)   -- 打到 touu
-  h.check("打 TOUU（重碼）→ 先不頂，候選欄留著", got3() == nil, "expected no commit yet, got " .. tostring(got3()))
-  h.check("打 TOUU（重碼）→ ctx.input 還是 touu", ctx3.input == "touu", "got " .. tostring(ctx3.input))
-  supp.func(fake_key("j"), env3)   -- 下一個字的開頭 → 即時頂 touu 的第一個
+  -- 退格：buffer 跟著縮
+  m2.key("BackSpace")
+  h.check("退格 → buffer 變 iy、ctx.input 也是 iy",
+    m2.buf() == "iy" and m2.input() == "iy", "buf=" .. tostring(m2.buf()))
+
+  -- 重碼 TOUU：打完不上屏，候選欄留著（ctx.input 留成 touu）；下一個字母才即時頂第一個
+  local m3 = machine()
+  m3.type_letters("touu")
+  h.check("打 TOUU（重碼）→ 先不上屏", m3.committed() == nil, "got " .. tostring(m3.committed()))
+  h.check("打 TOUU（重碼）→ ctx.input 留成 touu 給候選欄", m3.input() == "touu", "got " .. tostring(m3.input()))
   local first_touu = require("aiphabi_data").suppcode["touu"][1]
+  m3.key("j")   -- 下一個字的開頭 → 即時頂 touu 排第一的字
   h.check("再打一個字母 → 即時頂 TOUU 排第一的字（" .. first_touu .. "）",
-    got3() == first_touu, "expected " .. first_touu .. ", got " .. tostring(got3()))
-  h.check("即時頂後 ctx.input 是新那一鍵 j", ctx3.input == "j", "got " .. tostring(ctx3.input))
+    m3.committed() == first_touu, "expected " .. first_touu .. ", got " .. tostring(m3.committed()))
+  h.check("即時頂後 buffer／ctx.input 是新那一鍵 j",
+    m3.buf() == "j" and m3.input() == "j", "buf=" .. tostring(m3.buf()) .. " input=" .. tostring(m3.input()))
 
   -- 開關關 → 完全不管
-  local env4, _, got4 = mk("iyu")
-  env4.engine.context.get_option = function() return false end
-  local r = supp.func(fake_key("u"), env4)
-  h.check("開關關：func 直接讓開（return 2）、不頂", r == 2 and got4() == nil, "expected pass-through")
+  local m4 = machine(false)
+  local r = m4.key("i")
+  h.check("開關關：func 直接讓開（return 2）、不上屏、不動 buffer",
+    r == 2 and m4.committed() == nil and m4.buf() == nil, "expected pass-through")
 
-  -- 上屏補碼開著：只認補完碼，不做自然碼的提早上屏。夜 一定要打到 IYARU，IYAR 不算。
-  do
-    local committed
-    local ctx = {
-      input = "iyar",
-      get_option = function(_, n) return n == "aiphabi_supp" end,
-      push_input = function(self, k) self.input = self.input .. k end,
-      clear = function(self) self.input = "" end,
-    }
-    local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
-    supp.func(fake_key("u"), env)   -- IYAR + U = IYARU（夜 的補完碼）
-    h.check("上屏補碼：打到 IYARU 才收「夜」（IYAR 不算）", committed == "夜",
-      "expected 夜, got " .. tostring(committed))
-    h.check("上屏補碼：資料表 suppcode.iyaru 就是「夜」",
-      (require("aiphabi_data").suppcode["iyaru"] or {})[1] == "夜", "expected 夜")
-  end
+  -- 夜 一定要打到 IYARU（4 碼字補 U）；IYAR 不算
+  local m5 = machine()
+  m5.type_letters("iyar")
+  h.check("打到 IYAR（沒補 U）→ 不上屏", m5.committed() == nil, "got " .. tostring(m5.committed()))
+  m5.key("u")
+  h.check("再打 U ＝ IYARU → 上屏「夜」", m5.committed() == "夜", "got " .. tostring(m5.committed()))
+  h.check("資料表 suppcode.iyaru 就是「夜」",
+    (require("aiphabi_data").suppcode["iyaru"] or {})[1] == "夜", "expected 夜")
+
+  -- 按鍵放開（release）事件：直接讓開，不誤收、不動 buffer
+  local rel_ctx = { get_option = function() return true end, set_input = function() end, clear = function() end }
+  local rel_env = { engine = { context = rel_ctx, commit_text = function() end }, buf = "iyu" }
+  h.check("release 事件 → func return 2、不動 buffer",
+    supp.func(fake_key("u", true), rel_env) == 2 and rel_env.buf == "iyu", "expected pass-through on release")
 end
 
 os.exit(h.report() == 0 and 0 or 1)
