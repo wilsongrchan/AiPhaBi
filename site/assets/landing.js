@@ -31,8 +31,7 @@
 
   var ORDER = ['哈', '竹', '晶'];
   var DATA = null;
-
-  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+  var LETTER_SIZE = 260; // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
 
   function buildChar(ch) {
     var entry = DATA && DATA.chars[ch];
@@ -60,11 +59,7 @@
     var centers = [];
     for (var i = 0; i < pieces.length; i++) {
       var box = pieces[i].getBBox();
-      centers.push({
-        x: box.x + box.width / 2,
-        y: box.y + box.height / 2,
-        size: clamp(Math.max(box.width, box.height) * 0.9, 160, 380)
-      });
+      centers.push({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
       pieces[i].style.transformOrigin = centers[i].x + 'px ' + centers[i].y + 'px';
     }
 
@@ -74,36 +69,38 @@
       return;
     }
 
-    // 排隊位置：全部字母先在左邊排成一直排（依碼的順序由上到下），等飛的時候
-    // 才一個一個離隊，往右飛到自己真正該在的位置——跟打字的先後順序一樣，
-    // 由左邊排隊依序出發。x 用負值，特意站到可視範圍（0–1024）外面，讀起來
-    // 才像「排隊等著上場」而不是「已經在畫面裡了」。
+    // 排隊位置：全部字母先在左邊排成一橫排，由左到右照碼的順序排（跟打字、
+    // 跟閱讀方向一樣，第一個字母在最左邊），等飛的時候才一個一個離隊往右飛到
+    // 自己真正該在的位置。整排都站到可視範圍（0–1024）外面，讀起來才像
+    // 「排隊等著上場」而不是「已經在畫面裡了」。
     var n = pieces.length;
     var sumY = 0;
     for (var s = 0; s < n; s++) sumY += centers[s].y;
     var midY = sumY / n;
-    var spacing = 260;
-    var queueX = -170;
+    var spacing = 210;
+    var queueNearX = -170; // 隊伍裡最靠近舞台（最右）的那個位置
     var queue = [];
     for (var qi = 0; qi < n; qi++) {
-      queue.push({ x: queueX, y: midY + (qi - (n - 1) / 2) * spacing });
+      queue.push({ x: queueNearX - (n - 1 - qi) * spacing, y: midY });
     }
 
     // 字母的位置分兩層：外層 .lg-letter-pos 只管「人在哪」（排隊位置飛到定點，
     // CSS transition 動這一層的 translate）；裡層 scale(1,-1) 抵消 SVG_TF 的
     // y 軸翻轉（不然字母會上下顛倒），是固定的 SVG transform 屬性，不參與動畫；
     // 最裡層 .lg-letter 只管「登場的彈跳」跟跟筆畫交接時的淡出，字母本身用
-    // text-anchor／dominant-baseline 置中在 (0,0)。三層互不干擾。
+    // text-anchor／dominant-baseline 置中在 (0,0)。三層互不干擾。字母顏色跟
+    // 大小統一（.lg-letter 的 fill、這裡的 LETTER_SIZE），不跟著各組筆畫的
+    // 顏色／大小走——那是筆畫淡入之後才要分組講的事，字母階段先講「這是哪個鍵」。
     var lettersHtml = '';
     for (gi = 0; gi < entry.groups.length; gi++) {
-      var c = centers[gi], q = queue[gi];
+      var q = queue[gi];
       lettersHtml +=
         '<g class="lg-letter-pos" style="transform:translate(' + q.x + 'px,' + q.y.toFixed(1) + 'px)">' +
           '<g transform="scale(1,-1)">' +
-            '<g class="lg-letter lg-z' + (gi % 6) + '" style="opacity:0">' +
+            '<g class="lg-letter" style="opacity:0">' +
               '<text text-anchor="middle" dominant-baseline="central" ' +
                 'font-family="sans-serif" font-weight="700" ' +
-                'font-size="' + c.size.toFixed(0) + '">' + entry.groups[gi].L + '</text>' +
+                'font-size="' + LETTER_SIZE + '">' + entry.groups[gi].L + '</text>' +
             '</g>' +
           '</g>' +
         '</g>';

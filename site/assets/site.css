@@ -3054,6 +3054,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .lg-piece {
   transition: transform .95s cubic-bezier(.22, .68, 0, 1), opacity .6s ease;
 }
+/* 排隊／飛行階段的英文字母——統一用網站自己的主色，不跟著筆畫分組上色：
+   字母階段講的是「這是哪個鍵」，色彩不用在這裡就先劇透「等一下分成幾組」，
+   那是筆畫淡入之後（.lg-z0..5）才要講的事。 */
+.lg-letter { fill: var(--accent); }
 .lg-z0 { fill: var(--rb-0); }
 .lg-z1 { fill: var(--rb-1); }
 .lg-z2 { fill: var(--rb-2); }
