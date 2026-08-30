@@ -704,8 +704,18 @@ def _practice_glyphs(want):
 # 「即使看不到拆碼圖，我至少也想拿到它的碼」。
 PINYIN_TOP_N = 3000
 
+# 上面那 3000 個是照**繁體**字頻排的（charfreq.json，台港新聞），簡體專屬字
+# （跟繁體字形不同、不是「兩邊共用同一個字形」那種）很難擠進去——常用簡體字
+# 對應的繁體字雖然也常用，但簡體字形本身在這份繁體語料裡幾乎不出現。額外加
+# 這麼多個「真正的簡化字」進拆碼圖範圍（Wilson，2026-08-30；300→500 同日）。
+# ⚠️ charfreq.json 只有 1645 個字有實際字頻，過了前 300 名左右字頻就掉到個位數、
+# 一大串並列（第 300 名字頻 6，第 500 名只剩 1）——後面這 200 個排序上不如前面
+# 精準，但仍然是真的常用字（挑出來的字頻用的是**對應繁體字**的字頻，見下方
+# build_pinyin() 的說明），不是隨機湊數。
+PINYIN_SIMP_TOP_N = 500
 
-def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
+
+def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
     """拼音查字：〈自由試打〉頁想到一個字的讀音、不知道怎麼拆碼時查——輸入拼音
     （不分聲調），列出候選字，選了就看它的拆碼圖跟碼。跟〈跟著打〉互補：那邊是
     照著文章一字一字打，這邊是想到哪個字就查哪個字，兩邊共用同一套拆碼圖畫法
@@ -720,6 +730,14 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
     （charfreq.get(c, 0)），但只要碼表裡還有位置就收得進來。多音字全收
     （heteronym=True）：查「彈」不管想找 tán 還是 dàn，兩個讀音都該找得到。
 
+    拆碼圖範圍另外加一批簡體專屬字（PINYIN_SIMP_TOP_N 個，見那個常數的說明）：
+    先用 data/opencc.json 的 s2t 表篩出「有碼、而且是真正的簡化字（不是繁簡同形，
+    s2t 表本身就只收會變形的字，不用另外判斷）」，再照**對應繁體字**在 charfreq
+    裡的字頻排序取前 N 個——簡體字形本身在這份繁體語料裡幾乎沒有出現次數可用，
+    但常用字不分繁簡通常是同一批（會／会、國／国、說／说 概念上是同一個字），
+    拿繁體那邊的字頻當它的排序依據合理。s2t 對一個簡體字可能給好幾個可能的繁體
+    對應（一簡對多繁），取字頻最高的那個當代表。
+
     拼音來自 pypinyin（MIT，pip install -r requirements.txt 才有），沒裝就跳過整塊，
     〈自由試打〉的拼音查字框會顯示載入失敗，其餘功能不受影響。
     """
@@ -730,12 +748,18 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
         return None, None
 
     coded = [c for c, rec in codes.items() if rec.get("segments")]
-    # 索引收**全部**已取碼的字；只有拆碼圖那一份限縮到字頻最高的 PINYIN_TOP_N 個。
-    # 兩者分開之後，打 long 查得到 笼（AAXCQ）、攏（KIVDE）這些沒有圖但有碼的字，
-    # 它們的碼會排成深灰的碼格。索引本身只有 61 KB（限縮成 3000 個是 29 KB），
-    # 而 7.9 MB 的那一份完全沒有變大。
+    # 索引收**全部**已取碼的字；只有拆碼圖那一份限縮到字頻最高的 PINYIN_TOP_N 個
+    # （加上下面的簡體字補收）。兩者分開之後，打 long 查得到 笼（AAXCQ）、
+    # 攏（KIVDE）這些沒有圖但有碼的字，它們的碼會排成深灰的碼格。索引本身只有
+    # 61 KB（限縮成 3000 個是 29 KB），而 7.9 MB 的那一份完全沒有變大。
     top = sorted(coded, key=lambda c: -charfreq.get(c, 0))[:PINYIN_TOP_N]
-    chars = set(top)
+    coded_set = set(coded)
+    simp_only = [c for c in coded_set if c in s2t_raw]
+    simp_top = sorted(
+        simp_only,
+        key=lambda c: -max((charfreq.get(t, 0) for t in s2t_raw[c]), default=0),
+    )[:PINYIN_SIMP_TOP_N]
+    chars = set(top) | set(simp_top)
     if not coded:
         return None, None
 
@@ -2541,6 +2565,7 @@ def main():
     rules = load("rules.json")
     freq_order = load("freq.json").get("order", [])
     t2s_raw = load("opencc.json").get("t2s", {})
+    s2t_raw = load("opencc.json").get("s2t", {})
     charfreq = load("charfreq.json")
 
     max_rule = next((r for r in rules.get("rules", [])
@@ -2743,7 +2768,7 @@ def main():
     # 一個字也用不到這篇文章。併進去等於每個看字根表的人白白多下載 400KB。
     # 文章自己的字形直接放進 practice.json，只有試打頁會抓。
     practice = build_practice(dict_out["main"], codes, zigen_raw, max_rule, conv_chars)
-    pinyin, pinyin_glyphs = build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars)
+    pinyin, pinyin_glyphs = build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw)
     # 手挑清單裡有沒有寫錯字母／來源字，對不到任何一個字根的要講出來
     # 代表字可能已經被「顯示層改用第一個例字」換過（提 → 旦），而手挑清單是照
     # **原本的**代表字比對的。所以兩個都算數，否則會誤報「找不到這個字根」。
@@ -2821,10 +2846,12 @@ def main():
         kb = (OUT / "pinyin.json").stat().st_size / 1024
         mb = (OUT / "pinyin_glyphs.json").stat().st_size / 1024 / 1024
         n_chars = len({c for v in pinyin["index"].values() for c in v})
+        n_glyph = len(pinyin_glyphs['segs'])
         print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {n_chars} 字 / {kb:.0f} KB"
-              f"（載入就抓；查得到全部已取碼的字，其中 {PINYIN_TOP_N} 個有拆碼圖）")
-        print(f"pinyin_glyphs.json {len(pinyin_glyphs['segs'])} 字有拆碼圖 / {mb:.1f} MB"
-              f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個）")
+              f"（載入就抓；查得到全部已取碼的字，其中 {n_glyph} 個有拆碼圖）")
+        print(f"pinyin_glyphs.json {n_glyph} 字有拆碼圖 / {mb:.1f} MB"
+              f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個，"
+              f"加上真正的簡化字裡最常用的前 {PINYIN_SIMP_TOP_N} 個）")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
              f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else ""))

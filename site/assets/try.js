@@ -1458,8 +1458,10 @@
 
   /* ---- 自由試打：拼音查字 -------------------------------------------
    * 資料是 assets/pinyin.json（site/tools/build_site_data.py 的
-   * build_pinyin()）：已取碼的字裡現代字頻最高的 3000 個，查拼音（不分聲調）
-   * 帶出候選字，選了就用上面同一套 paintGlyph／segsFrom 畫出拆碼圖，
+   * build_pinyin()）：**全部**已取碼的字都查得到拼音（不分聲調），選了就用上面
+   * 同一套 paintGlyph／segsFrom 畫出拆碼圖——但只有其中現代字頻最高的一部分、
+   * 加上真正的簡化字裡最常用的一批（見 PINYIN_TOP_N／PINYIN_SIMP_TOP_N）才有
+   * 圖可畫，其餘的字有碼、沒有彩色拆碼圖。
    * 跟〈跟著打〉共用畫法，差別是不分步驟、選了就整個字一次上色——
    * 這裡不是在「練打」，是在「查這個字怎麼打」。
    *
@@ -1514,7 +1516,7 @@
       // 沒查詢也放一整句「輸入拼音查字」是重複的）。
       if (PY.input.value.trim()) PY.candsBox.appendChild(el('span', 'empty',
         PY.mode === 'zhuyin' ? '查無這個注音的字（目前只收已取碼的字）'
-                             : '查無這個拼音的字（目前只收已取碼的字，最多 3000 個）'));
+                             : '查無這個拼音的字（目前只收已取碼的字）'));
       return;
     }
     PY.cands.forEach(function (ch, i) {

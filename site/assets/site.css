@@ -397,6 +397,14 @@ h3 {
 
 p { margin: 0 0 1.1rem; max-width: var(--measure); }
 
+/* 〈簡介〉導語底下那一行——由 site.js 從 dict.json 填字，見那邊「進度數字」
+   那段的註解，數字不手寫死。HTML 裡的內容是離線後備值。 */
+.jieshao-stat {
+  font-size: .88rem;
+  color: var(--ink-dim);
+  margin: -.4rem 0 1.6rem;
+}
+
 /* 導語（每頁標題底下那一段）—— ⚠️ 大小以〈字根表〉那一段為準（Wilson 2026-08-28）：
    全站只有這一個尺寸，.zg-intro 與 .lede 是同一種東西的兩個名字，別再讓它們分家。
    .doc-prose 底下的正文也是同一個 .92rem，導語不可以比正文大。 */
@@ -2951,6 +2959,283 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   text-align: center;
 }
 .practice-flow.is-space { color: var(--accent); }
+
+/* ---------------------------------------------------------------------------
+   首頁 landing（index.html）—— 2026-08-30 改版：首頁不再是〈簡介〉那篇文件的
+   開頭，是獨立的入口頁。原本的九點清單搬去 jieshao.html，首頁只留品牌名、
+   幾個關鍵詞、一段拆件動畫、跟一顆按鈕（連去 jieshao.html）。側邊欄本來就
+   列了全站每一頁，首頁不用再擺一份導覽卡片（Wilson：新訪客什麼都不懂，應該
+   先讓他們看到「打字會變成中文字」這件事本身，不是一堆連結）。
+   --------------------------------------------------------------------------- */
+:root {
+  /* hero 背景那三團色暈的顏色——刻意沿用 --accent／--rb-1，不另開一組色相
+     （道理跟下面 .qn 拿掉之後留的說明一樣：這個網站的色彩一直很克制）。
+     寫成獨立變數而不是背景裡直接 color-mix()：site.css 別處註解過 color-mix
+     用在漸層上不是每個瀏覽器都吃得動，深淺主題分開寫死比較保險。 */
+  --hero-glow-1: rgba(14, 124, 115, .30);
+  --hero-glow-2: rgba(255, 183, 50, .16);
+  --hero-glow-3: rgba(9, 77, 71, .26);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hero-glow-1: rgba(63, 192, 176, .32);
+    --hero-glow-2: rgba(255, 183, 50, .14);
+    --hero-glow-3: rgba(49, 150, 137, .28);
+  }
+}
+
+.hero--landing {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  padding-block: 3.4rem 2.6rem;
+  margin-bottom: 2.4rem;
+}
+
+/* 會動的漸層色暈——三團模糊的色塊慢慢漂移，唯一的「動畫」，但很克制：
+   減少動態偏好的使用者直接關掉（下面 prefers-reduced-motion）。 */
+.hero-bg {
+  position: absolute;
+  inset: -25% -15%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 45% at 22% 28%, var(--hero-glow-1), transparent 70%),
+    radial-gradient(30% 38% at 80% 18%, var(--hero-glow-2), transparent 70%),
+    radial-gradient(46% 50% at 50% 92%, var(--hero-glow-3), transparent 70%);
+  filter: blur(48px);
+  animation: hero-drift 20s ease-in-out infinite alternate;
+}
+@keyframes hero-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-2.5%, 2%, 0) scale(1.08); }
+  100% { transform: translate3d(2.5%, -2%, 0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg { animation: none; }
+}
+
+.hero-kicker {
+  font-size: .88rem;
+  color: var(--ink-dim);
+  letter-spacing: .1em;
+  margin: 0 0 .6rem;
+}
+
+.hero-title {
+  font-size: clamp(2.3rem, 6vw, 3.4rem);
+  line-height: 1.2;
+  margin: 0 0 .9rem;
+  letter-spacing: .01em;
+}
+.hero-title .en { color: var(--accent); }
+
+/* 拆件動畫——首頁最主要的視覺，見 assets/landing.js 跟 assets/landing-glyphs.json。
+   幾個手選的字（哈／竹／晶／石）輪流播：每個字要用到的字母先在左邊排隊登場，
+   一個一個飛到自己真正該在的位置，落定後字母揉散、筆畫在同一個點長出來，疊成
+   完整的字——飛回去的終點就是這個字真正的筆畫座標，不是另外做一份假動畫去湊
+   「看起來像」。字根表那頁講「B 像日、D 像月」，這裡直接讓看得到的字母形狀
+   飛進去拼成字，是同一件事的動態版本。
+
+   顏色統一用網站自己的主色（見下面 .lg-piece, .lg-letter 那條）——這是展示動畫，
+   不是〈拆碼查詢〉那種要教「筆畫分成幾組」的頁面。減少動態偏好的訪客看到的是
+   每個字直接組好、淡入淡出換下一個，不會有東西飛。 */
+/* .lg-box 包住拆件動畫（.lg-stage／.lg-code）跟猜猜看（.guess）——兩個階段
+   共用同一個位置，動畫播完就把動畫那組隱藏、猜猜看那組打開，不是切去另一個
+   區塊（見 assets/landing.js）。.lg-restart 用這一層當定位基準，兩個階段
+   都看得到、都能按。 */
+.lg-box { position: relative; }
+/* A 字母飛的時候留殘影那個 bug（Wilson 截圖回報過），試過 will-change／
+   translateZ(0)／isolation:isolate 都沒有徹底解決，而且 isolation 那個做法
+   會把排隊站在可視範圍外的字母切掉（overflow:visible 在被提升成獨立合成層
+   的框裡不管用）。後來換一個方向：不要讓排隊的字母真的站在 viewBox 外面
+   （0–1024）靠 overflow:visible 硬擠出來，而是把 viewBox 本身往左加寬到
+   -650，字母排隊的座標（最左到 -590，見 landing.js 的 queueNearX／spacing）
+   整組都在 viewBox 宣告的範圍內，不用再依賴 overflow 這條路徑，殘影的成因
+   （overflow 內容的重繪範圍算錯）直接不成立。.lg-stage 的寬高比例跟著新
+   viewBox 換成 aspect-ratio，字的大小／位置跟改之前一樣（高度不變，寬度照
+   新的比例撐開），只是框變寬了、字往右邊靠。 */
+.lg-stage {
+  position: relative;
+  height: 13.5rem;
+  aspect-ratio: 1674 / 1024;
+  margin: 0 auto 1.2rem;
+}
+.lg-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+/* 字母跟筆畫統一都用網站自己的主色，不按字根分組上色——這是首頁的展示動畫，
+   不是〈拆碼查詢〉那種要教「筆畫分成幾組」的頁面，彩虹色在這裡沒有意思，
+   只會讓人以為顏色代表什麼。 */
+.lg-piece, .lg-letter { fill: var(--accent); }
+/* 字母排隊飛去定點那段在部分瀏覽器會留殘影（Wilson 2026-08-30 回報：A 飛的
+   時候會拖幾個綠點）——這個 svg 用了 overflow:visible，飛出視窗範圍的內容
+   重繪範圍算得不夠準，舊的畫面沒清乾淨。三層（位置、彈跳、筆畫）都逼著獨立
+   成合成層；⚠️ 不能在這裡寫 transform: translateZ(0) 硬升級——這三層的
+   transform 都是 landing.js 直接用行內 style 設的，行內樣式一定蓋過這裡，
+   寫了也沒用。真正逼合成層的 translateZ(0) 疊在 landing.js 每一次設
+   transform 的字串尾巴（跟著 translate／scale／skew 一起寫），這裡只負責
+   will-change 那部分。 */
+.lg-letter-pos, .lg-letter, .lg-piece {
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+}
+/* 正常情況下筆畫怎麼「長出來」（clip-path／filter／transform 那組）都是
+   assets/landing.js 的 materializePiece() 直接用行內 style 設定跟做動畫的，
+   這裡不用重複寫一次 transition。減少動態偏好的訪客會走 JS 裡的另一條路
+   （見 REDUCED 那個分支）：直接把 opacity 設回 1，不套 clip-path／filter，
+   這裡的 transition 只負責讓那一下 opacity 變化不要太生硬。 */
+@media (prefers-reduced-motion: reduce) {
+  .lg-piece { transition: opacity .55s ease; }
+}
+.lg-code {
+  font-size: .92rem;
+  color: var(--ink-dim);
+  letter-spacing: .04em;
+  margin: 0 0 1.3rem;
+}
+.lg-code b { color: var(--ink); font-weight: 600; }
+
+/* 重播／跳過圖示——都不寫字（Wilson），疊在一起、垂直置中對齊範例字的高度，
+   靠右站到接近漸層背景的邊緣（Wilson：「farther right, near the edge of
+   the gradient background」）。.lg-box 沒設寬度，會撐滿 .hero--landing 的
+   內容寬度，所以貼著 .lg-box 的 right:0 就等於貼著漸層背景的邊緣，不用算
+   .lg-stage 多寬——這樣猜猜看階段（.lg-stage 被藏起來）按鈕還是站在同一個
+   地方，不會跳位置。跳過在上、重播在下，跟 .lg-restart 同一顆按鈕的樣式，
+   只有垂直位置不同。 */
+/* ⚠️ .lg-skip 原本用 calc(50% - 2.1rem - .5rem) 算 top，沒算到 .lg-restart
+   自己還套了 translateY(-50%)（讓它的「中心」對齊 50%，不是「頂邊」對齊
+   50%）——兩顆按鈕的基準點不一樣，calc 出來的間距是錯的，實際疊在一起
+   （Wilson 回報「overlapped」）。改成兩顆都用同一個 translateY(-50%) 當
+   基準（中心先對齊 50%），.lg-skip 再從那個基準往上多推「一顆按鈕高度＋
+   間距」，這樣間距的算法跟兩顆按鈕實際的定位方式一致，不會算錯。 */
+.lg-skip, .lg-restart {
+  position: absolute;
+  top: 50%;
+  right: .5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  color: var(--ink-dim);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.lg-skip { transform: translate(0, calc(-50% - 2.1rem - .5rem)); }
+.lg-restart { transform: translateY(-50%); }
+.lg-skip:hover, .lg-restart:hover { color: var(--accent); border-color: var(--accent); }
+.lg-skip svg, .lg-restart svg { width: 1.15rem; height: 1.15rem; fill: currentColor; }
+
+/* 關鍵詞——不是完整的句子，就是幾個詞用點隔開，跟下面的長文分開語氣 */
+.hero-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0;
+  font-size: 1.02rem;
+  color: var(--ink-dim);
+  margin: 0 0 1.8rem;
+}
+.hero-keywords .dot { margin: 0 .6em; color: var(--line); }
+
+.hero-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: .6rem 1.3rem;
+  border-radius: var(--radius);
+  font-size: .92rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.btn:hover { text-decoration: none; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 猜猜看——動畫播完一輪，接手 .lg-box 同一個位置（見 assets/landing.js 的
+   showGuess()），不是另一個獨立區塊，所以不需要自己的上邊界／大段留白，
+   排版承接 .lg-stage 原本的位置感覺。答案（碼）不是寫在這裡，是
+   assets/landing.js 開頁就去查 dict.json 真正的碼表算出來的，見那邊的
+   GUESS_CHARS；字形是 #guess-tianzi 接 ZG.paintGlyph 畫的真正筆畫，
+   不是系統字型，跟上面拆件動畫同一種。 */
+.guess {
+  max-width: 30rem;
+  margin: 0 auto 1.2rem;
+  text-align: center;
+}
+/* 提示字（「猜猜看，這個字怎麼打？」）比其他文字更小、更淡——是引導語不是
+   內容，不用搶眼（Wilson）。 */
+.guess-label {
+  font-size: .8rem;
+  color: var(--ink-faint);
+  margin: 0 0 1rem;
+}
+#guess-tianzi { margin-bottom: 1.3rem; }
+/* 輸入框自己一排、置中；「看答案」跟「換一個字」並排在輸入框下面，兩顆
+   看起來是同一組動作（Wilson）——.guess-next 比照 .btn 的尺寸／間距，
+   跟旁邊的 .btn.btn-ghost 站在一起才不會一顆明顯比較小。 */
+/* 字級縮小過（原本 1.15rem）——提示字換成整句「在這裡輸入英文字母」之後，
+   原本給兩三個大寫字母用的尺寸太大，一整句擠在框裡不好看（Wilson）。
+   letter-spacing 也跟著收窄，原本的寬度是為大寫字母的猜測（OO、WJO 那種）
+   調的，中文提示字不需要拉那麼開。 */
+.guess-input {
+  display: block;
+  width: 13rem;
+  margin: 0 auto 1rem;
+  font: inherit;
+  font-size: .84rem;
+  letter-spacing: .1em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .6rem .3rem;
+}
+.guess-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guess-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+}
+.guess-answer {
+  font-size: .9rem;
+  color: var(--ink-dim);
+  min-height: 1.4em;
+  margin: 1rem 0 0;
+}
+.guess-answer.is-right { color: var(--accent); }
+.guess-answer.is-wrong { color: var(--warn); }
+/* ⚠️ font: inherit 會把 line-height 也一起繼承成 body 那組（1.6 上下），
+   跟旁邊 .btn.btn-ghost 用的 <button> 預設 line-height（normal，約
+   1.15）對不上，兩顆按鈕明明 padding／font-size 一樣，高度卻差了近 6px
+   （Wilson 回報「should be same height」，量出來 42px vs 48px）。
+   明寫 line-height: normal 蓋掉那個繼承值，兩顆就對齊了。 */
+.guess-next {
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+  font-size: .92rem;
+  line-height: normal;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: .6rem 1.3rem;
+  cursor: pointer;
+}
+.guess-next:hover { border-color: var(--accent); color: var(--accent); }
+
 
 /* ---------------------------------------------------------------------------
    〈後記〉（houji.html）—— 全站唯一一頁長文，Wilson 的自述。
