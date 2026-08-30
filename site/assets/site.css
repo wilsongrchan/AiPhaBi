@@ -3133,7 +3133,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* 滑鼠停留才顯示的文字提示——原本用 title 屬性，但瀏覽器原生 title 的
    停留時間是瀏覽器自己控制的，網頁沒辦法調（Wilson：「hover threshold is
    too long」）。改成自己畫的小氣泡，用 transition-delay 控制停留多久才顯示
-   （.75s），滑開的時候不等，立刻淡出。往左彈出，不往上或往右——按鈕貼著
+   （.6s），滑開的時候不等，立刻淡出。往左彈出，不往上或往右——按鈕貼著
    .lg-box 右邊緣，.hero--landing 又是 overflow:hidden，往右會被切掉；往上
    彈在 .lg-skip 那顆（本來就已經站得比較高）risk 頂到 hero 區塊上緣。往左
    是唯一保證有空間的方向。 */
@@ -3154,7 +3154,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   pointer-events: none;
   transition: opacity .12s ease;
 }
-.lg-skip:hover .lg-tip, .lg-restart:hover .lg-tip { opacity: 1; transition-delay: .75s; }
+.lg-skip:hover .lg-tip, .lg-restart:hover .lg-tip { opacity: 1; transition-delay: .6s; }
 
 /* 關鍵詞——不是完整的句子，就是幾個詞用點隔開，跟下面的長文分開語氣 */
 .hero-keywords {
