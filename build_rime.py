@@ -333,49 +333,6 @@ def main():
     char2code = {c: shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
-    # ---- 上屏補碼（aiphabi_supp 開關）：把主碼補「U」補到固定長度，打滿就頂上屏，
-    #      不必按空白——2/3 碼 +UU、4 碼 +U、5 碼不變、1 碼一律按空白。U 是全表最少
-    #      當末碼的字母（28 次），補上去幾乎撞不到真碼。
-    #      補完碼 S1 剛好是另一個補完碼 S2 的前綴（極少數 ~7 個，如 女 LJUU ⊂ 姗 LJUUI）：
-    #      S1 照收，但它是「補完了、還沒定案」的狀態——把 S2 的字掛到 suppcode_pre[S1]，
-    #      打 LJUU 先顯示常用的 女，接 I 才走 姗；接別的鍵（LJUUD）就即時頂 女、D 另起。
-    #      重碼（一個補完碼多字）同理：頂第一個（字頻最高），候選欄照樣出，可按數字改選。
-    supp_pad = {}
-    for _c, _mc in char2code.items():
-        L = len(_mc)
-        if L in (2, 3):
-            supp_pad[_c] = _mc + "uu"
-        elif L == 4:
-            supp_pad[_c] = _mc + "u"
-        elif L == 5:
-            supp_pad[_c] = _mc
-    suppcode = defaultdict(list)
-    suppcode_pre = defaultdict(list)
-    for _c, _pc in supp_pad.items():
-        suppcode[_pc].append(_c)
-        _base = char2code[_c]
-        for _n in range(len(_base) + 1, len(_pc)):      # 補到一半的前綴 → 目標字
-            suppcode_pre[_pc[:_n]].append(_c)
-    # 補完碼 S1 是另一個補完碼 S2 的真前綴 → S2 的字也掛到 suppcode_pre[S1]
-    _all_supp = sorted(suppcode)
-    for _si, _s1 in enumerate(_all_supp):
-        _j = _si + 1
-        while _j < len(_all_supp) and _all_supp[_j].startswith(_s1):
-            for _c2 in suppcode[_all_supp[_j]]:
-                suppcode_pre[_s1].append(_c2)
-            _j += 1
-    for _tbl in (suppcode, suppcode_pre):
-        for _k, _v in _tbl.items():
-            _seen, _out = set(), []
-            for _c in (c for _, c in sorted((-freq_w(c), c) for c in _v)):
-                if _c not in _seen:
-                    _seen.add(_c); _out.append(_c)
-            _tbl[_k] = _out
-    supp_dups = sum(1 for v in suppcode.values() if len(v) > 1)
-    supp_notleaf = sum(1 for k in suppcode if k in suppcode_pre)
-    print(f"上屏補碼 {sum(len(v) for v in suppcode.values())} 字 → {len(suppcode)} 個補完碼"
-          f"（{supp_dups} 個補完碼撞 2 字以上、{supp_notleaf} 個補完碼還是別人的前綴，都頂第一個、候選欄照出）")
-
     # alts（兼容碼）＝另一條也打得出這個字的路，跟左簡碼曾經犯過同一種錯（cca07ff）：
     # 詞組連打／四碼快打以前只採主碼，字有 alts 卻完全沒被用上——用 alts 那條路拼出來的
     # 字，接不上詞組快打／四碼快打的捷徑。這裡把每個字所有「打得出它」的縮短碼收一份，
@@ -595,13 +552,6 @@ def main():
     if phrase_entries:
         phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
                           "    states: [ 詞組關, 詞組開 ]\n")
-    # 上屏補碼開關：自動上屏的固定長度版（盲打用）——每個字一律打補完碼（主碼補 U 到
-    # 固定長度），打滿就上屏，不會在自然碼打完時提早上屏。靠自動上屏才能用（開它會順便
-    # 打開自動上屏、關自動上屏會一起關掉它）；跟詞組連打互斥。連動邏輯在 aiphabi_autocommit.lua。
-    supp_switch = ""
-    if suppcode:
-        supp_switch = ("  - name: aiphabi_supp              # 上屏補碼：自動上屏的固定長度版，主碼補 U（2/3碼+UU、4碼+U）\n"
-                        "    states: [ 上屏補碼關, 上屏補碼開 ]\n")
     # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
     # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
@@ -678,12 +628,6 @@ def main():
     dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
     for w, sig in sorted(si4_rev.items()):
         dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
-    dl += ["}", "M.suppcode = {"]       # 補完碼 → [字]（上屏補碼；aiphabi_supp 開關控制，依字頻排，第一個是要頂的）
-    for sig, chs in sorted(suppcode.items()):
-        dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
-    dl += ["}", "M.suppcode_pre = {"]   # 補到一半的前綴 → [字]（候選欄用，補完前也看得到）
-    for pre, chs in sorted(suppcode_pre.items()):
-        dl.append(f'  [{lua_str(pre)}]={lua_arr(chs)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
     #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
@@ -773,7 +717,7 @@ switches:
     states: [ 不打簡體關, 不打簡體開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
-{short_switch}{short3_switch}{left_switch}{phrase_switch}{supp_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{left_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
@@ -782,7 +726,6 @@ engine:
     - recognizer
 {predictor_processor}    - key_binder
     - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
-    - lua_processor@aiphabi_supp        # 上屏補碼：打滿補完碼（固定長度）就上屏（開著時 aiphabi_autocommit 整段讓開）
     - speller
     - punctuator
     - selector
@@ -796,7 +739,6 @@ engine:
     - fallback_segmentor
   translators:
 {predict_translator}    - punct_translator
-    - lua_translator@aiphabi_supp_cand   # 上屏補碼：補完碼／補到一半的碼 → 對應的字（aiphabi_supp 關就不出）
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
