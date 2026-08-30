@@ -64,6 +64,10 @@ do
   h.check("澳门 在 M.simp_phrase 裡、澳門 不在",
     data.simp_phrase["澳门"] == true and data.simp_phrase["澳門"] == nil,
     "expected simp_phrase[澳门]=true, [澳門]=nil")
+  h.check("essay 高頻日常詞的簡體版也進了 M.simp_phrase（这个／我们／因为）",
+    data.simp_phrase["这个"] == true and data.simp_phrase["我们"] == true
+      and data.simp_phrase["因为"] == true,
+    "expected simp_phrase 这个/我们/因为 = true")
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     -- 打 澳门 的詞組碼 wjkqc（見 aiphabi.dict.yaml）：候選同時有簡繁兩式。
     local base = { code = "wjkqc", schema = schema,
