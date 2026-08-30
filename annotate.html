@@ -776,6 +776,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
 let orderings = { tw4808: [], gb2312: [], name: [], place: [], binom: [] };  /* 未取碼佇列的排序來源 */
+let pinOrder = [];  /* 未取碼佇列全域置頂：不分排序來源，這批字一律浮到最前（見 data/todo_pin.json） */
 let stdChars = [];   /* 官方字表聯集（教育部常用國字4808 ∪ GB2312）：跟 /progress 同一套完成目標，
                          不是 order（字頻表 9574，那是字形資料涵蓋範圍，見 server.py 的說明） */
 /* 取碼目標改用官方字表衡量之後，排序來源也跟著換：字頻已經是所有排序的墊底次序
@@ -3704,15 +3705,20 @@ function pool() {
   /* 未取碼：選中的排序來源（國字表／GB 表／姓名／地名／連綿詞）那批字排到最前，
      照該來源自己的順序；其餘仍照字頻墊底 —— 名單只會重排，不會漏字。
      來源裡不在字頻表 order 內的字會被濾掉：那些字連字形資料都沒有（例如國字表
-     的 嬝 慇），排進來也點不開，/progress 的缺字數才是完整的那個。 */
+     的 嬝 慇），排進來也點不開，/progress 的缺字數才是完整的那個。
+     全域置頂（pinOrder）疊在最前面，不管挑哪個來源都一樣——目前是 Side B
+     簡體詞擴充卡住的缺碼字（見 data/todo_pin.json），先取完它們，別的排序
+     來源用來瀏覽其餘缺字就好。 */
   const todo = order.filter(c => !isDone(c));
-  const src = orderings[queueSort];
-  if (!src || !src.length) return todo;
   const inOrder = new Set(order);
-  const head = src.filter(c => inOrder.has(c) && !isDone(c));
-  const seen = new Set(head);
+  const pin = pinOrder.filter(c => inOrder.has(c) && !isDone(c));
+  const pinned = new Set(pin);
+  const src = orderings[queueSort];
+  if (!src || !src.length) return [...pin, ...todo.filter(c => !pinned.has(c))];
+  const head = src.filter(c => inOrder.has(c) && !isDone(c) && !pinned.has(c));
+  const seen = new Set([...pin, ...head]);
   const rest = todo.filter(c => !seen.has(c));
-  return [...head, ...rest];
+  return [...pin, ...head, ...rest];
 }
 function renderQueue() {
   const box = $('#qlist'); box.innerHTML = '';
@@ -4292,6 +4298,7 @@ Promise.all([
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
   orderings = Object.fromEntries(QSORTS.map(k => [k, (ords && ords[k]) || []]));
+  pinOrder = (ords && ords.pin) || [];
   stdChars = [...new Set([...orderings.tw4808, ...orderings.gb2312])];
   opencc = oc && oc.t2s ? oc : { t2s: {}, s2t: {} };
   learned = ln && ln.stroke_kinds ? ln : { stroke_kinds: [] };

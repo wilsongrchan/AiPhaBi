@@ -59,6 +59,7 @@ JP_KANJI = SHARED / "jp_kanji.json"      # 日本漢字（新字體＋國字，�
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
+TODO_PIN = SHARED / "todo_pin.json"     # 未取碼佇列全域置頂：不分排序來源，這批字一律浮到最前
 CHARFREQ = SHARED / "charfreq.json"     # 現代（台港新聞）字頻：候選字排序用，比 rime-essay 更貼近實際
 PREDICT_TXT = SHARED / "predict.txt"    # 官方 librime-predict 接續資料（predict.db 的純文字版；智能聯想用）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
@@ -479,6 +480,11 @@ class Handler(BaseHTTPRequestHandler):
                 ords = {}
             for spec in STANDARDS:
                 ords[spec["id"]] = _load_standard(spec["file"])
+            try:
+                ords["pin"] = json.loads(TODO_PIN.read_text("utf-8")).get("order", []) \
+                    if TODO_PIN.exists() else []
+            except json.JSONDecodeError:
+                ords["pin"] = []
             return self._send(200, json.dumps(ords, ensure_ascii=False))
         if u.path == "/api/charfreq":
             return self._send(200, CHARFREQ.read_text("utf-8") if CHARFREQ.exists()
