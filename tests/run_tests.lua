@@ -307,7 +307,7 @@ do
 end
 
 print()
-print("== 頂屏補碼：補完碼／補到一半的碼 → 候選（translator）==")
+print("== 上屏補碼：補完碼／補到一半的碼 → 候選（translator）==")
 do
   local cand = require("aiphabi_supp_cand")
   local data = require("aiphabi_data")
@@ -342,7 +342,7 @@ do
 end
 
 print()
-print("== 開關互斥：詞組連打 ⊥ {自動上屏, 頂屏補碼}；自動上屏跟頂屏補碼可以一起開 ==")
+print("== 開關連動：上屏補碼靠自動上屏；詞組連打 ⊥ 兩者 ==")
 do
   local ac = require("aiphabi_autocommit")
   local state = {}
@@ -357,22 +357,27 @@ do
   ac._set_user_yaml_path_for_tests("/tmp/aiphabi_supp_mutex_" .. os.time() .. ".yaml")
   ac.init({ engine = { context = fake_ctx } })
 
-  -- 自動上屏開著，再開頂屏補碼：兩個都留著
+  -- 開上屏補碼 → 自動上屏自己跟著開
+  fake_ctx:set_option("aiphabi_supp", true)
+  h.check("開上屏補碼 → 上屏補碼是開的", state.aiphabi_supp == true, "expected true")
+  h.check("開上屏補碼 → 自動上屏被連帶打開（靠它才能用）", state.aiphabi_autocommit == true, "expected true")
+
+  -- 關自動上屏 → 上屏補碼跟著關
+  fake_ctx:set_option("aiphabi_autocommit", false)
+  h.check("關自動上屏 → 上屏補碼一起關掉", state.aiphabi_supp == false, "expected false")
+
+  -- 開詞組連打 → 自動上屏＋上屏補碼都關
   fake_ctx:set_option("aiphabi_autocommit", true)
-  fake_ctx:set_option("aiphabi_supp", true)
-  h.check("自動上屏＋頂屏補碼可以同時開：自動上屏還在", state.aiphabi_autocommit == true, "expected true")
-  h.check("自動上屏＋頂屏補碼可以同時開：頂屏補碼也在", state.aiphabi_supp == true, "expected true")
-
-  -- 這時開詞組連打：兩個「不必按空白」的都被關掉
+  fake_ctx:set_option("aiphabi_supp", true)          -- 這時兩個都開
   fake_ctx:set_option("aiphabi_phrase", true)
-  h.check("開詞組連打：詞組是開的", state.aiphabi_phrase == true, "expected true")
-  h.check("開詞組連打：自動上屏被關", state.aiphabi_autocommit == false, "expected false")
-  h.check("開詞組連打：頂屏補碼被關", state.aiphabi_supp == false, "expected false")
+  h.check("開詞組連打 → 詞組是開的", state.aiphabi_phrase == true, "expected true")
+  h.check("開詞組連打 → 自動上屏被關", state.aiphabi_autocommit == false, "expected false")
+  h.check("開詞組連打 → 上屏補碼被關", state.aiphabi_supp == false, "expected false")
 
-  -- 反過來：詞組開著時開頂屏補碼 → 詞組關掉，自動上屏不受影響
+  -- 詞組開著時開上屏補碼 → 詞組關、自動上屏連帶開
   fake_ctx:set_option("aiphabi_supp", true)
-  h.check("開頂屏補碼：詞組被關", state.aiphabi_phrase == false, "expected false")
-  h.check("開頂屏補碼：自動上屏（本來就關著）沒被硬開", state.aiphabi_autocommit == false, "expected false")
+  h.check("詞組開著時開上屏補碼 → 詞組被關", state.aiphabi_phrase == false, "expected false")
+  h.check("詞組開著時開上屏補碼 → 自動上屏連帶開", state.aiphabi_autocommit == true, "expected true")
 end
 
 print()
@@ -710,7 +715,7 @@ do
 end
 
 print()
-print("== 頂屏補碼：補完固定長度就頂上屏（processor）==")
+print("== 上屏補碼：補完固定長度就頂上屏（processor）==")
 do
   -- 放檔案最後：commit() 會呼叫 order.note_commit()，動 aiphabi_order 的模組級狀態。
   local supp = require("aiphabi_supp")
@@ -758,24 +763,21 @@ do
   local r = supp.func(fake_key("u"), env4)
   h.check("開關關：func 直接讓開（return 2）、不頂", r == 2 and got4() == nil, "expected pass-through")
 
-  -- 頂屏補碼＋自動上屏一起開：自然碼打到獨一無二就先收，不必補到固定長度
+  -- 上屏補碼開著：只認補完碼，不做自然碼的提早上屏。夜 一定要打到 IYARU，IYAR 不算。
   do
     local committed
-    local sole = { text = "夜", type = nil, comment = nil }
-    local menu = { prepare = function() end, candidate_count = function() return 1 end }
-    local seg = { menu = menu, get_candidate_at = function(_, i) return i == 0 and sole or nil end }
     local ctx = {
-      input = "iya",
-      get_option = function(_, n) return n == "aiphabi_supp" or n == "aiphabi_autocommit" end,
+      input = "iyar",
+      get_option = function(_, n) return n == "aiphabi_supp" end,
       push_input = function(self, k) self.input = self.input .. k end,
       clear = function(self) self.input = "" end,
-      composition = { back = function() return seg end },
     }
     local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
-    supp.func(fake_key("r"), env)   -- 打到 IYAR（夜 的自然主碼，葉節點）
-    h.check("兩個都開：打完自然碼 IYAR（獨一無二）→ 自動上屏先收「夜」，不必再打 U",
-      committed == "夜", "expected 夜, got " .. tostring(committed))
-    h.check("兩個都開：收完 ctx.input 清空", ctx.input == "", "got " .. tostring(ctx.input))
+    supp.func(fake_key("u"), env)   -- IYAR + U = IYARU（夜 的補完碼）
+    h.check("上屏補碼：打到 IYARU 才收「夜」（IYAR 不算）", committed == "夜",
+      "expected 夜, got " .. tostring(committed))
+    h.check("上屏補碼：資料表 suppcode.iyaru 就是「夜」",
+      (require("aiphabi_data").suppcode["iyaru"] or {})[1] == "夜", "expected 夜")
   end
 end
 

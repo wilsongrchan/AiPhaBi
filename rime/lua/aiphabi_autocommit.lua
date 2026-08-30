@@ -152,29 +152,11 @@ local function top_complete_candidate(seg)
   return nil
 end
 
--- try_commit：假設這一鍵已經 push_input 進去了，看「自然碼」有沒有打到獨一無二、打完了
--- ——是就上屏＋清空、回 true；不是回 false。給自己的 func 用，也給 aiphabi_supp 用
--- （自動上屏＋頂屏補碼一起開時，補碼那支處理器每一鍵先問一次這裡，收得了就不必補到固定長度）。
-local function try_commit(env)
-  local ctx = env.engine.context
-  local code = ctx.input or ""
-  if #code <= 1 then return false end             -- 第一碼不查（效能，見下面 func 裡的說明）
-  if code:find("`", 1, true) then return false end
-  if has_longer_code(code) then return false end  -- 還能接出更長的字（大 IY 上面有 夜 IYAR）→ 先別收
-  local seg = ctx.composition:back()
-  if not seg then return false end
-  local cand = sole_real_candidate(seg)
-  if not cand then return false end
-  env.engine:commit_text(cand.text)
-  order.note_commit(cand.text)                    -- 上屏不經過 commit_notifier，選字次數／重複上字自己補記
-  ctx:clear()
-  return true
-end
-
 local function func(key, env)
   if not is_plain_letter(key) then return 2 end
   local ctx = env.engine.context
-  if ctx:get_option("aiphabi_supp") then return 2 end   -- 頂屏補碼開著：統一交給 aiphabi_supp 收鍵
+  -- 上屏補碼開著時，收鍵、上屏整段交給 aiphabi_supp（純補完碼、固定長度，不做自然碼的提早上屏）。
+  if ctx:get_option("aiphabi_supp") then return 2 end
   if not ctx:get_option("aiphabi_autocommit") then return 2 end
 
   local code = ctx.input or ""
@@ -209,8 +191,19 @@ local function func(key, env)
   -- 候選欄）再重新接上。
 
   ctx:push_input(k)    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
-  try_commit(env)      -- 打完了就上屏；沒有就繼續等下一鍵
-  return 1             -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
+  local seg = ctx.composition:back()
+  if seg then
+    -- 這串碼還能接出更長的字（大 IY 上面有 夜 IYAR）就先別收——sole_real_candidate
+    -- 只數候選欄剩幾個，補全沒被算進去時會誤判「唯一」，把還沒打完的常見短碼字頂掉。
+    local cand = not has_longer_code(ctx.input or "") and sole_real_candidate(seg)
+    if cand then
+      env.engine:commit_text(cand.text)
+      order.note_commit(cand.text)  -- 同上，唯一上屏這條路也要自己補記
+      ctx:clear()
+      return 1                    -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
+    end
+  end
+  return 1                      -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
 end
 
 -- 自動上屏／詞組連打互斥：詞組開著時，打完一個字的完整碼常常還會接著冒出「候選」
@@ -263,45 +256,51 @@ end
 -- →誤判成又要關詞組」，兩個開關繞一圈變成全部關掉；第二次因為自動上屏已經是關的，
 -- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
 -- 再被自己的回呼解讀成一次新的切換。
--- 三個「不必按空白」的開關：
+-- 三個「不必按空白」的開關，關係如下：
 --   * aiphabi_phrase（詞組連打）跟另兩個都互斥——它濾掉多字候選、每個字後面都可能接出
---     詞，跟「打完就收」的判斷打架。
---   * aiphabi_autocommit（自動上屏）跟 aiphabi_supp（頂屏補碼）可以一起開：自然碼打到
---     獨一無二就先收（省鍵），收不了的補 U 到固定長度收。合併邏輯在 aiphabi_supp.lua——
---     頂屏補碼開著時，這支處理器讓開（見 func 開頭），統一由 aiphabi_supp 收鍵。
-local NO_SPACE = { "aiphabi_autocommit", "aiphabi_supp" }
+--     詞，跟「打完就收」的判斷打架。開詞組會關掉另兩個；開另兩個會關詞組。
+--   * aiphabi_supp（上屏補碼）＝ aiphabi_autocommit（自動上屏）的固定長度版，靠它才能用：
+--     開上屏補碼會順便打開自動上屏；關自動上屏會一起關掉上屏補碼。
+--     上屏補碼開著時，收鍵／上屏整段由 aiphabi_supp 處理（純補完碼、固定長度，不做自然碼
+--     的提早上屏），aiphabi_autocommit 這支處理器讓開（見 func 開頭）。
+local function set(ctx, name, value)
+  ctx:set_option(name, value)
+  pcall(persist_option, name, value)
+end
 local suppressing = false
 local function enforce_mutex(ctx, just_turned_on)
   if suppressing then return end
   suppressing = true
-  if just_turned_on == "aiphabi_phrase" then
-    if ctx:get_option("aiphabi_phrase") then          -- 開詞組 → 關掉「不必按空白」那兩個
-      for _, n in ipairs(NO_SPACE) do
-        if ctx:get_option(n) then
-          ctx:set_option(n, false)
-          pcall(persist_option, n, false)
-        end
-      end
+  local on = ctx:get_option(just_turned_on)
+  if just_turned_on == "aiphabi_phrase" and on then
+    -- 開詞組 → 關掉自動上屏＋上屏補碼
+    if ctx:get_option("aiphabi_autocommit") then set(ctx, "aiphabi_autocommit", false) end
+    if ctx:get_option("aiphabi_supp") then set(ctx, "aiphabi_supp", false) end
+  elseif just_turned_on == "aiphabi_autocommit" then
+    if on then
+      if ctx:get_option("aiphabi_phrase") then set(ctx, "aiphabi_phrase", false) end
+    elseif ctx:get_option("aiphabi_supp") then
+      set(ctx, "aiphabi_supp", false)             -- 關自動上屏 → 上屏補碼一起關（它靠自動上屏）
     end
-  else
-    for _, n in ipairs(NO_SPACE) do                   -- 開自動上屏／頂屏補碼 → 關掉詞組
-      if just_turned_on == n and ctx:get_option(n) and ctx:get_option("aiphabi_phrase") then
-        ctx:set_option("aiphabi_phrase", false)
-        pcall(persist_option, "aiphabi_phrase", false)
-      end
-    end
+  elseif just_turned_on == "aiphabi_supp" and on then
+    -- 開上屏補碼 → 關詞組、順便把自動上屏打開（上屏補碼是它的固定長度版，沒它不能用）
+    if ctx:get_option("aiphabi_phrase") then set(ctx, "aiphabi_phrase", false) end
+    if not ctx:get_option("aiphabi_autocommit") then set(ctx, "aiphabi_autocommit", true) end
   end
   suppressing = false
 end
 
 local function init(env)
   local ctx = env.engine.context
-  -- 開機當下詞組跟「不必按空白」的機制同時 true（例如手改設定檔）：關掉詞組。
   pcall(function()
+    -- 詞組跟「不必按空白」的機制同時 true（例如手改設定檔）：關掉詞組。
     if ctx:get_option("aiphabi_phrase")
        and (ctx:get_option("aiphabi_autocommit") or ctx:get_option("aiphabi_supp")) then
-      ctx:set_option("aiphabi_phrase", false)
-      pcall(persist_option, "aiphabi_phrase", false)
+      set(ctx, "aiphabi_phrase", false)
+    end
+    -- 上屏補碼開著、自動上屏沒開：補開自動上屏（上屏補碼靠它）。
+    if ctx:get_option("aiphabi_supp") and not ctx:get_option("aiphabi_autocommit") then
+      set(ctx, "aiphabi_autocommit", true)
     end
   end)
   pcall(function()
@@ -317,9 +316,8 @@ local function fini(env)
   end
 end
 
--- try_commit：aiphabi_supp 兩個開關一起開時會呼叫，是正式行為的一部分。
 -- _is_dead_extension／_has_longer_code：只給 tests/ 用，直接對真正的碼表驗證前綴判斷，不影響正式行為。
-return { init = init, fini = fini, func = func, try_commit = try_commit,
+return { init = init, fini = fini, func = func,
          _is_dead_extension = is_dead_extension,
          _has_longer_code = has_longer_code,
          _patch_option_line = patch_option_line,
