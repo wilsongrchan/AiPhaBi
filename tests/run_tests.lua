@@ -742,21 +742,27 @@ do
   local function fake_key(repr, release)
     return { release = function() return release == true end, repr = function() return repr end }
   end
-  -- 一台「機器」：env 持久（env.buf 跨鍵存活），ctx.input 由 set_input 壓成 buffer 的樣子。
+  -- 一台「機器」：env 持久（env.buf 跨鍵存活），push_input 累加 ctx.input，退格時模擬
+  -- express_editor 把 ctx.input 退一格（func 對退格回 2 讓它處理）。
   local function machine(supp_on)
-    local committed, cleared = nil, 0
-    local ctx = {
+    local committed = nil
+    local ctx
+    ctx = {
       input = "",
       get_option = function(_, n) return n == "aiphabi_supp" and (supp_on ~= false) end,
-      set_input = function(self, s) self.input = s end,
-      clear = function(self) self.input = ""; cleared = cleared + 1 end,
+      push_input = function(self, k) self.input = self.input .. k end,
+      clear = function(self) self.input = "" end,
     }
     local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
     return {
       type_letters = function(s)
         for i = 1, #s do supp.func(fake_key(s:sub(i, i)), env) end
       end,
-      key = function(rep) return supp.func(fake_key(rep), env) end,
+      key = function(rep)
+        local r = supp.func(fake_key(rep), env)
+        if rep == "BackSpace" and r == 2 then ctx.input = ctx.input:sub(1, -2) end
+        return r
+      end,
       committed = function() return committed end,
       input = function() return ctx.input end,
       buf = function() return env.buf end,
@@ -770,17 +776,17 @@ do
   h.check("上屏後 buffer 清掉", m.buf() == nil, "got " .. tostring(m.buf()))
   h.check("上屏後 ctx.input 清空", m.input() == "", "got " .. tostring(m.input()))
 
-  -- 只打到 IYU（還沒補完）→ 不上屏；ctx.input 被壓成 iyu
+  -- 只打到 IYU（還沒補完）→ 不上屏；buffer 跟 ctx.input 都是 iyu
   local m2 = machine()
   m2.type_letters("iyu")
   h.check("打 I·Y·U（還沒補完）→ 不上屏", m2.committed() == nil, "got " .. tostring(m2.committed()))
-  h.check("buffer ＝ iyu、ctx.input 也被 set_input 壓成 iyu",
+  h.check("buffer ＝ iyu、ctx.input 也是 iyu",
     m2.buf() == "iyu" and m2.input() == "iyu", "buf=" .. tostring(m2.buf()) .. " input=" .. tostring(m2.input()))
 
-  -- 退格：buffer 跟著縮
+  -- 退格：buffer 跟著縮（func 回 2，機器模擬 express_editor 退一格）
   m2.key("BackSpace")
   h.check("退格 → buffer 變 iy、ctx.input 也是 iy",
-    m2.buf() == "iy" and m2.input() == "iy", "buf=" .. tostring(m2.buf()))
+    m2.buf() == "iy" and m2.input() == "iy", "buf=" .. tostring(m2.buf()) .. " input=" .. tostring(m2.input()))
 
   -- 重碼 TOUU：打完不上屏，候選欄留著（ctx.input 留成 touu）；下一個字母才即時頂第一個
   local m3 = machine()
@@ -810,7 +816,7 @@ do
     (require("aiphabi_data").suppcode["iyaru"] or {})[1] == "夜", "expected 夜")
 
   -- 按鍵放開（release）事件：直接讓開，不誤收、不動 buffer
-  local rel_ctx = { get_option = function() return true end, set_input = function() end, clear = function() end }
+  local rel_ctx = { get_option = function() return true end, push_input = function() end, clear = function() end }
   local rel_env = { engine = { context = rel_ctx, commit_text = function() end }, buf = "iyu" }
   h.check("release 事件 → func return 2、不動 buffer",
     supp.func(fake_key("u", true), rel_env) == 2 and rel_env.buf == "iyu", "expected pass-through on release")

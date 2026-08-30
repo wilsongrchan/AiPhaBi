@@ -18,10 +18,10 @@
 -- 這個開關靠自動上屏（aiphabi_autocommit），連動／互斥邏輯在 aiphabi_autocommit.lua。
 -- 上屏補碼開著時，aiphabi_autocommit 那支處理器整段讓開，收鍵、上屏統一走這裡。
 --
--- 自己記一份 buffer（env.buf），不倚賴 ctx.input：enable_sentence 會邊打邊把已知的詞
--- 切成獨立段、甚至確認起來，某些引擎（實測 Hamster）下 ctx.input／ctx.composition
--- 就不是「這段開始到現在打的整串」了，補完碼（跨越那個切點）查不到。改成自己一鍵一鍵
--- 累積，每鍵用 ctx:set_input 把候選欄的碼壓成跟 buffer 一模一樣，引擎怎麼分段都不影響。
+-- 自己記一份 buffer（env.buf）：不倚賴 ctx.input 去查補完碼——enable_sentence 會邊打邊把
+-- 已知的詞切成獨立段，某些引擎下 ctx.input 就不是「這一段從頭到現在打的整串」了，跨越
+-- 那個切點的補完碼查不到。改成自己一鍵一鍵累積，push_input 只負責把碼餵進候選欄。
+-- （注意：librime-lua 的 Context 沒有 set_input，只能 push_input／pop_input／clear。）
 local data = require("aiphabi_data")
 local order = require("aiphabi_order")
 
@@ -40,21 +40,24 @@ local function func(key, env)
   if not ctx:get_option("aiphabi_supp") then env.buf = nil; return 2 end
 
   local rep = key:repr()
-  local buf = env.buf or ""
+
+  -- 候選欄整個空了（外部上屏／清空／切走再回來）→ buffer 也歸零，別留舊碼。
+  -- （只認「空」這個明確訊號；不去比長度——enable_sentence 的分段不縮 ctx.input，
+  -- 但真要縮了也不該拿分段後的殘段覆蓋自己記的整串。）
+  if (ctx.input or "") == "" and env.buf then env.buf = nil end
 
   -- 萬用鍵：整段讓開，不歸這裡管
-  if rep == "`" or buf:find("`", 1, true) then env.buf = nil; return 2 end
+  if rep == "`" or (env.buf or ""):find("`", 1, true) then env.buf = nil; return 2 end
 
   if rep == "BackSpace" then
-    if buf == "" then return 2 end
-    buf = buf:sub(1, -2)
-    env.buf = (buf ~= "" and buf) or nil
-    ctx:set_input(buf)
-    return 1
+    if not env.buf or env.buf == "" then return 2 end
+    env.buf = env.buf:sub(1, -2)
+    if env.buf == "" then env.buf = nil end
+    return 2                          -- ctx.input 交給 express_editor 退一格，兩邊同步縮
   end
 
   if not is_plain_letter(key) then
-    -- 空白／標點／數字選字／方向鍵…：這一段結束，把控制權交還（候選欄還是我壓進去的那串碼，
+    -- 空白／標點／數字選字／方向鍵…：這一段結束，把控制權交還（候選欄還是剛才餵進去的碼，
     -- 空白／數字照舊在上面選字——補完了但撞碼、或補到一半按空白，都靠這條路收）。
     env.buf = nil
     return 2
@@ -62,6 +65,7 @@ local function func(key, env)
 
   -- 上一鍵停在「補完了、但撞了 2 字以上」的碼 → 這一鍵是下一個字的開頭，
   -- 先把排第一（字頻最高）的那個上屏（即時頂），再讓這一鍵照常收。
+  local buf = env.buf or ""
   local pend = data.suppcode[buf]
   if pend and #pend > 1 then
     commit(env, pend[1])
@@ -71,10 +75,10 @@ local function func(key, env)
 
   buf = buf .. rep
   env.buf = buf
-  ctx:set_input(buf)                 -- 候選欄的碼＝我的 buffer，引擎怎麼分段都一致
+  ctx:push_input(rep)                 -- 把這一鍵餵進候選欄（碼／候選由 translator + table_translator 出）
 
   local hit = data.suppcode[buf]
-  if hit and #hit == 1 then          -- 補完了、獨一無二 → 直接上屏
+  if hit and #hit == 1 then           -- 補完了、獨一無二 → 直接上屏
     commit(env, hit[1])
     ctx:clear()
     env.buf = nil
