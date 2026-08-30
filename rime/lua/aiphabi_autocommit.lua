@@ -152,9 +152,29 @@ local function top_complete_candidate(seg)
   return nil
 end
 
+-- try_commit：假設這一鍵已經 push_input 進去了，看「自然碼」有沒有打到獨一無二、打完了
+-- ——是就上屏＋清空、回 true；不是回 false。給自己的 func 用，也給 aiphabi_supp 用
+-- （自動上屏＋頂屏補碼一起開時，補碼那支處理器每一鍵先問一次這裡，收得了就不必補到固定長度）。
+local function try_commit(env)
+  local ctx = env.engine.context
+  local code = ctx.input or ""
+  if #code <= 1 then return false end             -- 第一碼不查（效能，見下面 func 裡的說明）
+  if code:find("`", 1, true) then return false end
+  if has_longer_code(code) then return false end  -- 還能接出更長的字（大 IY 上面有 夜 IYAR）→ 先別收
+  local seg = ctx.composition:back()
+  if not seg then return false end
+  local cand = sole_real_candidate(seg)
+  if not cand then return false end
+  env.engine:commit_text(cand.text)
+  order.note_commit(cand.text)                    -- 上屏不經過 commit_notifier，選字次數／重複上字自己補記
+  ctx:clear()
+  return true
+end
+
 local function func(key, env)
   if not is_plain_letter(key) then return 2 end
   local ctx = env.engine.context
+  if ctx:get_option("aiphabi_supp") then return 2 end   -- 頂屏補碼開著：統一交給 aiphabi_supp 收鍵
   if not ctx:get_option("aiphabi_autocommit") then return 2 end
 
   local code = ctx.input or ""
@@ -189,19 +209,8 @@ local function func(key, env)
   -- 候選欄）再重新接上。
 
   ctx:push_input(k)    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
-  local seg = ctx.composition:back()
-  if seg then
-    -- 這串碼還能接出更長的字（大 IY 上面有 夜 IYAR）就先別收——sole_real_candidate
-    -- 只數候選欄剩幾個，補全沒被算進去時會誤判「唯一」，把還沒打完的常見短碼字頂掉。
-    local cand = not has_longer_code(ctx.input or "") and sole_real_candidate(seg)
-    if cand then
-      env.engine:commit_text(cand.text)
-      order.note_commit(cand.text)  -- 同上，唯一上屏這條路也要自己補記
-      ctx:clear()
-      return 1                    -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
-    end
-  end
-  return 1                      -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
+  try_commit(env)      -- 打完了就上屏；沒有就繼續等下一鍵
+  return 1             -- 這一鍵已經自己收掉了，別再讓 speller 收一次（會重複）
 end
 
 -- 自動上屏／詞組連打互斥：詞組開著時，打完一個字的完整碼常常還會接著冒出「候選」
@@ -254,24 +263,32 @@ end
 -- →誤判成又要關詞組」，兩個開關繞一圈變成全部關掉；第二次因為自動上屏已經是關的，
 -- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
 -- 再被自己的回呼解讀成一次新的切換。
--- 自動上屏／詞組連打／頂屏補碼三個開關互斥：三種「不必按空白」的機制彼此會打架
---（詞組連打時每個字後面都可能接得出詞、頂屏補碼自己收鍵…），選單勾其中一個，另兩個
--- 自動關掉。順序＝優先權（開機發現多個同時 true 時留最前面那個）。
-local MUTEX = { "aiphabi_autocommit", "aiphabi_phrase", "aiphabi_supp" }
-local function is_mutex(name)
-  for _, n in ipairs(MUTEX) do if n == name then return true end end
-  return false
-end
+-- 三個「不必按空白」的開關：
+--   * aiphabi_phrase（詞組連打）跟另兩個都互斥——它濾掉多字候選、每個字後面都可能接出
+--     詞，跟「打完就收」的判斷打架。
+--   * aiphabi_autocommit（自動上屏）跟 aiphabi_supp（頂屏補碼）可以一起開：自然碼打到
+--     獨一無二就先收（省鍵），收不了的補 U 到固定長度收。合併邏輯在 aiphabi_supp.lua——
+--     頂屏補碼開著時，這支處理器讓開（見 func 開頭），統一由 aiphabi_supp 收鍵。
+local NO_SPACE = { "aiphabi_autocommit", "aiphabi_supp" }
 local suppressing = false
 local function enforce_mutex(ctx, just_turned_on)
   if suppressing then return end
-  if not is_mutex(just_turned_on) then return end
-  if not ctx:get_option(just_turned_on) then return end   -- 剛剛是「關掉」，不必連動
   suppressing = true
-  for _, n in ipairs(MUTEX) do
-    if n ~= just_turned_on and ctx:get_option(n) then
-      ctx:set_option(n, false)
-      pcall(persist_option, n, false)
+  if just_turned_on == "aiphabi_phrase" then
+    if ctx:get_option("aiphabi_phrase") then          -- 開詞組 → 關掉「不必按空白」那兩個
+      for _, n in ipairs(NO_SPACE) do
+        if ctx:get_option(n) then
+          ctx:set_option(n, false)
+          pcall(persist_option, n, false)
+        end
+      end
+    end
+  else
+    for _, n in ipairs(NO_SPACE) do                   -- 開自動上屏／頂屏補碼 → 關掉詞組
+      if just_turned_on == n and ctx:get_option(n) and ctx:get_option("aiphabi_phrase") then
+        ctx:set_option("aiphabi_phrase", false)
+        pcall(persist_option, "aiphabi_phrase", false)
+      end
     end
   end
   suppressing = false
@@ -279,18 +296,12 @@ end
 
 local function init(env)
   local ctx = env.engine.context
-  -- 開機當下多個同時 true（例如手改設定檔）也一併修正一次，留 MUTEX 裡最前面那個。
+  -- 開機當下詞組跟「不必按空白」的機制同時 true（例如手改設定檔）：關掉詞組。
   pcall(function()
-    local kept = nil
-    for _, n in ipairs(MUTEX) do
-      if ctx:get_option(n) then
-        if kept then
-          ctx:set_option(n, false)
-          pcall(persist_option, n, false)
-        else
-          kept = n
-        end
-      end
+    if ctx:get_option("aiphabi_phrase")
+       and (ctx:get_option("aiphabi_autocommit") or ctx:get_option("aiphabi_supp")) then
+      ctx:set_option("aiphabi_phrase", false)
+      pcall(persist_option, "aiphabi_phrase", false)
     end
   end)
   pcall(function()
@@ -306,8 +317,10 @@ local function fini(env)
   end
 end
 
+-- try_commit：aiphabi_supp 兩個開關一起開時會呼叫，是正式行為的一部分。
 -- _is_dead_extension／_has_longer_code：只給 tests/ 用，直接對真正的碼表驗證前綴判斷，不影響正式行為。
-return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension,
+return { init = init, fini = fini, func = func, try_commit = try_commit,
+         _is_dead_extension = is_dead_extension,
          _has_longer_code = has_longer_code,
          _patch_option_line = patch_option_line,
          _set_user_yaml_path_for_tests = _set_user_yaml_path_for_tests }

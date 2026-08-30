@@ -13,10 +13,12 @@
 -- 看的人可以按數字改選；沒看、繼續打下一個字時，這一鍵先把排第一（字頻最高）的那個頂
 -- 上屏，再當新字的開頭（即時頂）。字頻排序把「頂錯」的機會壓到最低。
 --
--- 跟自動上屏（aiphabi_autocommit）／詞組連打（aiphabi_phrase）互斥——三個開關最多一個
--- 開著（互斥邏輯在 aiphabi_autocommit.lua 的 enforce_mutex 裡，三個一起處理）。
+-- 跟詞組連打（aiphabi_phrase）互斥。跟自動上屏（aiphabi_autocommit）可以一起開：兩個都開時，
+-- 這一鍵先問 aiphabi_autocommit.try_commit（自然碼打到獨一無二就先收，省鍵），收不了才看
+-- 補完碼有沒有打滿。頂屏補碼開著時 aiphabi_autocommit 那支處理器讓開，統一由這裡收鍵。
 local data = require("aiphabi_data")
 local order = require("aiphabi_order")
+local ac = require("aiphabi_autocommit")
 
 local function is_plain_letter(key)
   return not key:release() and key:repr():match("^%l$") ~= nil
@@ -47,6 +49,12 @@ local function func(key, env)
   end
 
   ctx:push_input(key:repr())
+
+  -- 自動上屏也開著：自然碼已經打到獨一無二、打完了 → 先收，不必補到固定長度（省鍵）。
+  if ctx:get_option("aiphabi_autocommit") and ac.try_commit(env) then
+    return 1
+  end
+
   local hit = data.suppcode[ctx.input]
   if hit and #hit == 1 then           -- 補完了、獨一無二 → 直接頂
     commit(env, hit[1])

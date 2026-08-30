@@ -585,7 +585,8 @@ def main():
     if phrase_entries:
         phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
                           "    states: [ 詞組關, 詞組開 ]\n")
-    # 頂屏補碼開關：主碼補 U 補到固定長度，打滿就頂上屏（盲打用）。跟自動上屏／詞組連打互斥。
+    # 頂屏補碼開關：主碼補 U 補到固定長度，打滿就頂上屏（盲打用）。跟詞組連打互斥；
+    # 可以跟自動上屏一起開（自然碼打到獨一無二就先收，收不了的補 U 收）。
     supp_switch = ""
     if suppcode:
         supp_switch = ("  - name: aiphabi_supp              # 頂屏補碼：主碼補 U 到固定長度，打滿就頂（2/3碼+UU、4碼+U）\n"
@@ -770,7 +771,7 @@ engine:
     - recognizer
 {predictor_processor}    - key_binder
     - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
-    - lua_processor@aiphabi_supp        # 頂屏補碼：補完固定長度就頂上屏（跟自動上屏互斥，同時最多一個在跑）
+    - lua_processor@aiphabi_supp        # 頂屏補碼：補完固定長度就頂上屏（開著時 aiphabi_autocommit 讓開，統一由這裡收鍵）
     - speller
     - punctuator
     - selector

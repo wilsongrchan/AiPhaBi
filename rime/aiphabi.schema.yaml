@@ -51,7 +51,7 @@ engine:
     - recognizer
     - key_binder
     - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
-    - lua_processor@aiphabi_supp        # 頂屏補碼：補完固定長度就頂上屏（跟自動上屏互斥，同時最多一個在跑）
+    - lua_processor@aiphabi_supp        # 頂屏補碼：補完固定長度就頂上屏（開著時 aiphabi_autocommit 讓開，統一由這裡收鍵）
     - speller
     - punctuator
     - selector
