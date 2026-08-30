@@ -166,7 +166,8 @@
    * 頁面在沒有 JS／抓不到檔案時仍然顯示得出數字，只是可能舊一點；有 JS 時一律以
    * 產生當下的 codes.json 為準。手抄的數字撐不過幾天取碼。 */
   var slots = document.querySelectorAll('[data-stat]');
-  if (slots.length) {
+  var heroTw = document.getElementById('hero-tw4808');
+  if (slots.length || heroTw) {
     fetch('assets/dict.json')
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -176,6 +177,15 @@
           }, d.stats || {});
           if (v != null) el.textContent = v;
         });
+        /* 首頁 hero：教育部甲表收滿了就講「全部收錄」，沒收滿就講分數——哪一句
+           由資料決定，不要在 HTML 裡手寫死其中一句（2026-08-17 Wilson 的指示，
+           原本寫在 index.html 移除〈目前進度〉那段旁邊的註解裡）。 */
+        if (heroTw && d.stats && d.stats.tw4808) {
+          var s = d.stats.tw4808;
+          heroTw.textContent = s.done >= s.total
+            ? ('教育部常用國字甲表 ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
+            : ('教育部常用國字甲表已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
+        }
       })
       .catch(function () { /* 留著 HTML 裡的後備值 */ });
   }
