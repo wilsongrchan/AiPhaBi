@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拆碼查詢 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="查一個字怎麼拆碼：可以用拼音查，也可以直接把字或整句話貼進來，一次看完每個字的碼。">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="index.html">簡介</a>
+      <div class="nav-sec">
+        <span class="nav-sec-t">基礎學習</span>
+        <a href="zigen.html">字根表</a>
+        <a href="principles.html">取碼原則</a>
+        <a href="conventional.html">約定字表</a>
+        <a href="jianma.html">簡碼</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">流暢模式</span>
+        <a href="cizu.html">詞組連打</a>
+        <a href="dingping.html">自動上屏</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">體驗工具</span>
+        <a href="try.html">線上試打</a>
+        <a href="chaima.html">拆碼查詢</a>
+      </div>
+      <a href="houji.html">後記</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap cm-page doc-prose">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>拆碼查詢</h1>
+
+  <p class="lede">想知道某一個字怎麼打，在這裡查。知道讀音就打拼音；手上已經有字了，就把它——或者一整句話——貼進右邊的框。</p>
+
+  <div class="cm-panel">
+    <div class="cm-inputs">
+      <div class="cm-field">
+        <label for="cm-py-input">字音查碼</label>
+        <!-- 拼音／注音二選一，跟〈線上試打〉的拼音查字同一套（assets/bpmf.js
+             共用，不要抄，見那支檔案開頭的說明）。 -->
+        <div class="jm-sortbar-btns pyq-mode-btns">
+          <button type="button" data-pyq-mode="pinyin" aria-pressed="true">拼音</button>
+          <button type="button" data-pyq-mode="zhuyin" aria-pressed="false">注音</button>
+        </div>
+        <input type="text" id="cm-py-input" class="cm-in" placeholder="例如：bai 或 bairi"
+               autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="pyq-bpmf" id="cm-bpmf" hidden></div>
+      </div>
+      <div class="cm-field cm-field-wide">
+        <label for="cm-tx-input">貼字查碼</label>
+        <textarea id="cm-tx-input" class="cm-in" rows="2"
+                  placeholder="例如：白日依山盡"
+                  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+      </div>
+    </div>
+
+    <!-- 顯示選項。三個都只改「看起來怎樣」，不改查到的是哪些字 —— 所以放在
+         面板底部、輸入框下面，不要擺在輸入框上面搶戲。選擇記在 localStorage。 -->
+    <div class="cm-opts">
+      <div class="short-toggle" role="radiogroup" aria-label="拆碼圖大小">
+        <span>大小</span>
+        <label class="chk-toggle"><input type="radio" name="cmsize" data-cmsize="lg">大</label>
+        <label class="chk-toggle"><input type="radio" name="cmsize" data-cmsize="md" checked>中</label>
+        <label class="chk-toggle"><input type="radio" name="cmsize" data-cmsize="sm">小</label>
+      </div>
+      <div class="short-toggle">
+        <span>套用簡碼</span>
+        <label class="chk-toggle"><input type="checkbox" id="cm-conv">約定簡碼</label>
+        <label class="chk-toggle"><input type="checkbox" id="cm-short3">三簡碼</label>
+      </div>
+      <!-- 拆碼圖排在字根顏色前面：顏色是它的附屬選項（拆碼圖關掉，顏色跟著
+           停用），先出現的那個才是管事的那個。 -->
+      <div class="short-toggle">
+        <span>顯示</span>
+        <label class="chk-toggle"><input type="checkbox" id="cm-grid" checked>拆碼圖</label>
+        <label class="chk-toggle"><input type="checkbox" id="cm-colour" checked>字根顏色</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="cm-wall is-md" id="cm-wall"></div>
+  <p class="cm-note" id="cm-note" aria-live="polite"></p>
+
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span> 版權所有 <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/glyphbox.js"></script>
+<script src="assets/bpmf.js"></script>
+<script src="assets/chaima.js"></script>
+</body>
+</html>

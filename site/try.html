@@ -29,13 +29,24 @@
     </div>
     <nav class="site">
       <a href="index.html">簡介</a>
-      <a href="zigen.html">字根表</a>
-      <a href="principles.html">取碼原則</a>
-      <a href="conventional.html">約定字表</a>
-      <a href="jianma.html">簡碼</a>
-      <a href="cizu.html">詞組</a>
-      <a href="dingping.html">自動上屏</a>
-      <a href="try.html">線上試打</a>
+      <div class="nav-sec">
+        <span class="nav-sec-t">基礎學習</span>
+        <a href="zigen.html">字根表</a>
+        <a href="principles.html">取碼原則</a>
+        <a href="conventional.html">約定字表</a>
+        <a href="jianma.html">簡碼</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">流暢模式</span>
+        <a href="cizu.html">詞組連打</a>
+        <a href="dingping.html">自動上屏</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">體驗工具</span>
+        <a href="try.html">線上試打</a>
+        <a href="chaima.html">拆碼查詢</a>
+      </div>
+      <a href="houji.html">後記</a>
     </nav>
   </div>
 </header>
@@ -139,6 +150,14 @@
            框各自獨立（不是一個框套一個框）：左邊窄的是輸入框，右邊寬的借
            .rail 的樣式，跟試打框自己的候選列（#rail）看起來像同一組（Wilson）。 -->
       <div class="pyq-row" data-mode-panel="free" hidden>
+        <!-- 拼音／注音二選一，跟其他開關一樣不用彩色藥丸鈕——這裡剛好只有
+             兩個互斥選項，借用簡碼那排已經有的 checkbox 樣式感覺會像獨立
+             開關，改用 .jm-sortbar-btns 那組「按下去變實心」的按鈕，一看
+             就知道是切換分頁，不是兩個都能開的開關。 -->
+        <div class="jm-sortbar-btns pyq-mode-btns">
+          <button type="button" data-pyq-mode="pinyin" aria-pressed="true">拼音</button>
+          <button type="button" data-pyq-mode="zhuyin" aria-pressed="false">注音</button>
+        </div>
         <label class="sr-only" for="pyq-input">拼音查字</label>
         <input type="text" id="pyq-input" class="pyq-input" placeholder="在這裡輸入拼音即可查字"
                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -146,6 +165,13 @@
           <div class="cands" id="pyq-cands"></div>
         </div>
       </div>
+
+      <!-- 注音鍵盤：切到注音模式才展開（見 try.js setPyqMode）。鍵位跟實體
+           鍵盤上印的注音鍵盤一模一樣（Q=ㄆ、W=ㄊ…），打字時鍵盤上對應的鍵
+           直接輸出注音符號；不記得鍵位的人可以直接點畫面上的鍵——兩條路
+           填的是同一個輸入框，查詢邏輯共用（Wilson：一個是鍵盤直接對應，
+           一個是給不記得鍵位的人點選）。 -->
+      <div class="pyq-bpmf" id="pyq-bpmf" hidden></div>
     </div>
 
     <aside class="practice-cell" data-practice-toggle hidden>
@@ -185,14 +211,6 @@
     <div><dt><kbd data-keep>`</kbd></dt><dd>萬用鍵，代替任何字母。一鍵可代替一個或多個字母；兩、三、四鍵則只代替兩、三、四個字母。</dd></div>
   </dl>
 
-  <div class="todo">
-    <b>這個試打版是簡化過的。</b>
-    目前支援主碼、完整碼、兼容碼、前綴補全、字頻排序、約定簡碼、三簡碼、
-    <a href="cizu.html">詞組連打與四碼快打</a>、萬用鍵與標點。
-    真正的輸入法還有左簡碼、輸入容錯、智能分詞、同類字與偏旁碼提示，
-    這一頁還沒有。
-  </div>
-
 </main>
 
 
@@ -202,6 +220,8 @@
 </footer>
 
 <script src="assets/site.js"></script>
+<script src="assets/glyphbox.js"></script>
+<script src="assets/bpmf.js"></script>
 <script src="assets/try.js"></script>
 </body>
 </html>

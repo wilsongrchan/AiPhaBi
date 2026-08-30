@@ -10,11 +10,12 @@
 --   每個候選的有效分數 = max(自己的衰減選過次數, floor)；先比這個，再比常用度。
 --   所以「簡碼 > exact > 池」是預設；但你對某字（含拼音詞，如 BD→病毒）近期猛選、
 --   衝過門檻（>6 壓過 exact、>9 壓過簡碼），它就會蓋過去；停一陣子衰減掉，又自動讓回來。
--- 其餘候選（形碼補全＋容錯＋拼音）混在同一池，照「常用度分數」排，分數是同一把尺：
+-- 其餘打滿整段的候選（形碼容錯＋拼音）混在同一池，照「常用度分數」排，分數是同一把尺：
 --     * 單字 —— 字頻（data.freq）。
 --     * 多字詞 —— 真語料詞頻（data.wordfreq，essay 校準到單字同尺）；沒收錄的罕詞打折。
 --   字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），所以詞一律查真詞頻。
 --   唯一保險：拼音的冷讀音（於＝wū 對 wu，拼音自己排很後面）字頻雖高、要打折，免得爬到前面。
+-- 碼還沒打完的補全（type=completion）不進這池，整批墊在它之後——見下方 comp bucket。
 -- 升頂門檻 PROMOTE_MIN = 3：池裡的字要「近期選過 ≥3 次」才升到 top 區、開始壓過整池；手滑選一兩次
 --   （如剛剛的 於）不算，留在池裡照常用度排。簡碼(9)／exact(6) 靠 floor 本來就 ≥3，永遠在 top。
 -- 選過次數存在 ~/Library/Rime/aiphabi_plus_userfreq.tsv（字\t分數\t時間戳），
@@ -100,8 +101,10 @@ end
 
 local PY_TOPK    = 5      -- 拼音候選前 K 名當「正常讀音」；之後的當冷讀音（於＝wū 對 wu）
 local PY_OBSCURE = 0.10   -- 冷讀音字頻打這個折，免得高字頻把它頂到前面
-local COMPLETION_PEN = 0.7 -- 補全候選（打的是長詞前綴，如 YCLX→人民幣）打個折，讓打滿的 exact（人民）
-                           -- 有優勢；但只是打折不是絕對——頻率高很多的補全（中華）照樣壓過冷門 exact。
+-- 補全候選（type=completion，打的是長詞前綴，如 YCLX→人民幣）整批墊在 pool 之後，
+-- 不再跟打滿整段的候選（人民、碰巧）同池比字頻——曾用 0.7 打折，但頻率只高一點的
+-- 補全（碰瓷 2110 vs 碰巧 1286）照樣壓過打滿的，索性硬分層。近期猛選的補全仍靠 top
+-- 那個 bucket（PROMOTE_MIN）保送，不受影響。
 
 local function filter(input, env)
   local cands = {}
@@ -158,8 +161,9 @@ local function filter(input, env)
     end
   end
 
-  -- top = 選過(衰減)/簡碼/exact；pool = 其餘同池照 cf；part = 同源裡吃不滿的，降到最後。
-  local top, pool, part = {}, {}, {}
+  -- top = 選過(衰減)/簡碼/exact；pool = 其餘打滿整段的同池照 cf；comp = 碼還沒打完的補全，
+  -- 墊在 pool 之後（打滿的 碰巧 不該輸給還差一碼的 碰瓷）；part = 同源裡吃不滿的，降到最後。
+  local top, pool, comp, part = {}, {}, {}, {}
   local pyRank = 0
   for i, c in ipairs(cands) do
     local form, st, en = info[i].form, info[i].st, info[i].en
@@ -181,8 +185,11 @@ local function filter(input, env)
           -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞不算
           if pyRank > PY_TOPK and ulen(c.text) == 1 then w = w * PY_OBSCURE end
         end
-        if c.type == "completion" then w = w * COMPLETION_PEN end   -- 補全讓步給打滿的 exact
-        pool[#pool + 1] = { c = c, i = i, w = w }
+        if c.type == "completion" then          -- 碼還沒打完：不進 pool，整批墊在 pool 之後
+          comp[#comp + 1] = { c = c, i = i, w = w }
+        else
+          pool[#pool + 1] = { c = c, i = i, w = w }
+        end
       end
     end
   end
@@ -213,6 +220,23 @@ local function filter(input, env)
       return a.i < b.i
     end)
   end
+  -- 補全彼此照常用度；整批排在 pool 之後。同樣吃 MAX_SORT 上限（見上面）。
+  if #comp > MAX_SORT then
+    local head, tail = {}, {}
+    for i = 1, MAX_SORT do head[i] = comp[i] end
+    for i = MAX_SORT + 1, #comp do tail[#tail + 1] = comp[i] end
+    table.sort(head, function(a, b)
+      if a.w ~= b.w then return a.w > b.w end
+      return a.i < b.i
+    end)
+    for _, e in ipairs(tail) do head[#head + 1] = e end
+    comp = head
+  else
+    table.sort(comp, function(a, b)
+      if a.w ~= b.w then return a.w > b.w end
+      return a.i < b.i
+    end)
+  end
   table.sort(part, function(a, b)             -- 前綴候選：吃得越多越前，再比常用度
     if a.cov ~= b.cov then return a.cov > b.cov end
     if a.w ~= b.w then return a.w > b.w end
@@ -221,6 +245,7 @@ local function filter(input, env)
 
   for _, r in ipairs(top) do yield(r.c) end
   for _, r in ipairs(pool) do yield(r.c) end
+  for _, r in ipairs(comp) do yield(r.c) end
   for _, r in ipairs(part) do yield(r.c) end
 end
 

@@ -341,6 +341,39 @@ def main():
     char2code = {c: shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
+    # ---- 頂屏補碼（aiphabi_supp 開關）：把主碼補「U」補到固定長度，打滿就頂上屏，
+    #      不必按空白——2/3 碼 +UU、4 碼 +U、5 碼不變、1 碼一律按空白。U 是全表最少
+    #      當末碼的字母（28 次），補上去幾乎撞不到真碼。補完碼剛好是別的字補完碼的
+    #      前綴（極少數 ~5 個）就不收，那幾個字照舊按空白。重碼（一個補完碼多字）頂
+    #      第一個（字頻最高），候選欄照樣出，看的人可以按數字改選。
+    supp_pad = {}
+    for _c, _mc in char2code.items():
+        L = len(_mc)
+        if L in (2, 3):
+            supp_pad[_c] = _mc + "uu"
+        elif L == 4:
+            supp_pad[_c] = _mc + "u"
+        elif L == 5:
+            supp_pad[_c] = _mc
+    _supp5_pre4 = {s[:4] for s in supp_pad.values() if len(s) == 5}
+    suppcode = defaultdict(list)
+    suppcode_pre = defaultdict(list)
+    supp_skip = []
+    for _c, _pc in supp_pad.items():
+        if len(_pc) == 4 and _pc in _supp5_pre4:      # 補完碼是別的補完碼的前綴 → 不收
+            supp_skip.append(_c)
+            continue
+        suppcode[_pc].append(_c)
+        _base = char2code[_c]
+        for _n in range(len(_base) + 1, len(_pc)):
+            suppcode_pre[_pc[:_n]].append(_c)
+    for _tbl in (suppcode, suppcode_pre):
+        for _k, _v in _tbl.items():
+            _tbl[_k] = [c for _, c in sorted((-freq_w(c), c) for c in _v)]
+    supp_dups = sum(1 for v in suppcode.values() if len(v) > 1)
+    print(f"頂屏補碼 {sum(len(v) for v in suppcode.values())} 字 → {len(suppcode)} 個補完碼"
+          f"（{supp_dups} 個補完碼撞 2 字以上、頂第一個；{len(supp_skip)} 字補完碼撞別人前綴，照舊按空白）")
+
     # alts（兼容碼）＝另一條也打得出這個字的路，跟左簡碼曾經犯過同一種錯（cca07ff）：
     # 詞組連打／四碼快打以前只採主碼，字有 alts 卻完全沒被用上——用 alts 那條路拼出來的
     # 字，接不上詞組快打／四碼快打的捷徑。這裡把每個字所有「打得出它」的縮短碼收一份，
@@ -586,6 +619,11 @@ def main():
         phrase_switch = ("  - name: aiphabi_phrase            # 詞組連打：常用詞用各字簡碼串接直接打\n"
                           "    states: [ 詞組關, 詞組開 ]\n"
                           "    reset: 1\n")
+    # 頂屏補碼開關：主碼補 U 補到固定長度，打滿就頂上屏（盲打用）。跟自動上屏／詞組連打互斥。
+    supp_switch = ""
+    if suppcode:
+        supp_switch = ("  - name: aiphabi_supp              # 頂屏補碼：主碼補 U 到固定長度，打滿就頂（2/3碼+UU、4碼+U）\n"
+                        "    states: [ 頂屏補碼關, 頂屏補碼開 ]\n")
     # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
     # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
     # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
@@ -665,6 +703,12 @@ def main():
     dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
     for w, sig in sorted(si4_rev.items()):
         dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
+    dl += ["}", "M.suppcode = {"]       # 補完碼 → [字]（頂屏補碼；aiphabi_supp 開關控制，依字頻排，第一個是要頂的）
+    for sig, chs in sorted(suppcode.items()):
+        dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')
+    dl += ["}", "M.suppcode_pre = {"]   # 補到一半的前綴 → [字]（候選欄用，補完前也看得到）
+    for pre, chs in sorted(suppcode_pre.items()):
+        dl.append(f'  [{lua_str(pre)}]={lua_arr(chs)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：
     #      一個詞的 essay 計次若排在單字的第 R 名，就給它第 R 高的單字分數。
@@ -757,7 +801,7 @@ switches:
     states: [ 不打簡體關, 不打簡體開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
-{short_switch}{short3_switch}{left_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{left_switch}{phrase_switch}{supp_switch}{prediction_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
@@ -766,6 +810,7 @@ engine:
     - recognizer
 {predictor_processor}    - key_binder
     - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
+    - lua_processor@aiphabi_supp        # 頂屏補碼：補完固定長度就頂上屏（跟自動上屏互斥，同時最多一個在跑）
     - speller
     - punctuator
     - selector
@@ -779,6 +824,7 @@ engine:
     - fallback_segmentor
   translators:
 {predict_translator}    - punct_translator
+    - lua_translator@aiphabi_supp_cand   # 頂屏補碼：補完碼／補到一半的碼 → 對應的字（aiphabi_supp 關就不出）
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
@@ -830,6 +876,8 @@ punctuator:
     '<': '《'
     '>': '》'
     '~': '～'
+    '`': [ '·', '`', '~' ]   # ` 鍵被萬用鍵／重複上字借走了，但按 ` 還是要拿得到符號：
+                             # ·（iOS 注音打 ` 給的間隔號，人名用）、` 本身、~（跟 ` 同一顆鍵）
     '^': '……'
     '_': '——'
     '-': '－'

@@ -72,6 +72,32 @@ local function is_dead_extension(newCode)
   return not (hit and hit:sub(1, #newCode) == newCode)
 end
 
+-- code 還能不能再往下接出「更長、但仍在正常主碼長度（≤5 碼）內」的碼。有的話現在
+-- 上屏太早：使用者可能正打那個更長的字（夜＝IYAR 卡在 大＝IY 上面，sole_real_candidate
+-- 只看候選欄「剩幾個」，補全沒被算進去時就誤判 大 是唯一解、打 IY 直接頂掉 大——回報
+-- 2026-08-29）。
+--
+-- ≥6 碼的完整碼（一般是別的字的整串拆碼，如 競 IVOJLIVOJL、飄 IHEMNJOG）不算：
+-- 沒人打 兗 的 IVOJL 是要接去打那條，讓它擋自動上屏只是白白讓 239 個五碼字得多按
+-- 一次空白。完整碼照樣收得進來當輸入（完整碼一律接受），只是不進這個「還沒打完」
+-- 的判斷。兼容碼（≤5，人工收的另一種拆法）仍算——那是有人真的會習慣打的路。
+-- CODE_INDEX 只收單字碼（見 build_index），跟自動上屏／詞組連打互斥的前提一致。
+local function has_longer_code(code)
+  if not CODE_INDEX then build_index() end
+  if #code >= 5 then return false end   -- 5 碼已滿，任何延伸都是 ≥6 的完整碼
+  local lo, hi = 1, #CODE_INDEX + 1
+  while lo < hi do
+    local mid = math.floor((lo + hi) / 2)
+    if CODE_INDEX[mid] <= code then lo = mid + 1 else hi = mid end
+  end
+  for i = lo, #CODE_INDEX do
+    local c = CODE_INDEX[i]
+    if c:sub(1, #code) ~= code then break end   -- 出了 code 的前綴範圍，後面不會再有
+    if #c > #code and #c <= 5 then return true end
+  end
+  return false
+end
+
 -- 容錯（aiphabi_fuzzy 標的）只是「怕你打錯鍵，另外提醒一個可能」，跟「這串碼本身
 -- 打完了沒」無關——它講的是別的碼，不是這碼還沒完。方括號 [ 碼 ] 是容錯專用格式
 -- （見 aiphabi_hint.lua 開頭），拿掉這批猜測後如果只剩一個，一樣算「沒有第二個排隊」。
@@ -141,13 +167,14 @@ local function func(key, env)
   -- 底下沒有這個 guard 甚至會直接 crash，因為 harness 沒 stub ctx.composition）。
   if code:find("`", 1, true) then return 2 end
 
-  -- 一個字的第一碼：讓開，交給 speller 正常收。實測回報＋量過（見
-  -- aiphabi_autocommit_timing.log 診斷）：I／J 這種根大的字根，每次打第一碼都要
-  -- 90～410ms，比打第二碼起（20ms 內）慢二三十倍——因為 sole_real_candidate 會呼叫
-  -- seg.menu:prepare()，逼 Rime 在這一鍵就把整組候選（往往上千個）算出來，
-  -- 而單一字母的碼幾乎不可能是唯一解（26 個字根裡只有 月下厂十八 5 個字真的
-  -- 一碼打完，其餘全部有第二個字接在後面）。犧牲這 5 個字的「零多按」——它們
-  -- 照樣會被即時頂在下一鍵頂上屏，頂多多按一次空白——換全部字的第一碼不再卡頓。
+  -- 一個字的第一碼：讓開，交給 speller 正常收。實測回報＋量過：I／J 這種根大的
+  -- 字根，每次打第一碼都要 90～410ms，比打第二碼起（20ms 內）慢二三十倍——因為
+  -- sole_real_candidate 會呼叫 seg.menu:prepare()，逼 Rime 在這一鍵就把整組候選
+  -- （往往上千個）算出來，而單一字母的碼幾乎不可能是唯一解（26 個字根裡只有
+  -- 月下厂十八 5 個字真的一碼打完，其餘全部有第二個字接在後面）。犧牲這 5 個字的
+  -- 「零多按」——它們照樣會被即時頂在下一鍵頂上屏，頂多多按一次空白——換全部字的
+  -- 第一碼不再卡頓。詳見 aiphabi-side-b-ij-lag-2026-08-27 記憶（同一次順帶砍了
+  -- aiphabi_hint.lua 的 RAW_CAP，真正的大頭在那邊，這裡只是第一層）。
   if code == "" then return 2 end
 
   -- 即時頂暫時停用（2026-08-27）：量過（aiphabi_autocommit_timing.log），
@@ -164,7 +191,9 @@ local function func(key, env)
   ctx:push_input(k)    -- 自己收下這個字母，等於代替 speller 做這一鍵的事
   local seg = ctx.composition:back()
   if seg then
-    local cand = sole_real_candidate(seg)
+    -- 這串碼還能接出更長的字（大 IY 上面有 夜 IYAR）就先別收——sole_real_candidate
+    -- 只數候選欄剩幾個，補全沒被算進去時會誤判「唯一」，把還沒打完的常見短碼字頂掉。
+    local cand = not has_longer_code(ctx.input or "") and sole_real_candidate(seg)
     if cand then
       env.engine:commit_text(cand.text)
       order.note_commit(cand.text)  -- 同上，唯一上屏這條路也要自己補記
@@ -225,29 +254,43 @@ end
 -- →誤判成又要關詞組」，兩個開關繞一圈變成全部關掉；第二次因為自動上屏已經是關的，
 -- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
 -- 再被自己的回呼解讀成一次新的切換。
+-- 自動上屏／詞組連打／頂屏補碼三個開關互斥：三種「不必按空白」的機制彼此會打架
+--（詞組連打時每個字後面都可能接得出詞、頂屏補碼自己收鍵…），選單勾其中一個，另兩個
+-- 自動關掉。順序＝優先權（開機發現多個同時 true 時留最前面那個）。
+local MUTEX = { "aiphabi_autocommit", "aiphabi_phrase", "aiphabi_supp" }
+local function is_mutex(name)
+  for _, n in ipairs(MUTEX) do if n == name then return true end end
+  return false
+end
 local suppressing = false
 local function enforce_mutex(ctx, just_turned_on)
   if suppressing then return end
-  if just_turned_on == "aiphabi_autocommit" and ctx:get_option("aiphabi_phrase") then
-    suppressing = true
-    ctx:set_option("aiphabi_phrase", false)
-    suppressing = false
-    pcall(persist_option, "aiphabi_phrase", false)
-  elseif just_turned_on == "aiphabi_phrase" and ctx:get_option("aiphabi_autocommit") then
-    suppressing = true
-    ctx:set_option("aiphabi_autocommit", false)
-    suppressing = false
-    pcall(persist_option, "aiphabi_autocommit", false)
+  if not is_mutex(just_turned_on) then return end
+  if not ctx:get_option(just_turned_on) then return end   -- 剛剛是「關掉」，不必連動
+  suppressing = true
+  for _, n in ipairs(MUTEX) do
+    if n ~= just_turned_on and ctx:get_option(n) then
+      ctx:set_option(n, false)
+      pcall(persist_option, n, false)
+    end
   end
+  suppressing = false
 end
 
 local function init(env)
   local ctx = env.engine.context
-  -- 開機當下兩個都是 true（例如手改設定檔）也一併修正一次，不用等使用者動一次選單。
+  -- 開機當下多個同時 true（例如手改設定檔）也一併修正一次，留 MUTEX 裡最前面那個。
   pcall(function()
-    if ctx:get_option("aiphabi_autocommit") and ctx:get_option("aiphabi_phrase") then
-      ctx:set_option("aiphabi_phrase", false)
-      pcall(persist_option, "aiphabi_phrase", false)
+    local kept = nil
+    for _, n in ipairs(MUTEX) do
+      if ctx:get_option(n) then
+        if kept then
+          ctx:set_option(n, false)
+          pcall(persist_option, n, false)
+        else
+          kept = n
+        end
+      end
     end
   end)
   pcall(function()
@@ -263,7 +306,8 @@ local function fini(env)
   end
 end
 
--- _is_dead_extension：只給 tests/ 用，直接驗證即時頂的死路判斷對不對真正的碼表，不影響正式行為。
+-- _is_dead_extension／_has_longer_code：只給 tests/ 用，直接對真正的碼表驗證前綴判斷，不影響正式行為。
 return { init = init, fini = fini, func = func, _is_dead_extension = is_dead_extension,
+         _has_longer_code = has_longer_code,
          _patch_option_line = patch_option_line,
          _set_user_yaml_path_for_tests = _set_user_yaml_path_for_tests }

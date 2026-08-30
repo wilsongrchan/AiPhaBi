@@ -12,6 +12,13 @@
 (function () {
   'use strict';
 
+  /* 田字格與分段解讀搬到 assets/glyphbox.js，跟〈拆碼查詢〉共用（那一頁畫的是
+     同一種格子、讀的是同一種分段格式，抄一份就是埋一個改了一邊忘了另一邊的坑）。
+     這裡接成同名的區域變數，底下所有呼叫端都不用改。 */
+  var el = ZG.el, segsOfEntry = ZG.segsOfEntry, segsFrom = ZG.segsFrom,
+      paintGlyph = ZG.paintGlyph;
+
+
   var out   = document.getElementById('out');
   var rail  = document.getElementById('rail');
   var state = { buf: '', cands: [], data: null };
@@ -547,18 +554,7 @@
     P.qstep = 0;                        // 四碼快打那四格也一起收回去
   }
 
-  // 田字格：外框＋十字虛線，跟標註頁那個一樣（annotate.html 的 #glyph .grid）。
-  // 字形的 y 軸要翻過來 —— graphics.txt 的座標系原點在左下，位移是 900 不是 1024。
-  // 字形本身正好填滿 0–1024，直接畫會頂到格線。縮到 86% 置中，看起來才像
-  // 練習簿上的田字格（標註頁不縮是因為那裡要看字跟框的關係，這裡不用）。
-  var INSET = 0.86;
-  var SVG_TF = 'translate(' + (1024 * (1 - INSET) / 2).toFixed(1) + ',' +
-               (1024 * (1 - INSET) / 2).toFixed(1) + ') scale(' + INSET + ') ' +
-               'scale(1,-1) translate(0,-900)';
-  var GRID =
-    '<rect class="tz-grid" x="2" y="2" width="1020" height="1020" rx="20"/>' +
-    '<line class="tz-grid" x1="512" y1="2" x2="512" y2="1022"/>' +
-    '<line class="tz-grid" x1="2" y1="512" x2="1022" y2="512"/>';
+
 
   function isHan(c) { return c >= '\u4e00' && c <= '\u9fff'; }
 
@@ -576,13 +572,7 @@
      親 的分段是 I V T D J L，主碼卻是 IVTDL，第五碼是最後那段的 L 而不是 J。
      提示、上色、進度全部走這一份，不然會叫人打一個打下去是錯的碼（Wilson 抓到）。
      被略過的那幾段沒有對應的碼，就一直是黑的 —— 那正好看得出「頭四尾一」丟掉了誰。 */
-  function segsOfEntry(e) {
-    if (!e || !e.s || !e.s.length) return null;
-    var list = [];
-    for (var i = 0; i < e.c.length; i++) if (e.s[e.c[i]]) list.push(e.s[e.c[i]]);
-    return list.length ? list : null;
-  }
-  function segsFrom(table, ch) { return segsOfEntry(table && table[ch]); }
+
   function segsOf(ch) { return segsFrom(P.segs, ch); }
 
   function codeOfSegs(segs) {
@@ -791,23 +781,7 @@
 
   /* 田字格畫格子：跟著打（P.cell，逐碼漸進上色）跟拼音查字（PY.cell，選字後
    * 整個字一次上色）共用同一支——差別只在呼叫的人給的 colour map 怎麼算。 */
-  function paintGlyph(target, ch, strokes, colour) {
-    if (strokes) {
-      var paths = '';
-      for (var i = 0; i < strokes.length; i++) {
-        var gi = colour && colour[i] != null ? colour[i] : -1;
-        var cls = gi >= 0 ? 'tz-z' + (gi % 6) : 'tz-ink';
-        paths += '<path class="' + cls + '" d="' + strokes[i] + '"/>';
-      }
-      target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + ch + '">' +
-        GRID + '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
-    } else {
-      // 標點、或者沒有字形資料的字：照樣放進格子裡，只是用系統字型
-      target.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="' + (ch || '') + '">' +
-        GRID + '</svg>' +
-        '<span class="tz-fallback">' + (ch || '') + '</span>';
-    }
-  }
+
 
   function drawCell(ch) {
     var strokes = ch && P.glyphs ? P.glyphs[ch] : null;
@@ -1066,8 +1040,8 @@
     if (!done) return null;
     /* 下一個字的第一鍵會不會把這串碼打死。簡碼的頭幾碼照抄主碼（見 shortPlan），
        所以第一個字母拿主碼的就對，不必猜他會打簡碼還是主碼。
-       沒有下一個字（打到最後一個了）、下一個是標點（走 PUNCT 那條，會把碼丟掉）
-       → 都算「要自己按空白」。 */
+       沒有下一個字（打到最後一個了）就算「要自己按空白」；下一個是標點則相反，
+       標點自己會把碼頂上屏。 */
     var nx = nextTypedChar();
     // 下一個是標點：標點自己會把打好的碼頂上屏（見 keydown 的 PUNCT 那一段）
     if (nx && PUNCT_CH[nx]) return 'auto';
@@ -1487,9 +1461,21 @@
    * build_pinyin()）：已取碼的字裡現代字頻最高的 3000 個，查拼音（不分聲調）
    * 帶出候選字，選了就用上面同一套 paintGlyph／segsFrom 畫出拆碼圖，
    * 跟〈跟著打〉共用畫法，差別是不分步驟、選了就整個字一次上色——
-   * 這裡不是在「練打」，是在「查這個字怎麼打」。 */
+   * 這裡不是在「練打」，是在「查這個字怎麼打」。
+   *
+   * 注音查字（Wilson）：跟拼音共用同一個輸入框跟候選邏輯，只是查的是
+   * zhuyin_index、輸入的字元是注音符號不是英文字母。兩條路都能打出
+   * 注音符號：
+   *   1. 鍵盤直接對應——跟實體注音鍵盤同一個鍵位（Q=ㄆ、W=ㄊ…），
+   *      熟悉鍵盤的人不用看畫面就能打。
+   *   2. 螢幕鍵盤點選——不記得鍵位的人，直接點畫面上的符號。
+   * 兩條路都是「把對應的注音符號塞進同一個輸入框」，查詢邏輯不用分兩套。 */
+
+  // 鍵位表、螢幕鍵盤畫法、鍵盤直接對應，全部在 assets/bpmf.js（〈拆碼查詢〉
+  // 共用同一份，見那支檔案開頭的說明）。
+
   var PY = { data: null, conv: null, cands: [], sel: null, input: null, candsBox: null,
-             cell: null, hintBox: null, heavy: null };
+             cell: null, hintBox: null, heavy: null, mode: 'pinyin', bpmfBox: null };
 
   /* 拆碼圖與字形（pinyin_glyphs.json，約 8MB）等使用者真的要用查字才抓 —— 併在
      pinyin.json 裡的話，每個開這一頁的人都得先下載 8MB 才能開始打字，而絕大多數
@@ -1527,7 +1513,8 @@
       // 只在真的查無結果時才出聲，順便講收字範圍（Wilson：兩個框現在排一起，
       // 沒查詢也放一整句「輸入拼音查字」是重複的）。
       if (PY.input.value.trim()) PY.candsBox.appendChild(el('span', 'empty',
-        '查無這個拼音的字（目前只收已取碼的字，最多 3000 個）'));
+        PY.mode === 'zhuyin' ? '查無這個注音的字（目前只收已取碼的字）'
+                             : '查無這個拼音的字（目前只收已取碼的字，最多 3000 個）'));
       return;
     }
     PY.cands.forEach(function (ch, i) {
@@ -1570,11 +1557,40 @@
   }
 
   function onPyqInput() {
-    var q = PY.input.value.trim().toLowerCase();
-    PY.cands = q ? (PY.data.index[q] || []).slice(0, 12) : [];
+    var zh = PY.mode === 'zhuyin';
+    var raw = PY.input.value.trim();
+    var q = zh ? raw : raw.toLowerCase();
+    // 打了調號鍵就查帶調的那份（只找那個聲調），沒打就查不分調的那份
+    // （四聲全找）——調號鍵因此真的有作用，不是插好看的（Wilson）。
+    var idx = !zh ? PY.data.index
+      : raw.search(BPMF.TONE_MARKS) >= 0 ? PY.data.zhuyin_tone_index : PY.data.zhuyin_index;
+    PY.cands = q && idx ? (idx[q] || []).slice(0, 12) : [];
     if (PY.cands.length && PY.cands.indexOf(PY.sel) < 0) selectPyq(PY.cands[0]);
     else renderPyqCands();
     if (!PY.cands.length) { PY.sel = null; clearPyqCell(); }
+  }
+
+  /* 插入字元到輸入框游標位置——鍵盤直接對應跟螢幕鍵盤點選共用這一個函式，
+   * 兩條路填的是同一個框（見上面「注音查字」那段說明）。 */
+  function insertPyqChar(ch) {
+    var s = PY.input.selectionStart, e = PY.input.selectionEnd, v = PY.input.value;
+    PY.input.value = v.slice(0, s) + ch + v.slice(e);
+    PY.input.selectionStart = PY.input.selectionEnd = s + ch.length;
+    onPyqInput();
+  }
+
+  /* 切拼音／注音：清掉現有查詢（兩邊查的索引不一樣，舊的查詢字串留著沒
+   * 意義），換 placeholder，注音模式才展開螢幕鍵盤。 */
+  function setPyqMode(mode) {
+    PY.mode = mode;
+    var zh = mode === 'zhuyin';
+    PY.input.value = '';
+    PY.input.placeholder = zh ? '在這裡輸入注音，或點選下面鍵盤' : '在這裡輸入拼音即可查字';
+    PY.bpmfBox.hidden = !zh;
+    [].forEach.call(document.querySelectorAll('[data-pyq-mode]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.pyqMode === mode));
+    });
+    onPyqInput();
   }
 
   function setupPyq(pyd) {
@@ -1585,19 +1601,22 @@
     PY.candsBox = document.getElementById('pyq-cands');
     PY.cell = document.getElementById('pyq-tianzi');
     PY.hintBox = document.getElementById('pyq-hint');
+    PY.bpmfBox = document.getElementById('pyq-bpmf');
     PY.input.addEventListener('input', onPyqInput);
+    // 鍵盤直接對應、螢幕鍵盤畫法都在 assets/bpmf.js（跟〈拆碼查詢〉共用）。
+    BPMF.attachKeydown(PY.input, function () { return PY.mode === 'zhuyin'; }, insertPyqChar);
     // 一點進查字框就開始抓重的那一份，使用者還在打拼音、挑字的時候它就在路上了
     PY.input.addEventListener('focus', loadPyqGlyphs);
+    BPMF.build(PY.bpmfBox, function (ch) { insertPyqChar(ch); PY.input.focus(); },
+               function () { PY.input.value = PY.input.value.slice(0, -1); onPyqInput(); PY.input.focus(); });
+    [].forEach.call(document.querySelectorAll('[data-pyq-mode]'), function (b) {
+      b.addEventListener('click', function () { setPyqMode(b.dataset.pyqMode); PY.input.focus(); });
+    });
     renderPyqCands();
     clearPyqCell();
   }
 
-  function el(tag, cls, text) {
-    var n = document.createElement(tag);
-    n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
-  }
+
 
   function insert(text) {
     var s = out.selectionStart, e = out.selectionEnd, v = out.value;
@@ -1730,16 +1749,20 @@
 
     if (PUNCT[k]) {
       e.preventDefault();
-      /* 碼還在、而且已經打完某個字 → 標點先把它頂上屏，再放標點（Wilson：
-         打完 DI 接一個逗號，那個逗號就該把 目 頂出去，不必先按空白）。
-         以前這裡是 setBuf('')，等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，
-         流 就這樣沒了，連錯誤都不算，畫面上什麼都沒發生。
-         ⚠️ 只在**已經打完**某個字時才頂（跟即時頂同一條 firstComplete 規矩）；
-         碼只打一半就沒東西好頂，維持原本的行為把它清掉。IME 那邊實際怎麼處理
-         標點鍵還在問 Side B，答案回來再對齊細節。 */
+      /* 碼還在 → 標點先把候選欄第一個頂上屏，再放標點（Wilson：打完 DI 接一個
+         逗號，那個逗號就該把 目 頂出去，不必先按空白）。以前這裡是 setBuf('')，
+         等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，流 就這樣沒了，連錯誤都
+         不算，畫面上什麼都沒發生。
+         ⚠️ 這裡跟即時頂**不同規矩**：即時頂要 firstComplete（碼本身就是那個字的
+         碼）才敢頂，標點不要 —— 它頂的是候選欄第一個，補全的也照頂，跟空白鍵
+         一模一樣。Rime 的 punctuator 沒有 is_complete_match 的概念，它 commit 的
+         就是當下反白那個候選。
+         實機驗證（Wilson 2026-08-28，Squirrel）：DI， 出「目，」，NC， 出「候，」。
+         di 是 目 的完整碼所以本來就過得了 firstComplete；nc 只是 候（ncyk）的前綴，
+         舊的寫法在這裡回 null，把 nc 整串丟掉，畫面上什麼都沒有 —— 兩邊就是差在
+         這一種。 */
       if (state.buf) {
-        var pc = firstComplete(state.cands);
-        if (pc) commit(pc.ch);
+        if (state.cands.length) commit(state.cands[0].ch);
         else setBuf('');
       }
       insert(PUNCT[k]);

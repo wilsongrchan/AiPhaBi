@@ -247,6 +247,15 @@
   .dupe-row .dchars a:hover { border-color:var(--accent); color:var(--accent); }
   .dupe-panel button.primary { margin-left:10px; padding:3px 10px; font-size:12px; }
 
+  .unclass-panel { margin:0 44px 4px 20px; padding:10px 13px; border:1px solid var(--warn);
+    border-radius:10px; background:var(--card); font-size:13px; }
+  .unclass-panel > b { color:var(--warn); }
+  .unclass-panel .hint { color:var(--muted); font-size:11px; margin-left:6px; }
+  .unclass-panel .mini { margin:6px 6px 0 0; padding:3px 9px; font-size:12px;
+    border-color:var(--warn); color:var(--warn); }
+  .unclass-panel .mini:hover { background:var(--warn); color:#fff; }
+  #jump a.unc { border-color:var(--warn); color:var(--warn); font-weight:700; }
+
   /* 逐組對照 */
   #review { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; place-items:center;
     z-index:95; }
@@ -395,6 +404,7 @@
   <button id="export">匯出 .txt</button>
   <button class="primary" id="save">儲存</button>
 </header>
+<div id="unclass"></div>
 <div id="dupes"></div>
 <nav id="jump"></nav>
 <main id="app"></main>
@@ -733,6 +743,7 @@ function render() {
   }
   renderStats();
   renderJump();
+  renderUnclassified();
   refreshDupes();
 }
 
@@ -772,6 +783,7 @@ function renderCompact() {
   }
   renderStats();
   renderJump();
+  renderUnclassified();
   refreshDupes();
 }
 
@@ -947,6 +959,7 @@ function renderChart() {
   app.append(table);
   renderStats();
   renderJump();
+  renderUnclassified();
   refreshDupes();
 }
 
@@ -2087,24 +2100,56 @@ function editable(cls, val, onchange) {
   return s;
 }
 
-/* 右側 A–Z：點一下跳到那個字母（沒字根的淡一點） */
+/* 跳到某個字母的卡片／列／表格行，不管目前是哪種檢視模式 */
+function jumpToLetter(letter) {
+  const card = [...document.querySelectorAll('.card, .row, tr')]
+    .find(c => c.querySelector('.key, .ckey')?.textContent === letter);
+  card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card?.animate([{ outline: '2px solid var(--accent)' }, { outline: '2px solid transparent' }],
+    { duration: 1200 });
+}
+
+/* 右側 A–Z：點一下跳到那個字母（沒字根的淡一點；有未分類字根的橘字標出來） */
 function renderJump() {
   const nav = $('#jump'); nav.innerHTML = '';
+  const unc = new Map(unclassified().map(x => [x.letter, x.count]));
   for (const L of data.letters) {
     const n = L.intentions.reduce((k, it) => k + it.shapes.length, 0);
-    const a = el('a', n ? 'has' : 'empty', L.letter);
+    const u = unc.get(L.letter) || 0;
+    const a = el('a', (n ? 'has' : 'empty') + (u ? ' unc' : ''), L.letter);
     a.href = '#';
-    a.title = n ? `${L.letter}：${n} 個字根` : `${L.letter}：還沒有字根`;
-    a.onclick = ev => {
-      ev.preventDefault();
-      const card = [...document.querySelectorAll('.card, .row')]
-        .find(c => c.querySelector('.key')?.textContent === L.letter);
-      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      card?.animate([{ outline: '2px solid var(--accent)' }, { outline: '2px solid transparent' }],
-        { duration: 1200 });
-    };
+    a.title = (n ? `${L.letter}：${n} 個字根` : `${L.letter}：還沒有字根`) +
+      (u ? `\n${u} 個未分類` : '');
+    a.onclick = ev => { ev.preventDefault(); jumpToLetter(L.letter); };
     nav.append(a);
   }
+}
+
+/* 未分類＝逐字取碼自動學來、還沒歸進任何意圖的字根（intention.auto）。
+   新字根長在哪個字母底下，不用 26 個字母卡片一個個翻，這裡先點名。 */
+function unclassified() {
+  return data.letters
+    .map(L => ({ letter: L.letter,
+      count: L.intentions.filter(it => it.auto).reduce((n, it) => n + it.shapes.length, 0) }))
+    .filter(x => x.count > 0);
+}
+
+function renderUnclassified() {
+  const box = $('#unclass');
+  box.innerHTML = '';
+  const list = unclassified();
+  if (!list.length) return;
+  const total = list.reduce((n, x) => n + x.count, 0);
+  const panel = el('div', 'unclass-panel');
+  panel.innerHTML =
+    `<b>字根未分類 ${total} 個</b>` +
+    '<span class="hint">逐字取碼自動學來、還沒歸進任何意圖 —— 點字母跳過去，補上取形意圖即可歸類。</span>';
+  for (const { letter, count } of list) {
+    const b = el('button', 'mini', `${letter}（${count}）`);
+    b.onclick = () => jumpToLetter(letter);
+    panel.append(b);
+  }
+  box.append(panel);
 }
 
 function renderStats() {
@@ -2117,6 +2162,7 @@ function renderStats() {
     ` 次 <b>${byTier('secondary')}</b> · 三 <b>${byTier('tertiary')}</b>）　` +
     `累計指派 <b>${uses}</b>　` +
     `意圖 <b>${data.letters.reduce((n, L) => n + L.intentions.filter(i => !i.auto).length, 0)}</b>　` +
+    `未分類 <b style="color:var(--warn)">${unclassified().reduce((n, x) => n + x.count, 0)}</b>　` +
     `重複 <b style="color:var(--dupe)">${dup.length}</b>`;
 }
 

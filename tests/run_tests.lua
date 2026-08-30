@@ -43,6 +43,22 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== 補全 vs 打滿：碼還沒打完的補全（type=completion）不該排在打滿整段的候選前面 ==")
+for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+  -- 打 JOVNVIS：碰巧（jovnvis）打滿了；碰瓷（jovnvisq）還差一碼、是 librime 標的 completion。
+  -- 碰瓷 詞頻較高（2110 vs 1286），舊行為會讓補全排到打滿的前面（回報的畫面）。
+  local out = h.run{
+    schema = schema, code = "jovnvis", options = ALL_ON,
+    cands = {
+      { text = "碰瓷", type = "completion", comment = "- Q" },  -- 補全：Rime 標的「還沒打完」
+      { text = "碰巧" },                                         -- 打滿整段
+    },
+  }
+  h.checkAt(schema .. " · 打滿的 碰巧 排在補全 碰瓷 前面", out, 1, "碰巧")
+  h.checkPresent(schema .. " · 補全 碰瓷 還在（只是墊後）", out, "碰瓷", true)
+end
+
+print()
 print("== 提示寫法：圓括號＝參考用主碼，沒括號＝可以改打的捷徑碼 ==")
 do
   -- 打簡碼 JKQ：我 要排第一，並標「簡碼 (主碼)」
@@ -105,25 +121,32 @@ print()
 print("== 效能：三層上限（I／J 這種常見字根，一次補全上萬個不能卡頓）==")
 -- 量過：光是三個 filter（hint／fuzzy／order）各自把上萬個候選整包掃過一輪，比池子排序
 -- 本身更貴——這才是「加了排序上限還是卡」的真正原因。所以有三層，越前面越省：
---   1. RAW_CAP＝1500（aiphabi_hint.lua，filter 鏈最前面）：根本不跟上游多要——超過這個
+--   1. RAW_CAP（aiphabi_hint.lua，filter 鏈最前面）：根本不跟上游多要——超過這個
 --      數量的候選直接不存在，後面幾個 filter 收到的候選量也一起變小，不用各自設上限。
---   2. MAX_SORT＝40（aiphabi_order[_plus].lua）：RAW_CAP 之內的，也只有前 40 個做真的
+--   2. MAX_SORT（aiphabi_order[_plus].lua）：RAW_CAP 之內的，也只有前面這些做真的
 --      table.sort；超過的維持原始順序（碼表已經照 weight 排過）接在後面。
 --   3. 選過的字（USERFREQ／aiphabi_plus 的 top bucket）不受 MAX_SORT 影響——只要還在
 --      RAW_CAP 之內，一定排到前面。
 -- 這裡不直接斷言耗時（機器快慢會飄，門檻抓太鬆就測不出回歸、抓太緊會在慢機器上誤報），
 -- 改斷言「行為」——拿掉任一層上限（mutation test 驗過），對應的斷言就會變紅。
-local RAW_CAP, MAX_SORT = 1500, 40
+-- 兩個數字直接從真正的模組讀，不在這裡另外硬編一份——2026-08-27 把 RAW_CAP 從 1500
+-- 砍到 120（見 aiphabi_hint.lua 開頭），這裡不跟著改就會測錯（實際發生過一次）。
+local hint_mod_for_caps = require("aiphabi_hint")
+local order_mod_for_caps = require("aiphabi_order")
+local RAW_CAP, MAX_SORT = hint_mod_for_caps._RAW_CAP, order_mod_for_caps._MAX_SORT
+-- 「是」要落在「超過 MAX_SORT、但還在 RAW_CAP 之內」這個區間——用相對位置算，
+-- 不用寫死的絕對數字，RAW_CAP 再怎麼調整這個測試都還站得住。
+local midPos = MAX_SORT + math.max(1, (RAW_CAP - MAX_SORT) // 2)
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 兩萬個雜訊候選，混進三個真實字：「的」在第 10（兩層之內，該排到最前）；「是」在
-  -- 第 1000（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
+  -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
   -- 「占16000」代表「超過 RAW_CAP」的候選，該整個消失，連補全都補不出來——這是刻意的
   -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。（沒用「一」是因為它主碼剛好是 i，
   -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西。）
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i } end
   cands[10] = { text = "的" }
-  cands[1000] = { text = "是" }
+  cands[midPos] = { text = "是" }
 
   local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
 
@@ -136,7 +159,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   h.check(schema .. " · RAW_CAP 之內（第 10）的高頻字「的」排到前面",
     posDe ~= nil and posDe <= 20,
     string.format("的 landed at #%s", tostring(posDe)))
-  h.check(schema .. " · RAW_CAP 之內、MAX_SORT 之外（第 1000）的高頻字「是」還在、但不會被硬拉到最前",
+  h.check(schema .. " · RAW_CAP 之內、MAX_SORT 之外（第 " .. midPos .. "）的高頻字「是」還在、但不會被硬拉到最前",
     posShi ~= nil and posShi > MAX_SORT,
     string.format("是 landed at #%s", tostring(posShi)))
   h.check(schema .. " · 超過 RAW_CAP（第 16000）的候選整個不出現——這是取捨，不是漏洞",
@@ -149,17 +172,18 @@ do
   -- aiphabi_order.lua 把「選過次數」直接乘進排序分數（不像 aiphabi_plus 另開 top bucket），
   -- 所以排序上限得把「選過的字」跟「純字頻」分開處理，選過的一定要完整排序——不然選過的
   -- 字剛好落在 MAX_SORT 之外，就會排不到前面，等於選過次數白記了。字要擺在 RAW_CAP
-  -- （1500）之內，不然還沒排到這裡，先被 aiphabi_hint.lua 那層擋掉了。
+  -- 之內，不然還沒排到這裡，先被 aiphabi_hint.lua 那層擋掉了。
   local order_mod = require("aiphabi_order")
-  order_mod._USERFREQ["占1000"] = 99   -- 直接塞：模擬「這個字選過很多次」
+  local key = "占" .. midPos
+  order_mod._USERFREQ[key] = 99   -- 直接塞：模擬「這個字選過很多次」
 
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i } end
   local out = h.run{ schema = "aiphabi", code = "i", options = {}, cands = cands }
-  order_mod._USERFREQ["占1000"] = nil   -- 用完清掉，不要汙染其他測試
+  order_mod._USERFREQ[key] = nil   -- 用完清掉，不要汙染其他測試
 
-  h.checkAt("選過很多次的字（藏在第 1000 個，RAW_CAP 之內）該排第一，不受排序上限擋住",
-    out, 1, "占1000")
+  h.checkAt("選過很多次的字（藏在第 " .. midPos .. " 個，RAW_CAP 之內）該排第一，不受排序上限擋住",
+    out, 1, key)
 end
 
 print()
@@ -262,6 +286,110 @@ do
 end
 
 print()
+print("== 唯一上屏：碼還能接出更長的字就先別收（夜 IYAR 卡在 大 IY 上面）==")
+do
+  local ac = require("aiphabi_autocommit")
+  -- 回報（2026-08-29）：打 IY 直接頂掉 大，夜（IYAR）永遠打不出來——sole_real_candidate
+  -- 只看候選欄剩幾個，enable_completion 的補全沒被算進去時就誤判 大 是唯一解。
+  h.check("大 IY 上面還有更長的碼（夜 IYAR…）→ has_longer_code 為真",
+    ac._has_longer_code("iy") == true, "expected true")
+  h.check("夜 IYAR 自己是葉節點（沒有 IYAR* 的單字碼）→ has_longer_code 為假",
+    ac._has_longer_code("iyar") == false, "expected false")
+  -- ≥6 碼的完整碼不算數：兗 IVOJL 上面只有 競 的完整碼 IVOJLIVOJL（10 碼），
+  -- 沒人打 IVOJL 是要去打那條——五碼字打滿就該即收，不必多按一次空白。
+  h.check("兗 IVOJL（滿 5 碼，只被 ≥6 的完整碼 IVOJLIVOJL 蓋著）→ has_longer_code 為假",
+    ac._has_longer_code("ivojl") == false, "expected false")
+  h.check("任何滿 5 碼的碼一律當葉節點（延伸只可能是 ≥6 的完整碼）",
+    ac._has_longer_code("yhjuh") == false, "expected false (備 主碼)")
+
+  -- 整段模擬：候選欄「只剩一個」時，has_longer_code 仍該擋下打 IY 的即收
+  local committed = nil
+  local function mk_env(input, key, sole_text)
+    local menu = { prepare = function() end, candidate_count = function() return 1 end }
+    local seg = { menu = menu, get_candidate_at = function() return { text = sole_text } end }
+    local ctx = {
+      input = input,
+      get_option = function(_, n) return n == "aiphabi_autocommit" end,
+      push_input = function(self, k) self.input = self.input .. k end,
+      composition = { back = function() return seg end },
+      clear = function(self) self.input = "" end,
+    }
+    return { engine = { context = ctx, commit_text = function(_, t) committed = t end } }, ctx
+  end
+
+  committed = nil
+  local env1 = mk_env("i", "y", "大")
+  ac.func({ release = function() return false end, repr = function() return "y" end }, env1)
+  h.check("打 IY（候選欄只剩 大）→ 不即收，等使用者打完或按空白", committed == nil,
+    "expected no commit, got " .. tostring(committed))
+  -- 「葉節點還是照樣即收」由檔案最後那組（打 IYAR → 夜）驗證——那條會動 aiphabi_order
+  -- 的模組級 LAST_COMMIT，得排在「重複上字」的 nil 檢查之後。
+end
+
+print()
+print("== 頂屏補碼：補完碼／補到一半的碼 → 候選（translator）==")
+do
+  local cand = require("aiphabi_supp_cand")
+  local data = require("aiphabi_data")
+  local seg = { start = 0, _end = 4 }
+  local function run(input, supp_on)
+    local out = {}
+    local old = yield
+    yield = function(c) out[#out + 1] = c end
+    local env = { engine = { context = {
+      get_option = function(_, n) return n == "aiphabi_supp" and supp_on or false end } } }
+    cand(input, seg, env)
+    yield = old
+    local texts = {}
+    for _, c in ipairs(out) do texts[#texts + 1] = c.text end
+    return texts
+  end
+  -- 資料本身（build_rime.py 產的真表）：2/3 碼補 UU、4 碼補 U
+  h.check("大 IY → 補完碼 IYUU", (data.suppcode["iyuu"] or {})[1] == "大", "expected 大")
+  h.check("上 JII → 補完碼 JIIUU", (data.suppcode["jiiuu"] or {})[1] == "上", "expected 上")
+  h.check("三 III → 補完碼 IIIUU", (data.suppcode["iiiuu"] or {})[1] == "三", "expected 三")
+  h.check("重碼 TOUU → 2 字以上，依字頻排",
+    #(data.suppcode["touu"] or {}) > 1, "expected 2+ chars on touu")
+
+  h.check("開關關：打 IYUU 什麼都不出", #run("iyuu", false) == 0, "expected nothing")
+  h.check("開關開：打 IYUU → 大", run("iyuu", true)[1] == "大", "expected 大 first")
+  h.check("開關開：補到一半 IYU → 大（suppcode_pre）", run("iyu", true)[1] == "大", "expected 大")
+  do
+    local t = run("touu", true)
+    h.check("開關開：重碼 TOUU → 整排都出（≥2）", #t >= 2, "got " .. #t)
+  end
+  h.check("含非字母不理", #run("iy`", true) == 0, "expected nothing for wildcard input")
+end
+
+print()
+print("== 三個開關互斥：開頂屏補碼 → 自動上屏／詞組連打連帶關掉 ==")
+do
+  local ac = require("aiphabi_autocommit")
+  local state = { aiphabi_autocommit = true, aiphabi_phrase = false, aiphabi_supp = false }
+  local notifier_cb
+  local fake_ctx
+  fake_ctx = {
+    get_option = function(_, n) return state[n] end,
+    set_option = function(_, n, v) state[n] = v end,
+    option_update_notifier = { connect = function(_, cb) notifier_cb = cb; return { disconnect = function() end } end },
+    commit_notifier = { connect = function() return { disconnect = function() end } end },
+  }
+  ac._set_user_yaml_path_for_tests("/dev/null")
+  ac.init({ engine = { context = fake_ctx } })
+  -- 使用者從選單點「開頂屏補碼」
+  state.aiphabi_supp = true
+  notifier_cb(fake_ctx, "aiphabi_supp")
+  h.check("開頂屏補碼後：頂屏補碼是開的", state.aiphabi_supp == true, "expected true")
+  h.check("開頂屏補碼後：自動上屏被連帶關掉", state.aiphabi_autocommit == false,
+    "expected false, got " .. tostring(state.aiphabi_autocommit))
+  -- 反過來：開自動上屏，頂屏補碼要關掉
+  state.aiphabi_autocommit = true
+  notifier_cb(fake_ctx, "aiphabi_autocommit")
+  h.check("再開自動上屏：頂屏補碼被連帶關掉", state.aiphabi_supp == false,
+    "expected false, got " .. tostring(state.aiphabi_supp))
+end
+
+print()
 print("== 重複上字（連續 N 個 `，N=1~5 排最前）：不吃掉原本萬用鍵，選過就記得住 ==")
 do
   local order = require("aiphabi_order")
@@ -349,18 +477,34 @@ do
 
   -- 實測回報的 bug（2026-08-27）：punct_translator 也認反引號，搶先生出「`」符號本身
   -- 這個候選，排在 translators: 清單裡萬用鍵前面——重複上字排到第二個去了。這裡模擬
-  -- 那個排序（punct_translator 的候選先到），過完 order.lua 後 ap_repeat 該被撈到最前面。
+  -- 那個排序（punct_translator 的候選先到），過完 order.lua 後：
+  --   1. ap_repeat（重複上字）撈到最前面
+  --   2. 標點候選（· ` ~，type=punct）緊跟其後、維持 punctuator 的順序——不被萬用鍵
+  --      掃出來的整表壓到幾頁之後（打 ` 想打符號的人要找得到）
   local afterOrder = h.run{
     code = "`",
     cands = {
-      { text = "`" },                                       -- punct_translator：符號本身，搶第一
+      { text = "·", type = "punct" },                        -- punctuator: ` → [ ·, `, ~ ]
+      { text = "`", type = "punct" },
+      { text = "~", type = "punct" },
       { text = "候", type = "ap_repeat", comment = "重複上字" },  -- 萬用鍵：重複上字
+      { text = "的" },                                          -- 萬用鍵掃全表的高頻雜訊
       { text = "几" },
     },
   }
-  h.check("punct_translator 的「`」符號搶先，order.lua 還是要把重複上字撈到最前面",
-    afterOrder[1] and afterOrder[1].type == "ap_repeat" and afterOrder[1].text == "候",
-    "expected 候 (ap_repeat) first, got " .. h.fmt(afterOrder):sub(1, 60))
+  h.checkAt("打 ` → 重複上字排第一", afterOrder, 1, "候")
+  h.checkAt("打 ` → · 緊跟在重複上字之後（iOS 注音的預設）", afterOrder, 2, "·")
+  h.checkAt("打 ` → 接著是 ` 本身", afterOrder, 3, "`")
+  h.checkAt("打 ` → 接著是 ~（同一顆鍵）", afterOrder, 4, "~")
+  h.check("打 ` → 符號排在萬用鍵掃出來的高頻字（的）之前",
+    (function()
+      local pDot, pDe
+      for i, c in ipairs(afterOrder) do
+        if c.text == "·" then pDot = i end
+        if c.text == "的" then pDe = i end
+      end
+      return pDot and pDe and pDot < pDe
+    end)(), "expected · before 的, got " .. h.fmt(afterOrder):sub(1, 80))
 end
 
 print()
@@ -484,8 +628,9 @@ do
   --
   -- 注意：故意不用 ctx.input=""（這個字的第一碼）——那條路現在直接 return 2 讓開
   -- （見 aiphabi_autocommit.lua 的效能修正，2026-08-27），唯一上屏只在第二碼起才會
-  -- 檢查。這裡用 "ppi"+"n"＝"ppin"，沿用上面 PPIN 那組已經驗證過「不是死路」的碼，
-  -- 確保會落到 push_input+sole_real_candidate 那段，不會半路被即時頂攔走。
+  -- 檢查。用 "iya"+"r"＝"iyar"（夜）：夜 是葉節點（沒有 IYAR* 的更長單字碼），
+  -- 過得了 has_longer_code 那道新關卡，會落到 push_input+sole_real_candidate 那段。
+  -- （不用 PPIN 了——闞 PPINX 讓 ppin 不是葉節點，新關卡會擋下，測不到 note_commit。）
   local order = require("aiphabi_order")
   local ac = require("aiphabi_autocommit")
 
@@ -493,11 +638,11 @@ do
   local function fake_key(repr)
     return { release = function() return false end, repr = function() return repr end }
   end
-  local cand = { text = "當", type = nil, comment = nil }
+  local cand = { text = "夜", type = nil, comment = nil }
   local menu = { prepare = function() end, candidate_count = function() return 1 end }
   local seg = { menu = menu, get_candidate_at = function(_, i) return i == 0 and cand or nil end }
   local ctx = {
-    input = "ppi",
+    input = "iya",
     get_option = function(_, name) return name == "aiphabi_autocommit" end,
     push_input = function(self, k) self.input = self.input .. k end,
     composition = { back = function() return seg end },
@@ -506,11 +651,11 @@ do
   local env = {
     engine = { context = ctx, commit_text = function(_, text) committed = text end },
   }
-  ac.func(fake_key("n"), env)
-  h.check("唯一上屏路徑：engine:commit_text() 真的被呼叫、收到「當」",
-    committed == "當", "expected 當, got " .. tostring(committed))
-  h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「當」",
-    order.get_last_commit() == "當", "expected 當, got " .. tostring(order.get_last_commit()))
+  ac.func(fake_key("r"), env)
+  h.check("唯一上屏路徑：葉節點（IYAR＝夜）→ engine:commit_text() 真的被呼叫、收到「夜」",
+    committed == "夜", "expected 夜, got " .. tostring(committed))
+  h.check("唯一上屏路徑：order.note_commit() 有跟著補記，get_last_commit() 是「夜」",
+    order.get_last_commit() == "夜", "expected 夜, got " .. tostring(order.get_last_commit()))
 
   -- 即時頂已停用（見 aiphabi_autocommit.lua 的效能量測說明，2026-08-27）：
   -- seg.menu:prepare() 在「頂之前」那個舊 segment 上時好時壞，同一組碼量到
@@ -576,6 +721,56 @@ do
   h.check("重複上字不參與常用度排序，永遠排最前面",
     afterOrder2[1] and afterOrder2[1].type == "ap_repeat" and afterOrder2[1].text == "嶸",
     "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
+end
+
+print()
+print("== 頂屏補碼：補完固定長度就頂上屏（processor）==")
+do
+  -- 放檔案最後：commit() 會呼叫 order.note_commit()，動 aiphabi_order 的模組級狀態。
+  local supp = require("aiphabi_supp")
+  local function fake_key(repr)
+    return { release = function() return false end, repr = function() return repr end }
+  end
+  local function mk(input)
+    local committed
+    local ctx = {
+      input = input,
+      get_option = function(_, n) return n == "aiphabi_supp" end,
+      push_input = function(self, k) self.input = self.input .. k end,
+      clear = function(self) self.input = "" end,
+    }
+    local env = { engine = { context = ctx, commit_text = function(_, t) committed = t end } }
+    return env, ctx, function() return committed end
+  end
+
+  -- 大 IY → IYUU：打到第 4 碼（最後一個 U）就頂上屏
+  local env, ctx, got = mk("iyu")
+  supp.func(fake_key("u"), env)
+  h.check("打 IYUU（大，獨一無二補完碼）→ 頂上屏「大」", got() == "大", "got " .. tostring(got()))
+  h.check("頂完 ctx.input 清空", ctx.input == "", "got " .. tostring(ctx.input))
+
+  -- 沒補完不頂（IY + U = IYU，還差一個 U）
+  local env2, ctx2, got2 = mk("iy")
+  supp.func(fake_key("u"), env2)
+  h.check("打 IYU（還沒補完）→ 不頂", got2() == nil, "expected no commit, got " .. tostring(got2()))
+  h.check("打 IYU → ctx.input 累到 iyu", ctx2.input == "iyu", "got " .. tostring(ctx2.input))
+
+  -- 重碼 TOUU：打完不頂，候選欄留著；下一個字母才即時頂第一個
+  local env3, ctx3, got3 = mk("tou")
+  supp.func(fake_key("u"), env3)   -- 打到 touu
+  h.check("打 TOUU（重碼）→ 先不頂，候選欄留著", got3() == nil, "expected no commit yet, got " .. tostring(got3()))
+  h.check("打 TOUU（重碼）→ ctx.input 還是 touu", ctx3.input == "touu", "got " .. tostring(ctx3.input))
+  supp.func(fake_key("j"), env3)   -- 下一個字的開頭 → 即時頂 touu 的第一個
+  local first_touu = require("aiphabi_data").suppcode["touu"][1]
+  h.check("再打一個字母 → 即時頂 TOUU 排第一的字（" .. first_touu .. "）",
+    got3() == first_touu, "expected " .. first_touu .. ", got " .. tostring(got3()))
+  h.check("即時頂後 ctx.input 是新那一鍵 j", ctx3.input == "j", "got " .. tostring(ctx3.input))
+
+  -- 開關關 → 完全不管
+  local env4, _, got4 = mk("iyu")
+  env4.engine.context.get_option = function() return false end
+  local r = supp.func(fake_key("u"), env4)
+  h.check("開關關：func 直接讓開（return 2）、不頂", r == 2 and got4() == nil, "expected pass-through")
 end
 
 os.exit(h.report() == 0 and 0 or 1)

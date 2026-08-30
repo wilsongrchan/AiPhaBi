@@ -61,6 +61,8 @@ site/assets/phrases.json
 # 但碼是從 codes.json 重算的，收進來就會有一份會過期的碼躺在 repo 裡。
 site/assets/phrase_dict.json
 site/assets/pinyin.json
+# 〈拆碼查詢〉的拼音查詞表，build_pyphrase() 現算
+site/assets/pyphrase.json
 # 拆碼圖＋字形，跟 glyphs.json 同源同授權（Arphic PL），一樣會隨網站發佈出去。
 # 跟 pinyin.json 分開是因為下載時機不同：這一份要等使用者點進查字框才抓。
 site/assets/pinyin_glyphs.json

@@ -34,28 +34,47 @@
 
   var CONVENTION = [];
 
-  // 「預設」＝ rules.json 原本的收字順序（不重排，原地回傳）；筆劃數／簡碼字母序
-  // 兩種都是穩定排序（Array#sort 自 ES2019 起保證穩定），同筆劃或同碼時仍照預設順序排。
+  // 「預設」＝ rules.json 原本的收字順序（不重排，原地回傳）；其餘都是穩定排序
+  // （Array#sort 自 ES2019 起保證穩定），同筆劃／同碼／同讀音時仍照預設順序排。
+  // 拼音／注音排序用的是 build_jianma() 現算的「第一個讀音」（py／zy 欄位，
+  // 沒裝 pypinyin 就不存在）——查不到的字（理論上不會發生，67 個字全部
+  // 手核過）就沉到最後，而不是讓 undefined 排序把整批打亂。
+  function cmpStr(ka, kb) {
+    return function (a, b) {
+      var va = a[ka], vb = b[kb];
+      if (va == null) return vb == null ? 0 : 1;
+      if (vb == null) return -1;
+      return va < vb ? -1 : va > vb ? 1 : 0;
+    };
+  }
   function sortedConvention(mode) {
     var arr = CONVENTION.slice();
     if (mode === 'strokes') {
       arr.sort(function (a, b) { return a.strokes - b.strokes; });
     } else if (mode === 'alpha') {
-      arr.sort(function (a, b) { return a.short < b.short ? -1 : a.short > b.short ? 1 : 0; });
+      arr.sort(cmpStr('short', 'short'));
+    } else if (mode === 'py') {
+      arr.sort(cmpStr('py', 'py'));
+    } else if (mode === 'zy') {
+      arr.sort(cmpStr('zy', 'zy'));
     }
     return arr;
   }
 
   function renderConvention(entries) {
-    var tbodyA = document.querySelector('#jm-convention tbody');
-    var tbodyB = document.querySelector('#jm-convention-2 tbody');
-    tbodyA.textContent = '';
-    tbodyB.textContent = '';
-    // 拆兩欄減少捲動：前一半在左欄，後一半在右欄（不是逐行左右交錯），
-    // 這樣同一欄裡的字仍照原本的順序連續排列，找字比較好找。
-    var half = Math.ceil(entries.length / 2);
-    entries.slice(0, half).forEach(function (e) { tbodyA.appendChild(convRow(e)); });
-    entries.slice(half).forEach(function (e) { tbodyB.appendChild(convRow(e)); });
+    // 拆三欄減少捲動（Wilson）：整份依序切成三段，第一段在左欄，依此類推
+    // ——不是逐行左右交錯，這樣同一欄裡的字仍照原本的順序連續排列，找字比較好找。
+    // 字數不一定整除，用 ceil 讓前面的欄先滿，最後一欄短一兩行（.jm-cols 是
+    // align-items: start，短的那一欄不會被拉伸）。
+    var tbodies = ['#jm-convention', '#jm-convention-2', '#jm-convention-3']
+      .map(function (sel) { return document.querySelector(sel + ' tbody'); });
+    tbodies.forEach(function (tb) { if (tb) tb.textContent = ''; });
+    var per = Math.ceil(entries.length / tbodies.length);
+    tbodies.forEach(function (tb, i) {
+      if (!tb) return;
+      entries.slice(i * per, (i + 1) * per)
+             .forEach(function (e) { tb.appendChild(convRow(e)); });
+    });
     var count = document.getElementById('jm-conv-count');
     if (count) count.textContent = entries.length;
   }

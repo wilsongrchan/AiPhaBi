@@ -697,8 +697,11 @@ def _practice_glyphs(want):
     return out
 
 
-# 拼音查字（自由試打用）：收現代字頻最高的這麼多字。500→3000（Wilson，
-# 2026-08-22，覺得堪用後擴大範圍）。
+# 拼音查字**的拆碼圖**收現代字頻最高的這麼多字。500→3000（Wilson，2026-08-22，
+# 覺得堪用後擴大範圍）。
+# ⚠️ 這個數字只管**圖**，不管查得到誰：拼音索引收的是全部已取碼的字（見
+# build_pinyin）。冷僻字查得到、有碼、只是沒有圖 —— Wilson 2026-08-28：
+# 「即使看不到拆碼圖，我至少也想拿到它的碼」。
 PINYIN_TOP_N = 3000
 
 
@@ -727,20 +730,67 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
         return None, None
 
     coded = [c for c, rec in codes.items() if rec.get("segments")]
+    # 索引收**全部**已取碼的字；只有拆碼圖那一份限縮到字頻最高的 PINYIN_TOP_N 個。
+    # 兩者分開之後，打 long 查得到 笼（AAXCQ）、攏（KIVDE）這些沒有圖但有碼的字，
+    # 它們的碼會排成深灰的碼格。索引本身只有 61 KB（限縮成 3000 個是 29 KB），
+    # 而 7.9 MB 的那一份完全沒有變大。
     top = sorted(coded, key=lambda c: -charfreq.get(c, 0))[:PINYIN_TOP_N]
     chars = set(top)
-    if not chars:
+    if not coded:
         return None, None
 
-    index = {}
-    for ch in chars:
+    # ⚠️ pypinyin 的 heteronym 會把**所有**記載過的讀音都吐出來，包括早就沒人在
+    # 用的古音，而且不分主次：蝕 是 ['shi', 'li', 'long']，於是打 long 會查到 蝕
+    # （Wilson 2026-08-28 發現）。龐 ['pang', 'long']、寵 ['chong', 'long'] 同理。
+    # 兩道處理：
+    # 處理方式是**排序，不是砍掉**（Wilson：查得到沒關係，但要排到最後面去，
+    # 連 壟、簡體的 龙 都該排在它前面）：同一個拼音底下照「這是那個字的第幾個
+    # 讀音」分層，本音的字在最前面，第二讀音的次之，古音的墊底，每一層裡面再
+    # 照字頻排。於是 long 底下是 龍隆籠龙壟（本音）→ 寵龐弄（第二讀音）→ 蝕
+    # （第三讀音）。一個字都沒少，但打 long 的人第一眼看到的是 龍。
+    #
+    # 砍掉第三個以後的讀音也試過（3000 個字裡有 385 條，幾乎全是古音：單 tan、
+    # 需 ruan、奇 ai、俊 dun…），但那會讓那些字在那個讀音下**完全查不到**，
+    # 而排序已經解決了「為什麼 long 會跑出 蝕」這個問題，不必再砍。
+    # 注音索引跟拼音索引同一套排序邏輯（本音排前、古音排後，見上面那段說明），
+    # 只是查詢字串換成注音——兩者是同一批讀音資料的兩種寫法，不是分開查兩次。
+    # 調號另外收一份帶調的索引（zhuyin_tone_index）：打字的人通常不刻意標調，
+    # 所以預設（zhuyin_index）不分聲調；但注音鍵盤上本來就有調號鍵，打了就該
+    # 有用——查「ㄊㄢˊ」該只有 tán 這個音，不是連 tàn 也一起出來
+    # （Wilson 指出：調號鍵打了沒反應）。前端自己決定查哪一份：字串裡有調號
+    # 記號就查帶調的，沒有就查不分調的（見 try.js／chaima.js 的 onPyqInput）。
+    _ZHUYIN_TONE_MARKS = str.maketrans("", "", "ˇˊˋ˙")
+
+    def _rank_sort(idx):
+        for key, bucket in idx.items():
+            bucket.sort(key=lambda t: (t[0], -charfreq.get(t[1], 0)))
+            idx[key] = [ch for _rank, ch in bucket]
+
+    index, zhuyin_index, zhuyin_tone_index = {}, {}, {}
+    for ch in coded:
         readings = pypinyin.pinyin(ch, style=pypinyin.Style.NORMAL, heteronym=True)
-        for py in set(readings[0]):
-            py = py.lower()
-            if py:
-                index.setdefault(py, []).append(ch)
-    for bucket in index.values():
-        bucket.sort(key=lambda c: -charfreq.get(c, 0))
+        seen = set()
+        for rank, py in enumerate(readings[0]):
+            py = (py or "").lower()
+            if not py or py in seen:
+                continue
+            seen.add(py)
+            index.setdefault(py, []).append((rank, ch))
+
+        zreadings = pypinyin.pinyin(ch, style=pypinyin.Style.BOPOMOFO, heteronym=True)
+        zseen, ztseen = set(), set()
+        for rank, zy_raw in enumerate(zreadings[0]):
+            zy_raw = zy_raw or ""
+            zy = zy_raw.translate(_ZHUYIN_TONE_MARKS)
+            if zy and zy not in zseen:
+                zseen.add(zy)
+                zhuyin_index.setdefault(zy, []).append((rank, ch))
+            if zy_raw and zy_raw not in ztseen:
+                ztseen.add(zy_raw)
+                zhuyin_tone_index.setdefault(zy_raw, []).append((rank, ch))
+    _rank_sort(index)
+    _rank_sort(zhuyin_index)
+    _rank_sort(zhuyin_tone_index)
 
     segs = build_practice_hints(chars, codes, zigen_raw, max_rule)
     glyphs = _practice_glyphs(chars)
@@ -764,6 +814,8 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars):
     return {
         "note": meta["note"],
         "index": index,
+        "zhuyin_index": zhuyin_index,
+        "zhuyin_tone_index": zhuyin_tone_index,
         # 跟 practice.json 同一個理由：約定字不是照筆畫拆的，查到這種字要標出來。
         "conv": sorted(chars & conv_chars),
     }, dict(meta, segs=segs, glyphs=glyphs)
@@ -1109,6 +1161,19 @@ def build_jianma(codes, rules):
                      f"MANUAL_STROKE_COUNT 裡——筆劃數查不出來，先填 0")
         return 0
 
+    # 拼音／注音排序（〈簡碼〉頁的排序列）要每個字一個「主要讀音」可比較，
+    # 跟 build_pinyin() 的 zhuyin_index 不一樣——那邊是「查這個音有哪些字」，
+    # 收全部讀音；這裡是「這個字排在哪」，只要**第一個**讀音（pypinyin 沒給
+    # heteronym 時本來就是最常用的那個）。沒裝 pypinyin 就不加這兩個欄位，
+    # 前端排序鈕照樣顯示，只是點了排序不變——跟拼音查字同一套「沒裝就跳過」
+    # 的降級方式（Wilson，不要因為缺一個選用套件就讓整頁掛掉）。
+    try:
+        import pypinyin
+        _ZHUYIN_TONE_MARKS = str.maketrans("", "", "ˇˊˋ˙")
+    except ImportError as e:
+        pypinyin = None
+        print(f"  ⚠️ 沒裝 pypinyin（{e}）—— 簡碼頁不會有拼音／注音排序")
+
     convention = []
     sc = rules_by_id.get("short_code")
     if sc:
@@ -1117,10 +1182,14 @@ def build_jianma(codes, rules):
             rec = codes.get(ch)
             if not ch or not short or not rec:
                 continue
-            convention.append({
+            entry = {
                 "c": ch, "code": rec["final"], "short": short,
                 "strokes": stroke_count(ch, rec),
-            })
+            }
+            if pypinyin:
+                entry["py"] = pypinyin.pinyin(ch, style=pypinyin.Style.NORMAL)[0][0].lower()
+                entry["zy"] = pypinyin.pinyin(ch, style=pypinyin.Style.BOPOMOFO)[0][0].translate(_ZHUYIN_TONE_MARKS)
+            convention.append(entry)
     for w in warn:
         print(f"  ⚠️ {w}")
 
@@ -2428,6 +2497,45 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
     }
 
 
+def build_pyphrase(phrase_dict):
+    """〈拆碼查詢〉的拼音查詞：一串拼音 → 那些詞。
+
+    打 bairi 想看到的是「白日」，不是 bai 的十二個字接著 ri 的一個字
+    （Wilson）。詞本身出貨碼表裡就有了，缺的只是「怎麼從拼音找到它」，所以
+    這裡拿 phrase_dict 的詞去算拼音，建一張反查表。
+
+    · 只收 2–4 字的詞。一個字的用 pinyin.json 就夠了；五字以上查得到也沒人
+      會整串打拼音。
+    · 拼音去聲調、直接串起來（白日 → bairi），跟使用者會打的東西一致。
+    · 多音字只取 pypinyin 的第一個讀音 —— 查詞的人打的通常就是那個常見讀音，
+      為了罕見讀音把表撐大不划算。
+
+    產出約 0.9 MB，所以跟拆碼圖一樣是「真的查了才抓」，不在開頁時載。
+    """
+    if not phrase_dict:
+        return None
+    try:
+        import pypinyin
+    except ImportError:
+        # pypinyin 是 requirements.txt 裡的必要相依，但 build_pinyin 也是這樣
+        # 防一手的——沒有它就少一個功能，不要讓整個 build 掛掉。
+        return None
+    words = set()
+    for ws in phrase_dict.get("codes", {}).values():
+        words.update(ws)
+    idx = {}
+    for w in words:
+        if not (2 <= len(w) <= 4):
+            continue
+        py = "".join(pypinyin.lazy_pinyin(w, style=pypinyin.Style.NORMAL,
+                                          errors="ignore"))
+        if py:
+            idx.setdefault(py, []).append(w)
+    for k in idx:
+        idx[k].sort()
+    return idx
+
+
 def main():
     codes = load("codes.json")
     rules = load("rules.json")
@@ -2537,6 +2645,23 @@ def main():
     # 值是候選陣列，取第一個（標準簡化字）；51 個多候選字的其餘寫法用不到。
     t2s = {k: (v[0] if isinstance(v, list) else v) for k, v in t2s_raw.items()}
     t2s = {k: v for k, v in t2s.items() if k != v}
+
+    # ⚠️「著」：OpenCC 的單字表故意不收它 —— 它在繁→簡這個方向也是一對多
+    # （趁著／看著 要作「着」，但 著名／顯著／著作 維持「著」），字級的轉換分不出來，
+    # OpenCC 自己是靠詞表處理的。這個網站只有字表，所以在這裡明寫成「着」：
+    # 站上目前每一處「著」都是助詞（Wilson 2026-08-28 確認）。
+    # 底下那道檢查是配套 —— 哪天有人寫了「著名」之類的詞，建置就會出聲，
+    # 不然頁面會在簡體檢視下悄悄印出「着名」，而且沒有人會發現。
+    t2s["著"] = "着"
+    keep_zhu = ("著名", "顯著", "著作", "著述", "土著", "名著", "編著", "原著",
+                "著手", "巨著", "鉅著", "論著", "專著", "著眼", "著想", "昭著",
+                "著重", "著稱", "卓著", "著色")
+    zhu_hits = []
+    for page in sorted((ROOT / "site").glob("*.html")):
+        text = page.read_text("utf-8")
+        for word in keep_zhu:
+            if word in text:
+                zhu_hits.append(f"{page.name} 的「{word}」")
 
     zigen_raw = load("zigen.json")
     warn = []
@@ -2678,6 +2803,10 @@ def main():
     if phrase_dict:
         (OUT / "phrase_dict.json").write_text(
             json.dumps(phrase_dict, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    pyphrase = build_pyphrase(phrase_dict)
+    if pyphrase:
+        (OUT / "pyphrase.json").write_text(
+            json.dumps(pyphrase, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
     if practice:
@@ -2691,10 +2820,14 @@ def main():
     if pinyin:
         kb = (OUT / "pinyin.json").stat().st_size / 1024
         mb = (OUT / "pinyin_glyphs.json").stat().st_size / 1024 / 1024
-        print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {kb:.0f} KB（載入就抓）")
+        n_chars = len({c for v in pinyin["index"].values() for c in v})
+        print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {n_chars} 字 / {kb:.0f} KB"
+              f"（載入就抓；查得到全部已取碼的字，其中 {PINYIN_TOP_N} 個有拆碼圖）")
         print(f"pinyin_glyphs.json {len(pinyin_glyphs['segs'])} 字有拆碼圖 / {mb:.1f} MB"
               f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個）")
-    print(f"t2s.json   {len(t2s)} 組繁簡對照")
+    print(f"t2s.json   {len(t2s)} 組繁簡對照"
+          + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
+             f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else ""))
     if n_glyph:
         kb = (OUT / "glyphs.json").stat().st_size / 1024
         print(f"glyphs.json {n_glyph} 字的筆畫輪廓 / {kb:.0f} KB  （Arphic PL，見 site/ARPHICPL.txt）")
@@ -2723,6 +2856,10 @@ def main():
         pd = phrase_dict["stats"]
         print(f"phrase_dict.json {pd['words']} 詞 / {pd['codes']} 個詞組碼 / "
               f"{pd['si4']} 個四碼 / {mb:.1f} MB（詞組連打預設關，打開才抓）")
+    if pyphrase:
+        mb = (OUT / "pyphrase.json").stat().st_size / 1024 / 1024
+        print(f"pyphrase.json {len(pyphrase)} 串拼音 → 詞 / {mb:.1f} MB"
+              f"（〈拆碼查詢〉用，打了拼音才抓）")
 
 
 if __name__ == "__main__":
