@@ -428,17 +428,19 @@ def main():
     PLACE_DICT_FLOOR = 12000
     PLACE_FLOOR = 100000
     place_skipped = []
-    # 簡體詞：某幾個主題檔（先只有地名）的繁體詞，順便收一份逐字簡化的寫法（澳門→澳门、
-    # 台灣→台湾、劉德華→刘德华…），跟繁體版同權重、同碼路。簡繁一樣的（北京／香港／周迅）
-    # 逐字轉出來還是自己，不重複收。整包掛在「不打簡體」開關下：aiphabi_no_simp 開著時
-    # aiphabi_hint 的 keep() 會照 M.simp_phrase 把它們濾掉（跟濾簡體專屬單字同一個開關）。
-    SIMP_EXPAND_FILES = {"phrases_places.txt"}
+    # 簡體詞：手工精選詞庫（data/phrases_*.txt，地名／紅星／歷史人物／品牌／機構…全部）的
+    # 繁體詞，順便收一份逐字簡化的寫法（澳門→澳门、劉德華→刘德华、微軟→微软…），跟繁體版
+    # 同權重、同碼路。簡繁一樣的（北京／周迅／中共中央）逐字轉出來還是自己，不重複收。
+    # 整包掛在「不打簡體」開關下：aiphabi_no_simp 開著時 aiphabi_hint 的 keep() 會照
+    # M.simp_phrase 把它們濾掉（跟濾簡體專屬單字同一個開關）。essay 高頻詞不在此列——
+    # 那些本來就簡繁通吃、按語料原樣收。要排除某個主題檔，把檔名加進 SIMP_EXPAND_SKIP。
+    SIMP_EXPAND_SKIP = set()
     simp_phrases = set()          # 逐字簡化後 ≠ 原詞、且每字都取得到碼的簡體詞
     simp_skipped = []             # 簡體版有字沒取碼，收不進去
     def _to_simp(w):
         return "".join((t2s_map.get(ch) or [ch])[0] for ch in w)
     for _wf in sorted(DATA.glob("phrases_*.txt")):
-        _expand = _wf.name in SIMP_EXPAND_FILES
+        _expand = _wf.name not in SIMP_EXPAND_SKIP
         for _ln in _wf.read_text("utf-8").splitlines():
             for _w in _ln.split("#", 1)[0].split():
                 if len(_w) < 2:
@@ -478,7 +480,8 @@ def main():
     if place_skipped:
         print(f"  ⚠ 地名跳過 {len(place_skipped)} 個（有字沒取碼，收不進去）：{' '.join(place_skipped)}")
     if simp_phrases:
-        print(f"  簡體詞 {len(simp_phrases)} 條（{' '.join(sorted(SIMP_EXPAND_FILES))} 逐字簡化；不打簡體時濾掉）")
+        _skipnote = f"（跳過 {' '.join(sorted(SIMP_EXPAND_SKIP))}）" if SIMP_EXPAND_SKIP else ""
+        print(f"  簡體詞 {len(simp_phrases)} 條（精選詞庫逐字簡化{_skipnote}；不打簡體時濾掉）")
     if simp_skipped:
         print(f"  ⚠ 簡體詞跳過 {len(simp_skipped)} 個（簡體字沒取碼）：{' '.join(sorted(set(simp_skipped)))}")
 
@@ -625,7 +628,7 @@ def main():
     dl += ["}", "M.simp = {"]           # 不打簡體要濾掉的字（純簡化字，歸併字不算）
     for c in simp_only:
         dl.append(f'  [{lua_str(c)}]=true,')
-    dl += ["}", "M.simp_phrase = {"]    # 不打簡體要濾掉的詞（地名等主題檔逐字簡化的寫法，見上）
+    dl += ["}", "M.simp_phrase = {"]    # 不打簡體要濾掉的詞（精選詞庫逐字簡化的寫法，見上）
     for w in sorted(simp_phrases):
         dl.append(f'  [{lua_str(w)}]=true,')
     dl += ["}", "M.altcode = {"]        # 字 → {碼: true} 集合（candidate 用 [碼] 標示；查表用，不是陣列）
@@ -741,7 +744,7 @@ switches:
     states: [ 偏旁關, 偏旁開 ]
   - name: aiphabi_fuzzy           # 輸入容錯
     states: [ 容錯關, 容錯開 ]
-  - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字＋簡體詞
+  - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字＋精選詞庫的簡體詞
     states: [ 不打簡體關, 不打簡體開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
@@ -882,7 +885,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 * **打繁出簡**（`aiphabi_t2s` 開關，預設關）— 候選字順便帶出它的簡體版，標「簡」。
 * **打簡出繁**（`aiphabi_s2t` 開關，預設關）— 候選字順便帶出它的繁體版，標「繁」。兩個各自獨立，要單開哪邊都行。
-* **不打簡體**（`aiphabi_no_simp` 開關，預設關）— 候選裡的簡體專屬字（純一對一簡化，如 馬→马、魚→鱼）整個濾掉，只留繁體字／傳承字；「歸併字」不算簡體專屬（如 后／干／咸／里／谷／面 這些字本身也是獨立傳承字），不會被濾掉。同一個開關也會濾掉**簡體詞**——地名詞庫裡逐字簡化的寫法（澳门／台湾／刘德华…，簡繁一樣的如 北京／香港 不另收），繁體版照常在。開了這個會順便把「打簡出繁」關掉——碼表裡沒有簡體本字，那個提示用不到。
+* **不打簡體**（`aiphabi_no_simp` 開關，預設關）— 候選裡的簡體專屬字（純一對一簡化，如 馬→马、魚→鱼）整個濾掉，只留繁體字／傳承字；「歸併字」不算簡體專屬（如 后／干／咸／里／谷／面 這些字本身也是獨立傳承字），不會被濾掉。同一個開關也會濾掉**簡體詞**——精選詞庫（地名／紅星／歷史人物／品牌／機構…）裡逐字簡化的寫法（澳门／刘德华／微软…，簡繁一樣的如 北京／周迅 不另收），繁體版照常在。開了這個會順便把「打簡出繁」關掉——碼表裡沒有簡體本字，那個提示用不到。
 * **約定簡碼**（`aiphabi_short100` 開關，預設開）— 手動在「取碼原則」頁挑的常用字（的、我、是、這、就…），打它們主碼的「首尾兩碼」也找得到，標「簡碼」，並排在候選最前面。這幾個字常用到即使簡碼撞到別的字也划算，其餘沒挑的字不受影響。
 * **三簡碼**（`aiphabi_short3` 開關，預設關）— 約定簡碼的自動版，不用手動挑：主碼四碼以上的字，打「頭兩碼＋末一碼」也找得到（鮭 主碼 SOTMF → 打 SOF），標「三簡」。自動配對、可能撞到好幾個字，所以排在所有正常候選之後。
 * **左簡碼**（`aiphabi_left_short` 開關，預設關）— 魚金馬食車足酉革這幾個偏旁出現在字的最左邊時，偏旁本身只取首尾兩碼、中間略過（鮭 完整碼 SOTMFF → 打 SMFF；鐵 YFVFOEXQ → 打 YVFOQ），標「左簡」。整個家族自動適用，主碼不變、只是多一條路；跟三簡碼一樣排在正常候選之後，也一樣不能兩種疊在一起用。打了主碼而這個字的左簡碼真的比較短時，候選旁邊會附「左簡 XX」提醒（像約定簡碼那樣）——剩餘筆劃超過三碼的字，左簡碼會跟主碼一樣長（鐵 主碼 YFVFQ、左簡碼 YVFOQ），那種就不提醒，免得叫人多記一條沒省到的碼。
