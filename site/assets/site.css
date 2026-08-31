@@ -3196,15 +3196,17 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   margin: 0 0 .9rem;
   letter-spacing: .01em;
 }
-.hero-title .en { color: var(--accent); }
+/* 品牌名整串都用正文墨色，AiPhaBi 不另外上主色（Wilson 2026-08-31）——
+   主色讓給底下那句標語，一個畫面裡只留一個綠色的重點。 */
+.hero-title .en { color: inherit; }
 
 /* 標語（Wilson 寫的）。排在品牌名底下、關鍵詞那一列上面 —— 跟宇浩、虎碼、搜狗
    那幾個站同一個結構：先一句有溫度的話，再一列講清楚是什麼的關鍵詞。
    字級介於品牌名與關鍵詞之間，顏色用正文墨色（不是 --ink-dim）：它是一句話，
    不是註記，淡掉會變成關鍵詞的附屬品。 */
 .hero-tagline {
-  font-size: clamp(1rem, 2.2vw, 1.25rem);
-  color: var(--ink);
+  font-size: clamp(1.25rem, 3.2vw, 1.75rem);
+  color: var(--accent);
   letter-spacing: .06em;
   margin: 0 0 1.1rem;
 }
