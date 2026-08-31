@@ -253,6 +253,11 @@ kbd {
 body { padding-inline-start: var(--nav-w); }
 
 .brand {
+  /* 圖示在左、字在右（Wilson）。圖示本身已經帶圓角與透明背景，不用再加
+     border-radius —— 見 assets/img/logo-512.png 的做法。 */
+  display: flex;
+  align-items: center;
+  gap: .55rem;
   font-weight: 700;
   font-size: 1rem;
   line-height: 1.4;
@@ -260,6 +265,12 @@ body { padding-inline-start: var(--nav-w); }
   text-decoration: none;
   letter-spacing: .04em;
   white-space: nowrap;
+}
+
+.brand-logo {
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
 }
 
 .brand .en {
@@ -1983,6 +1994,8 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   nav.site .nav-sec > a,
   nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 0; }
   .brand .en { display: inline; margin-inline-start: .45em; }
+  /* 橫列的頁首只有一行高，圖示跟著收小一點，不然它比整行字還高 */
+  .brand-logo { width: 1.6rem; height: 1.6rem; }
 
   .topbar-controls { order: 2; flex-direction: row; align-items: center; gap: .7rem; }
   .zg-size, .topbar-controls .zg-size { flex-direction: row; align-items: center; gap: .35rem; }
