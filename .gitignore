@@ -84,3 +84,9 @@ site/assets/glyphs.json
 
 # 內部審查用的對照頁（site/tools/review_sources.py 產生），不進版控也不發佈
 site/_review/
+
+# 標誌的 Illustrator 母檔（1.6 MB 的二進位）。PNG 版有進版控，網站用的三個尺寸
+# 都是從它切出來的；.ai 留在工作目錄就好。
+# ⚠️ 一定要寫在這裡：Side B 的部署腳本會跑 `git add -A`，掃的是整個工作目錄而
+# 不只 rime/，沒有這一行的話，隨便一次部署就會順手把這個檔案提交上去。
+AiPhaBi Logo.ai
