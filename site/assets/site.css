@@ -3442,10 +3442,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 .hj-sign + .hj-date { margin-top: .35rem; }
 
+/* 只留真的會生效的兩條。原本還寫著 font-size: .92rem 與 margin-top: 2.4rem，
+   但這一頁的 `.hj-page p`（一個 class ＋ 一個元素）權重比單一 class 的 .hj-date
+   高，那兩條從來沒作數過（實測字級一直是 16px、上外距 5.6px，不是 14.7 與 38.4）。
+   留著只會讓後人改了沒反應、跑去別的地方找原因，所以刪掉。
+   真要改字級或上下間距，選擇器得寫成 `.hj-page .hj-date` 才蓋得過去。 */
 .hj-date {
   color: var(--ink-dim);
-  font-size: .92rem;
-  margin-top: 2.4rem;
   max-width: var(--hj-measure);
   text-align: end;
 }
