@@ -3198,6 +3198,17 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 .hero-title .en { color: var(--accent); }
 
+/* 標語（Wilson 寫的）。排在品牌名底下、關鍵詞那一列上面 —— 跟宇浩、虎碼、搜狗
+   那幾個站同一個結構：先一句有溫度的話，再一列講清楚是什麼的關鍵詞。
+   字級介於品牌名與關鍵詞之間，顏色用正文墨色（不是 --ink-dim）：它是一句話，
+   不是註記，淡掉會變成關鍵詞的附屬品。 */
+.hero-tagline {
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  color: var(--ink);
+  letter-spacing: .06em;
+  margin: 0 0 1.1rem;
+}
+
 /* 拆件動畫——首頁最主要的視覺，見 assets/landing.js 跟 assets/landing-glyphs.json。
    幾個手選的字（哈／竹／晶／石）輪流播：每個字要用到的字母先在左邊排隊登場，
    一個一個飛到自己真正該在的位置，落定後字母揉散、筆畫在同一個點長出來，疊成
