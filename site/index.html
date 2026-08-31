@@ -8,6 +8,24 @@
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body class="lg-body">
+<!-- 導覽先躲在左邊，等拆件動畫播完一輪才滑出來（見 landing.js 的 revealNav）。
+     ⚠️ 這段一定要**同步、在第一次繪製之前**跑，所以寫在這裡而不是放進 landing.js：
+     landing.js 要等 fetch 回來才動作，那時畫面已經畫過一輪，使用者會看到側邊欄
+     先出現、再滑出去、最後又滑回來。在這裡加 class 的話，第一次繪製時它就已經
+     在左邊了，CSS 過渡也不會對「初始狀態」動畫，所以只有最後滑進來那一下會動。
+     ⚠️ 保險計時器也放這裡：就算 landing.js 整個載入失敗，30 秒後導覽一定回來。 -->
+<script>
+(function () {
+  var m = window.matchMedia;
+  if (!m) return;                                     // 太舊的瀏覽器就別玩花樣
+  if (m('(prefers-reduced-motion: reduce)').matches) return;
+  if (m('(max-width: 52rem)').matches) return;        // 窄螢幕的導覽是頂部橫列
+  document.body.classList.add('lg-navhide');
+  window.setTimeout(function () {
+    document.body.classList.remove('lg-navhide');
+  }, 30000);
+})();
+</script>
 
 <header class="topbar">
   <div class="wrap">

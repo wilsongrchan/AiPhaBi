@@ -3162,8 +3162,16 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .topbar { transition: transform .55s cubic-bezier(.22, .61, .36, 1); }
 .lg-body.lg-navhide .topbar { transform: translateX(-100%); }
 
+/* 導覽還沒進場時，正文要**置中在整個視窗**，不要先把側邊欄那條寬度空在那裡
+   —— 空著會讓整頁看起來偏右（Wilson）。body 的 padding-inline-start 平常是
+   var(--nav-w)（讓開側邊欄），躲起來的時候歸零，導覽滑進來時再變回去。
+   兩者用同一條時間曲線與時長，看起來就是「導覽把正文推到右邊」這一個動作，
+   而不是兩件各自發生的事。 */
+.lg-body { transition: padding-inline-start .55s cubic-bezier(.22, .61, .36, 1); }
+.lg-body.lg-navhide { padding-inline-start: 0; }
+
 @media (prefers-reduced-motion: reduce) {
-  .topbar { transition: none; }
+  .topbar, .lg-body { transition: none; }
 }
 
 @keyframes hero-drift {
