@@ -269,7 +269,15 @@
     if (raf !== null) { window.cancelAnimationFrame(raf); raf = null; }
   }
 
+  /* 動畫播完一輪 → 側邊欄滑出來（Wilson）。放在 showGuess 而不是別的地方，
+     因為這正是「動畫結束、換成猜猜看」的那一刻。重播時不再收回去：導覽出現過
+     一次之後又消失會像壞掉。 */
+  function revealNav() {
+    document.body.classList.remove('lg-navhide');
+  }
+
   function showGuess() {
+    revealNav();
     if (stageEl) stageEl.hidden = true;
     codeEl.hidden = true;
     if (guessEl) guessEl.hidden = false;
@@ -324,13 +332,31 @@
   if (restartBtn) restartBtn.addEventListener('click', restart);
   if (skipBtn) skipBtn.addEventListener('click', skip);
 
+  /* 側邊欄先躲起來，等動畫播完一輪才滑出來（見 site.css 的 .lg-navhide）。
+     ⚠️ 只在**真的要播動畫**的那一刻才躲：
+       · 減少動態偏好 → 不躲，導覽一開始就在。
+       · 窄螢幕 → 導覽是頂部橫列，不是左邊那一條，橫著滑進來沒有意義。
+       · 資料抓不到（.catch）→ 動畫不會播，showGuess() 也永遠不會被呼叫，
+         所以那裡要自己把導覽放出來，不然它就永遠消失了。
+     另外掛一個保險計時器：不管中間出什麼事，30 秒後一定讓導覽出現。導覽是
+     這個網站的骨幹，寧可動畫的戲劇效果打折，也不能讓人卡在沒有導覽的頁面。 */
+  var narrow = window.matchMedia && window.matchMedia('(max-width: 52rem)').matches;
+  var hideNav = !REDUCED && !narrow;
+
   fetch('assets/landing-glyphs.json')
     .then(function (r) { return r.json(); })
     .then(function (d) {
       DATA = d;
+      if (hideNav) {
+        document.body.classList.add('lg-navhide');
+        window.setTimeout(revealNav, 30000);
+      }
       advance();
     })
-    .catch(function () { /* 拆件動畫顯示不出來就算了，不擋首頁其他部分 */ });
+    .catch(function () {
+      // 拆件動畫顯示不出來就算了，不擋首頁其他部分——但導覽一定要在
+      revealNav();
+    });
 })();
 
 /* 猜猜看——只有 index.html 用得到，跟上面的拆件動畫完全獨立（一個是看展示、

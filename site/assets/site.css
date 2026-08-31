@@ -3131,6 +3131,41 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   filter: blur(48px);
   animation: hero-drift 20s ease-in-out infinite alternate;
 }
+/* ---------- 首頁：漸層鋪滿整個視窗 ----------
+   原本 .hero-bg 是 absolute，關在 .hero--landing 裡面，而那一節又被 main.wrap
+   的 max-width（58rem）與 padding-block（3rem）框住，所以漸層四周一圈白邊
+   （Wilson：要全頁都是漸層，不要白框）。
+
+   做法是把它改成 fixed 鋪滿視窗、擺在所有東西後面（z-index: -1）。這樣不必去
+   跟 .wrap 的寬度、body 的 padding-inline-start 算負外距，版面一個 px 都不用動，
+   漸層自然連側邊欄底下、頁尾底下都鋪到 —— 側邊欄本身是不透明的 --surface，
+   會蓋在漸層上面，所以「白色側邊欄」照舊（Wilson 說白側邊欄是好的）。
+   ⚠️ fixed 元素的 filter: blur 由它自己帶著（見上面 .hero-bg），不要往祖先加
+   transform／filter，那會讓 fixed 改以祖先為包含塊，整片漂掉。 */
+.lg-body .hero-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+/* 頁尾要透光，不然漸層在底部被一條白色橫帶切掉 */
+.lg-body footer.wrap { background: none; }
+
+/* 側邊欄在首頁**先躲在左邊**，等拆件動畫播完一輪才滑出來（Wilson）。第一眼
+   只有漸層與動畫，不被導覽分心；動畫收尾接上猜猜看的那一刻，導覽才登場。
+
+   ⚠️ 躲起來的 class 是 landing.js 加上去的，不是寫死在 HTML 裡 —— 沒有 JS 的
+   時候 class 永遠不會出現，側邊欄就一直是看得見的。反過來寫（HTML 先藏、JS 負責
+   顯示）的話，JS 一壞整個導覽就永遠消失。
+   ⚠️ body 的 padding-inline-start 不跟著變：側邊欄只是移出畫面，版面不重排，
+   所以滑進來的時候正文不會跳。那條空出來的直帶由滿版漸層補上。 */
+.topbar { transition: transform .55s cubic-bezier(.22, .61, .36, 1); }
+.lg-body.lg-navhide .topbar { transform: translateX(-100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar { transition: none; }
+}
+
 @keyframes hero-drift {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
   50%  { transform: translate3d(-2.5%, 2%, 0) scale(1.08); }
