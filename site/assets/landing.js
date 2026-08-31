@@ -33,6 +33,18 @@
   var ORDER = ['哈', '竹', '昌', '石'];
   var DATA = null;
   var LETTER_SIZE = 260; // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
+
+  /* 字母用**一般字重**，不是粗體（Wilson 2026-08-31：石 的 J 看起來太粗）。
+     只有 J 單獨指定 Verdana（為了它頂端天生那一橫，見 fontFor），而 Verdana 在
+     macOS 只有 Regular 跟 Bold 兩個字重，沒有 semibold。260px 之下實測直劃寬度：
+
+         字重 700：J(Verdana) 49　O(系統無襯線) 43　A 42   ← J 比鄰居粗 15%
+         字重 400：J(Verdana) 25　O 28　A 28              ← J 比鄰居細一點點
+
+     400 這一組差距小得多，而且 J 頂端那一橫照樣在（頂端寬 65 對直劃 25）。
+     ⚠️ 只把 J 調細、其他字母留 700 是不行的：那會變成 25 對 43，反過來太細。
+     字重要一起調。 */
+  var LETTER_WEIGHT = 400;
   // ⚠️ 原本改用襯線字體（Georgia）讓 J 的字腳帶一橫，跟石字 J 那組字根的
   // 取形意圖對得上；但改完不久 Wilson 就開始回報 A 飛的時候留殘影，時間點
   // 很接近，換過三種完全不同的動畫排程方式（CSS transition、Web
@@ -43,15 +55,7 @@
   // 橫槓（不是襯線，是這兩套字型自己的設計），其他字母走一般無襯線字體，
   // 只有 J 這個字母單獨指定字型（見下面 fontFor()）。
   var LETTER_FONT = 'sans-serif';
-  /* ⚠️ DejaVu Sans 排第一，不是 Verdana（Wilson 2026-08-31：J 看起來比旁邊的字母
-     粗）。三套都有 J 頂端那一橫，差別在筆畫粗細 —— 260px、font-weight 700 之下
-     實測直劃寬度：
-         Verdana 49　Tahoma 47　DejaVu Sans 42
-     而旁邊的字母（系統無襯線的粗體）是 O 43、A 42。所以 Verdana 比鄰居粗約 15%，
-     DejaVu Sans 剛好對齊。Verdana 的 J 也特別寬（頂端 92 對 DejaVu 的 67）。
-     ⚠️ 沒裝 DejaVu Sans 的機器會退回 Verdana，跟以前一樣 —— 換成調字級或
-     scaleX 可以對所有人一致，但那會讓 J 比別的字母矮一截或窄一截，兩害相權。 */
-  var LETTER_FONT_J = "'DejaVu Sans', Verdana, Tahoma, sans-serif";
+  var LETTER_FONT_J = "Verdana, Tahoma, 'DejaVu Sans', sans-serif";
   function fontFor(letter) { return letter === 'J' ? LETTER_FONT_J : LETTER_FONT; }
 
   /* 整體節奏的倍率——嫌動畫太趕就調大這個數字，其他時間值都跟著它縮放，
@@ -127,7 +131,7 @@
           '<g transform="scale(1,-1)">' +
             '<g class="lg-letter" style="opacity:0">' +
               '<text text-anchor="middle" dominant-baseline="central" ' +
-                'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="700" ' +
+                'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="' + LETTER_WEIGHT + '" ' +
                 'font-size="' + LETTER_SIZE + '">' + entry.groups[gi].L + '</text>' +
             '</g>' +
           '</g>' +
