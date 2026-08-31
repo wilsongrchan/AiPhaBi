@@ -3426,15 +3426,15 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .hj-close { margin-top: 2.2rem; }
 
 /* 署名。中文書信的收尾是「署名在上、日期在下」，兩行都靠右，所以跟 .hj-date
-   共用同一條右邊界（--hj-measure），只是名字比日期重一點 —— 它是落款，不是註記。
-   跟日期之間留一點點就好，兩行本來就是同一塊。 */
+   共用同一條右邊界（--hj-measure）。署名與日期**同一個顏色**（--ink-dim，比正文淡
+   一階）—— Wilson：落款那兩行是一塊，不要一深一淺。跟日期之間留一點點就好。 */
 /* ⚠️ 選擇器要寫成 .hj-page .hj-sign（兩個 class）：`.hj-page p`（一個 class ＋
    一個元素）的權重比單一 class 高，只寫 .hj-sign 的話 font-size 根本不作數。
    同一個檔案裡 .hj-date 就是這樣 —— 它寫著 .92rem，實際量出來是 16px，那條
    字級從來沒生效過。這裡先把自己寫對，.hj-date 要不要跟著修是另一件事。 */
 .hj-page .hj-sign {
   font-size: 1rem;
-  color: var(--ink);
+  color: var(--ink-dim);
   margin-top: 2.4rem;
   margin-bottom: 0;
   max-width: var(--hj-measure);
