@@ -95,11 +95,6 @@
       pieces[i].style.transformOrigin = centers[i].x + 'px ' + centers[i].y + 'px';
     }
 
-    if (REDUCED) {
-      // 不做逐字登場，直接呈現組好的字
-      for (var r = 0; r < pieces.length; r++) pieces[r].style.opacity = '1';
-      return;
-    }
 
     // 排隊位置：全部字母先在左邊排成一橫排，由左到右照碼的順序排（跟打字、
     // 跟閱讀方向一樣，第一個字母在最左邊），等飛的時候才一個一個離隊往右飛到
@@ -144,6 +139,29 @@
     // 逼一次重排，讓上面設好的「字母都還在排隊、筆畫都還沒登場」狀態先真的
     // 畫出來，下面才有東西可以做 transition。
     svg.getBoundingClientRect();
+
+    /* 減少動態偏好：不做飛行、彈跳、揉散，但**字母還是要出現**。
+       ⚠️ 原本這裡是直接把筆畫的 opacity 設成 1 就 return，連字母都還沒建出來
+       —— 畫面上就只剩幾個字輪流出現，完全看不到「這個字母＝這幾筆」這件事，
+       而那正是整段動畫要講的東西（Wilson 2026-08-31：iPhone 上只看到字在輪播，
+       沒有字母飛進來 —— iOS 的「減少動態效果」開著就會走到這條路）。
+       改成把字母直接放在它**最後該在的位置**，停一下，再純粹用淡入淡出換成
+       筆畫。只有透明度在動，沒有任何位移或形變，符合這個偏好的本意。 */
+    if (REDUCED) {
+      for (var ri = 0; ri < n; ri++) {
+        letterPos[ri].style.transform =
+          'translate(' + centers[ri].x.toFixed(1) + 'px,' + centers[ri].y.toFixed(1) + 'px)';
+        letters[ri].style.opacity = '1';
+      }
+      timers.push(window.setTimeout(function () {
+        for (var k = 0; k < n; k++) {
+          letters[k].style.transition = 'opacity .45s ease';
+          letters[k].style.opacity = '0';
+          pieces[k].style.opacity = '1';        // .lg-piece 本來就有 .55s 的淡入
+        }
+      }, 1400));
+      return;
+    }
 
     function popIn(el, easing) {
       el.style.transition = 'none';
