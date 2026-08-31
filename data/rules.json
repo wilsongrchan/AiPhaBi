@@ -94,8 +94,7 @@
           "chars": [
             {
               "c": "一",
-              "code": "I",
-              "compCode": "I"
+              "code": "I"
             },
             {
               "c": "二",
@@ -133,8 +132,7 @@
             },
             {
               "c": "八",
-              "code": "V",
-              "compCode": "V"
+              "code": "V"
             },
             {
               "c": "九",
@@ -181,11 +179,15 @@
             },
             {
               "c": "困",
-              "code": "OTJR"
+              "code": "OTJR",
+              "compCode": "OT",
+              "standaloneOnly": true
             },
             {
               "c": "杏",
-              "code": "TJRO"
+              "code": "TJRO",
+              "compCode": "TO",
+              "standaloneOnly": true
             },
             {
               "c": "末",
@@ -202,10 +204,6 @@
               "code": "JHJR",
               "compCode": "JT",
               "standaloneOnly": true
-            },
-            {
-              "c": "味",
-              "code": "OHJR"
             },
             {
               "c": "禾",
@@ -510,6 +508,14 @@
               "code": "UH"
             },
             {
+              "c": "里",
+              "code": "BF"
+            },
+            {
+              "c": "旦",
+              "code": "BI"
+            },
+            {
               "c": "巾",
               "code": "UJ",
               "compCode": "M",
@@ -520,6 +526,32 @@
               "code": "VJ",
               "compCode": "Y",
               "standaloneOnly": true
+            }
+          ]
+        },
+        {
+          "name": "目字類",
+          "note": "",
+          "chars": [
+            {
+              "c": "目",
+              "code": "DI"
+            },
+            {
+              "c": "且",
+              "code": "UE"
+            },
+            {
+              "c": "貝",
+              "code": "DV"
+            },
+            {
+              "c": "具",
+              "code": "UEV"
+            },
+            {
+              "c": "真",
+              "code": "TUEV"
             }
           ]
         }
