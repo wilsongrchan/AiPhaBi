@@ -43,7 +43,15 @@
   // 橫槓（不是襯線，是這兩套字型自己的設計），其他字母走一般無襯線字體，
   // 只有 J 這個字母單獨指定字型（見下面 fontFor()）。
   var LETTER_FONT = 'sans-serif';
-  var LETTER_FONT_J = "Verdana, Tahoma, 'DejaVu Sans', sans-serif";
+  /* ⚠️ DejaVu Sans 排第一，不是 Verdana（Wilson 2026-08-31：J 看起來比旁邊的字母
+     粗）。三套都有 J 頂端那一橫，差別在筆畫粗細 —— 260px、font-weight 700 之下
+     實測直劃寬度：
+         Verdana 49　Tahoma 47　DejaVu Sans 42
+     而旁邊的字母（系統無襯線的粗體）是 O 43、A 42。所以 Verdana 比鄰居粗約 15%，
+     DejaVu Sans 剛好對齊。Verdana 的 J 也特別寬（頂端 92 對 DejaVu 的 67）。
+     ⚠️ 沒裝 DejaVu Sans 的機器會退回 Verdana，跟以前一樣 —— 換成調字級或
+     scaleX 可以對所有人一致，但那會讓 J 比別的字母矮一截或窄一截，兩害相權。 */
+  var LETTER_FONT_J = "'DejaVu Sans', Verdana, Tahoma, sans-serif";
   function fontFor(letter) { return letter === 'J' ? LETTER_FONT_J : LETTER_FONT; }
 
   /* 整體節奏的倍率——嫌動畫太趕就調大這個數字，其他時間值都跟著它縮放，
