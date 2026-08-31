@@ -3193,7 +3193,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .hero-title {
   font-size: clamp(2.3rem, 6vw, 3.4rem);
   line-height: 1.2;
-  margin: 0 0 .9rem;
+  /* 下外距收窄，讓標語貼著品牌名（Wilson）—— 兩行是一組，離太遠會各自為政。
+     標語自己的下外距（1.1rem）維持不變，跟底下的動畫仍然分得開。 */
+  margin: 0 0 .2rem;
   letter-spacing: .01em;
 }
 /* 品牌名整串都用正文墨色，AiPhaBi 不另外上主色（Wilson 2026-08-31）——
@@ -3206,6 +3208,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    不是註記，淡掉會變成關鍵詞的附屬品。 */
 .hero-tagline {
   font-size: clamp(1.25rem, 3.2vw, 1.75rem);
+  font-weight: 600;
   color: var(--accent);
   letter-spacing: .06em;
   margin: 0 0 1.1rem;
