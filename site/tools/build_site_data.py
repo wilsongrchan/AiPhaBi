@@ -715,6 +715,28 @@ PINYIN_TOP_N = 3000
 PINYIN_SIMP_TOP_N = 500
 
 
+def _name_chars():
+    """〈線上試打〉自由試打那一排「常用姓氏／男名／女名常用字」用到的字。
+
+    ⚠️ 名單**從 site/assets/try.js 現讀**，不在這裡抄一份 —— 抄了就會有兩份會
+    分岔的名單，而分岔的症狀是「某個名字用字點下去沒有拆碼圖」，很難聯想到是
+    這裡漏了。跟 site/tools/cut_fn.js 從 try.js 切函式出來測試是同一個道理。
+
+    這些字一律要進拆碼圖那一份：那一排字卡的用途就是「點一個字看它怎麼拆」，
+    點下去沒有圖等於那張卡是壞的（Wilson 2026-08-31）。它們不一定擠得進字頻前
+    3000 名 —— 芊、蓁、晗、曦 這種只有取名才會用的字，本來就不常出現在新聞語料裡。
+    """
+    src = (ROOT / "site" / "assets" / "try.js").read_text("utf-8")
+    out = []
+    for name in ("NAME_SURNAMES", "NAME_MALE", "NAME_FEMALE"):
+        m = re.search(r"var\s+%s\s*=\s*'([^']*)'" % name, src)
+        if not m:
+            print(f"  ⚠️ try.js 裡找不到 {name} —— 那一排名字用字可能沒有拆碼圖")
+            continue
+        out.extend(m.group(1))
+    return out
+
+
 def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
     """拼音查字：〈自由試打〉頁想到一個字的讀音、不知道怎麼拆碼時查——輸入拼音
     （不分聲調），列出候選字，選了就看它的拆碼圖跟碼。跟〈跟著打〉互補：那邊是
@@ -759,7 +781,10 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
         simp_only,
         key=lambda c: -max((charfreq.get(t, 0) for t in s2t_raw[c]), default=0),
     )[:PINYIN_SIMP_TOP_N]
-    chars = set(top) | set(simp_top)
+    # 名字用字（常用姓氏／男名／女名）一律收進來，不管字頻排第幾 —— 那一排字卡
+    # 的用途就是點下去看拆碼圖，沒有圖等於那張卡是壞的。
+    name_chars = [c for c in _name_chars() if c in coded_set]
+    chars = set(top) | set(simp_top) | set(name_chars)
     if not coded:
         return None, None
 
@@ -818,6 +843,21 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
 
     segs = build_practice_hints(chars, codes, zigen_raw, max_rule)
     glyphs = _practice_glyphs(chars)
+
+    # 名字用字每一個都要畫得出拆碼圖。沒有的話那張字卡點下去只有碼、沒有圖，
+    # 而那一排的用途正是看圖，所以這裡出聲 —— 不出聲的話只有真的去點才會發現。
+    #
+    # ⚠️ 檢查的是 _name_chars() 的**全部**，不是 name_chars（那一份已經先被
+    # coded_set 濾過）。第一版寫成濾過的那一份，結果正好漏掉唯一有問題的那個字：
+    # 祐 在 codes.json 裡沒有 segments，被 coded_set 擋掉，於是「沒有圖」的字
+    # 反而不會被「沒有圖」的檢查抓到。要抓的就是這種。
+    _name_nofig = [c for c in dict.fromkeys(_name_chars())
+                   if c not in segs or c not in glyphs]
+    if _name_nofig:
+        _why = {c: ("codes.json 沒有 segments" if c not in coded_set else "字形資料沒收這個字")
+                for c in _name_nofig}
+        print(f"  ⚠️ {len(_name_nofig)} 個名字用字沒有拆碼圖："
+              + "、".join(f"{c}（{_why[c]}）" for c in _name_nofig))
     # ⚠️ 拆成兩份，因為兩份的**下載時機**不一樣（Wilson 2026-08-24）：
     #   pinyin.json        —— 查得到什麼字。約 30KB，載入頁面時就抓。
     #   pinyin_glyphs.json —— 那些字長什麼樣、怎麼拆。約 7.9MB，等使用者真的
@@ -2898,7 +2938,8 @@ def main():
               f"（載入就抓；查得到全部已取碼的字，其中 {n_glyph} 個有拆碼圖）")
         print(f"pinyin_glyphs.json {n_glyph} 字有拆碼圖 / {mb:.1f} MB"
               f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個，"
-              f"加上真正的簡化字裡最常用的前 {PINYIN_SIMP_TOP_N} 個）")
+              f"加上真正的簡化字裡最常用的前 {PINYIN_SIMP_TOP_N} 個，"
+              f"再加上名字用字那一排）")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
              f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else ""))
