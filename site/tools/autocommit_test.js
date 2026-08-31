@@ -43,6 +43,8 @@ eval(cut('lowerBound'));
 eval(cut('prefixRange'));
 eval(cut('firstComplete'));
 eval(cut('codeAlive'));
+// autoType 從 a06f28d 起會呼叫 hasLongerCode（唯一上屏：碼還能接出更長的字就先別收）
+eval(cut('hasLongerCode'));
 eval(cut('autoType'));
 
 /* 打一串字母進去，回傳 [上屏了什麼, 還留在碼欄裡的碼] */
