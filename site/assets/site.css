@@ -318,8 +318,14 @@ nav.site a[aria-current="page"] {
 }
 
 /* 組員縮排一階。縮排加在 padding 而不是整個 .nav-sec 上：目前頁面那條橙色左框
-   要跟簡介／線上試打／後記對齊成同一條直線，整組推進去的話框線會參差不齊。 */
-nav.site .nav-sec > a { padding-inline-start: 1.35rem; }
+   要跟簡介／線上試打／後記對齊成同一條直線，整組推進去的話框線會參差不齊。
+
+   ⚠️ 第二條選擇器不能省：site.js 給有章節清單的那一頁加收合箭頭時，會把連結
+   包進 .pr-navhead 裡（見「側邊欄章節清單：可以收起來」），那個連結就不再是
+   .nav-sec 的**直接子元素**，`> a` 選不到它，縮排整個掉光 —— 畫面上就是「有
+   箭頭的那一條標題比別條往左凸出來一截」（Wilson 2026-08-31 看出來的）。 */
+nav.site .nav-sec > a,
+nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 1.35rem; }
 
 /* 章節錨點本來就縮一階（.pr-sidenav 的 1.1rem），在組裡要再讓開組員那一階 */
 nav.site .nav-sec .pr-sidenav { padding-inline-start: 1.85rem; }
@@ -716,6 +722,11 @@ tbody tr:last-child td { border-bottom: 0; }
 /* .zg-h / .zg-letter 已不再使用：字母改成表格最左邊的欄，不再每個字母一條標題。
    保留 .zg-key 的樣式，字母欄和辨析表都還在用。 */
 .zg-tbl tbody tr { scroll-margin-top: 5rem; }   /* 讓開 A–Z 列 ＋ 表頭 */
+
+/* 側邊欄的〈相近字形辨析〉跳過來時，標題要讓開黏在頂端的 A–Z 列（實測不讓開的話
+   h2 落在 top=0，而 A–Z 列的下緣在 45px，標題整條被蓋住）。這裡不必像表格列那樣
+   多讓一個表頭的高度，所以值比 .zg-tbl tbody tr 小一點。 */
+#zg-similar { scroll-margin-top: 4rem; }
 
 .zg-h {
   display: flex;
@@ -1535,7 +1546,18 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 /* 三欄之後每欄變窄，左右內距跟著收，不然表頭會折行 */
 .jm-compact th, .jm-compact td { padding: .28rem 1rem; }
 
-/* 大／甲、馬／己兩對字數少的組並排放，省掉上下堆疊的空間（見 conventional.js 的
+/* ⚠️〈約定字表〉裡整條寬度的組（土／甲字類）自己拆欄時借用 .jm-cols，但那條規則是
+   〈簡碼〉頁的**三欄**（約定簡碼表用的）。三欄裡只放兩張表，第二張就落在整條寬度的
+   三分之一處，而並排的兩組（大｜目）是各佔一半、第二組落在二分之一處 —— 兩種機制
+   的右半邊對不齊，整頁看起來歪歪的（Wilson 2026-08-31 一眼看出來）。
+   這一頁改回兩欄，欄距也跟 .cv-grouppair 取同一個值，兩種情況的右半邊才落在同一條
+   垂直線上。用 ID 選擇器，權重比 .jm-cols 高，不管檔案裡誰先誰後都贏。 */
+#cv-groups .jm-cols {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 2.5rem;
+}
+
+/* 大／目、馬／己兩對字數少的組並排放，省掉上下堆疊的空間（見 conventional.js 的
    SIDE_BY_SIDE_PAIRS）。align-items: start 理由跟 .jm-cols 一樣：兩組字數不同，
    高度本來就不會一樣，不要為了湊高度拉伸列高。 */
 .cv-grouppair {
@@ -1958,7 +1980,8 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      組員直接變成橫列的項目，排出來跟沒分組時一模一樣。 */
   .nav-sec { display: contents; }
   .nav-sec-t { display: none; }
-  nav.site .nav-sec > a { padding-inline-start: 0; }
+  nav.site .nav-sec > a,
+  nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 0; }
   .brand .en { display: inline; margin-inline-start: .45em; }
 
   .topbar-controls { order: 2; flex-direction: row; align-items: center; gap: .7rem; }
@@ -1969,6 +1992,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .zg-jump { top: 3.4rem; }
   .zg-tbl thead th { top: 5.9rem; }
   .zg-tbl tbody tr { scroll-margin-top: 8.5rem; }
+  #zg-similar { scroll-margin-top: 6.5rem; }
 
 }
 
