@@ -48,18 +48,24 @@
       var collapsed = false;
       try { collapsed = localStorage.getItem(SUB_KEY) === '1'; } catch (e) {}
 
-      var apply = function () {
+      /* ⚠️ 這支一定要叫 paintCollapse，不能叫 apply —— 底下「繁簡切換」那一節
+         有一個 function apply(lang, root)，而整個檔案是同一個 IIFE、var 又是
+         函式作用域，取同一個名字會在執行到這裡時把它整個蓋掉。症狀很難聯想：
+         有章節清單的那六頁（字根表／取碼原則／約定字表／簡碼／詞組連打／自動
+         上屏）按「简」完全沒反應，沒有任何錯誤訊息，因為按鈕呼叫到的是這支
+         收合函式；沒有章節清單的頁面（首頁等）則完全正常。 */
+      var paintCollapse = function () {
         sub.hidden = collapsed;
         btn.setAttribute('aria-expanded', String(!collapsed));
         // 名字要講「按下去會發生什麼」，不是「現在是什麼狀態」
         btn.setAttribute('aria-label', collapsed ? '展開章節' : '收合章節');
         btn.title = btn.getAttribute('aria-label');
       };
-      apply();
+      paintCollapse();
 
       btn.addEventListener('click', function () {
         collapsed = !collapsed;
-        apply();
+        paintCollapse();
         try { localStorage.setItem(SUB_KEY, collapsed ? '1' : '0'); } catch (e) {}
       });
     }
