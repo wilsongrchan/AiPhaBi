@@ -15,7 +15,14 @@
 set -euo pipefail
 
 echo "→ 安裝建置依賴"
-python3 -m pip install --quiet -r requirements.txt
+# ⚠️ Vercel 的建置環境用 uv 管 Python，pip 會依 PEP 668 拒絕直接裝套件
+# （externally-managed-environment）。建置容器用完即丟，覆寫它沒有任何後果，
+# 但只在**真的被拒絕時**才覆寫 —— 這樣在自己機器上跑這支腳本仍然走正常路徑，
+# 不會莫名其妙改動系統 Python。
+if ! python3 -m pip install --quiet -r requirements.txt 2>/dev/null; then
+  echo "  系統 Python 受 uv 管控，改用 --break-system-packages（容器用完即丟）"
+  python3 -m pip install --quiet --break-system-packages -r requirements.txt
+fi
 
 echo "→ 產生網站資料"
 python3 site/tools/build_site_data.py
