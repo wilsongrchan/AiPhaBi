@@ -105,9 +105,20 @@
 
       <div class="xz-pad" id="xz-pad" role="group" aria-label="選一個英文字母"></div>
 
-      <div class="xz-under" id="xz-under">
-        <button type="button" class="xz-mini" id="xz-hint">提示：收成四個字母</button>
-        <button type="button" class="xz-mini" id="xz-show">看答案</button>
+      <!-- 這一排的位置**不動**：答完是把「提示／看答案」換成「下一題」，不是把
+           整排收掉再把按鈕放到別處。收掉的話底下整塊往上跳，而游標正停在剛按下
+           的那顆字母鍵上（見 assets/lianxi.js 的 reveal）。 -->
+      <div class="xz-acts">
+        <button type="button" class="btn btn-primary" id="xz-hint">提示：收成四個字母</button>
+        <button type="button" class="btn btn-primary" id="xz-show">看答案</button>
+        <button type="button" class="btn btn-primary" id="xz-next" hidden>下一題</button>
+      </div>
+
+      <!-- 走題目：兩個方向都要有。看完想再看一眼剛才那條字根是很自然的事
+           （Wilson 2026-09-01），左右方向鍵也走得動。 -->
+      <div class="xz-nav">
+        <button type="button" class="btn btn-ghost" id="xz-prev">← 上一題</button>
+        <button type="button" class="btn btn-ghost" id="xz-skip">跳過 →</button>
       </div>
 
       <div class="xz-reveal" id="xz-reveal" hidden>
@@ -123,18 +134,12 @@
           </div>
         </div>
         <div class="xz-nextrow">
-          <button type="button" class="btn btn-primary" id="xz-next">下一題</button>
           <a class="xz-link" id="xz-link" href="zigen.html">在字根表看這一條</a>
         </div>
       </div>
     </div>
 
     <div class="xz-opts" id="xz-opts" hidden>
-      <div class="short-toggle" role="radiogroup" aria-label="出題範圍">
-        <span>範圍</span>
-        <label class="chk-toggle"><input type="radio" name="xzscope" value="primary" checked>優等字根</label>
-        <label class="chk-toggle"><input type="radio" name="xzscope" value="all">全部字根</label>
-      </div>
       <div class="short-toggle" role="radiogroup" aria-label="出題順序">
         <span>順序</span>
         <label class="chk-toggle"><input type="radio" name="xzorder" value="common" checked>由常見到少見</label>

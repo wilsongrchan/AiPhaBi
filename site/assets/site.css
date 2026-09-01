@@ -3657,10 +3657,20 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   color: var(--surface);
 }
 
-.xz-under { display: flex; justify-content: center; gap: 1.4rem; margin-top: .9rem; }
-/* 答完之後這一排按不動了，但**位置要留著** —— 收掉的話底下整塊往上跳，
-   使用者的游標正停在剛按過的那顆字母鍵上（見 lianxi.js 的 reveal）。 */
-.xz-under.is-spent { visibility: hidden; }
+/* 動作那一排：答題前是「提示／看答案」，答完換成「下一題」——同一排、同一個位置，
+   不是收掉再放到別處（見 lianxi.js 的 reveal 那段註解）。 */
+.xz-acts { display: flex; justify-content: center; gap: .7rem; margin-top: 1.1rem; }
+/* 走題目那一排：比動作那排輕一階（外框綠，不是實心綠），它是「換一題」不是
+   「這一題要怎麼樣」。 */
+.xz-nav { display: flex; justify-content: center; gap: .7rem; margin-top: .6rem; }
+.xz-nav .btn { font-size: .82rem; padding: .4rem 1rem; }
+.xz-acts .btn:disabled,
+.xz-nav .btn:disabled {
+  opacity: .4;
+  cursor: default;
+  /* 停用的實心綠鈕不要再對 hover 有反應，不然看起來像還能按 */
+  pointer-events: none;
+}
 .xz-mini {
   background: none;
   border: 0;
@@ -3696,8 +3706,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.2rem;
-  margin-top: 1.3rem;
+  margin-top: 1.1rem;
 }
 .xz-link { font-size: .82rem; }
 

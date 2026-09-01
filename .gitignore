@@ -63,6 +63,9 @@ site/assets/phrase_dict.json
 site/assets/pinyin.json
 # 〈拆碼查詢〉的拼音查詞表，build_pyphrase() 現算
 site/assets/pyphrase.json
+# 〈字根練習〉考哪幾條字根。手挑的清單是 site/content/lianxi.md（那份**有**進版控），
+# 這個檔只是它對回 zigen.json 之後的結果，跟其他產生檔同理不收。
+site/assets/lianxi.json
 # 拆碼圖＋字形，跟 glyphs.json 同源同授權（Arphic PL），一樣會隨網站發佈出去。
 # 跟 pinyin.json 分開是因為下載時機不同：這一份要等使用者點進查字框才抓。
 site/assets/pinyin_glyphs.json
