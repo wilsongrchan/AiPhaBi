@@ -28,8 +28,54 @@ class NoCache(http.server.SimpleHTTPRequestHandler):
         return super().send_head()
 
 
+# ---------- 本機預覽的圖示改成灰階 ----------
+# 分頁上同時開著本機預覽與線上站時，兩個圖示長得一模一樣，很容易改錯地方、或者
+# 把本機的畫面當成已經上線的樣子（Wilson）。本機這一份轉成灰階，一眼就分得出來。
+#
+# ⚠️ 只在這支預覽伺服器裡做，不改 HTML、不改 site/assets 裡的檔案 —— 線上站與
+# 版控裡的圖示完全不受影響。灰階圖是啟動時算一次放在記憶體裡，不落地。
+_GRAY = {}
+
+
+def _grayscale(path):
+    """把圖示轉成灰階；沒有 Pillow 就回 None，照原樣送出。"""
+    if path in _GRAY:
+        return _GRAY[path]
+    try:
+        from PIL import Image
+        import io as _io
+        im = Image.open(path).convert('RGBA')
+        rgb = im.convert('L').convert('RGBA')      # 去色
+        rgb.putalpha(im.getchannel('A'))           # 圓角的透明度要留著
+        buf = _io.BytesIO()
+        rgb.save(buf, 'PNG', optimize=True)
+        _GRAY[path] = buf.getvalue()
+    except Exception as e:
+        print('  灰階圖示做不出來（%s）—— 照原樣送出' % e)
+        _GRAY[path] = None
+    return _GRAY[path]
+
+
+class NoCacheGrayIcon(NoCache):
+    ICONS = ('/assets/img/favicon-32.png', '/assets/img/favicon-512.png',
+             '/assets/img/logo-512.png', '/assets/img/logo-180.png')
+
+    def do_GET(self):
+        if self.path.split('?')[0] in self.ICONS:
+            data = _grayscale(os.path.join(ROOT, self.path.split('?')[0].lstrip('/')))
+            if data:
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/png')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+        return super().do_GET()
+
+
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8099
-    handler = functools.partial(NoCache, directory=ROOT)
+    handler = functools.partial(NoCacheGrayIcon, directory=ROOT)
     print('預覽： http://localhost:%d/    根目錄：%s' % (port, ROOT))
+    print('（分頁圖示是灰階的 —— 這樣一眼看得出哪一個分頁是本機、哪一個是線上站）')
     http.server.ThreadingHTTPServer(('127.0.0.1', port), handler).serve_forever()
