@@ -90,3 +90,6 @@ site/_review/
 # ⚠️ 一定要寫在這裡：Side B 的部署腳本會跑 `git add -A`，掃的是整個工作目錄而
 # 不只 rime/，沒有這一行的話，隨便一次部署就會順手把這個檔案提交上去。
 AiPhaBi Logo.ai
+
+# Vercel CLI 在本機留下的專案連結資訊（含專案 ID），不是設定，不進版控。
+.vercel/
