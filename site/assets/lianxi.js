@@ -37,6 +37,12 @@
   var optsEl = document.getElementById('xz-opts');
   var padEl = document.getElementById('xz-pad');
   var askEl = document.getElementById('xz-ask');
+  var spinBar = document.getElementById('xz-spinbar');
+  var cwBtn = document.getElementById('xz-cw');
+  var ccwBtn = document.getElementById('xz-ccw');
+  var flipXBtn = document.getElementById('xz-flipx');
+  var flipYBtn = document.getElementById('xz-flipy');
+  var unspinBtn = document.getElementById('xz-reset-spin');
   var nudgeEl = document.getElementById('xz-nudge');
   var levelEl = document.getElementById('xz-chapter');
   var hintBtn = document.getElementById('xz-hint');
@@ -45,6 +51,8 @@
   var prevBtn = document.getElementById('xz-prev');
   var skipBtn = document.getElementById('xz-skip');
   var levelBtn = document.getElementById('xz-level');
+  var nextLvBtn = document.getElementById('xz-nextlv');
+  var stayBtn = document.getElementById('xz-stay');
   var resetBtn = document.getElementById('xz-reset');
   var doneEl = document.getElementById('xz-done');
   var totalEl = document.getElementById('xz-total');
@@ -68,7 +76,11 @@
 
   var GLYPHS = null;
   var POOL = [];
-  var LEVELS = [];
+  var NLEVELS = 0;          // 一共幾關（關卡只有編號，沒有名字）
+  /* 一關要答對幾題才過關。⚠️ 一關**可以有更多題**——多出來的是備胎，不喜歡的
+     題目可以跳過，還有別的可以練（Wilson 2026-09-01）。所以「過關」看的是答對
+     幾題，不是把整關的題目都答完。 */
+  var PASS = 8;             // 建置會蓋掉這個值（lianxi.json 的 pass）
   var forcedLevel = null;   // 按過「下一關」之後暫時鎖在那一關
   /* 這一輪看過答案的題目。⚠️ 不寫進 localStorage：它只管「這一關能不能往下走」，
      不是學會了。看過答案（或猜滿三次）就算走過，不然一直按「看答案」的人會卡在
@@ -84,6 +96,10 @@
      想再看一眼剛才的答案，所以連「當時揭曉了沒」一起記，重新問一次等於把他要的
      東西收走。 */
   var history = [], histPos = -1;
+  /* 「轉轉看」的狀態：rot 是 0/1/2/3（各順轉 90°），fx／fy 是左右／上下翻
+     （1 或 -1）。只有寫了提示的題目（要轉、要翻才看得出來的）才給這排按鈕。
+     每換一題就歸零。 */
+  var rot = 0, fx = 1, fy = 1;
 
   function keyOf(q) { return q.c + '|' + q.L; }
 
@@ -112,25 +128,54 @@
     });
   }
 
+  /* 從指定的一關抽一題。那一關還沒做完就從沒做完的裡面抽，做完了就整關重抽
+     （「繼續練習這一關」要的正是後者）。 */
+  function pickFromLevel(li) {
+    var pool = levelLeft(li);
+    if (!pool.length) pool = POOL.filter(function (q) { return q.lv === li; });
+    if (!pool.length) return null;
+    if (pool.length > 1) {
+      pool = pool.filter(function (q) { return keyOf(q) !== lastKey; });
+    }
+    return { q: pool[Math.floor(Math.random() * pool.length)] };
+  }
+
+  function levelPool(li) { return POOL.filter(function (q) { return q.lv === li; }); }
+  function levelGoal(li) { return Math.min(PASS, levelPool(li).length); }
+  function levelScore(li) {
+    var n = 0;
+    levelPool(li).forEach(function (q) { if (mastered[keyOf(q)]) n++; });
+    return n;
+  }
+  function levelDone(li) { return levelScore(li) >= levelGoal(li); }
+
+  /* 這一關接下來能出什麼：先出沒答對也沒看過的，都出過了就從沒答對的裡面再抽。
+     兩種都沒有（整關都答對了）回 null，換下一關。 */
+  function levelSource(li) {
+    var a = levelLeft(li);
+    if (a.length) return a;
+    var b = levelPool(li).filter(function (q) { return !mastered[keyOf(q)]; });
+    return b.length ? b : null;
+  }
+
   function pickQuestion() {
     if (!POOL.length) return null;
     var left = null;
-    // 按過「下一關」就先把那一關做完，做完了才回到照順序出
+    // 按過「下一關」或「繼續練習這一關」就鎖在那一關，直到再按一次
     if (forcedLevel !== null) {
       var forced = levelLeft(forcedLevel);
-      if (forced.length) left = forced;
-      else forcedLevel = null;
+      left = forced.length ? forced : POOL.filter(function (q) { return q.lv === forcedLevel; });
     }
-    for (var li = 0; left === null && li < LEVELS.length; li++) {
-      var got = levelLeft(li);
-      if (got.length) left = got;
+    for (var li = 0; left === null && li < NLEVELS; li++) {
+      if (levelDone(li)) continue;          // 已經過關的就跳過（不必把整關做完）
+      left = levelSource(li);
     }
     /* 每一關都走完了：回頭把還沒答對的再練一遍 —— ⚠️ 一樣要**照關卡順序**找，
        不能一口氣把所有沒答對的混在一起抽。混在一起的話關卡名稱會一題一題在
        「第 1 關」「第 2 關」之間跳（實測連按看答案走完兩關之後就是這樣），
        看起來像壞掉。全都答對過就整池重來。 */
     if (!left) {
-      for (var lj = 0; lj < LEVELS.length; lj++) {
+      for (var lj = 0; lj < NLEVELS; lj++) {
         var rest = POOL.filter(function (q) {
           return q.lv === lj && !mastered[keyOf(q)];
         });
@@ -152,6 +197,29 @@
      屬於這條字根的筆畫上色、其餘塗淺 —— 跟〈字根表〉字例欄同一套顏色語言
      （--zg-on／--zg-off）。同一條字根在一個字裡出現兩次（檢 的兩個 O）時第二處
      用深一階，不然會被當成「這條字根就是這一整塊」。 */
+  /* 轉的是**整個田字格**（連格線一起），不是格子裡的筆畫（Wilson 2026-09-01：
+     整塊一起轉在版面上看起來才一致）。田字格是正方形，轉 90° 佔的位置一樣大，
+     所以版面不會動。
+     ⚠️ 揭曉時疊上去的字母要**反向轉回來**才會是正的（見 overlayLetter 裡那一層
+     .xz-letter-fix）—— 字根轉過去之後像哪個字母，那個字母本身當然要正著寫。 */
+  function paintSpin() {
+    var svg = stage.querySelector('svg');
+    var t = 'rotate(' + (rot * 90) + 'deg) scale(' + fx + ',' + fy + ')';
+    if (svg) svg.style.transform = t;
+    var fix = stage.querySelectorAll('.xz-letter-fix');
+    Array.prototype.forEach.call(fix, function (g) {
+      g.style.transform = 'scale(' + fx + ',' + fy + ') rotate(' + (-rot * 90) + 'deg)';
+    });
+    unspinBtn.hidden = !(rot || fx < 0 || fy < 0);
+  }
+
+  function resetSpin() {
+    rot = 0;
+    fx = 1;
+    fy = 1;
+    paintSpin();
+  }
+
   function paintQuestion(q) {
     var strokes = GLYPHS[q.c] || [];
     var shade = {};
@@ -168,6 +236,7 @@
     stage.classList.remove('is-revealed');
     stage.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="題目">' +
       ZG.GRID + '<g transform="' + ZG.TF + '">' + off + on + '</g></svg>';
+    paintSpin();
   }
 
   /* 揭曉時把字母疊在字根**正上方**：位置是從那幾筆真正的座標算出來的
@@ -184,6 +253,11 @@
       var span = Math.max(box.w, box.h);
       // 字母大約蓋住字根，但不讓它小到看不清、也不讓它撐出田字格
       var size = Math.max(180, Math.min(560, span * 1.3));
+      /* 兩層：外層 .xz-letter-fix 把整個田字格的轉／翻**抵消掉**（字母要正著寫），
+         內層 .xz-letter 只管登場那一下的淡入放大。兩件事分開才不會互相蓋掉。 */
+      var fix = document.createElementNS(NS, 'g');
+      fix.setAttribute('class', 'xz-letter-fix');
+      fix.style.transformOrigin = box.cx.toFixed(1) + 'px ' + box.cy.toFixed(1) + 'px';
       var g = document.createElementNS(NS, 'g');
       g.setAttribute('class', 'xz-letter');
       g.style.transformOrigin = box.cx.toFixed(1) + 'px ' + box.cy.toFixed(1) + 'px';
@@ -197,7 +271,9 @@
       t.setAttribute('font-size', size.toFixed(0));
       t.textContent = q.L;
       g.appendChild(t);
-      svg.appendChild(g);
+      fix.appendChild(g);
+      svg.appendChild(fix);
+      paintSpin();                            // 讓新加的字母立刻套上反向轉
       if (REDUCED) { g.classList.add('is-in'); return; }
       svg.getBoundingClientRect();          // 逼一次重排，不然過渡不會跑
       window.requestAnimationFrame(function () {
@@ -246,8 +322,12 @@
     hintBtn.hidden = false;
     showBtn.hidden = false;
     nextBtn.hidden = true;
+    nextLvBtn.hidden = true;
+    stayBtn.hidden = true;
+    resetSpin();
     paintQuestion(item.q);
     paintAsk(item.q);
+    spinBar.hidden = !item.q.h;
     paintLevel(item.q);
     if (!fresh && item.revealed) reveal(item.right, true);
     paintNav();
@@ -255,31 +335,38 @@
 
   function paintNav() { prevBtn.disabled = histPos <= 0; }
 
-  /* 題目那一句話。要轉、要翻才看得出來的字根，**問題本身**就把該怎麼看講出來
-     （Wilson 2026-09-01：「將這個字根水平翻轉，像哪個英文字母？」）——
-     不先講一聲，那題就不是在考眼力而是在考通靈。哪一題配哪一句寫在
-     site/content/lianxi.md（`雪 = E · 水平翻轉`）。 */
+  /* 題目那一句話（兩句都是 Wilson 2026-09-01 指定的字）：
+
+       沒有提示 → 「這個字根像哪個字母？」
+       有提示   → 提示原文 ＋「，像哪個字母？」
+                 例：「旋轉或翻轉這個字根後，像哪個字母？」
+                     「把這個字根旋轉 180 度後，像哪個字母？」
+
+     要轉、要翻才看得出來的字根，**問題本身**就得把該怎麼看講出來 —— 不先講
+     一聲，那題就不是在考眼力而是在考通靈。提示寫在 site/content/lianxi.md
+     的每一題後面（`雪 = E · 旋轉或翻轉`），所以之後想把某一題講得更細
+     （`· 水平翻轉`）不必改這支。 */
   function paintAsk(q) {
-    askEl.textContent = q.h
-      ? '將這個字根' + q.h + '，像哪個英文字母？'
-      : '標出來的這一條字根，像哪個英文字母？';
+    // ⚠️ 提示是**一整句**（「旋轉或翻轉這個字根後」），這裡只接後半，不要再補字：
+    // 補了就會變成「旋轉或翻轉這個字根後這個字根後，像哪個字母？」
+    askEl.textContent = q.h ? q.h + '，像哪個字母？' : '這個字根像哪個字母？';
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(askEl);
   }
 
-  /* 關卡名稱一直掛在題目上方 —— 第二關叫「轉一下、翻過來才像」，那句話**就是**
-     那一關的提示，答題前就要看得到。 */
+  /* 「第一關　8／10」——關卡只有編號，沒有名字（Wilson 2026-09-01）。
+     一題該怎麼看是那一題自己的提示在講，不需要再給關卡取一個名字。 */
+  var CN = '〇一二三四五六七八九十';
+  function cn(n) {
+    if (n <= 10) return CN[n];
+    if (n < 20) return '十' + CN[n - 10];
+    return String(n);
+  }
+
   function paintLevel(q) {
-    var name = LEVELS[q.lv];
-    if (!name) { levelEl.textContent = ''; return; }
-    var done = 0, total = 0;
-    POOL.forEach(function (x) {
-      if (x.lv !== q.lv) return;
-      total++;
-      if (mastered[keyOf(x)]) done++;
-    });
-    levelEl.textContent = '第 ' + (q.lv + 1) + ' 關 · ' + name +
-      '　' + done + '／' + total;
-    if (window.AiPhaBiSite) window.AiPhaBiSite.localize(levelEl);
+    if (!NLEVELS) { levelEl.textContent = ''; return; }
+    // 分母是**過關要答對幾題**，不是這一關有幾題（多出來的是備胎，見 PASS）
+    levelEl.textContent = '第' + cn(q.lv + 1) + '關　' +
+      Math.min(levelScore(q.lv), levelGoal(q.lv)) + '／' + levelGoal(q.lv);
   }
 
   /* 下一題／跳過是同一件事：往前走一格。之前按過「上一題」的話，往前是回到
@@ -300,14 +387,22 @@
   /* 「下一關」——不想把這一關做完也可以直接跳過去（Wilson）。跳過去之後暫時鎖在
      那一關（forcedLevel），把它做完才回到「照順序出」。只有一關的時候不出現。 */
   function jumpLevel() {
-    if (LEVELS.length < 2) return;
-    forcedLevel = ((cur ? cur.q.lv : 0) + 1) % LEVELS.length;
-    var pool = levelLeft(forcedLevel);
-    if (!pool.length) {
-      pool = POOL.filter(function (q) { return q.lv === forcedLevel; });
-    }
-    if (!pool.length) return;
-    var pick = { q: pool[Math.floor(Math.random() * pool.length)] };
+    if (NLEVELS < 2) return;
+    forcedLevel = ((cur ? cur.q.lv : 0) + 1) % NLEVELS;
+    var pick = pickFromLevel(forcedLevel);
+    if (!pick) return;
+    history.push(pick);
+    histPos = history.length - 1;
+    show(pick, true);
+  }
+
+  /* 「繼續練習這一關」——這一關十題都答對了，但想再練一遍。鎖在這一關，
+     整關重抽（不管答對過沒有），直到按「下一關」為止。 */
+  function stayLevel() {
+    if (!cur) return;
+    forcedLevel = cur.q.lv;
+    var pick = pickFromLevel(forcedLevel);
+    if (!pick) return;
     history.push(pick);
     histPos = history.length - 1;
     show(pick, true);
@@ -402,8 +497,18 @@
        〈取碼原則〉頁的「川」字示範也踩過）。 */
     hintBtn.hidden = true;
     showBtn.hidden = true;
-    nextBtn.hidden = false;
-    nextBtn.focus({ preventScroll: true });
+    /* 這一關十題全部答對了就不要再說「下一題」——做完一關是一件事，該讓人挑
+       接下來要幹嘛（Wilson 2026-09-01）。只有一關的時候沒有「下一關」可去。 */
+    var done = levelDone(q.lv);
+    nextBtn.hidden = done;
+    nextLvBtn.hidden = !(done && NLEVELS > 1);
+    stayBtn.hidden = !done;
+    if (done) {
+      nudge('第' + cn(q.lv + 1) + '關完成！', 'good');
+      (NLEVELS > 1 ? nextLvBtn : stayBtn).focus({ preventScroll: true });
+    } else {
+      nextBtn.focus({ preventScroll: true });
+    }
   }
 
   /* ---------- 進度 ---------- */
@@ -422,6 +527,13 @@
   skipBtn.addEventListener('click', nextQuestion);
   prevBtn.addEventListener('click', prevQuestion);
   levelBtn.addEventListener('click', jumpLevel);
+  nextLvBtn.addEventListener('click', jumpLevel);
+  stayBtn.addEventListener('click', stayLevel);
+  cwBtn.addEventListener('click', function () { rot = (rot + 1) % 4; paintSpin(); });
+  ccwBtn.addEventListener('click', function () { rot = (rot + 3) % 4; paintSpin(); });
+  flipXBtn.addEventListener('click', function () { fx = -fx; paintSpin(); });
+  flipYBtn.addEventListener('click', function () { fy = -fy; paintSpin(); });
+  unspinBtn.addEventListener('click', resetSpin);
   resetBtn.addEventListener('click', function () {
     // 進度是使用者自己累積的東西，砍掉之前先問一聲
     if (!window.confirm('清掉練習紀錄？答對過的題目會全部重來。')) return;
@@ -466,7 +578,8 @@
     .then(function (d) {
       GLYPHS = (d && d.glyphs) || null;
       POOL = (d && d.questions) || [];
-      LEVELS = (d && d.levels) || [];
+      NLEVELS = (d && d.levels) || 0;
+      PASS = (d && d.pass) || 8;
       if (!GLYPHS || !POOL.length) {
         // 還沒挑不是壞掉，講清楚是哪一種，不要丟一個「載入失敗」讓人去猜
         loadingEl.textContent = '還沒挑要考哪幾題（site/content/lianxi.md）。';
@@ -477,7 +590,7 @@
       optsEl.hidden = false;
       if (creditEl) creditEl.hidden = false;
       paintScore();
-      levelBtn.hidden = LEVELS.length < 2;
+      levelBtn.hidden = NLEVELS < 2;
       nextQuestion();
     })
     .catch(function () {

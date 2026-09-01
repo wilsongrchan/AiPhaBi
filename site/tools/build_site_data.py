@@ -1184,36 +1184,33 @@ def load_lianxi_picks(warn):
     （「use 檢 A and O only，史 O and X」）。挑字的人在意的是「用哪個字來問」，
     字根是那個字裡的哪幾段。第一版做成照字根挑、例字隨機配，他要的不是那個。
 
-    `## 關卡 · 名稱` 開一個新的關卡，底下的題目都屬於它（練習頁一關一關出，
-    關卡名稱顯示在題目上方，所以第二關的名稱「轉一下、翻過來才像」本身就是提示）。
-    ⚠️ 只認開頭是「關卡」的標題 —— 那個檔自己的說明也有 `## 格式`、`## 建置時會檢查`。
+    `## 分組 · 名稱` 把題目分組。分組**只決定哪幾題排在一起**（每組再切成每關十題），
+    名稱不會出現在網站上 —— Wilson 2026-09-01 看到自動切出來的「正著看就像（一）
+    （二）（三）」覺得莫名其妙，那個名字確實沒有意義：一題該怎麼看是**那一題自己的
+    提示**在講。分組存在的理由只有一個：不要讓「要轉的」跟「不用轉的」混進同一關。
 
-    回傳 ([(字, [字母…], 第幾關), …], [關卡名稱, …])，照檔案裡的順序。
+    回傳 [(字, [字母…], 提示, 第幾組), …]，照檔案裡的順序。
     """
     path = ROOT / "site" / "content" / "lianxi.md"
     if not path.exists():
         warn.append("〈字根練習〉：找不到 site/content/lianxi.md，整頁沒有題目")
-        return [], []
+        return []
     # 說明區塊裡的 ``` 範例不要被當成資料（examples.md 也是這樣防的）
     text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
     out, seen = [], set()
-    chapters, chapter = [], 0
-    # ⚠️ 分隔號與名稱都是**必要**的：那個檔的說明區自己有一個 `## 關卡` 標題
-    # （在講關卡怎麼用），名稱可有可無的話它會變成一個空的第一關。
-    CHAPTER_LINE = re.compile(r"^#{1,6}\s*關卡\s*[·・:：\-]\s*(\S.*)$")
+    group = 0
+    GROUP_LINE = re.compile(r"^#{1,6}\s*分組\s*[·・:：\-]\s*\S")
     # ⚠️ 只認「左邊一個字、右邊只有英文字母」這一種行。說明區裡有
     # 「例如 `檢 = A O`：檢 拆成…」這種句子，鬆一點的規則會把它們也當成資料
     # （實測會多出三條莫名其妙的警告）。右邊出現中文、標點、反引號一律不算。
-    DATA_LINE = re.compile(r"^(\S+)\s*=\s*([A-Za-z][A-Za-z\s]*)$")
+    DATA_LINE = re.compile(r"^(\S+)\s*=\s*([A-Za-z][A-Za-z0-9:\-\s]*)$")
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
             continue
         if line.startswith("#"):
-            cm = CHAPTER_LINE.match(line)
-            if cm:
-                chapters.append(cm.group(1).strip() or f"第 {len(chapters) + 1} 關")
-                chapter = len(chapters) - 1
+            if GROUP_LINE.match(line):
+                group += 1
             continue
         # 「· 短語」是這一題的提示（第二關那種要轉、要翻的），可有可無。
         # 提示會被寫成問句：「將這個字根水平翻轉，像哪個英文字母？」
@@ -1230,28 +1227,28 @@ def load_lianxi_picks(warn):
             # 靜靜跳過等於幫使用者藏起一個打錯的字（「檢查 = A」）——出聲比較好
             warn.append(f"〈字根練習〉：「{ch}」不是單一個字，那一行跳過")
             continue
-        letters = re.findall(r"[A-Z]", right.upper())
+        # 「E:3」＝這個字裡第 3 個 E 那一段（負數從後面數，E:-1 是最後一個）。
+        # 慧 拆成 E E E W，Wilson 要的是 W 前面那個 E，寫成 E:3 或 E:-1。
+        letters = [(m.group(1), int(m.group(2)) if m.group(2) else None)
+                   for m in re.finditer(r"([A-Za-z])(?::(-?\d+))?", right.upper())]
         if not letters:
             warn.append(f"〈字根練習〉：「{ch}」那一行沒寫要考哪個字母")
             continue
         # ⚠️ 重複的判準是「字＋字母」不是「字」：同一個字可以出現在不同關卡考不同的
         # 字根（兒 在第一關考 L）。真正該擋的是同一條題目寫了兩次。
-        dup = [L for L in letters if (ch, L) in seen]
+        dup = [L for L, _ in letters if (ch, L) in seen]
         if dup:
             warn.append(f"〈字根練習〉：「{ch} = {' '.join(dup)}」寫了不只一次，後面那次跳過")
-            letters = [L for L in letters if (ch, L) not in seen]
+            letters = [t for t in letters if (ch, t[0]) not in seen]
             if not letters:
                 continue
-        for L in letters:
+        for L, _ in letters:
             seen.add((ch, L))
-        # 第一個關卡標題之前就寫了題目：那些算第一關，補一個名字給它
-        if not chapters:
-            chapters.append("第 1 關")
-        out.append((ch, letters, chapter, hint))
-    return out, chapters
+        out.append((ch, letters, hint, group))
+    return out
 
 
-def build_lianxi(picks, chapters, codes, warn, per_level=10):
+def build_lianxi(picks, codes, warn, per_level=8):
     """〈字根練習〉的題目：一題 = 一個字裡的一條字根，問它像哪個英文字母。
 
     每一題只帶四樣東西：哪個字、考哪個字母、那條字根是哪幾筆、屬於第幾關。
@@ -1266,68 +1263,77 @@ def build_lianxi(picks, chapters, codes, warn, per_level=10):
     而且**只標第一處**（Wilson 2026-09-01：一次看一塊就好）。分成兩題會連著問
     兩次一模一樣的問題，幾處一起標又會讓人不知道該看哪一塊。
 
-    關卡：檔案裡的每一段（`## 關卡 · 名稱`）再切成每關 per_level 題（Wilson：
-    一關十題）。切不滿的餘數自成一關，名稱後面加上「（二）」這種序號。
+    關卡：**一組就是一關**（`## 分組 · 名稱`）。⚠️ 曾經改成「每十題自動切一關」，
+    但那會把同一組的題目切到第二、第三關去，Wilson 立刻反映「山 美 定 正 應該是
+    第一關」—— 他心裡的關卡就是他分的那兩組。所以分組是唯一的分關依據。
+    關卡只有編號、沒有名字 —— 一題該怎麼看是那一題自己的提示在講。
+
+    per_level 是**過關要答對幾題**（8），不是一關有幾題。一關**可以多過** 8 題，
+    多出來的是備胎：不喜歡的題目可以跳過，還有別的可以練（Wilson 2026-09-01：
+    「題庫 19 題，不代表 user 需要全部做完才能通關」）。少於 8 題才出聲 ——
+    那一關永遠過不了。
     """
     if not picks:
         return None
 
-    made = []           # [(第幾段, 題), …]
-    for ch, letters, chapter, hint in picks:
+    made = []
+    for ch, letters, hint, group in picks:
         rec = codes.get(ch)
         if not rec or not rec.get("segments"):
             warn.append(f"〈字根練習〉：「{ch}」還沒取碼，出不了題")
             continue
         segs = rec["segments"]
         have = "".join(sg["letter"] for sg in segs)
-        for L in letters:
+        for L, which in letters:
             picked = [sg for sg in segs if sg["letter"] == L]
             if not picked:
                 warn.append(f"〈字根練習〉：「{ch} = …{L}…」，但 {ch} 拆出來是 "
                             f"{have}，沒有 {L} 這一段")
                 continue
+            if which is not None:
+                # 1 起算，負數從後面數（慧 = E:-1 是 W 前面那個 E）
+                idx = which - 1 if which > 0 else len(picked) + which
+                if not 0 <= idx < len(picked):
+                    warn.append(f"〈字根練習〉：「{ch} = {L}:{which}」，但 {ch} 裡只有 "
+                                f"{len(picked)} 個 {L}")
+                    continue
+                picked = [picked[idx]]
             # ⚠️ 同一個字母在一個字裡出現好幾次（檢 的兩個 O、巡 的三個 L）時
-            # **只標第一處**（Wilson 2026-09-01）。原本是幾處一起標、各疊一個字母，
+            # **只標一處**（Wilson 2026-09-01）。原本是幾處一起標、各疊一個字母，
             # 但那樣一題要看好幾塊，反而模糊了「這一塊像哪個字母」這件事。
+            # 預設第一處，要指定就寫 `E:3`（見上面）。
             q = {"c": ch, "L": L, "g": [picked[0]["strokes"]]}
             if hint:
                 q["h"] = hint
-            made.append((chapter, q))
+            q["_g"] = group
+            made.append(q)
 
     if not made:
         warn.append("〈字根練習〉：一題都沒生出來，練習頁會說還沒挑")
         return None
 
-    glyphs = _practice_glyphs({q["c"] for _, q in made})
-    missing = sorted({q["c"] for _, q in made if q["c"] not in glyphs})
+    glyphs = _practice_glyphs({q["c"] for q in made})
+    missing = sorted({q["c"] for q in made if q["c"] not in glyphs})
     if missing:
         warn.append(f"〈字根練習〉：{len(missing)} 個字沒有字形資料（{''.join(missing)}），"
                     f"那幾題畫不出來")
-    made = [(c, q) for c, q in made if q["c"] in glyphs]
+    made = [q for q in made if q["c"] in glyphs]
 
-    # 每一段切成每關 per_level 題
-    CN = "一二三四五六七八九十"
-    levels, questions = [], []
-    for ci, name in enumerate(chapters):
-        mine = [q for c, q in made if c == ci]
-        if not mine:
-            continue
-        n_parts = (len(mine) + per_level - 1) // per_level
-        for part in range(n_parts):
-            chunk = mine[part * per_level:(part + 1) * per_level]
-            if not chunk:
-                continue
-            label = name if n_parts == 1 else f"{name}（{CN[part] if part < len(CN) else part + 1}）"
-            for q in chunk:
-                q["lv"] = len(levels)
-                questions.append(q)
-            levels.append(label)
-        if len(mine) % per_level:
-            warn.append(f"〈字根練習〉：「{name}」有 {len(mine)} 題，"
-                        f"不是 {per_level} 的倍數，最後一關只有 {len(mine) % per_level} 題")
+    # 一組＝一關
+    groups = sorted({q["_g"] for q in made})
+    for lv, g in enumerate(groups):
+        mine = [q for q in made if q["_g"] == g]
+        for q in mine:
+            q["lv"] = lv
+        if len(mine) < per_level:
+            warn.append(f"〈字根練習〉：第 {lv + 1} 關只有 {len(mine)} 題，"
+                        f"少於過關需要的 {per_level} 題（在 lianxi.md 補幾題）")
+    n_levels = len(groups)
+    for q in made:
+        q.pop("_g", None)
 
     return {"note": "generated by site/tools/build_site_data.py — 手挑清單在 site/content/lianxi.md",
-            "levels": levels, "questions": questions, "glyphs": glyphs}
+            "levels": n_levels, "pass": per_level, "questions": made, "glyphs": glyphs}
 
 
 def load_intent_notes(warn):
@@ -3022,8 +3028,7 @@ def main():
     zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
                      standard=standard, notes=notes)
 
-    lianxi_picks, lianxi_chapters = load_lianxi_picks(warn)
-    lianxi = build_lianxi(lianxi_picks, lianxi_chapters, codes, warn)
+    lianxi = build_lianxi(load_lianxi_picks(warn), codes, warn)
 
     # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
     # 印出來才看得出有沒有對錯位置。找不到的直接警告。
@@ -3188,12 +3193,14 @@ def main():
         kb = (OUT / "lianxi.json").stat().st_size / 1024
         by_lv = {}
         for q in lianxi["questions"]:
-            by_lv.setdefault(q["lv"], []).append(q["c"] + q["L"])
+            by_lv.setdefault(q["lv"], []).append(
+                q["c"] + q["L"] + ("↻" if q.get("h") else ""))
         print(f"lianxi.json 〈字根練習〉{len(lianxi['questions'])} 題 / "
-              f"{len(lianxi['levels'])} 關 / {kb:.0f} KB　手挑，見 site/content/lianxi.md")
-        for i, name in enumerate(lianxi["levels"]):
+              f"{lianxi['levels']} 關 / {kb:.0f} KB　手挑，見 site/content/lianxi.md")
+        for i in range(lianxi["levels"]):
             cs = by_lv.get(i, [])
-            print(f"  第 {i + 1} 關 {name}：{len(cs)} 題（{' '.join(cs)}）")
+            extra = f"，答對 {lianxi['pass']} 題過關" if len(cs) > lianxi["pass"] else ""
+            print(f"  第 {i + 1} 關：{len(cs)} 題{extra}（{' '.join(cs)}）")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
              f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else "")

@@ -23,11 +23,18 @@ let POOL = [
   { c: '檢', L: 'O', g: [[7, 8, 9]], lv: 0 },
   { c: '雪', L: 'E', g: [[8, 9, 10]], lv: 1, h: '水平翻轉' },
 ];
-let LEVELS = ['正著看就像', '轉一下、翻過來才像'];
+let NLEVELS = 2;
+let PASS = 8;                 // 過關要答對幾題（一關可以有更多題，多的是備胎）
 let mastered = {}, seenThisRound = {}, lastKey = '', forcedLevel = null;
 
 eval(cut('keyOf'));
 eval(cut('levelLeft'));
+eval(cut('levelPool'));
+eval(cut('levelGoal'));
+eval(cut('levelScore'));
+eval(cut('levelDone'));
+eval(cut('levelSource'));
+eval(cut('pickFromLevel'));
 eval(cut('pickQuestion'));
 
 /* ── 跑測試 ─────────────────────────────────────────────────────── */
@@ -37,6 +44,19 @@ function ok(label, cond, extra) {
   if (!cond) fails++;
 }
 function reset() { mastered = {}; seenThisRound = {}; lastKey = ''; forcedLevel = null; }
+
+/* ⚠️ 這一項是被咬出來的：用「切一段換一段」的方式改檔案時，很容易留下**同名的
+   第二個函式**（2026-09-01 一天之內 paintLevel、paintAsk 各中一次）。後面那個會
+   蓋掉前面那個，畫面上看起來就是「改了沒反應」，而且沒有任何錯誤訊息。 */
+console.log('檔案本身');
+{
+  const fs = require('fs');
+  const src = fs.readFileSync(
+    process.argv[2] || path.join(__dirname, '..', 'assets', 'lianxi.js'), 'utf8');
+  const names = [...src.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]);
+  const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+  ok('沒有同名的函式被宣告兩次', dupes.length === 0, dupes.join('、'));
+}
 
 console.log('題目的身分');
 ok('同一個字的兩條字根是兩題（key 認得出來）',
@@ -86,7 +106,9 @@ ok('第一關沒做完就不會跑出第二關的題（200 次）', onlyFirst);
 reset();
 POOL.filter(q => q.lv === 0).forEach(q => { seenThisRound[keyOf(q)] = 1; });
 lastKey = '';
-ok('第一關每一題都看過答案之後，換第二關（不必答對）', pickQuestion().q.lv === 1);
+// ⚠️ 只按「看答案」不會過關 —— 過關要**答對** PASS 題。看過一輪還沒答對的會再出
+// 一次；真的不想練這一關，畫面上有「下一關」可以按。
+ok('只看答案不會被推去下一關，沒答對的會再出一次', pickQuestion().q.lv === 0);
 
 reset();
 POOL.forEach(q => { mastered[keyOf(q)] = 1; });
@@ -104,7 +126,34 @@ reset();
 forcedLevel = 1;
 POOL.filter(q => q.lv === 1).forEach(q => { mastered[keyOf(q)] = 1; seenThisRound[keyOf(q)] = 1; });
 lastKey = '';
-ok('鎖住的那一關做完就自己解鎖，回到照順序出', pickQuestion().q.lv === 0 && forcedLevel === null);
+// 「繼續練習這一關」要的就是這個：做完了還留在原地重抽，不會自己被推去下一關
+ok('鎖住的那一關做完之後還是留在那一關（整關重抽）', pickQuestion().q.lv === 1);
+
+reset();
+ok('levelDone：還沒答對就不算過關', !levelDone(0));
+POOL.filter(q => q.lv === 0).forEach(q => { mastered[keyOf(q)] = 1; });
+ok('levelDone：答對足夠題數就過關', levelDone(0) && !levelDone(1));
+
+// ⚠️ 一關可以有比過關題數更多的題（備胎）：答對 PASS 題就過關，不必做完整關
+reset();
+const big = [];
+for (let i = 0; i < 12; i++) big.push({ c: '甲' + i, L: 'A', g: [[0]], lv: 0 });
+const savedPool2 = POOL;
+POOL = big.concat([{ c: '乙', L: 'B', g: [[0]], lv: 1 }]);
+PASS = 8;
+big.slice(0, 7).forEach(q => { mastered[keyOf(q)] = 1; });
+ok('12 題的一關，答對 7 題還沒過關', !levelDone(0) && levelGoal(0) === 8);
+mastered[keyOf(big[7])] = 1;
+ok('答對第 8 題就過關（剩下 4 題是備胎）', levelDone(0));
+lastKey = '';
+ok('過關之後自動出下一關的題（不必把備胎做完）', pickQuestion().q.lv === 1);
+POOL = savedPool2;
+PASS = 8;
+
+reset();
+POOL.filter(q => q.lv === 0).forEach(q => { mastered[keyOf(q)] = 1; });
+lastKey = '';
+ok('pickFromLevel：做完的關照樣抽得出題', pickFromLevel(0).q.lv === 0);
 
 reset();
 ok('levelLeft 只回傳那一關的題', levelLeft(1).length === 1 && levelLeft(0).length === 2);

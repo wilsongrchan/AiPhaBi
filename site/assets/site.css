@@ -3636,6 +3636,43 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
 .xz-ask { text-align: center; font-size: .95rem; margin: 1.2rem 0 1rem; }
 
+/* 「轉轉看」：真的把字根轉過來看（只有要轉、要翻的那些題目才出現）。
+   ⚠️ 轉的是筆畫那一層（.xz-spin），田字格留在原地 —— 格子是參考線，
+   跟著轉就沒有參考的意義了。 */
+.xz-spinbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .3rem 1rem;
+  margin: -.4rem 0 .9rem;
+}
+/* 轉／翻按鈕的小圖示。⚠️ 這一排的按鈕現在是「圖示＋字」，所以 .xz-mini 底下
+   要能排成一列並且垂直對齊 —— 只有這一排這樣，別處的 .xz-mini 仍然是純文字。 */
+.xz-spinbar .xz-mini { display: inline-flex; align-items: center; gap: .3rem; }
+.xz-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+  fill: currentColor;
+}
+/* 鏡面那條虛線：不填色，只描邊 */
+.xz-icon-axis {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-dasharray: 2.4 2.4;
+  opacity: .8;
+}
+
+/* 轉的是**整個田字格**（連格線一起）—— 整塊一起轉，版面上看起來才一致（Wilson）。
+   正方形轉 90° 佔的位置一樣大，所以周圍的東西不會被推。 */
+.xz-tianzi svg {
+  transform-origin: 50% 50%;
+  transition: transform .45s cubic-bezier(.22, .68, 0, 1);
+}
+/* 疊上去的字母要反向轉回來（字母本身當然要正著寫），見 lianxi.js 的 paintSpin */
+.xz-tianzi .xz-letter-fix { transition: transform .45s cubic-bezier(.22, .68, 0, 1); }
+
 /* 26 個字母排成 A–M／N–Z 兩排。整排都在畫面上（不是選項四選一）才是在練
    「這個形狀像哪個字母」；四選一那種題目用刪去法就能猜掉一半。 */
 .xz-pad { display: grid; grid-template-columns: repeat(13, 1fr); gap: .3rem; }
@@ -3781,6 +3818,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .xz-letter.is-in { transform: none; }
   .xz-fill, .xz-tianzi .xz-on, .xz-key { transition: none; }
   .xz-key.is-wrong { animation: none; }
+  .xz-tianzi svg, .xz-tianzi .xz-letter-fix { transition: none; }
 }
 
 /* 從〈字根練習〉連回〈字根表〉時，閃一下被指到的那一列 —— 整張表 366 列，
