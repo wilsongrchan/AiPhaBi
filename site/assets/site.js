@@ -92,7 +92,33 @@
     while ((n = it.nextNode())) if (n.nodeValue.trim() && convertible(n)) fn(n);
   }
 
+  /* ⚠️ placeholder／title／aria-label 是**屬性**，不是文字節點，TreeWalker 走不到
+     它們 —— 切成简體之後，輸入框裡的提示字（「在這裡輸入拼音即可查字」）仍然是
+     繁體（Wilson 2026-08-31 發現）。這裡另外走一遍這幾個屬性，規則跟文字節點
+     一樣：SKIP 標籤與 data-keep 底下的一律不碰。 */
+  var ATTRS = ['placeholder', 'title', 'aria-label'];
+  var origAttr = new WeakMap();      // 元素 -> { 屬性名: 原本的繁體字串 }
+
+  function walkAttrs(root, fn) {
+    var all = root.querySelectorAll('[placeholder], [title], [aria-label]');
+    Array.prototype.forEach.call(all, function (el) {
+      // convertible() 是看文字節點的父鏈，這裡直接看元素自己這條鏈
+      for (var e = el; e && e.nodeType === 1; e = e.parentNode) {
+        if (SKIP[e.tagName] && e !== el) return;
+        if (e.hasAttribute('data-keep')) return;
+      }
+      ATTRS.forEach(function (a) { if (el.hasAttribute(a)) fn(el, a); });
+    });
+  }
+
   function toSimplified(root) {
+    walkAttrs(root, function (el, a) {
+      var store = origAttr.get(el) || {};
+      if (!(a in store)) { store[a] = el.getAttribute(a); origAttr.set(el, store); }
+      var out = '';
+      for (var ch of store[a]) out += (t2s[ch] || ch);
+      if (out !== el.getAttribute(a)) el.setAttribute(a, out);
+    });
     walk(root, function (node) {
       if (!original.has(node)) original.set(node, node.nodeValue);
       var src = original.get(node), out = '';
@@ -103,6 +129,10 @@
   }
 
   function toTraditional(root) {
+    walkAttrs(root, function (el, a) {
+      var store = origAttr.get(el);
+      if (store && a in store) el.setAttribute(a, store[a]);
+    });
     walk(root, function (node) {
       if (original.has(node)) node.nodeValue = original.get(node);
     });

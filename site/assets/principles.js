@@ -82,6 +82,18 @@
   function plainCard(ch) {
     var c = el('div', 'pr-card is-plain');
     c.setAttribute('data-plain', '');
+    /* ⚠️ 佔一格標籤的高度。這張「還沒開始拆」的原字卡沒有 A／B／C 標籤，但走到
+       第三步換成三張有標籤的卡片時，整個方塊會突然高 21px，底下的「下一步」
+       按鈕跟著往下跳 —— 使用者正連續點那顆按鈕，它卻在手指底下移動
+       （Wilson 的朋友回報）。放一個空標籤把那一行的高度先佔住，兩種狀態就一樣高。
+       用真的 .pr-label 元素而不是寫死 min-height：字級控制項（小／中／大）會改
+       rem，寫死的數字會跟著失準，空標籤則自己跟著縮放。 */
+    var ph = el('span', 'pr-label is-placeholder');
+    // 用真的字母而不是空白：&nbsp; 的行高跟拉丁字母差 1px，方塊還是會抖一下
+    ph.textContent = 'A';
+    ph.setAttribute('aria-hidden', 'true');
+    ph.setAttribute('data-keep', '');
+    c.appendChild(ph);
     var icon = el('span', 'pr-icon');
     var strokes = GLYPHS && GLYPHS[ch];
     if (strokes) {
@@ -94,6 +106,15 @@
       icon.setAttribute('data-keep', '');
     }
     c.appendChild(icon);
+    /* 同理，把碼那一列的高度也佔住（有標籤的卡片下面是 .pr-coderow：判定圓點
+       ＋碼）。標籤佔住上面那一行、這個佔住下面那一行，兩種卡片的結構就完全
+       一樣，任何字級底下高度都相等 —— 不必再用 padding 去湊。 */
+    var cr = el('span', 'pr-coderow is-placeholder');
+    cr.setAttribute('aria-hidden', 'true');
+    cr.setAttribute('data-keep', '');
+    var m = el('span', 'pr-mark'); cr.appendChild(m);
+    var cd = el('span', 'pr-code'); cd.textContent = 'A'; cr.appendChild(cd);
+    c.appendChild(cr);
     c.title = ch + '（尚未拆碼）';
     c.setAttribute('data-keep', '');
     return c;

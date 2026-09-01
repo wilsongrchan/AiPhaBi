@@ -2130,6 +2130,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    讀者「等一下會有三個東西」。 */
 .pr-card.is-unborn, .pr-example.is-unborn { display: none; }
 
+/* 原字卡上那個佔位標籤：只佔高度，不要被看見，也不要被選取或被朗讀。
+   不能用 display:none／height:0 —— 那就不佔高度了，整件事就白做了。 */
+.pr-label.is-placeholder { visibility: hidden; user-select: none; }
+
 /* 判定為錯的拆法：**筆畫也一起淡掉**，不是只有底下的碼淡掉（Wilson）。
    用的就是碼那邊本來已經在用的手法（.pr-code span 的 opacity: .55），同一個值，
    兩邊看起來才是同一件事。顏色留著不動 —— 分組是靠顏色看的，而「哪幾筆併成
@@ -2140,7 +2144,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    高度比後面三張卡片矮（少了標籤和碼那兩行），補上等高的留白，換到第 3 步時
    方塊不會忽然抽高一截 —— 它是黏在頂端的，抽高會把整段內文往下推。 */
 .zg-altsvg path.ink { fill: var(--ink); }
-.pr-card.is-plain { padding-block: .9rem; }
+/* 原字卡不再用 padding 去湊高度 —— 上下兩行的佔位元素（見 principles.js 的
+   plainCard）已經讓它跟有標籤的卡片結構一致，padding 反而會多出來。 */
+.pr-coderow.is-placeholder { visibility: hidden; user-select: none; }
 
 /* 〈原則套用順序〉：原則名稱自成一行、說明另起一行（Wilson）。
    名稱後面的「：」跟著拿掉 —— 冒號掛在行尾沒有東西接，看起來像斷句斷掉了。
