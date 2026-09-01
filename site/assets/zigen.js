@@ -62,52 +62,14 @@
   }
 
   /* ---------- 把字根畫出來 ----------
-   * 做法跟標註工具的 rootIconSvg 一樣：只畫選中的那幾筆，並裁切到它們的範圍，
-   * 免得三筆的字根在整個字身框裡變成一個小點。
-   * makemeahanzi 的路徑是 y 軸朝上的 1024 em 框，所以要套同一個翻轉。 */
-  var SVG_TF = 'scale(1,-1) translate(0,-900)';
-  var ROOT_PAD = 40;
+   * rootIconSvg 本體搬去 assets/glyphbox.js 了（2026-09-01）——〈字根練習〉揭曉
+   * 那一格要畫同一種字根圖示，而它的尺寸規則調過好幾輪，是最不該有第二份的東西。
+   * 這裡只接一個同名的區域變數，底下原本的呼叫端一個字都不用改。
+   * glyphbox.js 沒載到就回傳 null，describeShape 那幾處本來就處理得了 null，
+   * 整頁退回文字版而不是整支拋例外。 */
+  var SVG_TF = (window.ZG && window.ZG.FLIP) || 'scale(1,-1) translate(0,-900)';
+  var rootIconSvg = (window.ZG && window.ZG.rootIcon) || function () { return null; };
   var GLYPHS = null;                  // glyphs.json 較大，延後載入；沒有就維持文字版
-
-  function rootIconSvg(strokes, sel) {
-    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
-    for (var k = 0; k < sel.length; k++) {
-      var d = strokes[sel[k]];
-      if (!d) continue;
-      var m;
-      re.lastIndex = 0;
-      while ((m = re.exec(d))) {
-        var x = +m[1], y = 900 - (+m[2]);      // 還原 y 翻轉
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
-      }
-    }
-    if (x1 < x0) return null;
-
-    // viewBox 的**大小固定成整個字身框（1024）**，只移動位置把字根置中。
-    // 這樣字根欄的黑色字根，跟字例欄裡同一個形狀的橙色部分是**同一個比例**——
-    // 先前是裁切到字根自己的邊界再放大，於是每個字根各自放大不同倍率：
-    // 兩筆的字根被撐得很大、六筆的偏小（然 明顯比 月 小就是這樣來的），
-    // 而且跟字例欄裡的大小完全對不上。置中則解決「貓 的字根偏在上方」。
-    // 字根欄要的是「一排大小一致、看得清楚的形狀」，不是「忠實反映它在字裡佔多大」——
-    // 佔比忠實的話 豹 的字根只有 11px、月 有 20px，同一欄裡差快兩倍，看起來就是亂的。
-    //
-    // 所以把每個字根放大到至少佔框的 85%：實測大小收斂成 21.1–22.9px（1.1 倍極差），
-    // 而 月 本來就佔得多，只從 20.3 變 21.1px，跟字例欄裡的橙色 月 仍然一樣大。
-    // 框的大小仍以字身框為上限，所以佔滿整個字的字根不會被切掉。
-    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    var span = Math.max(x1 - x0, y1 - y0);
-    var BOX = Math.min(1024, span / 0.85) || 1024;
-    var paths = '';
-    for (var j = 0; j < sel.length; j++) {
-      if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
-    }
-    return '<svg class="zg-svg" viewBox="' + (cx - BOX / 2) + ' ' + (cy - BOX / 2) +
-      ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
-      '<g transform="' + SVG_TF + '">' + paths + '</g></svg>';
-  }
 
   /* 整個字都畫出來，屬於這個字根的筆畫塗深、其餘塗淺。
    * 這是標註工具 fillExampleCell 的做法，也是「元件分開、上色」的那個效果。
@@ -269,7 +231,13 @@
         tr.appendChild(ex);
 
         // 每個字根一個 id，讓〈相近字形辨析〉的「字形」欄連得過來
-        if (!tr.id) tr.id = 'Z' + L.letter + '-' + (sh.src || '') + '-' + (sh.span || '');
+        // ⚠️ 每個字母的**第一列**上面已經拿到 'L<字母>' 這個 id 了，一個元素只能有
+        // 一個 id，所以那一列的 Z 錨點會落空 —— 外面連進來（〈字根練習〉的「在字根表
+        // 看這一條」）指到的正好常常是第一列。所以另外一律掛一份 data-zid，
+        // gotoHash() 兩種都認。
+        var zid = 'Z' + L.letter + '-' + (sh.src || '') + '-' + (sh.span || '');
+        tr.setAttribute('data-zid', zid);
+        if (!tr.id) tr.id = zid;
         rows.push(tr);
       });
     });
@@ -615,6 +583,32 @@
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(body);
   }
 
+  /* 從別頁連進來的錨點 —— 〈字根練習〉揭曉時會給一條「在字根表看這一條」。
+     ⚠️ 表格是 fetch 回來才畫的：瀏覽器自己處理錨點是在載入當下，那時候頁面上
+     還沒有這個 id，所以什麼都不會發生（看起來像連結壞了，其實是時機問題）。
+     這裡在畫完之後自己捲一次，並且閃一下讓人知道是哪一列 —— 整張表 366 列，
+     只把它捲到視窗頂端還是找不到。
+     錨點裡有中文（ZA-夕-whole），location.hash 拿到的是編碼過的字串。 */
+  function gotoHash() {
+    var raw = location.hash.slice(1);
+    if (!raw) return;
+    var id;
+    try { id = decodeURIComponent(raw); } catch (e) { id = raw; }
+    var target = document.getElementById(id);
+    if (!target) {
+      var rows = box.querySelectorAll('[data-zid]');
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].getAttribute('data-zid') === id) { target = rows[i]; break; }
+      }
+    }
+    if (!target) return;
+    target.scrollIntoView({ block: 'start' });
+    target.classList.add('is-flash');
+    window.setTimeout(function () { target.classList.remove('is-flash'); }, 2600);
+  }
+
+  window.addEventListener('hashchange', gotoHash);
+
   /* 字形資料 1.6MB，比字根表本身大得多，所以先把表畫出來（文字版看得懂），
    * 拿到之後再重畫一次補上圖。網路慢或抓不到就一直是文字版，不會空白。 */
   function loadGlyphs() {
@@ -624,6 +618,7 @@
         if (!g || !g.glyphs) return;
         GLYPHS = g.glyphs;
         render(lastFilter);
+        gotoHash();                     // 重畫換掉了整個 tbody，錨點那一列要重找
         // 辨析那一節的「字形」欄也要跟著重畫 —— 它一樣要靠 GLYPHS 才畫得出
         // 「石#1,2」這種打不出來的字根，只重畫表格的話它會永遠停在文字退路上
         renderSimilar(DATA.similar);
@@ -642,6 +637,7 @@
       DATA = d;
       renderSimilar(d.similar);
       render('');
+      gotoHash();
       loadGlyphs();
     })
     .catch(function () {

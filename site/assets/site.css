@@ -1983,7 +1983,12 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   /* 窄螢幕：品牌 → 導覽連結 → 繁簡／字級，橫排。桌面版的 DOM 順序是品牌／控制項／
      導覽（控制項擺在「AiPhaBi」下面），這裡用 order 把控制項挪到橫列最右側，
      不用改 HTML 順序。 */
-  nav.site { flex-direction: row; width: auto; gap: 1rem; margin-inline-end: auto; order: 1; }
+  /* ⚠️ flex-wrap 是必要的，不是保險：橫排的導覽在手機上量出來有 715px（zigen 那
+     幾頁掛了章節清單更寬，893px），視窗只有 390px —— 不換行的話**整個頁面**跟著
+     被撐寬，每一頁都可以左右滑，正文的右邊被切掉。這是十一頁一起的毛病，
+     2026-09-01 加〈字根練習〉時量出來（那一條連結又多了 60px）。 */
+  nav.site { flex-direction: row; flex-wrap: wrap; width: auto; gap: .5rem 1rem;
+             margin-inline-end: auto; order: 1; }
   nav.site a { padding: .2rem 0; border-radius: 0; border-inline-start: 0;
                border-bottom: 2px solid transparent; }
   nav.site a[aria-current="page"] { background: none; border-bottom-color: var(--accent); }
@@ -3549,4 +3554,197 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   font-size: var(--credit-size);
   color: var(--ink-faint);
   line-height: 1.7;
+}
+
+/* ---------------------------------------------------------------------------
+   〈字根練習〉（lianxi.html）
+   一次一條字根：標出它在字裡的筆畫，問它像哪個英文字母。整頁只有一件事要做，
+   所以版面窄、置中，跟首頁的〈猜猜看〉是同一種節奏。
+   ⚠️ 這一節整段排在檔案**最後面**是刻意的：底下要蓋掉 .zg-key（揭曉那顆大鍵帽）
+   跟 .short-toggle（設定那一排）的既有值，兩邊都是一個 class 的權重，同權重靠
+   出現順序決勝負 —— 插在檔案中間就會靜靜地輸掉（這個檔案已經因為這件事被咬過
+   四次，見〈拆碼查詢〉那一節的註解）。
+   --------------------------------------------------------------------------- */
+
+.xz-wrap { max-width: 34rem; margin: 1.8rem auto 0; }
+
+.xz-loading { text-align: center; color: var(--ink-dim); font-size: .9rem; padding: 3.5rem 0; }
+
+/* 進度條：答對過幾條 / 這個範圍裡共幾條。⚠️ 只算「第一次就答對、沒用提示」的，
+   用了提示或猜錯過都不記 —— 虛報的進度條比沒有進度條還糟（見 lianxi.js 的 hint）。 */
+.xz-bar {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  font-size: .78rem;
+  color: var(--ink-dim);
+  margin-bottom: 1.4rem;
+}
+.xz-bar-t { white-space: nowrap; }
+.xz-bar b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.xz-track {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.xz-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width .45s ease;
+}
+
+/* 題目那一格。田字格本身的長相全部沿用 .tianzi（見上面那一節），這裡只調大小、
+   以及「這幾筆是字根」的上色 —— 顏色跟〈字根表〉字例欄同一套（--zg-on／--zg-off），
+   兩頁講的是同一件事，不該長得不一樣。 */
+.xz-tianzi { max-width: 15rem; }
+.xz-tianzi .xz-dim { fill: var(--zg-off); }
+.xz-tianzi .xz-on { fill: var(--zg-on); transition: opacity .5s ease; }
+/* 同一條字根在一個字裡出現第二、第三次時深一階（朋＝月月）。⚠️ 這兩條要排在
+   .xz-on 後面：同樣是一個 class 的權重，靠順序贏。 */
+.xz-tianzi .xz-on-2 { fill: var(--zg-on-2); }
+.xz-tianzi .xz-on-3 { fill: var(--zg-on-3); }
+/* 揭曉：字根的筆畫淡下去，字母在同一個位置浮上來（位置是 ZG.rootBox 從那幾筆
+   真正的座標算的，不是目測）。讀起來是「這幾筆就是這個字母」—— 首頁那段拆件
+   動畫反過來講一次。 */
+.xz-tianzi.is-revealed .xz-on { opacity: .28; }
+.xz-letter {
+  opacity: 0;
+  transform: scale(.55);
+  transition: opacity .4s ease, transform .5s cubic-bezier(.34, 1.4, .64, 1);
+}
+.xz-letter.is-in { opacity: 1; transform: scale(1); }
+.xz-letter text { fill: var(--zg-on); }
+
+.xz-ask { text-align: center; font-size: .95rem; margin: 1.2rem 0 1rem; }
+
+/* 26 個字母排成 A–M／N–Z 兩排。整排都在畫面上（不是選項四選一）才是在練
+   「這個形狀像哪個字母」；四選一那種題目用刪去法就能猜掉一半。 */
+.xz-pad { display: grid; grid-template-columns: repeat(13, 1fr); gap: .3rem; }
+.xz-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.3rem;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, opacity .2s ease;
+}
+.xz-key:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.xz-key:disabled { cursor: default; }
+/* 猜錯的那顆留在原位、但按不動 —— 拿掉會讓整排跳動，而「我剛剛猜過哪幾個」
+   本身就是有用的資訊。 */
+.xz-key.is-wrong {
+  background: none;
+  border-color: transparent;
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+.xz-key.is-dim { opacity: .22; }
+.xz-key.is-right {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.xz-under { display: flex; justify-content: center; gap: 1.4rem; margin-top: .9rem; }
+/* 答完之後這一排按不動了，但**位置要留著** —— 收掉的話底下整塊往上跳，
+   使用者的游標正停在剛按過的那顆字母鍵上（見 lianxi.js 的 reveal）。 */
+.xz-under.is-spent { visibility: hidden; }
+.xz-mini {
+  background: none;
+  border: 0;
+  padding: .2rem 0;
+  font: inherit;
+  font-size: .8rem;
+  color: var(--ink-dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.xz-mini:hover:not(:disabled) { color: var(--accent); }
+.xz-mini:disabled { color: var(--ink-faint); text-decoration: none; cursor: default; opacity: .6; }
+
+.xz-reveal { margin-top: 1.3rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
+.xz-verdict { text-align: center; font-size: .9rem; color: var(--ink-dim); margin: 0 0 1rem; }
+.xz-verdict.is-right { color: var(--accent); font-weight: 600; }
+
+.xz-ansrow { display: flex; align-items: flex-start; gap: 1rem; }
+/* ⚠️ 蓋掉 .zg-key 的 1.8rem 見方 —— 同權重，靠排在它後面贏（見本節開頭）。 */
+.xz-bigkey { flex: none; min-width: 3rem; height: 3rem; font-size: 1.75rem; }
+.xz-ansbody { flex: 1; min-width: 0; }
+.xz-ansbody p { margin: 0 0 .4rem; line-height: 1.7; }
+.xz-desc { font-size: .9rem; color: var(--ink); }
+.xz-desc.is-todo { color: var(--ink-faint); }
+.xz-src, .xz-code { font-size: .82rem; color: var(--ink-dim); }
+.xz-src { display: flex; align-items: center; gap: .4rem; }
+.xz-srcicon { display: inline-flex; width: 1.5rem; height: 1.5rem; flex: none; }
+.xz-srcicon svg { width: 100%; height: 100%; fill: var(--ink); }
+.xz-code { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+
+.xz-nextrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-top: 1.3rem;
+}
+.xz-link { font-size: .82rem; }
+
+/* 設定那一排沿用試打頁的 .short-toggle／.chk-toggle，不另開一套長相。
+   .short-toggle 本身帶 margin-bottom: .8rem，而且還有一條
+   `.short-toggle + .short-toggle { margin-top: -.35rem }`（那是給試打頁**上下
+   堆疊**用的），兩者都會讓這裡橫排的兩組開關對不齊同一條線。
+   ⚠️ 兩條選擇器都要寫。本節排在那兩條後面，同權重後來者贏，所以蓋得掉 ——
+   但哪天這一節被搬到檔案中間，只寫其中一條就會靜靜地只蓋到第一組
+   （〈拆碼查詢〉那一節就是為了這件事才把相鄰形式整條寫出來的）。 */
+.xz-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem 2.2rem;
+  margin-top: 2.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+.xz-opts > .short-toggle,
+.xz-opts > .short-toggle + .short-toggle { margin: 0; }
+
+.xz-foot { max-width: 34rem; margin: 2.4rem auto 0; font-size: .85rem; color: var(--ink-dim); }
+
+@media (max-width: 34rem) {
+  /* 手機上 13 欄一顆鍵只剩 20px 出頭，按不到 —— 收成 7 欄（4 排）。 */
+  .xz-pad { grid-template-columns: repeat(7, 1fr); gap: .35rem; }
+  .xz-bar { flex-wrap: wrap; }
+  .xz-track { order: 3; flex-basis: 100%; }
+}
+
+/* 「減少動態效果」：位移與縮放全部拿掉，只留下最後的狀態。字母照樣要出現 ——
+   那是這一頁的答案本身，不是裝飾（跟首頁那段動畫踩過的坑一樣，見 landing.js）。 */
+@media (prefers-reduced-motion: reduce) {
+  .xz-letter { transition: none; transform: none; }
+  .xz-letter.is-in { transform: none; }
+  .xz-fill, .xz-tianzi .xz-on, .xz-key { transition: none; }
+}
+
+/* 從〈字根練習〉連回〈字根表〉時，閃一下被指到的那一列 —— 整張表 366 列，
+   只把它捲到視窗頂端還是找不到（見 zigen.js 的 gotoHash）。 */
+.zg-tbl tbody tr.is-flash > td { animation: zg-flash 2.4s ease-out; }
+@keyframes zg-flash {
+  0%, 55% { background: var(--accent-soft); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zg-tbl tbody tr.is-flash > td { animation: none; background: var(--accent-soft); }
 }
