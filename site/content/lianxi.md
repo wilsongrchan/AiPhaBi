@@ -47,3 +47,7 @@ python3 site/tools/preview.py
 吓 = O F
 怎 = K
 去 = G
+區 = C
+十 = T
+學 = X
+兒 = L
