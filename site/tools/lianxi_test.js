@@ -1,9 +1,9 @@
 /* 〈字根練習〉出題邏輯的單元測試：node site/tools/lianxi_test.js
  *
- * 測的是 lianxi.js 的 keyOf／pickQuestion／spanText —— 「下一題該問哪一題」跟
- * 「取自『會』第 1–3 筆」那句話怎麼寫出來。畫面的部分（田字格、字母疊上去、
- * 猜錯變紅、三次自動揭曉）用無頭瀏覽器看得出來，這幾支看不出來：它們是機率性
- * 或純字串的，跑一次正確不代表下一次正確。
+ * 測的是 lianxi.js 的 keyOf／levelLeft／pickQuestion —— 「下一題該問哪一題、
+ * 現在該在第幾關」。畫面的部分（田字格、字母疊上去、猜錯變紅、三次自動揭曉）
+ * 用無頭瀏覽器看得出來，這幾支看不出來：它們是機率性的，跑一次正確不代表
+ * 下一次正確。
  *
  * ⚠️ 切的是 lianxi.js 本尊，不是抄一份（見 cut_fn.js）。抄一份就會跟本尊分岔，
  * 測到的是抄本，比沒有測試更糟。
@@ -17,22 +17,18 @@ const path = require('path');
 const cut = require('./cut_fn').loadTry(
   process.argv[2] || path.join(__dirname, '..', 'assets', 'lianxi.js'));
 
-/* ── 替身：三題，兩題同一個字 ───────────────────────────────────── */
+/* ── 替身：兩關，第一關兩題（同一個字的兩條字根）、第二關一題 ─────────── */
 let POOL = [
-  { c: '檢', L: 'A', g: [[4, 5, 6]], d: '「人」下有一橫或一點', code: 'TAOOY',
-    src: '會', sst: [0, 1, 2] },
-  { c: '檢', L: 'O', g: [[7, 8, 9], [10, 11, 12]], d: '「口」字及類似字形', code: 'TAOOY',
-    src: '口', sst: [0, 1, 2] },
-  { c: '虐', L: 'E', g: [[6, 7, 8]], d: '上下皆橫', code: 'RE',
-    src: '虐', sst: [6, 7, 8] },
+  { c: '檢', L: 'A', g: [[4, 5, 6]], lv: 0 },
+  { c: '檢', L: 'O', g: [[7, 8, 9]], lv: 0 },
+  { c: '雪', L: 'E', g: [[8, 9, 10]], lv: 1, h: '水平翻轉' },
 ];
-let GLYPHS = { 檢: new Array(17).fill('d'), 虐: new Array(9).fill('d'),
-               會: new Array(13).fill('d'), 口: ['a', 'b', 'c'] };
-let mastered = {}, lastKey = '';
+let LEVELS = ['正著看就像', '轉一下、翻過來才像'];
+let mastered = {}, seenThisRound = {}, lastKey = '', forcedLevel = null;
 
 eval(cut('keyOf'));
+eval(cut('levelLeft'));
 eval(cut('pickQuestion'));
-eval(cut('spanText'));
 
 /* ── 跑測試 ─────────────────────────────────────────────────────── */
 let fails = 0;
@@ -40,7 +36,7 @@ function ok(label, cond, extra) {
   console.log((cond ? '  ok   ' : '  ✗ FAIL ') + label + (cond || extra === undefined ? '' : '  ' + extra));
   if (!cond) fails++;
 }
-function reset() { mastered = {}; lastKey = ''; }
+function reset() { mastered = {}; seenThisRound = {}; lastKey = ''; forcedLevel = null; }
 
 console.log('題目的身分');
 ok('同一個字的兩條字根是兩題（key 認得出來）',
@@ -72,7 +68,8 @@ for (let i = 0; i < 300; i++) {
   seen[prev] = 1;
 }
 ok('連續兩題不會撞同一題（300 次）', !repeated);
-ok('每一題都摸得到', Object.keys(seen).length === 3, Object.keys(seen).length);
+// ⚠️ 這一關的每一題都摸得到就對了 —— 有關卡之後不該摸到下一關的題
+ok('這一關的每一題都摸得到', Object.keys(seen).length === 2, Object.keys(seen).length);
 
 reset();
 const savedPool = POOL;
@@ -80,13 +77,37 @@ POOL = [];
 ok('一題都沒有時回傳 null（頁面會說還沒挑，不是拋例外）', pickQuestion() === null);
 POOL = savedPool;
 
-console.log('「取自…」那句話');
-ok('整個字', spanText('口', [0, 1, 2]) === '整個字', spanText('口', [0, 1, 2]));
-ok('連號寫成範圍', spanText('會', [0, 1, 2]) === '第 1–3 筆', spanText('會', [0, 1, 2]));
-ok('單獨一筆', spanText('會', [4]) === '第 5 筆', spanText('會', [4]));
-ok('不連號逐一列出', spanText('會', [0, 1, 5]) === '第 1、2、6 筆', spanText('會', [0, 1, 5]));
-ok('沒有筆序就不講', spanText('會', []) === '');
-ok('筆序沒排好也算得對', spanText('會', [2, 0, 1]) === '第 1–3 筆', spanText('會', [2, 0, 1]));
+console.log('關卡');
+reset();
+let onlyFirst = true;
+for (let i = 0; i < 200; i++) { lastKey = ''; if (pickQuestion().q.lv !== 0) onlyFirst = false; }
+ok('第一關沒做完就不會跑出第二關的題（200 次）', onlyFirst);
+
+reset();
+POOL.filter(q => q.lv === 0).forEach(q => { seenThisRound[keyOf(q)] = 1; });
+lastKey = '';
+ok('第一關每一題都看過答案之後，換第二關（不必答對）', pickQuestion().q.lv === 1);
+
+reset();
+POOL.forEach(q => { mastered[keyOf(q)] = 1; });
+lastKey = '';
+ok('全部答對過之後照樣出得了題', !!pickQuestion());
+
+reset();
+// 「下一關」把它鎖在指定那一關
+forcedLevel = 1;
+let stayed = true;
+for (let i = 0; i < 100; i++) { lastKey = ''; if (pickQuestion().q.lv !== 1) stayed = false; }
+ok('按過「下一關」之後鎖在那一關', stayed);
+
+reset();
+forcedLevel = 1;
+POOL.filter(q => q.lv === 1).forEach(q => { mastered[keyOf(q)] = 1; seenThisRound[keyOf(q)] = 1; });
+lastKey = '';
+ok('鎖住的那一關做完就自己解鎖，回到照順序出', pickQuestion().q.lv === 0 && forcedLevel === null);
+
+reset();
+ok('levelLeft 只回傳那一關的題', levelLeft(1).length === 1 && levelLeft(0).length === 2);
 
 console.log(fails ? `\n${fails} 項失敗` : '\n全部通過');
 process.exit(fails ? 1 : 0);

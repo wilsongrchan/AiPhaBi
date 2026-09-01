@@ -3624,6 +3624,16 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .xz-letter.is-in { opacity: 1; transform: scale(1); }
 .xz-letter text { fill: var(--zg-on); }
 
+/* 關卡名稱 —— 一直掛在題目上方。第二關的名稱本身就是那一關的提示
+   （「轉一下、翻過來才像」），所以它不能只在答完才出現。 */
+.xz-chapter {
+  text-align: center;
+  font-size: .78rem;
+  color: var(--ink-faint);
+  margin: 0 0 .8rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .xz-ask { text-align: center; font-size: .95rem; margin: 1.2rem 0 1rem; }
 
 /* 26 個字母排成 A–M／N–Z 兩排。整排都在畫面上（不是選項四選一）才是在練

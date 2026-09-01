@@ -92,6 +92,11 @@
         <span class="xz-bar-t">連續 <b id="xz-streak" data-keep>0</b></span>
       </div>
 
+      <!-- 關卡名稱。第二關叫「轉一下、翻過來才像」—— 那個名稱**本身就是提示**
+           （Wilson 2026-09-01：那一關要先講一聲才公平），所以它一直掛在題目上方，
+           不是答完才出現的東西。關卡名稱寫在 site/content/lianxi.md 裡。 -->
+      <p class="xz-chapter" id="xz-chapter"></p>
+
       <!-- 題目：整個字都畫出來，屬於這一條字根的筆畫上色、其餘塗淺。
            畫的是真正的筆畫輪廓（跟〈字根表〉字例欄同一份資料），不是系統字型 ——
            系統字型畫不出「這幾筆是一組」。揭曉時字母會疊到字根正上方（見
@@ -122,23 +127,9 @@
       <div class="xz-nav">
         <button type="button" class="btn btn-ghost" id="xz-prev">← 上一題</button>
         <button type="button" class="btn btn-ghost" id="xz-skip">跳過 →</button>
+        <button type="button" class="btn btn-ghost" id="xz-level">下一關 ⇢</button>
       </div>
 
-      <div class="xz-reveal" id="xz-reveal" hidden>
-        <div class="xz-ansrow">
-          <span class="zg-key xz-bigkey" id="xz-key" data-keep></span>
-          <div class="xz-ansbody">
-            <p class="xz-desc" id="xz-desc"></p>
-            <!-- ⚠️ 取自字與例字一律 data-keep：字根是對**繁體字形**的某幾筆的主張，
-                 轉成简體整句就開始說謊（跟〈字根表〉同一條規矩，見 zigen.js 檔頭）。 -->
-            <p class="xz-src"><span class="xz-srcicon" id="xz-srcicon" data-keep></span><span id="xz-srctext" data-keep></span></p>
-            <p class="xz-code" id="xz-code" data-keep></p>
-          </div>
-        </div>
-        <div class="xz-nextrow">
-          <a class="xz-link" id="xz-link" href="zigen.html">在字根表看這一條</a>
-        </div>
-      </div>
     </div>
 
     <div class="xz-opts" id="xz-opts" hidden>
