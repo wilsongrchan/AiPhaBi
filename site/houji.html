@@ -8,6 +8,21 @@
 <!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
      16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
      仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
+<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
+     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
+     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
+     抓預覽的機器人不會幫你補上網域。 -->
+<link rel="canonical" href="https://www.aiphabi.com/houji.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/houji.html">
+<meta property="og:title" content="後記 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="愛發筆輸入法的緣起：2020 年夏天的一個念頭，擱下五年，2026 年重新做起來。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
 <!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
