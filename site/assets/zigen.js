@@ -21,6 +21,32 @@
   var DATA = null;
   var lastFilter = '';
 
+  /* 查字時順便把那個字的**碼**講出來。原本只回答「這個字有沒有被選為某個字根的
+     例字」，答案常常是零 —— 例字每個字根只挑四個，`seen` 也只是抽樣（實測某個
+     字根 count=81 但 seen 只有 24 個）。所以 屦（RJYVJ）查出來是「0 個字根」，
+     龙（XCQ）只查得到 C，看起來像沒收錄，其實兩個字都早就取好碼了
+     （Wilson 2026-08-31）。
+     ⚠️ 這裡**不宣稱**是哪幾條字根 —— 從碼只知道字母，不知道那個字母底下的哪一
+     條形狀，那要逐筆比對字形才算得出來，站上沒有那份資料。與其猜一個可能錯的
+     答案，不如把碼講清楚，再指去〈拆碼查詢〉看逐筆拆解。
+     dict.json 有 240KB，查第一個字時才抓。 */
+  var MAIN = null, mainState = null;
+
+  function loadMain(after) {
+    if (mainState === 'ready') { after && after(); return; }
+    if (mainState === 'loading') return;
+    mainState = 'loading';
+    fetch('assets/dict.json')
+      .then(function (r) { return r.json(); })
+      .then(function (d) { MAIN = d.main || null; mainState = 'ready'; after && after(); })
+      .catch(function () { mainState = null; });     // 失敗就下次再試，不擋查詢
+  }
+
+  function codeOf(ch) {
+    var c = MAIN && MAIN[ch];
+    return c ? c.toUpperCase() : '';
+  }
+
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -276,16 +302,33 @@
     tw.appendChild(t);
 
     if (!shown) {
-      box.appendChild(el('p', 'zg-loading',
-        '沒有字根用到「' + filter + '」。可能是這個字還沒取碼，或它不在例字裡。'));
+      var code = codeOf(filter);
+      var p = el('p', 'zg-loading');
+      if (code) {
+        p.appendChild(document.createTextNode('「' + filter + '」的碼是 '));
+        var b = el('strong', null, code);
+        b.setAttribute('data-keep', '');
+        p.appendChild(b);
+        p.appendChild(document.createTextNode('。它沒有被選為任何字根的例字（例字每條字根只挑幾個），所以這張表沒有東西可以標。想看它逐筆怎麼拆，到'));
+        var a = el('a', null, '拆碼查詢');
+        a.href = 'chaima.html';
+        p.appendChild(a);
+        p.appendChild(document.createTextNode('。'));
+      } else {
+        p.textContent = '沒有字根用到「' + filter + '」，這個字也還沒取碼。';
+      }
+      box.appendChild(p);
     } else {
       box.appendChild(tw);
     }
 
     if (status) {
-      status.textContent = filter
-        ? '「' + filter + '」出現在 ' + shown + ' 個字根的例字裡（' + letters.join('、') + '）'
-        : '';
+      var code = filter ? codeOf(filter) : '';
+      status.textContent = !filter ? ''
+        : (shown
+            ? '「' + filter + '」出現在 ' + shown + ' 個字根的例字裡（' + letters.join('、') + '）'
+            : '「' + filter + '」沒有出現在任何字根的例字裡')
+          + (code ? '　·　它的碼是 ' + code : '');
     }
 
     if (jump) {
@@ -614,6 +657,8 @@
       var first = '';
       for (var ch of q.value.trim()) { first = ch; break; }
       render(first);
+      // 碼表還沒到就先畫沒有碼的版本，到了之後補畫一次
+      if (first) loadMain(function () { render(lastFilter); });
     });
   }
 })();
