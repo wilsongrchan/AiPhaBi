@@ -110,6 +110,7 @@
       <div class="xz-spinbar" id="xz-spinbar" hidden>
         <button type="button" class="xz-mini" id="xz-cw"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(24,0) scale(-1,1)"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></g></svg>順轉 90°</button>
         <button type="button" class="xz-mini" id="xz-ccw"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>逆轉 90°</button>
+        <button type="button" class="xz-mini" id="xz-ccw45"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>逆轉 45°</button>
         <button type="button" class="xz-mini" id="xz-flipy"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5h16V3z"/><path d="M4 13.5h16V21z" opacity=".45"/><path class="xz-icon-axis" d="M2 12h20"/></svg>上下翻轉</button>
         <button type="button" class="xz-mini" id="xz-flipx"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4v16H3z"/><path d="M13.5 4v16H21z" opacity=".45"/><path class="xz-icon-axis" d="M12 2v20"/></svg>左右翻轉</button>
         <button type="button" class="xz-mini" id="xz-reset-spin" hidden><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V5l-5 4.5L8 14v-3h5.5a3.5 3.5 0 0 1 0 7H9v2h4.5a5.5 5.5 0 0 0 0-11z"/></svg>還原</button>
@@ -133,6 +134,9 @@
         <!-- 這一關十題全部答對之後，「下一題」換成這兩顆（Wilson 2026-09-01）——
              做完一關是一件事，該讓人挑接下來要幹嘛，而不是默默把他推進下一關。 -->
         <button type="button" class="btn btn-primary" id="xz-nextlv" hidden>下一關 →</button>
+        <!-- 最後一關過了就沒有「下一關」可去，改成把人送去字根表（Wilson 2026-09-01）。
+             這一頁只練手挑的那幾條，整張表在那邊。 -->
+        <a class="btn btn-primary" id="xz-tozigen" href="zigen.html" hidden>去字根表學習所有字根！</a>
         <button type="button" class="btn btn-ghost" id="xz-stay" hidden>繼續練習這一關</button>
       </div>
 

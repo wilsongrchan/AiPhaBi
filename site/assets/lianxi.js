@@ -40,6 +40,7 @@
   var spinBar = document.getElementById('xz-spinbar');
   var cwBtn = document.getElementById('xz-cw');
   var ccwBtn = document.getElementById('xz-ccw');
+  var ccw45Btn = document.getElementById('xz-ccw45');
   var flipXBtn = document.getElementById('xz-flipx');
   var flipYBtn = document.getElementById('xz-flipy');
   var unspinBtn = document.getElementById('xz-reset-spin');
@@ -53,6 +54,7 @@
   var levelBtn = document.getElementById('xz-level');
   var nextLvBtn = document.getElementById('xz-nextlv');
   var stayBtn = document.getElementById('xz-stay');
+  var toZigenBtn = document.getElementById('xz-tozigen');
   var resetBtn = document.getElementById('xz-reset');
   var doneEl = document.getElementById('xz-done');
   var totalEl = document.getElementById('xz-total');
@@ -96,10 +98,10 @@
      想再看一眼剛才的答案，所以連「當時揭曉了沒」一起記，重新問一次等於把他要的
      東西收走。 */
   var history = [], histPos = -1;
-  /* 「轉轉看」的狀態：rot 是 0/1/2/3（各順轉 90°），fx／fy 是左右／上下翻
+  /* 「轉轉看」的狀態：deg 是角度（0–359，一律 45 的倍數），fx／fy 是左右／上下翻
      （1 或 -1）。只有寫了提示的題目（要轉、要翻才看得出來的）才給這排按鈕。
      每換一題就歸零。 */
-  var rot = 0, fx = 1, fy = 1;
+  var deg = 0, fx = 1, fy = 1;
 
   function keyOf(q) { return q.c + '|' + q.L; }
 
@@ -204,17 +206,23 @@
      .xz-letter-fix）—— 字根轉過去之後像哪個字母，那個字母本身當然要正著寫。 */
   function paintSpin() {
     var svg = stage.querySelector('svg');
-    var t = 'rotate(' + (rot * 90) + 'deg) scale(' + fx + ',' + fy + ')';
-    if (svg) svg.style.transform = t;
+    /* ⚠️ 轉 45 度的時候要縮到 1/√2：正方形斜著擺，外接框會變成 1.41 倍，
+       不縮就會壓到上面的關卡列和下面的題目那一句話。轉 90 的倍數則不必縮。 */
+    var k = (deg % 90) ? 0.72 : 1;
+    if (svg) {
+      svg.style.transform = 'rotate(' + deg + 'deg) scale(' + (fx * k) + ',' + (fy * k) + ')';
+    }
+    /* 字母要抵消掉轉與翻（字母本身當然要正著寫），但**不抵消那個等比縮放** ——
+       縮放是等比的，字母跟著縮才會一直貼合字根的大小。 */
     var fix = stage.querySelectorAll('.xz-letter-fix');
     Array.prototype.forEach.call(fix, function (g) {
-      g.style.transform = 'scale(' + fx + ',' + fy + ') rotate(' + (-rot * 90) + 'deg)';
+      g.style.transform = 'scale(' + fx + ',' + fy + ') rotate(' + (-deg) + 'deg)';
     });
-    unspinBtn.hidden = !(rot || fx < 0 || fy < 0);
+    unspinBtn.hidden = !(deg || fx < 0 || fy < 0);
   }
 
   function resetSpin() {
-    rot = 0;
+    deg = 0;
     fx = 1;
     fy = 1;
     paintSpin();
@@ -324,6 +332,7 @@
     nextBtn.hidden = true;
     nextLvBtn.hidden = true;
     stayBtn.hidden = true;
+    toZigenBtn.hidden = true;
     resetSpin();
     paintQuestion(item.q);
     paintAsk(item.q);
@@ -500,12 +509,16 @@
     /* 這一關十題全部答對了就不要再說「下一題」——做完一關是一件事，該讓人挑
        接下來要幹嘛（Wilson 2026-09-01）。只有一關的時候沒有「下一關」可去。 */
     var done = levelDone(q.lv);
+    // 最後一關過了就沒有「下一關」可去 —— 改成把人送去〈字根表〉（Wilson）：
+    // 這一頁只練手挑的那幾條，整張表在那邊。
+    var last = q.lv >= NLEVELS - 1;
     nextBtn.hidden = done;
-    nextLvBtn.hidden = !(done && NLEVELS > 1);
+    nextLvBtn.hidden = !(done && !last);
+    toZigenBtn.hidden = !(done && last);
     stayBtn.hidden = !done;
     if (done) {
-      nudge('第' + cn(q.lv + 1) + '關完成！', 'good');
-      (NLEVELS > 1 ? nextLvBtn : stayBtn).focus({ preventScroll: true });
+      nudge(last ? '全部關卡完成！' : ('第' + cn(q.lv + 1) + '關完成！'), 'good');
+      (last ? toZigenBtn : nextLvBtn).focus({ preventScroll: true });
     } else {
       nextBtn.focus({ preventScroll: true });
     }
@@ -529,8 +542,10 @@
   levelBtn.addEventListener('click', jumpLevel);
   nextLvBtn.addEventListener('click', jumpLevel);
   stayBtn.addEventListener('click', stayLevel);
-  cwBtn.addEventListener('click', function () { rot = (rot + 1) % 4; paintSpin(); });
-  ccwBtn.addEventListener('click', function () { rot = (rot + 3) % 4; paintSpin(); });
+  function turn(by) { deg = (deg + by + 360) % 360; paintSpin(); }
+  cwBtn.addEventListener('click', function () { turn(90); });
+  ccwBtn.addEventListener('click', function () { turn(-90); });
+  ccw45Btn.addEventListener('click', function () { turn(-45); });
   flipXBtn.addEventListener('click', function () { fx = -fx; paintSpin(); });
   flipYBtn.addEventListener('click', function () { fy = -fy; paintSpin(); });
   unspinBtn.addEventListener('click', resetSpin);
