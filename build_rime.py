@@ -48,8 +48,18 @@ def seed_default_options(path):
     """開關拿掉 reset 後才會真的記得使用者切的狀態，但這樣一來使用者從沒切過的開關
     就會預設關（user.yaml 沒那個 key，Rime 當沒設定過）。這裡只在「使用者從沒設定
     過」（key 不存在，不是存在且為 false）時幫忙種一個好用的初始值——種過一次、或
-    使用者自己切過一次之後，往後永遠尊重 user.yaml 裡的值，不會再蓋。"""
+    使用者自己切過一次之後，往後永遠尊重 user.yaml 裡的值，不會再蓋。
+
+    每個 save_options 開關都要種一個 slot（沒開的種 false）：切英文／切別的 app 時
+    Squirrel 會 dispose 整個 engine 再重建，重建時只照 user.yaml 的 var/option 逐條
+    還原——user.yaml 裡沒有的那條，就當預設（關）。實測回報 aiphabi_no_simp 這種
+    「新加、從沒進過 user.yaml」的開關：選單開了，切一次英文再回來就變回關。種一條
+    false 進去，往後 Rime 每次重建都會照著還原，選單再切也是改一條現成的 key。"""
     on_by_default = ["aiphabi_family", "aiphabi_comp", "aiphabi_fuzzy", "aiphabi_short100"]
+    off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_autocommit",
+                      "aiphabi_short3", "aiphabi_left_short", "aiphabi_phrase",
+                      "full_shape", "ascii_punct", "prediction"]
+    seeds = [(k, "true") for k in on_by_default] + [(k, "false") for k in off_by_default]
     lines = path.read_text("utf-8").splitlines() if path.exists() else []
     var_i = next((i for i, l in enumerate(lines) if l == "var:"), None)
     if var_i is None:
@@ -60,16 +70,16 @@ def seed_default_options(path):
         insert_at = var_i + 1
         while insert_at < len(lines) and lines[insert_at].startswith("  "):
             insert_at += 1
-        lines[insert_at:insert_at] = ["  option:"] + [f"    {k}: true" for k in on_by_default]
+        lines[insert_at:insert_at] = ["  option:"] + [f"    {k}: {v}" for k, v in seeds]
     else:
         block_end = opt_i + 1
         have = set()
         while block_end < len(lines) and lines[block_end].startswith("    "):
             have.add(lines[block_end].split(":")[0].strip())
             block_end += 1
-        missing = [k for k in on_by_default if k not in have]
+        missing = [f"    {k}: {v}" for k, v in seeds if k not in have]
         if missing:
-            lines[block_end:block_end] = [f"    {k}: true" for k in missing]
+            lines[block_end:block_end] = missing
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -1014,6 +1024,18 @@ Weasel／fcitx5-rime 多半內建）：
             print(f"\n找不到 {RIME_USER_DIR} —— 先裝 Squirrel："
                   "\n    brew install --cask squirrel")
             return
+        # Squirrel 跑著的時候，librime 手上握著開機當下讀進來的 user.yaml；之後不管是
+        # 選單〈重新部署〉還是結束程序，它都用那份記憶體副本整個覆寫檔案。於是 seed 進去
+        # 的新開關 slot（見 seed_default_options）會被無聲洗掉——切了開關、切個英文回來
+        # 就沒了。所以裝之前先把 Squirrel 收乾淨，seed 完再開，讓它從新檔載入。
+        SQUIRREL_BIN = "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel"
+        squirrel_was_running = subprocess.run(
+            ["pgrep", "-x", "Squirrel"], capture_output=True).returncode == 0
+        if squirrel_was_running:
+            print("暫時關閉鼠鬚管（seed 開關預設值時它不能開著，不然會被覆寫）…")
+            subprocess.run(["osascript", "-e", 'tell application "Squirrel" to quit'],
+                           capture_output=True)
+            subprocess.run(["sleep", "2"])
         for f in ("aiphabi.schema.yaml", "aiphabi.dict.yaml"):
             shutil.copy(OUT / f, RIME_USER_DIR / f)
         if (OUT / "aiphabi_plus.schema.yaml").exists():   # 二合一（形碼＋拼音）實驗方案
@@ -1047,7 +1069,13 @@ Weasel／fcitx5-rime 多半內建）：
                 shutil.copy(OUT / name, dst)
         seed_default_options(RIME_USER_DIR / "user.yaml")
         print(f"\n已複製到 {RIME_USER_DIR}（碼表 + lua/ 智慧候選 + 啟用與外觀設定）")
-        print("接著：鼠鬚管選單 →〈重新部署〉，直接就能用愛發筆（點選單列圖示可勾選各項功能；中英文切換用 Shift）。")
+        if squirrel_was_running:
+            subprocess.run(["open", "-a", "Squirrel"])
+            subprocess.run(["sleep", "2"])
+            subprocess.run([SQUIRREL_BIN, "--reload"], capture_output=True)
+            print("已重啟鼠鬚管並套用（點選單列圖示可勾選各項功能；中英文切換用 Shift）。")
+        else:
+            print("接著：鼠鬚管選單 →〈重新部署〉，直接就能用愛發筆（點選單列圖示可勾選各項功能；中英文切換用 Shift）。")
 
 
 if __name__ == "__main__":
