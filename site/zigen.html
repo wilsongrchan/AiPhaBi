@@ -95,7 +95,12 @@
   <div class="zg-tools">
     <label class="zg-find">
       <span>找用到某個字的字根</span>
-      <input type="text" id="zg-q" maxlength="8" placeholder="輸入一個字，例如 明" autocomplete="off" spellcheck="false" data-keep>
+      <!-- ⚠️ 這個框**不掛 data-keep**：掛了的話連 placeholder 都不會被轉成简體。
+           data-keep 是用來保護字根表裡的**例字**（那些字形主張只對繁體成立，
+           見表格儲存格自己的 data-keep），跟這個輸入框無關 —— 框裡沒有文字
+           節點，使用者打進去的值本來就不會被轉換器碰到。
+           查詢本身繁簡都吃得下（實測 车 → F、龙 → C）。 -->
+      <input type="text" id="zg-q" maxlength="8" placeholder="輸入一個字，例如 明" autocomplete="off" spellcheck="false">
     </label>
 
 
