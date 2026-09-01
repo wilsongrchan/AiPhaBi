@@ -3649,6 +3649,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* 轉／翻按鈕的小圖示。⚠️ 這一排的按鈕現在是「圖示＋字」，所以 .xz-mini 底下
    要能排成一列並且垂直對齊 —— 只有這一排這樣，別處的 .xz-mini 仍然是純文字。 */
 .xz-spinbar .xz-mini { display: inline-flex; align-items: center; gap: .3rem; }
+/* 「還原」還用不到的時候**留著位置**，只是看不見 —— 拿掉的話整排會往中間縮一次，
+   轉一下按鈕就在游標底下跑掉了（Wilson）。跟 .xz-nudge 的 min-height 同一個道理。 */
+.xz-spinbar .xz-mini.is-idle { visibility: hidden; pointer-events: none; }
 .xz-icon {
   width: 1.05em;
   height: 1.05em;

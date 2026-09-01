@@ -218,7 +218,9 @@
     Array.prototype.forEach.call(fix, function (g) {
       g.style.transform = 'scale(' + fx + ',' + fy + ') rotate(' + (-deg) + 'deg)';
     });
-    unspinBtn.hidden = !(deg || fx < 0 || fy < 0);
+    /* ⚠️ 用 class 不用 hidden：hidden 會把它從版面上拿掉，整排按鈕跟著往中間縮
+       一次 —— 「轉一下按鈕就自己跑掉」（Wilson）。位置一直留著，只是看不見。 */
+    unspinBtn.classList.toggle('is-idle', !(deg || fx < 0 || fy < 0));
   }
 
   function resetSpin() {
