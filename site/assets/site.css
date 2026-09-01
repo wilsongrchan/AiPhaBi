@@ -89,6 +89,9 @@
      試打頁同一畫面上就會同時出現：第一條字根的筆畫是 rb-0，打歪的那幾碼是這個。
      淺色底下對比 7.66:1，rb-0 是 4.17，亮度差 11.3，不會看成同一個紅。 */
   --warn: #a4161a;
+  /* 猜錯的字母鍵底色（〈字根練習〉）。很淡的一層紅 —— 猜錯的鍵會一直留在畫面上，
+     實心紅一排下來太兇，而且會跟答對那顆實心綠搶。 */
+  --warn-soft: #fdeeee;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -121,6 +124,7 @@
        （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
        只剩 4.47，低於 4.5 就不收。 */
     --warn: #ee4653;
+    --warn-soft: #3a1f22;
   }
 }
 
@@ -3642,13 +3646,23 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 .xz-key:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .xz-key:disabled { cursor: default; }
-/* 猜錯的那顆留在原位、但按不動 —— 拿掉會讓整排跳動，而「我剛剛猜過哪幾個」
-   本身就是有用的資訊。 */
+/* 猜錯的那顆**變紅、抖一下**（Wilson 2026-09-01）——原本是灰掉加刪除線，
+   讀起來像「這顆按鈕壞了」而不是「這個猜錯了」。留在原位但按不動：同一個字母
+   不用再試一次，而且「我剛剛猜過哪幾個」本身就是有用的資訊。
+   ⚠️ 用外框紅不用實心紅：猜錯的鍵會一直留在畫面上，實心紅一排下來太兇，
+   而且會跟答對那顆實心綠搶。 */
 .xz-key.is-wrong {
-  background: none;
-  border-color: transparent;
-  color: var(--ink-faint);
-  text-decoration: line-through;
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  color: var(--warn);
+  animation: xz-shake .34s ease;
+}
+@keyframes xz-shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
 }
 .xz-key.is-dim { opacity: .22; }
 .xz-key.is-right {
@@ -3659,7 +3673,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
 /* 動作那一排：答題前是「提示／看答案」，答完換成「下一題」——同一排、同一個位置，
    不是收掉再放到別處（見 lianxi.js 的 reveal 那段註解）。 */
-.xz-acts { display: flex; justify-content: center; gap: .7rem; margin-top: 1.1rem; }
+.xz-acts { display: flex; justify-content: center; gap: .7rem; margin-top: .5rem; }
 /* 走題目那一排：比動作那排輕一階（外框綠，不是實心綠），它是「換一題」不是
    「這一題要怎麼樣」。 */
 .xz-nav { display: flex; justify-content: center; gap: .7rem; margin-top: .6rem; }
@@ -3671,6 +3685,17 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   /* 停用的實心綠鈕不要再對 hover 有反應，不然看起來像還能按 */
   pointer-events: none;
 }
+/* 猜錯／提示時的一句話。⚠️ min-height 是必要的：這句話時有時無，不留位置的話
+   底下的按鈕會上下跳，而游標正停在剛按下的那顆字母鍵上。 */
+.xz-nudge {
+  min-height: 1.4em;
+  margin: .7rem 0 0;
+  text-align: center;
+  font-size: .82rem;
+  color: var(--ink-dim);
+}
+.xz-nudge.is-bad { color: var(--warn); }
+
 .xz-mini {
   background: none;
   border: 0;
@@ -3745,6 +3770,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .xz-letter { transition: none; transform: none; }
   .xz-letter.is-in { transform: none; }
   .xz-fill, .xz-tianzi .xz-on, .xz-key { transition: none; }
+  .xz-key.is-wrong { animation: none; }
 }
 
 /* 從〈字根練習〉連回〈字根表〉時，閃一下被指到的那一列 —— 整張表 366 列，

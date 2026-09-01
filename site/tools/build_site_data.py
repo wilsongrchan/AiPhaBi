@@ -419,7 +419,7 @@ def build_principles(codes, max_rule=None):
     return out
 
 
-def build_practice_hints(chars, codes, zigen_raw, max_rule):
+def build_practice_hints(chars, codes, zigen_raw, max_rule, full=False):
     """一批字每個字的「這一段是哪一個字根」—— 給 `/` 提示鏈、拼音查字共用。
 
     為什麼要算：`codes.json` 的 segments 只記字母，不記是哪一條字根。而同一個
@@ -474,9 +474,13 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
                         vecs.append(v)
                 if not vecs:
                     continue
+                # src／sst＝這條字根取自哪個字的哪幾筆。輸出**預設不帶**（practice.json
+                # 與 pinyin_glyphs.json 各有三千多字，每段多兩個欄位會白白撐大好幾百 KB），
+                # 只有 full=True 的呼叫端（〈字根練習〉，幾十題）才拿得到。
                 by.setdefault((L["letter"], len(g["strokes"])), []).append(
                     {"thr": sh.get("thr", gthr), "vecs": vecs,
-                     "desc": (it.get("desc") or "").strip()})
+                     "desc": (it.get("desc") or "").strip(),
+                     "src": g.get("src") or "", "sst": list(g.get("strokes") or ())})
 
     # 「頭四尾一」：碼超過 max 就只打頭 head 段加尾 tail 段，中間那幾段不用打。
     # 主碼、兼容碼各自算各自的（兩套拆法段數常常不一樣）。
@@ -515,6 +519,8 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
                 unmatched += 1
             one = {"L": seg["letter"], "st": seg["strokes"],
                    "d": best["desc"] if best else ""}
+            if full and best:
+                one["src"], one["sst"] = best["src"], best["sst"]
             if skipped and seg["strokes"]:
                 prev = max(segments[si - 1]["strokes"]) if si else -1
                 lo = min(seg["strokes"])
@@ -1168,80 +1174,117 @@ def _pick_for(picks, letter, src, st, warn):
     return loose or None
 
 
-def load_lianxi_picks(zg, warn):
-    """讀 site/content/lianxi.md —— Wilson 手挑「〈字根練習〉要考哪幾條字根」。
+def load_lianxi_picks(warn):
+    """讀 site/content/lianxi.md —— Wilson 手挑〈字根練習〉要考哪幾題。
 
-    〈字根表〉366 條全部拿來出題太多（Wilson 2026-09-01）。打勾的才出題。
-    格式跟 examples.md 同一套定址：`- [x] 字母 來源字[#筆序] — 說明`，
-    筆序只有同一字母下兩個字根取自同一個來源字時才需要（F 與、K 鼎、P 門）。
+    一行一個字：`字 = 字母 字母 …`，意思是「拿這個字出題，考它的這幾條字根」。
+    例如 `檢 = A O`（檢 拆成 T A O O Y Y，只考 A 跟 O 那幾段）、`虐 = E`。
 
-    ⚠️ 回傳的是**照 zigen.json 的順序**排好的 key 清單，不是照檔案裡的順序 ——
-    練習頁自己會決定出題順序，這裡只回答「哪幾條」。
+    ⚠️ 為什麼是**照字**挑而不是照字根挑：Wilson 2026-09-01 給的清單就是這個形狀
+    （「use 檢 A and O only，史 O and X」）。挑字的人在意的是「用哪個字來問」，
+    字根是那個字裡的哪幾段。第一版做成照字根挑、例字隨機配，他要的不是那個。
 
-    對不上任何一條字根的行**一定要出聲**：手挑的清單最容易發生的事就是字根表
-    那邊改了取自字、這邊還留著舊的一行，然後那一條就無聲地不出題了。
+    回傳 [(字, [字母…]), …]，照檔案裡的順序。
     """
     path = ROOT / "site" / "content" / "lianxi.md"
     if not path.exists():
         warn.append("〈字根練習〉：找不到 site/content/lianxi.md，整頁沒有題目")
         return []
-
-    # 打勾的行：- [x] 字母 來源字[#筆序] — 說明
-    wanted, seen = [], set()
-    for raw in path.read_text("utf-8").splitlines():
-        m = re.match(r"^\s*-\s*\[([ xX])\]\s+([A-Z])\s+(\S+)", raw)
-        if not m or m.group(1) == " ":
+    # 說明區塊裡的 ``` 範例不要被當成資料（examples.md 也是這樣防的）
+    text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
+    out, seen = [], set()
+    # ⚠️ 只認「左邊一個字、右邊只有英文字母」這一種行。說明區裡有
+    # 「例如 `檢 = A O`：檢 拆成…」這種句子，鬆一點的規則會把它們也當成資料
+    # （實測會多出三條莫名其妙的警告）。右邊出現中文、標點、反引號一律不算。
+    DATA_LINE = re.compile(r"^(\S+)\s*=\s*([A-Za-z][A-Za-z\s]*)$")
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
             continue
-        letter, src = m.group(2), m.group(3)
-        st = None
-        if "#" in src:
-            src, _, nums = src.partition("#")
-            st = tuple(sorted(int(n) - 1 for n in re.findall(r"\d+", nums)))
-        key = (letter, src, st)
-        if key in seen:
-            warn.append(f"〈字根練習〉：{letter} {src} 打勾了不只一次")
+        m = DATA_LINE.match(line)
+        if not m:
             continue
-        seen.add(key)
-        wanted.append(key)
-
-    # 對回 zigen.json。同一個 (字母, 來源字) 有兩條時，沒寫筆序就對不起來 ——
-    # 這種行要點名，不能挑一條當它的意思。
-    by_pair = {}
-    for L in zg["letters"]:
-        for gi, g in enumerate(L["groups"]):
-            for sh in g["shapes"]:
-                by_pair.setdefault((L["letter"], sh["src"]), []).append(sh)
-
-    hit = set()
-    for letter, src, st in wanted:
-        cands = by_pair.get((letter, src), [])
-        if not cands:
-            warn.append(f"〈字根練習〉：勾了「{letter} {src}」，但字根表裡沒有這一條")
+        ch, right = m.group(1), m.group(2)
+        if len(ch) != 1:
+            # 靜靜跳過等於幫使用者藏起一個打錯的字（「檢查 = A」）——出聲比較好
+            warn.append(f"〈字根練習〉：「{ch}」不是單一個字，那一行跳過")
             continue
-        if st is not None:
-            match = [sh for sh in cands if tuple(sorted(sh["st"])) == st]
-            if not match:
-                warn.append(f"〈字根練習〉：勾了「{letter} {src}#…」，筆序對不上字根表")
-                continue
-            cands = match
-        elif len(cands) > 1:
-            spans = "、".join(sh["span"] for sh in cands)
-            warn.append(f"〈字根練習〉：「{letter} {src}」在字根表裡有 {len(cands)} 條"
-                        f"（{spans}），要加筆序才知道是哪一條")
+        letters = re.findall(r"[A-Z]", right.upper())
+        if not letters:
+            warn.append(f"〈字根練習〉：「{ch}」那一行沒寫要考哪個字母")
             continue
-        sh = cands[0]
-        hit.add((letter, sh["src"], sh["span"]))
+        if ch in seen:
+            warn.append(f"〈字根練習〉：「{ch}」寫了不只一次，只有第一行算數")
+            continue
+        seen.add(ch)
+        out.append((ch, letters))
+    return out
 
-    # 照 zigen.json 的順序輸出，key 跟 assets/lianxi.js 的 q.key 是同一個寫法
-    picks = []
-    for L in zg["letters"]:
-        for g in L["groups"]:
-            for sh in g["shapes"]:
-                if (L["letter"], sh["src"], sh["span"]) in hit:
-                    picks.append(f'{L["letter"]}|{sh["src"]}|{sh["span"]}')
+
+def build_lianxi(picks, codes, zigen_raw, max_rule, warn):
+    """〈字根練習〉的題目：一題 = 一個字裡的一條字根，問它像哪個英文字母。
+
+    每一題帶著：那個字的筆畫輪廓、這條字根是哪幾筆、取形意圖、那個字的碼，
+    以及這條字根取自哪個字的哪幾筆（畫成揭曉時的小圖示）。
+
+    ⚠️ 全部**現算**：哪幾筆屬於哪一條字根來自 codes.json 的 segments，取形意圖
+    來自比對器（跟 `/` 提示同一支 build_practice_hints）。這一頁不手寫任何一條
+    「某某字根是某字母」—— 那是這個專案最會過期的東西。
+
+    ⚠️ 同一個字母在一個字裡出現兩次（檢 的兩個 O）算**同一題**，兩處一起標出來 ——
+    跟〈字根表〉字例欄的作法一致。分成兩題的話會連著問兩次一模一樣的問題。
+    """
     if not picks:
-        warn.append("〈字根練習〉：lianxi.md 一條都沒打勾，練習頁會說還沒挑")
-    return picks
+        return None
+    want = [ch for ch, _ in picks]
+    hints = build_practice_hints(want, codes, zigen_raw, max_rule, full=True)
+
+    need_glyph = set(want)
+    questions = []
+    for ch, letters in picks:
+        rec = codes.get(ch)
+        if not rec or not rec.get("segments"):
+            warn.append(f"〈字根練習〉：「{ch}」還沒取碼，出不了題")
+            continue
+        ent = hints.get(ch)
+        if not ent:
+            warn.append(f"〈字根練習〉：「{ch}」比對不到字根（沒有中線資料？），出不了題")
+            continue
+        segs = ent["s"]
+        have = [sg["L"] for sg in segs]
+        for L in letters:
+            picked = [sg for sg in segs if sg["L"] == L]
+            if not picked:
+                warn.append(f"〈字根練習〉：「{ch} = …{L}…」，但 {ch} 拆出來是 "
+                            f"{''.join(have)}，沒有 {L} 這一段")
+                continue
+            desc = next((sg["d"] for sg in picked if sg.get("d")), "")
+            src = next((sg.get("src") for sg in picked if sg.get("src")), "")
+            sst = next((sg.get("sst") for sg in picked if sg.get("src")), [])
+            if not desc:
+                warn.append(f"〈字根練習〉：「{ch}」的 {L} 那一段比對不到取形意圖，"
+                            f"揭曉時只會給字母")
+            q = {"c": ch, "L": L,
+                 "g": [sg["st"] for sg in picked],     # 這條字根佔哪幾筆（可能不只一處）
+                 "d": desc,
+                 "code": (rec.get("final") or "").upper()}
+            if src:
+                q["src"], q["sst"] = src, sst
+                need_glyph.add(src)
+            questions.append(q)
+
+    if not questions:
+        warn.append("〈字根練習〉：一題都沒生出來，練習頁會說還沒挑")
+        return None
+
+    glyphs = _practice_glyphs(need_glyph)
+    missing = [c for c in sorted(need_glyph) if c not in glyphs]
+    if missing:
+        warn.append(f"〈字根練習〉：{len(missing)} 個字沒有字形資料（{''.join(missing)}），"
+                    f"那幾題畫不出來")
+    questions = [q for q in questions if q["c"] in glyphs]
+    return {"note": "generated by site/tools/build_site_data.py — 手挑清單在 site/content/lianxi.md",
+            "questions": questions, "glyphs": glyphs}
 
 
 def load_intent_notes(warn):
@@ -2936,7 +2979,7 @@ def main():
     zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
                      standard=standard, notes=notes)
 
-    lianxi_picks = load_lianxi_picks(zg, warn)
+    lianxi = build_lianxi(load_lianxi_picks(warn), codes, zigen_raw, max_rule, warn)
 
     # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
     # 印出來才看得出有沒有對錯位置。找不到的直接警告。
@@ -3053,10 +3096,10 @@ def main():
             json.dumps(pinyin_glyphs, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "zigen.json").write_text(
         json.dumps(zg, ensure_ascii=False, separators=(",", ":")), "utf-8")
-    # 〈字根練習〉要考哪幾條 —— 手挑的，見 site/content/lianxi.md
-    (OUT / "lianxi.json").write_text(
-        json.dumps({"note": "generated by site/tools/build_site_data.py — 手挑清單在 site/content/lianxi.md",
-                    "picks": lianxi_picks}, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    # 〈字根練習〉的題目 —— 手挑的，見 site/content/lianxi.md
+    if lianxi:
+        (OUT / "lianxi.json").write_text(
+            json.dumps(lianxi, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "principles.json").write_text(
         json.dumps(principles, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "jianma.json").write_text(
@@ -3097,8 +3140,11 @@ def main():
               f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個，"
               f"加上真正的簡化字裡最常用的前 {PINYIN_SIMP_TOP_N} 個，"
               f"再加上名字用字那一排）")
-    print(f"lianxi.json 〈字根練習〉考 {len(lianxi_picks)} 條字根"
-          f"（手挑，site/content/lianxi.md；字根表共 {sum(len(g['shapes']) for L in zg['letters'] for g in L['groups'])} 條）")
+    if lianxi:
+        kb = (OUT / "lianxi.json").stat().st_size / 1024
+        chars = sorted({q["c"] for q in lianxi["questions"]})
+        print(f"lianxi.json 〈字根練習〉{len(lianxi['questions'])} 題 / {len(chars)} 個字"
+              f"（{''.join(chars)}）/ {kb:.0f} KB　手挑，見 site/content/lianxi.md")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
              f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else "")

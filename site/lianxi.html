@@ -86,11 +86,11 @@
   </p>
 
   <div class="xz-wrap">
-    <p class="xz-loading" id="xz-loading">字根資料載入中……</p>
+    <p class="xz-loading" id="xz-loading">題目載入中……</p>
 
     <div class="xz-game" id="xz-game" hidden>
       <div class="xz-bar">
-        <span class="xz-bar-t">答對過 <b id="xz-done" data-keep>0</b>／<b id="xz-total" data-keep>0</b> 條字根</span>
+        <span class="xz-bar-t">答對過 <b id="xz-done" data-keep>0</b>／<b id="xz-total" data-keep>0</b> 題</span>
         <span class="xz-track"><i class="xz-fill" id="xz-fill"></i></span>
         <span class="xz-bar-t">連續 <b id="xz-streak" data-keep>0</b></span>
       </div>
@@ -104,6 +104,10 @@
       <p class="xz-ask" id="xz-ask">標出來的這一條字根，像哪個英文字母？</p>
 
       <div class="xz-pad" id="xz-pad" role="group" aria-label="選一個英文字母"></div>
+
+      <!-- 猜錯時的一句話（「沒關係，再試一次」）。⚠️ 高度是固定的：它時有時無，
+           不留位置的話字母鍵盤底下的按鈕會上下跳。 -->
+      <p class="xz-nudge" id="xz-nudge" role="status"></p>
 
       <!-- 這一排的位置**不動**：答完是把「提示／看答案」換成「下一題」，不是把
            整排收掉再把按鈕放到別處。收掉的話底下整塊往上跳，而游標正停在剛按下
@@ -140,11 +144,6 @@
     </div>
 
     <div class="xz-opts" id="xz-opts" hidden>
-      <div class="short-toggle" role="radiogroup" aria-label="出題順序">
-        <span>順序</span>
-        <label class="chk-toggle"><input type="radio" name="xzorder" value="common" checked>由常見到少見</label>
-        <label class="chk-toggle"><input type="radio" name="xzorder" value="random">隨機</label>
-      </div>
       <button type="button" class="xz-mini" id="xz-reset">清掉練習紀錄</button>
     </div>
   </div>

@@ -4,20 +4,17 @@
  * 這一頁把同一張表**翻過來**用 —— 先給形狀，問字母，答完才講取形意圖。
  * （Wilson 2026-09-01：首頁再多一顆「我想學習更多字根」。）
  *
- * ⚠️ **考哪幾條字根是 Wilson 手挑的**，不是整張字根表（366 條全部拿來出題太多，
- * 他 2026-09-01 說得很清楚）。清單在 `site/content/lianxi.md`，建置時對回
- * zigen.json 產生 assets/lianxi.json。這支只讀那份清單，**不自己決定要考什麼**。
+ * ⚠️ **用哪個字出題、考它的哪幾條字根，全部是 Wilson 手挑的**，寫在
+ * `site/content/lianxi.md`（`檢 = A O` 這種一行一個字的格式）。建置時對回
+ * codes.json 算出「那條字根是哪幾筆」、比對出取形意圖，產生 assets/lianxi.json。
+ * 這支只讀那一份，**自己不決定要考什麼、也不自己配例字**。
  *
- * 資料全部來自站上已經有的檔，這一頁**不另外產一份字根資料**：
- *   assets/lianxi.json  考哪幾條（手挑）
- *   assets/zigen.json   字母 → 取形意圖 → 字根形狀 → 例字（含哪幾筆屬於這條字根）
- *   assets/glyphs.json  例字的筆畫輪廓（Arphic PL，出處見頁尾）
- * 好處不只是省一個建置步驟：出題內容跟〈字根表〉保證一模一樣，字根表改了這裡
- * 隔天就跟著改；而且 glyphs.json 跟〈字根表〉是同一個網址，先逛過字根表再過來
- * 是直接命中瀏覽器快取。
+ * 因此這一頁只抓一個檔（20 KB 上下）：題目、筆畫輪廓、碼、取形意圖都在裡面。
+ * 早期版本是自己讀 zigen.json ＋ glyphs.json（3.4 MB）現配例字 —— 那個做法連
+ * 「考哪幾條」都是自己決定的，不是 Wilson 要的東西。
+ *
  * ⚠️ 絕對不要在這支裡手寫任何一條「某某字根是某字母」——那是這個專案最會過期
- * 的東西（見 CLAUDE.md）。哪幾筆屬於哪一條字根也一樣，是建置時算好寫在
- * zigen.json 的 ex[].st 裡的。
+ * 的東西（見 CLAUDE.md）。
  *
  * ⚠️ glyphbox.js 要排在這支**前面**載入（田字格、字根圖示、字根位置都在那裡）。
  */
@@ -35,13 +32,14 @@
   var loadingEl = document.getElementById('xz-loading');
   var gameEl = document.getElementById('xz-game');
   var optsEl = document.getElementById('xz-opts');
-  var prevBtn = document.getElementById('xz-prev');
-  var skipBtn = document.getElementById('xz-skip');
   var padEl = document.getElementById('xz-pad');
+  var nudgeEl = document.getElementById('xz-nudge');
   var revealEl = document.getElementById('xz-reveal');
   var hintBtn = document.getElementById('xz-hint');
   var showBtn = document.getElementById('xz-show');
   var nextBtn = document.getElementById('xz-next');
+  var prevBtn = document.getElementById('xz-prev');
+  var skipBtn = document.getElementById('xz-skip');
   var resetBtn = document.getElementById('xz-reset');
   var verdictEl = document.getElementById('xz-verdict');
   var keyEl = document.getElementById('xz-key');
@@ -64,116 +62,63 @@
   var LETTER_FONT_J = "Verdana, Tahoma, 'DejaVu Sans', sans-serif";
   function fontFor(letter) { return letter === 'J' ? LETTER_FONT_J : LETTER_FONT; }
 
-  var OK_KEY = 'aiphabi-lianxi-ok';       // 已經一次答對的字根
-  var OPT_KEY = 'aiphabi-lianxi-opt';     // 出題順序
+  // 猜錯幾次就直接把答案攤開（Wilson）。一直猜不到還讓人繼續猜下去，
+  // 練的就不是字根而是耐性了。
+  var MAX_WRONG = 3;
 
-  var DATA = null, GLYPHS = null, PICKS = null, MAIN = null, mainState = null;
+  var OK_KEY = 'aiphabi-lianxi-ok';       // 已經一次答對的題目
+
+  var GLYPHS = null;
   var POOL = [];
   var mastered = {};
-  var opts = { order: 'common' };
-  var cur = null;           // { q: 字根, ex: 這一題用的例字 }
-  var answered = false, missed = false, hinted = false;
+  var cur = null;           // 目前這一題（POOL 裡的一筆，外加 revealed/right）
+  var answered = false, hinted = false, wrong = 0;
   var streak = 0;
   var lastKey = '';
   var keyBtns = {};
-  /* 出過的題目留一份，「上一題」才回得去（Wilson 2026-09-01）。存的是整個
-     {q, ex} 加上當時揭曉了沒 —— 回頭看的人多半是想再看一眼剛才的答案，
-     重新問一次等於把他要的東西收走。 */
+  /* 出過的題目留一份，「上一題」才回得去（Wilson 2026-09-01）。回頭看的人多半是
+     想再看一眼剛才的答案，所以連「當時揭曉了沒」一起記，重新問一次等於把他要的
+     東西收走。 */
   var history = [], histPos = -1;
+
+  function keyOf(q) { return q.c + '|' + q.L; }
 
   /* ---------- 存下來的東西 ---------- */
 
   function loadState() {
     try {
       var raw = localStorage.getItem(OK_KEY);
-      if (raw) {
-        JSON.parse(raw).forEach(function (k) { mastered[k] = 1; });
-      }
-      var o = localStorage.getItem(OPT_KEY);
-      if (o) {
-        o = JSON.parse(o);
-        if (o.order === 'random' || o.order === 'common') opts.order = o.order;
-      }
+      if (raw) JSON.parse(raw).forEach(function (k) { mastered[k] = 1; });
     } catch (e) { /* 無痕模式：這一輪照樣練得起來，只是不會記住 */ }
   }
   function saveOk() {
     try { localStorage.setItem(OK_KEY, JSON.stringify(Object.keys(mastered))); }
     catch (e) {}
   }
-  function saveOpts() {
-    try { localStorage.setItem(OPT_KEY, JSON.stringify(opts)); } catch (e) {}
-  }
 
-  /* ---------- 題庫 ----------
-     一條字根＝一題。同一條字根底下的幾個例字是同一題的不同問法，隨機挑一個。
-     ⚠️ 例字挑的時候**避開取自字本身**（夕 這一條的例字第一個就是 夕）：整個字
-     就是這條字根的時候畫面上一筆灰的都沒有，看不出「這是字裡的一部分」，而那正
-     是要練的事。只有這條字根找不到別的例字時才用它。 */
-  function buildPool() {
-    // 手挑的清單（assets/lianxi.json）決定考哪幾條。查表用 key，跟建置那邊
-    // 產生的字串是同一個寫法：字母|取自字|筆序範圍。
-    var want = {};
-    (PICKS || []).forEach(function (k) { want[k] = 1; });
-    var out = [];
-    DATA.letters.forEach(function (L) {
-      L.groups.forEach(function (g) {
-        g.shapes.forEach(function (sh) {
-          if (!want[L.letter + '|' + (sh.src || '') + '|' + (sh.span || '')]) return;
-          var ex = (sh.ex || []).filter(function (e) {
-            return e.st && e.st.length && GLYPHS[e.c];
-          });
-          if (!ex.length) return;
-          out.push({
-            L: L.letter,
-            desc: (g.desc || '').trim(),
-            note: (g.note || '').trim(),
-            src: sh.src || '',
-            // st＝這條字根在取自字裡的哪幾筆（建置時算好的）。⚠️ 不要拿 span 回推：
-            // span 是給人讀的字串，多數是「1–3」，但也有「1、2、6」「1、11」這種
-            // 不連續的（實測 366 條裡有 7 條），解析它遲早會解錯。
-            st: sh.st || [],
-            span: sh.span || '',
-            count: sh.count || 0,
-            ex: ex,
-            key: L.letter + '|' + (sh.src || '') + '|' + (sh.span || '')
-          });
-        });
-      });
-    });
-    return out;
-  }
-
+  /* ---------- 挑題目 ----------
+     沒答對過的優先，全部答對過就整池重來一輪（不清紀錄——進度條照樣是滿的）。
+     連續兩題不會撞同一題。 */
   function pickQuestion() {
-    var pool = POOL;
-    if (!pool.length) return null;
-    var left = pool.filter(function (q) { return !mastered[q.key]; });
-    // 全部答對過就整池重來一輪（不清紀錄——進度條照樣是滿的）
-    var list = left.length ? left : pool;
+    if (!POOL.length) return null;
+    var left = POOL.filter(function (q) { return !mastered[keyOf(q)]; });
+    var list = left.length ? left : POOL;
     if (list.length > 1) {
-      list = list.filter(function (q) { return q.key !== lastKey; });
+      list = list.filter(function (q) { return keyOf(q) !== lastKey; });
     }
-    var q;
-    if (opts.order === 'random') {
-      q = list[Math.floor(Math.random() * list.length)];
-    } else {
-      // 由常見到少見：count 是這條字根在全部取碼字裡出現幾次，先練用得多的
-      q = list.reduce(function (a, b) { return b.count > a.count ? b : a; }, list[0]);
-    }
-    var pool2 = q.ex.filter(function (e) { return e.c !== q.src; });
-    var exList = pool2.length ? pool2 : q.ex;
-    return { q: q, ex: exList[Math.floor(Math.random() * exList.length)] };
+    var q = list[Math.floor(Math.random() * list.length)];
+    return { q: q };
   }
 
   /* ---------- 畫題目 ----------
      屬於這條字根的筆畫上色、其餘塗淺 —— 跟〈字根表〉字例欄同一套顏色語言
-     （--zg-on／--zg-off），同一個字根在一個字裡出現兩次時第二次用深一階，
-     不然會被當成「這條字根就是這一整塊」。 */
-  function paintQuestion(ex) {
-    var strokes = GLYPHS[ex.c];
-    var segs = (ex.segs && ex.segs.length) ? ex.segs : [ex.st];
+     （--zg-on／--zg-off）。同一條字根在一個字裡出現兩次（檢 的兩個 O）時第二處
+     用深一階，不然會被當成「這條字根就是這一整塊」。 */
+  function paintQuestion(q) {
+    var strokes = GLYPHS[q.c] || [];
     var shade = {};
-    segs.forEach(function (g, gi) {
-      g.forEach(function (i) { shade[i] = Math.min(gi + 1, 3); });
+    q.g.forEach(function (grp, gi) {
+      grp.forEach(function (i) { shade[i] = Math.min(gi + 1, 3); });
     });
     // 沒被選中的先畫完，選中的才畫 —— 照筆順混著畫的話，序號較後的淺色筆畫會
     // 蓋在高亮的筆畫上面（跟〈字根表〉exampleGlyph 同一個坑）。
@@ -183,41 +128,45 @@
       else off += '<path class="xz-dim" d="' + strokes[i] + '"/>';
     }
     stage.classList.remove('is-revealed');
-    stage.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="字例">' +
+    stage.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="題目">' +
       ZG.GRID + '<g transform="' + ZG.TF + '">' + off + on + '</g></svg>';
   }
 
   /* 揭曉時把字母疊在字根**正上方**：位置是從那幾筆真正的座標算出來的
      （ZG.rootBox），不是目測擺中間。字根的筆畫同時淡下去 —— 讀起來是
-     「這幾筆就是這個字母」，跟首頁那段拆件動畫講的是同一件事，只是反過來。 */
-  function overlayLetter(q, ex) {
+     「這幾筆就是這個字母」，跟首頁那段拆件動畫講的是同一件事，只是反過來。
+     出現兩次的字根**兩處各疊一個**，那正是「這兩塊都是 O」要講的事。 */
+  function overlayLetter(q) {
     var svg = stage.querySelector('svg');
     if (!svg || !ZG.rootBox) return;
-    var box = ZG.rootBox(GLYPHS[ex.c], ex.st);
-    if (!box) return;
-    var span = Math.max(box.w, box.h);
-    // 字母大約蓋住字根，但不讓它小到看不清、也不讓它撐出田字格
-    var size = Math.max(220, Math.min(560, span * 1.3));
-    var g = document.createElementNS(NS, 'g');
-    g.setAttribute('class', 'xz-letter');
-    g.style.transformOrigin = box.cx.toFixed(1) + 'px ' + box.cy.toFixed(1) + 'px';
-    var t = document.createElementNS(NS, 'text');
-    t.setAttribute('x', box.cx.toFixed(1));
-    t.setAttribute('y', box.cy.toFixed(1));
-    t.setAttribute('text-anchor', 'middle');
-    t.setAttribute('dominant-baseline', 'central');
-    t.setAttribute('font-family', fontFor(q.L));
-    t.setAttribute('font-weight', '400');
-    t.setAttribute('font-size', size.toFixed(0));
-    t.textContent = q.L;
-    g.appendChild(t);
-    svg.appendChild(g);
-    stage.classList.add('is-revealed');
-    if (REDUCED) { g.classList.add('is-in'); return; }
-    svg.getBoundingClientRect();            // 逼一次重排，不然過渡不會跑
-    window.requestAnimationFrame(function () {
-      window.requestAnimationFrame(function () { g.classList.add('is-in'); });
+    var strokes = GLYPHS[q.c] || [];
+    q.g.forEach(function (grp) {
+      var box = ZG.rootBox(strokes, grp);
+      if (!box) return;
+      var span = Math.max(box.w, box.h);
+      // 字母大約蓋住字根，但不讓它小到看不清、也不讓它撐出田字格
+      var size = Math.max(180, Math.min(560, span * 1.3));
+      var g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'xz-letter');
+      g.style.transformOrigin = box.cx.toFixed(1) + 'px ' + box.cy.toFixed(1) + 'px';
+      var t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', box.cx.toFixed(1));
+      t.setAttribute('y', box.cy.toFixed(1));
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'central');
+      t.setAttribute('font-family', fontFor(q.L));
+      t.setAttribute('font-weight', '400');
+      t.setAttribute('font-size', size.toFixed(0));
+      t.textContent = q.L;
+      g.appendChild(t);
+      svg.appendChild(g);
+      if (REDUCED) { g.classList.add('is-in'); return; }
+      svg.getBoundingClientRect();          // 逼一次重排，不然過渡不會跑
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () { g.classList.add('is-in'); });
+      });
     });
+    stage.classList.add('is-revealed');
   }
 
   /* ---------- 字母鍵盤 ---------- */
@@ -245,31 +194,27 @@
 
   /* ---------- 一題的流程 ---------- */
 
-  /* 把一題擺上畫面。fresh＝這是新出的題（可以計分）；從歷史回頭看的那一題
-     已經計過分了，再算一次會讓進度條和連續數字自己長大。 */
+  /* fresh＝這是新出的題（可以計分）；從歷史回頭看的那一題已經計過分了，
+     再算一次會讓進度條和連續數字自己長大。 */
   function show(item, fresh) {
     cur = item;
-    lastKey = item.q.key;
+    lastKey = keyOf(item.q);
     answered = false;
-    missed = false;
     hinted = false;
+    wrong = 0;
     resetPad();
+    nudge('');
     revealEl.hidden = true;
     hintBtn.disabled = false;
-    showBtn.disabled = false;
     hintBtn.hidden = false;
     showBtn.hidden = false;
     nextBtn.hidden = true;
-    paintQuestion(item.ex);
-    // 之前已經看過答案的那一題，回頭時直接把答案再攤開來 —— 會按「上一題」的人
-    // 多半是想再看一眼剛才那條字根，重問一次等於把他要的東西收走。
+    paintQuestion(item.q);
     if (!fresh && item.revealed) reveal(item.right, true);
     paintNav();
   }
 
-  function paintNav() {
-    prevBtn.disabled = histPos <= 0;
-  }
+  function paintNav() { prevBtn.disabled = histPos <= 0; }
 
   /* 下一題／跳過是同一件事：往前走一格。之前按過「上一題」的話，往前是回到
      已經出過的那幾題（不重抽），走到頭才抽新的。 */
@@ -292,16 +237,29 @@
     show(history[histPos], false);
   }
 
+  function nudge(text, bad) {
+    nudgeEl.textContent = text || '';
+    nudgeEl.className = 'xz-nudge' + (bad ? ' is-bad' : '');
+  }
+
   function answer(L) {
     if (answered || !cur) return;
     if (L === cur.q.L) { reveal(true); return; }
-    // 答錯：那顆鍵留在畫面上但按不動（同一個字母不用再試一次），連續歸零。
-    // 不直接公布答案 —— 還可以再猜，這一題只是不算「學會了」。
+    /* 猜錯：那顆鍵變紅、抖一下，並且說一句「沒關係，再試一次」（Wilson）——
+       原本是灰掉加刪除線，看起來像「這顆壞了」而不是「這個猜錯了」。
+       鍵留在畫面上但按不動：同一個字母不用再試一次，而且「我剛剛猜過哪幾個」
+       本身就是有用的資訊。 */
     var b = keyBtns[L];
     if (b) { b.classList.add('is-wrong'); b.disabled = true; }
-    missed = true;
+    wrong++;
     streak = 0;
     paintScore();
+    if (wrong >= MAX_WRONG) {
+      nudge('猜了 ' + MAX_WRONG + ' 次，先看答案吧');
+      reveal(false);
+      return;
+    }
+    nudge('沒關係，再試一次', true);
   }
 
   /* 提示：把選項收成四個字母（正解＋三個隨機）。用過提示這一題就不算學會 —— 不然
@@ -310,7 +268,7 @@
     if (answered || !cur || hinted) return;
     hinted = true;
     hintBtn.disabled = true;
-    var keep = { };
+    var keep = {};
     keep[cur.q.L] = 1;
     var others = ALPHA.filter(function (L) {
       return L !== cur.q.L && !keyBtns[L].classList.contains('is-wrong');
@@ -321,60 +279,67 @@
     ALPHA.forEach(function (L) {
       if (!keep[L]) { keyBtns[L].classList.add('is-dim'); keyBtns[L].disabled = true; }
     });
+    nudge('剩下這四個，選一個');
+  }
+
+  /* 「取自『會』第 1–3 筆」——sst 是那條字根在取自字裡的筆序，
+     連號印成「1–3」，不連號逐一列出，佔滿整個字就說「整個字」。 */
+  function spanText(src, sst) {
+    if (!sst || !sst.length) return '';
+    var total = (GLYPHS[src] || []).length;
+    var ss = sst.slice().sort(function (a, b) { return a - b; });
+    if (total && ss.length === total) return '整個字';
+    var run = ss[ss.length - 1] - ss[0] === ss.length - 1;
+    if (ss.length === 1) return '第 ' + (ss[0] + 1) + ' 筆';
+    if (run) return '第 ' + (ss[0] + 1) + '–' + (ss[ss.length - 1] + 1) + ' 筆';
+    return '第 ' + ss.map(function (n) { return n + 1; }).join('、') + ' 筆';
   }
 
   function reveal(right, replay) {
     if (answered || !cur) return;
     answered = true;
-    var q = cur.q, ex = cur.ex;
+    var q = cur.q;
 
     ALPHA.forEach(function (L) { keyBtns[L].disabled = true; });
     keyBtns[q.L].classList.remove('is-dim');
     keyBtns[q.L].classList.add('is-right');
 
     // ⚠️ replay＝從「上一題」回頭看已經答過的那一題，**不能再計一次分**：
-    // 記過的字根不會重複記，但連續數字會一路自己長大。
+    // 記過的題目不會重複記，但連續數字會一路自己長大。
     if (!replay) {
       cur.revealed = true;
-      cur.right = right && !missed;
-      if (right && !missed && !hinted && !mastered[q.key]) {
-        mastered[q.key] = 1;
+      cur.right = right && !wrong;
+      if (right && !wrong && !hinted && !mastered[keyOf(q)]) {
+        mastered[keyOf(q)] = 1;
         saveOk();
       }
-      streak = right && !missed ? streak + 1 : 0;
+      streak = right && !wrong ? streak + 1 : 0;
       paintScore();
     }
 
     verdictEl.textContent = right
-      ? (missed ? '對了 —— 這一條再看一眼' : '答對了')
+      ? (wrong ? '對了 —— 這一條再看一眼' : '答對了')
       : '答案是';
-    verdictEl.className = 'xz-verdict ' + (right && !missed ? 'is-right' : 'is-plain');
+    verdictEl.className = 'xz-verdict ' + (right && !wrong ? 'is-right' : 'is-plain');
 
     keyEl.textContent = q.L;
-    descEl.textContent = q.desc || '（取形意圖待補）';
-    if (!q.desc) descEl.classList.add('is-todo');
-    else descEl.classList.remove('is-todo');
+    descEl.textContent = q.d || '（取形意圖待補）';
+    descEl.classList.toggle('is-todo', !q.d);
 
     srcIconEl.innerHTML = '';
-    var icon = ZG.rootIcon && GLYPHS[q.src] && q.st.length
-      ? ZG.rootIcon(GLYPHS[q.src], q.st) : null;
-    if (icon) srcIconEl.innerHTML = icon;
-    srcTextEl.textContent = '取自「' + q.src + '」' +
-      (q.span === 'whole' ? '整個字' : '第 ' + q.span + ' 筆');
+    srcTextEl.textContent = '';
+    if (q.src && GLYPHS[q.src] && q.sst && q.sst.length) {
+      var icon = ZG.rootIcon ? ZG.rootIcon(GLYPHS[q.src], q.sst) : null;
+      if (icon) srcIconEl.innerHTML = icon;
+      srcTextEl.textContent = '取自「' + q.src + '」' + spanText(q.src, q.sst);
+    }
 
-    codeEl.textContent = '例字「' + ex.c + '」';
-    loadMain(function () {
-      if (cur && cur.ex === ex) {
-        var code = MAIN && MAIN[ex.c];
-        codeEl.textContent = '例字「' + ex.c + '」' + (code ? '　' + code.toUpperCase() : '');
-      }
-    });
+    codeEl.textContent = '這個字：' + q.c + (q.code ? '　' + q.code : '');
+    // 錨點是字母那一節（LA、LO…），zigen.js 畫完表格會自己捲過去
+    linkEl.href = 'zigen.html#L' + q.L;
+    linkEl.textContent = '在字根表看 ' + q.L + ' 這一組';
 
-    // 錨點裡有中文（ZA-夕-whole），一定要編碼過再放進網址
-    linkEl.href = 'zigen.html#' +
-      encodeURIComponent('Z' + q.L + '-' + q.src + '-' + q.span);
-
-    overlayLetter(q, ex);
+    overlayLetter(q);
     revealEl.hidden = false;
     /* 「提示／看答案」換成「下一題」—— 同一排、同一個位置。⚠️ 不要用「收掉那一排
        再把下一題放到別處」的做法：底下整塊會往上跳，而使用者的游標正停在剛按下的
@@ -392,48 +357,14 @@
     revealEl.scrollIntoView({ block: 'nearest' });
   }
 
-  function loadMain(after) {
-    if (mainState === 'ready') { after && after(); return; }
-    if (mainState === 'loading') return;
-    mainState = 'loading';
-    fetch('assets/dict.json')
-      .then(function (r) { return r.json(); })
-      .then(function (d) { MAIN = d.main || null; mainState = 'ready'; after && after(); })
-      .catch(function () { mainState = null; });   // 失敗就下次再試，不擋練習
-  }
-
   /* ---------- 進度 ---------- */
   function paintScore() {
-    var pool = POOL;
     var done = 0;
-    pool.forEach(function (q) { if (mastered[q.key]) done++; });
+    POOL.forEach(function (q) { if (mastered[keyOf(q)]) done++; });
     doneEl.textContent = done;
-    totalEl.textContent = pool.length;
+    totalEl.textContent = POOL.length;
     streakEl.textContent = streak;
-    fillEl.style.width = pool.length ? (done / pool.length * 100).toFixed(1) + '%' : '0';
-  }
-
-  /* ---------- 設定 ---------- */
-  function bindOpts() {
-    document.querySelectorAll('input[name="xzorder"]').forEach(function (r) {
-      r.checked = r.value === opts.order;
-      r.addEventListener('change', function () {
-        if (!r.checked) return;
-        opts.order = r.value;
-        saveOpts();
-      });
-    });
-    resetBtn.addEventListener('click', function () {
-      // 進度是使用者自己累積的東西，砍掉之前先問一聲
-      if (!window.confirm('清掉練習紀錄？答對過的字根會全部重來。')) return;
-      mastered = {};
-      streak = 0;
-      saveOk();
-      paintScore();
-      history = [];
-      histPos = -1;
-      nextQuestion();
-    });
+    fillEl.style.width = POOL.length ? (done / POOL.length * 100).toFixed(1) + '%' : '0';
   }
 
   hintBtn.addEventListener('click', hint);
@@ -441,9 +372,20 @@
   nextBtn.addEventListener('click', nextQuestion);
   skipBtn.addEventListener('click', nextQuestion);
   prevBtn.addEventListener('click', prevQuestion);
+  resetBtn.addEventListener('click', function () {
+    // 進度是使用者自己累積的東西，砍掉之前先問一聲
+    if (!window.confirm('清掉練習紀錄？答對過的題目會全部重來。')) return;
+    mastered = {};
+    streak = 0;
+    saveOk();
+    paintScore();
+    history = [];
+    histPos = -1;
+    nextQuestion();
+  });
 
-  // 實體鍵盤：直接按字母作答，答完按 Enter／空白鍵換下一題。輸入框在這一頁
-  // 一個都沒有，所以不必擔心搶走誰的按鍵。
+  // 實體鍵盤：直接按字母作答，答完按 Enter／空白鍵換下一題，左右鍵走前後。
+  // 輸入框在這一頁一個都沒有，所以不必擔心搶走誰的按鍵。
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (!cur) return;
@@ -462,37 +404,30 @@
   });
 
   /* ---------- 起手 ----------
-     兩個檔都到齊才開得了場：沒有 zigen.json 沒有題目，沒有 glyphs.json 畫不出
-     字根 —— 這一頁的題目**就是**那張圖，退不回文字版（〈字根表〉可以，因為那裡
-     的圖只是輔助）。所以載入中就老老實實說在載入。 */
+     只有一個檔（20 KB 上下）：題目、字形、碼、取形意圖全在裡面。抓不到就老實說，
+     這一頁的題目**就是**那張圖，退不回文字版。 */
   loadState();
   buildPad();
-  bindOpts();
 
-  Promise.all([
-    fetch('assets/zigen.json').then(function (r) { return r.json(); }),
-    fetch('assets/glyphs.json').then(function (r) { return r.json(); }),
-    fetch('assets/lianxi.json').then(function (r) { return r.json(); })
-  ]).then(function (got) {
-    DATA = got[0];
-    GLYPHS = (got[1] && got[1].glyphs) || null;
-    PICKS = (got[2] && got[2].picks) || [];
-    if (!DATA || !GLYPHS) throw new Error('no data');
-    POOL = buildPool();
-    if (!POOL.length) {
-      // 一條都沒挑，或挑的那幾條都沒有可用的例字 —— 這不是壞掉，是還沒挑，
-      // 所以講清楚是哪一種，不要丟一個「載入失敗」讓人去猜。
-      loadingEl.textContent = '還沒挑要考哪幾條字根（site/content/lianxi.md）。';
-      return;
-    }
-    loadingEl.hidden = true;
-    gameEl.hidden = false;
-    optsEl.hidden = false;
-    if (creditEl) creditEl.hidden = false;
-    paintScore();
-    nextQuestion();
-  }).catch(function () {
-    loadingEl.textContent =
-      '字根資料載入失敗。本機預覽請先跑 python3 site/tools/build_site_data.py。';
-  });
+  fetch('assets/lianxi.json')
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      GLYPHS = (d && d.glyphs) || null;
+      POOL = (d && d.questions) || [];
+      if (!GLYPHS || !POOL.length) {
+        // 還沒挑不是壞掉，講清楚是哪一種，不要丟一個「載入失敗」讓人去猜
+        loadingEl.textContent = '還沒挑要考哪幾題（site/content/lianxi.md）。';
+        return;
+      }
+      loadingEl.hidden = true;
+      gameEl.hidden = false;
+      optsEl.hidden = false;
+      if (creditEl) creditEl.hidden = false;
+      paintScore();
+      nextQuestion();
+    })
+    .catch(function () {
+      loadingEl.textContent =
+        '題目載入失敗。本機預覽請先跑 python3 site/tools/build_site_data.py。';
+    });
 })();
