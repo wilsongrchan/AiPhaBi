@@ -3655,13 +3655,14 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   background: var(--warn-soft);
   border-color: var(--warn);
   color: var(--warn);
-  animation: xz-shake .34s ease;
+  animation: xz-shake .26s ease;
 }
+/* 幅度刻意小（最大 ±2px，一顆鍵寬約 38px）—— Wilson 2026-09-01：原本 ±4px
+   抖得太用力。這一下是「這個不對」的提醒，不是警報。 */
 @keyframes xz-shake {
-  10%, 90% { transform: translateX(-2px); }
-  20%, 80% { transform: translateX(3px); }
-  30%, 50%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
+  20%, 80% { transform: translateX(-1px); }
+  40%, 60% { transform: translateX(2px); }
+  50% { transform: translateX(-2px); }
   100% { transform: translateX(0); }
 }
 .xz-key.is-dim { opacity: .22; }
@@ -3695,6 +3696,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   color: var(--ink-dim);
 }
 .xz-nudge.is-bad { color: var(--warn); }
+.xz-nudge.is-good { color: var(--accent); font-weight: 600; }
 
 .xz-mini {
   background: none;
@@ -3711,8 +3713,6 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .xz-mini:disabled { color: var(--ink-faint); text-decoration: none; cursor: default; opacity: .6; }
 
 .xz-reveal { margin-top: 1.3rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
-.xz-verdict { text-align: center; font-size: .9rem; color: var(--ink-dim); margin: 0 0 1rem; }
-.xz-verdict.is-right { color: var(--accent); font-weight: 600; }
 
 .xz-ansrow { display: flex; align-items: flex-start; gap: 1rem; }
 /* ⚠️ 蓋掉 .zg-key 的 1.8rem 見方 —— 同權重，靠排在它後面贏（見本節開頭）。 */

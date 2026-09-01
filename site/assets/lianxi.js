@@ -41,7 +41,6 @@
   var prevBtn = document.getElementById('xz-prev');
   var skipBtn = document.getElementById('xz-skip');
   var resetBtn = document.getElementById('xz-reset');
-  var verdictEl = document.getElementById('xz-verdict');
   var keyEl = document.getElementById('xz-key');
   var descEl = document.getElementById('xz-desc');
   var srcIconEl = document.getElementById('xz-srcicon');
@@ -237,9 +236,12 @@
     show(history[histPos], false);
   }
 
-  function nudge(text, bad) {
+  /* 字母鍵盤底下那一句話 —— 答對、答錯、看答案**全部講在這裡**（Wilson）。
+     對錯講在不同地方的話，眼睛每答一次就要重新找它在哪。
+     tone：'good' 綠、'bad' 紅、不給就是中性灰。 */
+  function nudge(text, tone) {
     nudgeEl.textContent = text || '';
-    nudgeEl.className = 'xz-nudge' + (bad ? ' is-bad' : '');
+    nudgeEl.className = 'xz-nudge' + (tone ? ' is-' + tone : '');
   }
 
   function answer(L) {
@@ -255,11 +257,10 @@
     streak = 0;
     paintScore();
     if (wrong >= MAX_WRONG) {
-      nudge('猜了 ' + MAX_WRONG + ' 次，先看答案吧');
-      reveal(false);
+      reveal(false, false, '猜了 ' + MAX_WRONG + ' 次，先看答案吧');
       return;
     }
-    nudge('沒關係，再試一次', true);
+    nudge('沒關係，再試一次', 'bad');
   }
 
   /* 提示：把選項收成四個字母（正解＋三個隨機）。用過提示這一題就不算學會 —— 不然
@@ -295,7 +296,7 @@
     return '第 ' + ss.map(function (n) { return n + 1; }).join('、') + ' 筆';
   }
 
-  function reveal(right, replay) {
+  function reveal(right, replay, msg) {
     if (answered || !cur) return;
     answered = true;
     var q = cur.q;
@@ -317,10 +318,10 @@
       paintScore();
     }
 
-    verdictEl.textContent = right
-      ? (wrong ? '對了 —— 這一條再看一眼' : '答對了')
-      : '答案是';
-    verdictEl.className = 'xz-verdict ' + (right && !wrong ? 'is-right' : 'is-plain');
+    /* ⚠️ 這裡一定要覆蓋掉那句話，不能只在猜錯時寫 —— 猜錯一次之後再答對，
+       「沒關係，再試一次」會**留在畫面上**跟「答對了！」互相矛盾（Wilson 抓到）。
+       答對、看答案、猜滿三次，三條路都會走到這裡，所以在這裡寫一定蓋得到。 */
+    nudge(msg || (right ? '答對了！' : '答案是這個'), msg ? '' : (right ? 'good' : ''));
 
     keyEl.textContent = q.L;
     descEl.textContent = q.d || '（取形意圖待補）';

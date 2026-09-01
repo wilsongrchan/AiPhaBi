@@ -105,15 +105,17 @@
 
       <div class="xz-pad" id="xz-pad" role="group" aria-label="選一個英文字母"></div>
 
-      <!-- 猜錯時的一句話（「沒關係，再試一次」）。⚠️ 高度是固定的：它時有時無，
-           不留位置的話字母鍵盤底下的按鈕會上下跳。 -->
+      <!-- 答完／猜錯的那一句話都在這裡：「答對了！」「沒關係，再試一次」「答案是這個」。
+           ⚠️ 一律用**同一個位置**（Wilson 2026-09-01）—— 對錯講在不同地方的話，
+           眼睛每答一次就要重新找它在哪。
+           ⚠️ 高度是固定的：這句話時有時無，不留位置的話底下的按鈕會上下跳。 -->
       <p class="xz-nudge" id="xz-nudge" role="status"></p>
 
       <!-- 這一排的位置**不動**：答完是把「提示／看答案」換成「下一題」，不是把
            整排收掉再把按鈕放到別處。收掉的話底下整塊往上跳，而游標正停在剛按下
            的那顆字母鍵上（見 assets/lianxi.js 的 reveal）。 -->
       <div class="xz-acts">
-        <button type="button" class="btn btn-primary" id="xz-hint">提示：收成四個字母</button>
+        <button type="button" class="btn btn-primary" id="xz-hint">提示：減至四個選項</button>
         <button type="button" class="btn btn-primary" id="xz-show">看答案</button>
         <button type="button" class="btn btn-primary" id="xz-next" hidden>下一題</button>
       </div>
@@ -126,7 +128,6 @@
       </div>
 
       <div class="xz-reveal" id="xz-reveal" hidden>
-        <p class="xz-verdict" id="xz-verdict" role="status"></p>
         <div class="xz-ansrow">
           <span class="zg-key xz-bigkey" id="xz-key" data-keep></span>
           <div class="xz-ansbody">
