@@ -1174,6 +1174,31 @@ def _pick_for(picks, letter, src, st, warn):
     return loose or None
 
 
+def _lianxi_tf(hint):
+    """把提示那句話解析成「怎麼轉」——{"deg": 角度, "fx": ±1, "fy": ±1}。
+
+    ⚠️ 提示是 Wilson 用自然語言寫的（`雪 = E · 把這個字根左右翻轉後`），這裡只認
+    幾種固定說法。認不出來的由呼叫端出聲，不要默默當成「不用轉」——那會讓揭曉
+    的畫面跟題目那句話互相矛盾。
+
+    角度的正負跟 lianxi.js 的 turn() 同一套：順轉為正、逆轉為負（CSS rotate）。
+    """
+    tf = {"deg": 0, "fx": 1, "fy": 1}
+    hit = False
+    m = re.search(r"(順轉|逆轉|旋轉)\s*(\d+)\s*度", hint)
+    if m:
+        n = int(m.group(2))
+        tf["deg"] = -n if m.group(1) == "逆轉" else n
+        hit = True
+    if "左右翻轉" in hint or "水平翻轉" in hint:
+        tf["fx"] = -1
+        hit = True
+    if "上下翻轉" in hint or "垂直翻轉" in hint:
+        tf["fy"] = -1
+        hit = True
+    return tf if hit else None
+
+
 def load_lianxi_picks(warn):
     """讀 site/content/lianxi.md —— Wilson 手挑〈字根練習〉要考哪幾題。
 
@@ -1333,6 +1358,16 @@ def build_lianxi(picks, codes, max_rule, warn, per_level=8):
             q = {"c": ch, "L": L, "g": [picked[0]["strokes"]]}
             if hint:
                 q["h"] = hint
+                # 揭曉時要**自己轉給他看**（Wilson 2026-09-02），所以提示那句話
+                # 除了給人讀，還要解析成真的角度／翻面。解析不出來就出聲——
+                # 寫了「要轉」卻不說怎麼轉，等於這一題沒有答案可以演。
+                tf = _lianxi_tf(hint)
+                if tf:
+                    q["tf"] = tf
+                else:
+                    warn.append(f"〈字根練習〉：「{ch} = {L}」的提示「{hint}」看不出要"
+                                f"怎麼轉，揭曉時不會自己轉（認得順轉／逆轉 N 度、"
+                                f"旋轉 N 度、左右翻轉、上下翻轉）")
             q["_g"] = group
             made.append(q)
 

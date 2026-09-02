@@ -26,6 +26,8 @@ let POOL = [
 let NLEVELS = 2;
 let PASS = 8;                 // 過關要答對幾題（一關可以有更多題，多的是備胎）
 let mastered = {}, roundOk = {}, seenThisRound = {}, lastKey = '', forcedLevel = null;
+// 卡關的出路（見 lianxi.js 同名的常數）
+let STUCK_NEAR = 2, STUCK_MISS = 3, stuckMiss = {}, stuckShown = {};
 
 eval(cut('keyOf'));
 eval(cut('levelLeft'));
@@ -36,6 +38,9 @@ eval(cut('levelDone'));
 eval(cut('levelSource'));
 eval(cut('pickFromLevel'));
 eval(cut('pickQuestion'));
+eval(cut('noteMiss'));
+eval(cut('isStuck'));
+eval(cut('learnedBefore'));
 
 /* ── 跑測試 ─────────────────────────────────────────────────────── */
 let fails = 0;
@@ -43,7 +48,10 @@ function ok(label, cond, extra) {
   console.log((cond ? '  ok   ' : '  ✗ FAIL ') + label + (cond || extra === undefined ? '' : '  ' + extra));
   if (!cond) fails++;
 }
-function reset() { mastered = {}; roundOk = {}; seenThisRound = {}; lastKey = ''; forcedLevel = null; }
+function reset() {
+  mastered = {}; roundOk = {}; seenThisRound = {}; lastKey = ''; forcedLevel = null;
+  stuckMiss = {}; stuckShown = {};
+}
 
 /* ⚠️ 這一項是被咬出來的：用「切一段換一段」的方式改檔案時，很容易留下**同名的
    第二個函式**（2026-09-01 一天之內 paintLevel、paintAsk 各中一次）。後面那個會
@@ -166,6 +174,54 @@ ok('pickFromLevel：做完的關照樣抽得出題', pickFromLevel(0).q.lv === 0
 
 reset();
 ok('levelLeft 只回傳那一關的題', levelLeft(1).length === 1 && levelLeft(0).length === 2);
+
+/* ── 卡關的出路（Wilson 2026-09-02）─────────────────────────────── */
+const savedPool3 = POOL;
+POOL = [];
+for (let i = 0; i < 12; i++) POOL.push({ c: '甲' + i, L: 'A', g: [[0]], lv: 0 });
+for (let i = 0; i < 12; i++) POOL.push({ c: '乙' + i, L: 'B', g: [[0]], lv: 1 });
+NLEVELS = 2;
+
+reset();
+// 一開始就答錯不算卡住 —— 那是正常的學習過程，不是「就差一點」
+POOL.slice(0, 3).forEach(q => noteMiss(q));
+ok('分數還低的時候答錯不算卡住', !isStuck(0), '分數 0，失手 3 題');
+
+reset();
+POOL.slice(0, 6).forEach(q => { roundOk[keyOf(q)] = 1; });   // 6／8
+noteMiss(POOL[6]); noteMiss(POOL[7]);
+ok('6／8 只失手 2 題還不算卡住', !isStuck(0));
+noteMiss(POOL[8]);
+ok('6／8 失手 3 個不同的題目＝卡住了', isStuck(0));
+
+reset();
+POOL.slice(0, 6).forEach(q => { roundOk[keyOf(q)] = 1; });
+for (let i = 0; i < 5; i++) noteMiss(POOL[6]);               // 同一題錯五次
+ok('同一題反覆答錯只算一次，不算卡住', !isStuck(0));
+
+reset();
+POOL.slice(0, 8).forEach(q => { roundOk[keyOf(q)] = 1; });   // 已經過關
+POOL.slice(8, 11).forEach(q => noteMiss(q));
+ok('已經過關就不會再說「卡住了嗎」', !isStuck(0));
+
+reset();
+POOL.slice(0, 6).forEach(q => { roundOk[keyOf(q)] = 1; });
+POOL.slice(6, 9).forEach(q => noteMiss(q));
+stuckShown[0] = 1;
+ok('同一關同一輪只邀請一次', !isStuck(0));
+
+/* 還沒學夠就想跳到最後一關 —— learnedBefore 連 localStorage 的終身紀錄一起算，
+   昨天練過的人今天不該一開頁就被擋。 */
+reset();
+ok('什麼都沒答對，learnedBefore 是 0', learnedBefore(1) === 0);
+POOL.slice(0, 5).forEach(q => { roundOk[keyOf(q)] = 1; });
+ok('這一輪答對 5 題', learnedBefore(1) === 5);
+POOL.slice(5, 8).forEach(q => { mastered[keyOf(q)] = 1; });
+ok('以前答對過的也算（不然回訪的人會被擋）', learnedBefore(1) === 8);
+reset();
+POOL.slice(0, 9).forEach(q => { roundOk[keyOf(q)] = 1; });
+ok('learnedBefore 只算前面幾關，不算目標那一關', learnedBefore(0) === 0);
+POOL = savedPool3;
 
 console.log(fails ? `\n${fails} 項失敗` : '\n全部通過');
 process.exit(fails ? 1 : 0);

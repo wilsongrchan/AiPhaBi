@@ -65,6 +65,16 @@
   function ms(v) { return Math.round(v * PACE); }
   function s(v) { return (v * PACE).toFixed(2) + 's'; }
 
+  /* 兩段「什麼都沒發生」的空檔，跟飛行速度分開調（Wilson 2026-09-02：
+     「the animation speed is fine, but once the letter resembled the
+     characters, it waits for so long before it starts the next group」）。
+     動作本身不動，只把等待剪短 —— 原本是 480／1500。
+
+       AFTER_LAND  一個字母變成筆畫之後，下一個字母出發前的空檔
+       AFTER_CHAR  整個字拼完之後、換下一個字之前留給人看的那一拍 */
+  var AFTER_LAND = 300;
+  var AFTER_CHAR = 900;
+
   function buildChar(ch) {
     var entry = DATA && DATA.chars[ch];
     if (!entry) return;
@@ -260,7 +270,7 @@
 
         timers.push(window.setTimeout(function () {
           flyAndLand(idx + 1, done);
-        }, ms(480)));
+        }, ms(AFTER_LAND)));
       }
     }
 
@@ -268,7 +278,7 @@
     // 留一小段時間讓人看清楚「這幾個字母排在這裡」，才開始第一個出發。
     timers.push(window.setTimeout(function () {
       flyAndLand(0, function () {
-        var hold = ms(1500);
+        var hold = ms(AFTER_CHAR);
         timers.push(window.setTimeout(function () {
           svg.style.transition = 'opacity ' + s(.35) + ' ease';
           svg.style.opacity = '0';
