@@ -204,7 +204,8 @@
   var slots = document.querySelectorAll('[data-stat]');
   var tw4808El = document.getElementById('tw4808-stat');
   var gbL1El = document.getElementById('gb2312l1-stat');
-  if (slots.length || tw4808El || gbL1El) {
+  var covEl = document.getElementById('coverage-stat');
+  if (slots.length || tw4808El || gbL1El || covEl) {
     fetch('assets/dict.json')
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -252,6 +253,19 @@
             : (gbLink + '已收錄 ' + g.done.toLocaleString('en-US') + '／' +
                g.total.toLocaleString('en-US') + ' 字');
         }
+        /* 行文覆蓋率——「打得出多少實際文字」，不是字數覆蓋率。
+           ⚠️ 兩個數字的意思不一樣，不要只印一個：
+             everyday 扣掉語料裡的合成底重之後的日常文本數字（99.67）
+             all      全量語料，含那批灌水字（91.01）—— 它**低估**，
+                      因為分母有 12.69% 的字次不對應任何真實文字。
+           兩個都印是 Wilson 2026-09-02 的決定。算法見 build_site_data.py。 */
+        if (covEl && d.stats && d.stats.coverage &&
+            d.stats.coverage.everyday != null && d.stats.coverage.all != null) {
+          var cv = d.stats.coverage;
+          covEl.textContent =
+            '日常文本（廣告、公告、文章、報章）覆蓋率約 ' + Math.floor(cv.everyday) +
+            '%；含生僻字的全量語料統計約 ' + Math.floor(cv.all) + '%';
+        }
         /* ⚠️ 這幾行的字是 fetch 回來之後才寫進 DOM 的，而繁簡轉換是**載入時掃一遍**
            做的。目前碰巧不會出錯（t2s.json 比 dict.json 晚回來，最後那次
            toSimplified(document.body) 會蓋過去），但那是**賽跑**，不是保證 ——
@@ -261,6 +275,7 @@
           slots.forEach(function (el) { window.AiPhaBiSite.localize(el); });
           if (tw4808El) window.AiPhaBiSite.localize(tw4808El);
           if (gbL1El) window.AiPhaBiSite.localize(gbL1El);
+          if (covEl) window.AiPhaBiSite.localize(covEl);
         }
       })
       .catch(function () { /* 留著 HTML 裡的後備值 */ });

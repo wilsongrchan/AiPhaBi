@@ -90,6 +90,12 @@
        ⚠️ 這裡講的是**一級** 3,755 字。GB 2312 全表 6,763 字（一級＋二級）目前
        還沒收完，不可以拿合併數字講「全部收錄」。 -->
   <p class="jieshao-stat" id="gb2312l1-stat"><a href="https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=5664A728BD9D523DE3B99BC37AC7A2CC" target="_blank" rel="noopener">大陸地區國標 GB 2312 第一級漢字</a> 3,755 字，全部收錄</p>
+  <!-- 行文覆蓋率。⚠️ 兩個數字都由 site.js 從 dict.json 現填，這裡只是後備值。
+       ⚠️ 91% 那個是**全量語料**的數字，而語料中低頻段墊了合成底重，所以它會
+       低估（分母裡有 12.69% 的字次不對應任何真實文字）。99% 才是扣掉灌水痕跡後
+       的日常文本數字。兩個都印是 Wilson 2026-09-02 的決定，見 build_site_data.py
+       stats["coverage"] 的說明。 -->
+  <p class="jieshao-stat" id="coverage-stat">日常文本（廣告、公告、文章、報章）覆蓋率約 99%；含生僻字的全量語料統計約 91%</p>
 
   <h2>愛發筆輸入法和已有的字形輸入法有什麼不同？</h2>
 
