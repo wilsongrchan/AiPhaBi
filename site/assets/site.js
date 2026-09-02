@@ -258,12 +258,16 @@
              everyday 扣掉語料裡的合成底重之後的日常文本數字（99.67）
              all      全量語料，含那批灌水字（91.01）—— 它**低估**，
                       因為分母有 12.69% 的字次不對應任何真實文字。
-           兩個都印是 Wilson 2026-09-02 的決定。算法見 build_site_data.py。 */
+           兩個都印是 Wilson 2026-09-02 的決定。算法見 build_site_data.py。
+           ⚠️ 一律**無條件捨去**，不要四捨五入：99.67 進位成「約 100%」等於把
+           「幾乎全部」講成「全部」（實測差點就這樣上線）。日常那個取到小數
+           一位（99.6%，Wilson 指定），全量那個取整數。 */
         if (covEl && d.stats && d.stats.coverage &&
             d.stats.coverage.everyday != null && d.stats.coverage.all != null) {
           var cv = d.stats.coverage;
           covEl.textContent =
-            '日常文本（廣告、公告、文章、報章）覆蓋率約 ' + Math.floor(cv.everyday) +
+            '日常文本（廣告、公告、文章、報章）覆蓋率約 ' +
+            (Math.floor(cv.everyday * 10) / 10).toFixed(1) +
             '%；含生僻字的全量語料統計約 ' + Math.floor(cv.all) + '%';
         }
         /* ⚠️ 這幾行的字是 fetch 回來之後才寫進 DOM 的，而繁簡轉換是**載入時掃一遍**
