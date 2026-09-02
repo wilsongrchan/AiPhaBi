@@ -68,11 +68,14 @@
   /* 兩段「什麼都沒發生」的空檔，跟飛行速度分開調（Wilson 2026-09-02：
      「the animation speed is fine, but once the letter resembled the
      characters, it waits for so long before it starts the next group」）。
-     動作本身不動，只把等待剪短 —— 原本是 480／1500。
+     ⚠️ 他講的是**換下一個字**之前那一段，不是字母之間那一段。兩個一起剪短的
+     版本他馬上就看出來了（「i feel like you have made the flying animation
+     faster, i like it it was before」）—— 字母一個接一個飛的節奏就是「飛行
+     動畫」本身，動它等於改了速度，而速度他說是對的。所以只剪 AFTER_CHAR。
 
-       AFTER_LAND  一個字母變成筆畫之後，下一個字母出發前的空檔
-       AFTER_CHAR  整個字拼完之後、換下一個字之前留給人看的那一拍 */
-  var AFTER_LAND = 300;
+       AFTER_LAND  一個字母變成筆畫之後，下一個字母出發前的空檔（**不要動**）
+       AFTER_CHAR  整個字拼完之後、換下一個字之前留給人看的那一拍（1500 → 900） */
+  var AFTER_LAND = 480;
   var AFTER_CHAR = 900;
 
   function buildChar(ch) {
