@@ -203,7 +203,8 @@
    * 產生當下的 codes.json 為準。手抄的數字撐不過幾天取碼。 */
   var slots = document.querySelectorAll('[data-stat]');
   var tw4808El = document.getElementById('tw4808-stat');
-  if (slots.length || tw4808El) {
+  var gbL1El = document.getElementById('gb2312l1-stat');
+  if (slots.length || tw4808El || gbL1El) {
     fetch('assets/dict.json')
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -229,6 +230,33 @@
           tw4808El.innerHTML = s.done >= s.total
             ? (tw4808Link + ' ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
             : (tw4808Link + '已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
+        }
+        /* GB 2312 一級漢字，跟上面那行同一套規矩：收滿了才講「全部收錄」，
+           沒收滿就講分數，哪一句由資料決定。
+
+           ⚠️ 用的是 stats.gb2312_l1（一級 3,755 字），**不是** stats.gb2312
+           （一級＋二級 6,763 字）。二級還沒收完，拿合併的數字講「全部收錄」
+           會是假話（Side A 2026-09-02 特別提醒）。分級是照 GB 2312 自己的
+           區位碼算的，不是照檔案裡的位置切，見 build_site_data.py。
+
+           這一行沒有連結：GB 2312 沒有像教育部語文成果入口網那樣穩定的官方
+           下載頁，與其編一顆連結不如不放。 */
+        if (gbL1El && d.stats && d.stats.gb2312_l1) {
+          var g = d.stats.gb2312_l1;
+          gbL1El.textContent = g.done >= g.total
+            ? ('GB 2312 一級漢字 ' + g.total.toLocaleString('en-US') + ' 字，全部收錄')
+            : ('GB 2312 一級漢字已收錄 ' + g.done.toLocaleString('en-US') + '／' +
+               g.total.toLocaleString('en-US') + ' 字');
+        }
+        /* ⚠️ 這幾行的字是 fetch 回來之後才寫進 DOM 的，而繁簡轉換是**載入時掃一遍**
+           做的。目前碰巧不會出錯（t2s.json 比 dict.json 晚回來，最後那次
+           toSimplified(document.body) 會蓋過去），但那是**賽跑**，不是保證 ——
+           哪天 dict.json 比較慢，這幾行就會卡在繁體。寫完就自己轉一次，不要賭。
+           跟 lianxi.js 的 loc() 是同一條規矩。 */
+        if (window.AiPhaBiSite) {
+          slots.forEach(function (el) { window.AiPhaBiSite.localize(el); });
+          if (tw4808El) window.AiPhaBiSite.localize(tw4808El);
+          if (gbL1El) window.AiPhaBiSite.localize(gbL1El);
         }
       })
       .catch(function () { /* 留著 HTML 裡的後備值 */ });

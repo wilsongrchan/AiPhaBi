@@ -3007,6 +3007,29 @@ def main():
         stats[sid] = {"label": label, "done": done, "total": len(chars),
                       "pct": round(done * 100 / len(chars), 1)}
 
+    # GB 2312 的一級漢字（3,755 字，拼音序）單獨算一份 —— 二級還沒收完，把
+    # 6,763 字的合併數字講成「全部收錄」會是假話（Side A 2026-09-02 特別提醒）。
+    #
+    # ⚠️ 分級**不靠檔案裡的位置**（「前 3755 個」），靠 GB 2312 自己的區位碼：
+    # 一級是第一個 byte 落在 0xB0–0xD7，二級是 0xD8–0xF7。標準本身就是這樣定義的，
+    # 所以檔案哪天重新產生、排序換了也不會算錯 —— 位置切法會安靜地錯給你看。
+    # （實測這份檔前 3755 個剛好全是一級、其後全是二級，兩種算法目前一致。）
+    gb_path = DATA / "standards" / "gb2312.txt"
+    if gb_path.exists():
+        def _gb_tier(ch):
+            try:
+                return ch.encode("gb2312")[0]
+            except (UnicodeEncodeError, IndexError):
+                return None
+        gb_all = {c for line in gb_path.read_text("utf-8").splitlines()
+                  if not line.startswith("#") for c in line.strip()}
+        lvl1 = {c for c in gb_all if (b := _gb_tier(c)) is not None and 0xB0 <= b <= 0xD7}
+        if lvl1:
+            done1 = len(lvl1 & set(codes))
+            stats["gb2312_l1"] = {"label": "GB 2312 一級漢字", "done": done1,
+                                  "total": len(lvl1),
+                                  "pct": round(done1 * 100 / len(lvl1), 1)}
+
     # 重碼率：首 2000 常用字裡，有多少字跟別的字共用同一個主碼。這是對外會被引用的數字，
     # 所以定義寫死在這裡、每次重算 —— 「涉及重碼的字 ÷ 2000」，跟文案講的是同一件事。
     top = [c for c in freq_order if c in codes][:2000]
