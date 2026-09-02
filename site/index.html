@@ -40,8 +40,16 @@
 (function () {
   var m = window.matchMedia;
   if (!m) return;                                     // 太舊的瀏覽器就別玩花樣
-  if (m('(prefers-reduced-motion: reduce)').matches) return;
-  if (m('(max-width: 52rem)').matches) return;        // 窄螢幕的導覽是頂部橫列
+  /* 「減少動態效果」開著就不藏導覽 —— 沒有飛行動畫可看，藏起來只是徒然。
+     除非他自己按過「播放完整動畫」（landing.js 記在 sessionStorage 的同一個
+     鍵），那就照完整版走。 */
+  var okd = false;
+  try { okd = window.sessionStorage.getItem('aiphabi-lg-motion') === '1'; } catch (e) {}
+  if (!okd && m('(prefers-reduced-motion: reduce)').matches) return;
+  /* ⚠️ 這裡原本有一條 `if (m('(max-width: 52rem)').matches) return;` —— 窄螢幕
+     不玩這個。那時候手機版的導覽是**三行**橫排（225px，最多 542px），藏起來
+     又滑回來整頁會跳一大段。2026-09-02 導覽收成漢堡選單之後只剩一列 59px，
+     而且是往上滑走、位置留著不重排，所以窄螢幕也照做（Wilson）。 */
   document.body.classList.add('lg-navhide');
   window.setTimeout(function () {
     document.body.classList.remove('lg-navhide');

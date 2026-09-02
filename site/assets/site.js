@@ -285,6 +285,100 @@
       .catch(function () { /* 留著 HTML 裡的後備值 */ });
   }
 
+
+  /* ---------- 窄螢幕：導覽收成漢堡選單 ----------
+     手機上十二條連結橫排會折成三行，加上底下那排切換共 225px —— 視窗才 844px，
+     等於每一頁一打開有 27% 是導覽。掛了章節清單的頁面更誇張：〈取碼原則〉542px
+     （64%），〈約定字表〉472px，而且章節清單在橫排裡會變成一條窄窄的直欄，
+     旁邊的連結繞著它排，看起來像壞掉。
+
+     ⚠️ 按鈕在這裡長出來、不寫進十二份 HTML：沒有 JS 的時候不該出現一顆按不動的
+     按鈕，而「全部攤開」本來就是可用的狀態 —— 什麼都不做剛好就是對的。
+     跟上面章節清單那顆收合鈕同一個道理。CSS 也一律掛在 .has-navtoggle 底下，
+     所以沒有 JS 就完全不會進入收合模式。 */
+  var mnBar = document.querySelector('.topbar');
+  var mnNav = document.querySelector('nav.site');
+  if (mnBar && mnNav) {
+    var mnWrap = mnBar.querySelector('.wrap') || mnBar;
+    if (!mnNav.id) mnNav.id = 'site-nav';
+
+    var mnBtn = document.createElement('button');
+    mnBtn.type = 'button';
+    mnBtn.className = 'navtoggle';
+    mnBtn.setAttribute('aria-controls', mnNav.id);
+    mnBtn.setAttribute('aria-expanded', 'false');
+    mnBtn.setAttribute('aria-label', '選單');
+    /* 三條線用 span 畫，不用文字的 ☰ —— 那個字在不同系統上大小差很多，
+       而且會被繁簡轉換掃到。打開時兩條線交叉成 ✕，第三條淡出。 */
+    mnBtn.innerHTML = '<span class="navtoggle-bars" aria-hidden="true"><i></i><i></i><i></i></span>';
+    mnWrap.appendChild(mnBtn);
+    mnBar.classList.add('has-navtoggle');
+    /* 同一個 class 也加到 <html>：頁面別處（字根表那幾層黏頂的 top）要知道
+       頁首現在只有一列高，而它們不在 .topbar 裡面，掛在根節點上最好寫。 */
+    document.documentElement.classList.add('has-navtoggle');
+
+    var mnQuery = window.matchMedia('(max-width: 52rem)');
+
+    function mnSet(open) {
+      mnBar.classList.toggle('nav-open', open);
+      mnBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      mnBtn.setAttribute('aria-label', open ? '關閉選單' : '選單');
+    }
+
+    mnBtn.addEventListener('click', function () {
+      mnSet(!mnBar.classList.contains('nav-open'));
+    });
+
+    /* 點了連結就關 —— 同一頁裡的錨點（章節清單）不會重新載入頁面，
+       選單留在原地擋著內容的話，等於點了沒反應。 */
+    mnNav.addEventListener('click', function (e) {
+      /* 只有連結才關 —— 字級那一組現在也住在選單裡，按「大」之後選單就消失的話
+         沒辦法連按兩下比較大小。 */
+      if (e.target.closest('a')) mnSet(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && mnBar.classList.contains('nav-open')) {
+        mnSet(false);
+        mnBtn.focus();
+      }
+    });
+
+    /* 點選單以外的地方就關。用 pointerdown 而不是 click：click 要等手指離開，
+       在捲動的頁面上常常不會發生。 */
+    document.addEventListener('pointerdown', function (e) {
+      if (!mnBar.classList.contains('nav-open')) return;
+      if (!mnBar.contains(e.target)) mnSet(false);
+    });
+
+    /* 「字級」那一組窄螢幕時搬進選單裡 ----------------------------------
+       量出來：品牌 143px ＋ 兩組切換 181px ＋ 漢堡 44px ＋ 內距與間隔 59px
+       ＝ 427px，而視窗只有 390px —— 頁首那一列 flex-wrap: nowrap，擠不下就
+       整頁被撐寬 19px，十二頁一起可以左右滑。
+       ⚠️ 不用 display:none 把它藏掉：那是一個真的控制項，藏起來等於在手機上
+       沒有字級可調。搬進選單是「次要控制項放在選單裡」的常規做法。
+       繁簡留在外面 —— 那是最常按的一顆，藏進選單等於多一次點擊。 */
+    var mnSize = mnBar.querySelector('.zg-size');
+    var mnSizeHome = mnSize && mnSize.parentNode;
+    var mnSizeNext = mnSize && mnSize.nextSibling;
+
+    function mnPlaceSize() {
+      if (!mnSize) return;
+      if (mnQuery.matches) {
+        if (mnSize.parentNode !== mnNav) mnNav.appendChild(mnSize);
+      } else if (mnSize.parentNode !== mnSizeHome) {
+        mnSizeHome.insertBefore(mnSize, mnSizeNext);
+      }
+    }
+    mnPlaceSize();
+
+    /* 轉成寬螢幕（轉橫、或桌機縮放）時把狀態收掉 —— 留著 nav-open 不會怎樣，
+       但轉回窄螢幕時選單會自己是開的，那不是使用者按的。 */
+    var mnOnChange = function () { mnPlaceSize(); if (!mnQuery.matches) mnSet(false); };
+    if (mnQuery.addEventListener) mnQuery.addEventListener('change', mnOnChange);
+    else if (mnQuery.addListener) mnQuery.addListener(mnOnChange);
+  }
+
   /* 給試打頁用：候選字是後來才畫上去的，畫完要跟著轉 */
   window.AiPhaBiSite = {
     localize: function (root) { if (current() === 'simp' && t2s) toSimplified(root); }

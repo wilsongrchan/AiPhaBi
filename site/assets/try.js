@@ -1829,41 +1829,40 @@
     return true;
   }
 
-  out.addEventListener('keydown', function (e) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    var k = e.key;
+  /* 一個「鍵」走到這裡。回傳 true = 輸入法收走了這一鍵，呼叫端要自己
+     preventDefault；回傳 false = 沒收，讓瀏覽器照原本的方式處理。
+     ⚠️ 拆成獨立函式是為了讓**軟鍵盤**那條路（下面的 beforeinput）能走同一套
+     判斷。以前這整段直接寫在 keydown 裡，手機上完全打不動 —— 見下面的說明。 */
+  function typeKey(k) {
 
     if (state.buf) {
-      if (k === 'Backspace') { e.preventDefault(); setBuf(state.buf.slice(0, -1)); return; }
-      if (k === 'Escape')    { e.preventDefault(); setBuf(''); return; }
+      if (k === 'Backspace') { setBuf(state.buf.slice(0, -1)); return true; }
+      if (k === 'Escape')    { setBuf(''); return true; }
       if (k === ' ' || k === 'Enter') {
-        e.preventDefault();
         if (state.cands.length) commit(state.cands[0].ch);
-        return;
+        return true;
       }
       if (k >= '1' && k <= '9') {
         var i = +k - 1;
-        if (i < state.cands.length) { e.preventDefault(); commit(state.cands[i].ch); return; }
+        if (i < state.cands.length) { commit(state.cands[i].ch); return true; }
       }
     }
 
     if (/^[a-zA-Z]$/.test(k)) {
-      e.preventDefault();
       var lk = k.toLowerCase();
       if (!autoType(lk)) setBuf(state.buf + lk);
-      return;
+      return true;
     }
 
     // 提示鍵。放在標點之前判斷 —— 將來要是 = 也收進 PUNCT，提示還是要贏，
     // 否則這顆鍵就按不出提示了。
-    if (k === HINT_KEY) { e.preventDefault(); hintStep(); return; }
+    if (k === HINT_KEY) { hintStep(); return true; }
 
     // 萬用鍵。放在標點之前判斷 —— ` 在 PUNCT 裡沒有對應，但將來要是加了，
     // 萬用鍵也必須贏，否則這一顆鍵就打不進碼裡了。
-    if (k === WILD) { e.preventDefault(); setBuf(state.buf + WILD); return; }
+    if (k === WILD) { setBuf(state.buf + WILD); return true; }
 
     if (PUNCT[k]) {
-      e.preventDefault();
       /* 碼還在 → 標點先把候選欄第一個頂上屏，再放標點（Wilson：打完 DI 接一個
          逗號，那個逗號就該把 目 頂出去，不必先按空白）。以前這裡是 setBuf('')，
          等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，流 就這樣沒了，連錯誤都
@@ -1882,7 +1881,48 @@
       }
       insert(PUNCT[k]);
       advance(PUNCT[k]);        // 標點也是文章的一部分，打對了一樣往前一格
+      return true;
+    }
+    return false;
+  }
+
+  out.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typeKey(e.key)) e.preventDefault();
+  });
+
+  /* ---------- 手機的軟鍵盤走這一條 ----------
+     ⚠️ 手機上鍵盤送出來的 keydown **沒有可用的 e.key**：Android 的 Gboard 一律
+     報 keyCode 229 / key "Unidentified"（它在做組字，鍵是什麼要等組完才知道），
+     iOS 在有預測字的情形下也一樣。上面那條 keydown 於是一個字母都認不得，結果是
+     整個〈線上試打〉在手機上**完全打不動** —— 打 di 只會看到「di」兩個英文字母
+     留在框裡，碼是空的、候選一個都沒有（2026-09-02 用 CDP 的 Input.insertText
+     實測，那正是軟鍵盤走的路徑；同一頁用實體鍵盤打 di 會得到碼 di、9 個候選）。
+
+     beforeinput 沒有這個問題：它報的是「即將被插入的字」，組字結束才發，而且
+     可以取消。所以這裡把插進來的字**一個一個**餵回上面那套 typeKey。
+
+     ⚠️ 只認 insertText 與 deleteContentBackward：
+       · insertCompositionText 是組字中途的狀態，收下去會把人家還沒選完的拼音
+         當成字母打進碼裡。
+       · insertFromPaste 不收 —— 貼上一段中文本來就該原樣進框（試打文本要對照）。
+     ⚠️ keydown 收走的鍵（實體鍵盤）已經 preventDefault 了，beforeinput 根本
+     不會發，所以兩條路不會重複處理同一鍵。 */
+  out.addEventListener('beforeinput', function (e) {
+    if (e.inputType === 'insertText' && e.data) {
+      var took = false;
+      for (var i = 0; i < e.data.length; i++) {
+        if (typeKey(e.data.charAt(i))) took = true;
+      }
+      /* 只要有一個字母被收走就整段取消 —— 讓「一半進碼、一半留在框裡」這種
+         夾生狀態不可能出現。中文、emoji 這些 typeKey 一律不收，照樣插得進去。 */
+      if (took) e.preventDefault();
       return;
+    }
+    /* 碼還在的時候，退格是退碼、不是刪已經上屏的字 */
+    if (e.inputType === 'deleteContentBackward' && state.buf) {
+      e.preventDefault();
+      typeKey('Backspace');
     }
   });
 

@@ -603,7 +603,11 @@ blockquote p:last-child { margin-bottom: 0; }
 
 @media (max-width: 40rem) {
   .zg-table .tablewrap { overflow-x: auto; }
-  .zg-tbl thead th { position: static; }
+  /* ⚠️ 「表頭改成不黏」那條**不在這裡** —— 底下第 856 行無條件寫了
+     `.zg-tbl thead th { position: sticky }`，同權重、排在後面，寫在這裡會被它
+     蓋掉（原本就是這樣，手機上表頭一直是 sticky，飄到表格中間蓋住內容）。
+     修正放在檔尾那一區，排在 856 行後面才有效。site/tools/css_order_test.js
+     會盯著這一類「@media 被後面無條件規則蓋掉」的情形。 */
 }
 
 table {
@@ -3955,4 +3959,252 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 @media (prefers-reduced-motion: reduce) {
   .zg-tbl tbody tr.is-flash > td { animation: none; background: var(--accent-soft); }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   手機版修正（2026-09-02）
+
+   ⚠️ 整塊放在檔案**最後面**是故意的，跟 .xz-* 那一塊同一個理由：這裡有好幾條
+   規則要蓋掉前面同權重的宣告，同權重時排後面的才贏。往前搬會靜靜失效。
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ---------- 1. 字根表的表頭：窄螢幕要**真的**變成不黏 ----------
+   第 606 行那條 `position: static` 寫在 @media 裡，但第 856 行的 `position: sticky`
+   沒有條件、而且排在後面 —— 同權重、後面贏，所以手機上表頭一直是 sticky 的。
+   .tablewrap 在 ≤40rem 會開 overflow-x: auto 變成捲動容器，sticky 於是黏在
+   「那個容器」而不是視窗上，表頭就飄到表格中間、蓋住字母欄和例字
+   （實測 390px 下 position:sticky top:94.4px，表頭卡在第一組資料中間）。
+   第 601 行的註解早就寫明會這樣，只是那條修正被排序吃掉了。 */
+@media (max-width: 40rem) {
+  .zg-table .zg-tbl thead th { position: static; }
+}
+
+/* ---------- 2. 窄螢幕的導覽收成漢堡選單 ----------
+   一律掛在 .has-navtoggle（JS 加的）底下：沒有 JS 就維持原本的橫排全展開，
+   不會變成一個打不開的空選單。
+   ⚠️ 按鈕預設藏起來，到 52rem 底下才打開。它的樣式整組寫在那個 media 裡面，
+   少了這一條的話寬螢幕會看到一顆沒上妝的預設按鈕貼在側邊欄上（實測有）。 */
+.navtoggle { display: none; }
+
+@media (max-width: 52rem) {
+
+  .topbar.has-navtoggle .wrap {
+    /* 收起來的時候不換行 —— 品牌／繁簡／漢堡就是一列，擠不下也不要折成兩行。 */
+    flex-wrap: nowrap;
+    gap: .75rem;
+    min-height: 3.5rem;
+    padding: .45rem 1.1rem;
+  }
+  /* ⚠️ 打開的時候一定要**允許換行**：選單是 .wrap 這個 flex 列的第四個項目，
+     nowrap 會把它硬塞在同一列的剩餘寬度裡 —— 實測會變成一條擠在右邊、
+     一半在畫面外、字被切掉的窄柱，而頁首那一列被撐高之後垂直置中飄到畫面中間。
+     ⚠️ 這個壞法**量不出來**：選單高度、連結數、分組標題可見度全部正常，
+     是截圖才看出來的。改版面的驗證不能只讀數字。 */
+  .topbar.has-navtoggle.nav-open .wrap {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* 收起來的時候整條導覽不佔位（不是隱形，是真的不排版） */
+  .topbar.has-navtoggle nav.site { display: none; }
+
+  .navtoggle {
+    display: flex;
+    order: 3;
+    flex: none;
+    margin-inline-start: auto;
+    /* 44×44 是 Apple 的最小可點面積；外框只有 2.2rem 看起來才不笨重，
+       靠 padding 把可點範圍撐到 44。 */
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .navtoggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .navtoggle-bars { position: relative; width: 1.15rem; height: .8rem; display: block; }
+  .navtoggle-bars i {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: currentColor;
+    border-radius: 2px;
+    transition: transform .22s ease, opacity .15s ease;
+  }
+  .navtoggle-bars i:nth-child(1) { top: 0; }
+  .navtoggle-bars i:nth-child(2) { top: 50%; margin-top: -1px; }
+  .navtoggle-bars i:nth-child(3) { bottom: 0; }
+  /* 打開時上下兩條交叉成 ✕，中間那條淡出 */
+  .nav-open .navtoggle-bars i:nth-child(1) { transform: translateY(.39rem) rotate(45deg); }
+  .nav-open .navtoggle-bars i:nth-child(2) { opacity: 0; }
+  .nav-open .navtoggle-bars i:nth-child(3) { transform: translateY(-.39rem) rotate(-45deg); }
+
+  /* 打開後：回到桌面版那種「分組直排」的樣子。上面 52rem 那一段把 nav 改成了
+     橫排、又用 display:contents 把 .nav-sec 拆掉，這裡要一條一條收回來。 */
+  .topbar.has-navtoggle.nav-open nav.site {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    order: 9;
+    gap: .1rem;
+    margin: .5rem -1.1rem 0;
+    padding: .6rem 1.1rem 1rem;
+    border-top: 1px solid var(--line);
+    /* 選單比螢幕長的時候自己捲（〈取碼原則〉展開章節清單有十條） */
+    /* 扣的是「頁首那一列 ＋ 選單自己的上外距」，不是只有頁首 ——
+       只扣 3.5rem 的話 360×740 上量到選單底部比視窗低 11px。 */
+    max-height: calc(100vh - 4.5rem);
+    max-height: calc(100dvh - 4.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .topbar.has-navtoggle.nav-open .nav-sec {
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+    margin-top: .5rem;
+  }
+  .topbar.has-navtoggle.nav-open .nav-sec-t {
+    display: block;
+    font-size: .7rem;
+    letter-spacing: .12em;
+    color: var(--ink-faint);
+    padding: .2rem .6rem;
+  }
+  /* 選單裡的每一條都是一個手指目標，不是一行字：左右滿版、上下 .55rem ≈ 44px */
+  .topbar.has-navtoggle.nav-open nav.site a {
+    padding: .55rem .6rem;
+    border-radius: 6px;
+    border-bottom: 0;
+    border-inline-start: 0;
+  }
+  .topbar.has-navtoggle.nav-open nav.site a[aria-current="page"] {
+    background: var(--code-bg);
+    color: var(--ink);
+    border-bottom: 0;
+  }
+  .topbar.has-navtoggle.nav-open .nav-sec > a,
+  .topbar.has-navtoggle.nav-open .nav-sec > .pr-navhead > a { padding-inline-start: 1.35rem; }
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav { padding-inline-start: 1.85rem; }
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav a { padding: .45rem .6rem; }
+
+  /* 收起來之後頁首只剩一列，底下那幾層黏頂的 top 要跟著改（原本是照
+     三行導覽的 3.4rem／5.9rem 算的）。 */
+  .has-navtoggle .zg-jump { top: 3.5rem; }
+  .has-navtoggle .zg-tbl thead th { top: 6rem; }
+}
+
+/* ---------- 3. 頁首的兩組切換：放大到手指按得到 ----------
+   原本 .66rem（10.6px）字、上下 padding .12rem，量出來每顆只有 23×20px。
+   Apple 的建議是 44pt、Google 是 48dp，這連一半都不到，而且 10.6px 的
+   「繁 / 简」在手機上根本讀不出差別。只在手機放大，桌面維持原樣。 */
+@media (max-width: 52rem) {
+  .langtoggle, .zg-size { font-size: .82rem; }
+  .langtoggle button, .zg-size-btns button {
+    min-width: 2.1rem;
+    min-height: 2.1rem;
+    padding: .3rem .6rem;
+  }
+  .topbar-controls { order: 2; gap: .55rem; flex: none; }
+
+  /* 「字級」被 JS 搬進選單裡了（見 site.js mnPlaceSize：留在頁首那一列會把
+     整頁撐寬 19px）。在選單裡它自己是一列，跟連結之間拉一條線分開。 */
+  .topbar.has-navtoggle.nav-open nav.site > .zg-size {
+    flex-direction: row;
+    align-items: center;
+    gap: .6rem;
+    margin-top: .7rem;
+    padding: .7rem .6rem 0;
+    border-top: 1px solid var(--line);
+  }
+  .topbar.has-navtoggle.nav-open nav.site > .zg-size > span {
+    display: block;
+    font-size: .7rem;
+    letter-spacing: .12em;
+    color: var(--ink-faint);
+  }
+  /* 收起來的時候整組不佔位（它人在 nav 裡，而 nav 收起來是 display:none，
+     所以這條只是講清楚，不是必要的） */
+}
+
+/* ---------- 4. 首頁動畫收尾時導覽的進場方向 ----------
+   桌面版側邊欄在左邊，所以是從左邊滑進來。窄螢幕的頁首是**頂上那一條**，
+   往左滑進來看起來像飄過去的，改成從上面落下。 */
+@media (max-width: 52rem) {
+  .lg-body.lg-navhide .topbar { transform: translateY(-100%); }
+}
+
+/* ---------- 5. 首頁的拆件動畫：窄螢幕改成直的 ----------
+   字母改排在字形**上面**、往下飛（landing.js 的 isNarrow／VIEWBOX_TALL）。
+   ⚠️ aspect-ratio 一定要跟 landing.js 的 viewBox 對上（1024 : 1584），
+   對不上的話 SVG 會在框裡自己置中，上下或左右留出一條空白，字形看起來歪掉。
+   高度換算：20.5rem 高 → 14.5rem 寬（233px），最窄的手機也站得下。
+   隊伍尾巴會被切掉一點，跟寬螢幕版一樣 —— 那正是「後面還有人在排」的意思。 */
+@media (max-width: 52rem) {
+  .lg-stage {
+    height: 20.5rem;
+    aspect-ratio: 1024 / 1444;
+  }
+  /* ⚠️ 一定要跟著把 overflow 關掉。.lg-svg 平常是 overflow: visible ——
+     寬螢幕靠它讓隊尾那個字母露在 viewBox 左邊外面（「後面還有人在排」）。
+     直排的時候那個「外面」是**正上方**，於是隊伍會直接畫到標語
+     「發掘中文打字的樂趣」上面去。切掉之後隊尾在舞台上緣自然斷開，
+     要的效果一模一樣，而且不會壓到字。 */
+  .lg-svg { overflow: hidden; }
+}
+
+/* ---------- 6. 窄螢幕的首頁：整片就是一個螢幕 ----------
+   動畫播放的時候導覽是收起來的（index.html 的 lg-navhide，2026-09-02 起窄螢幕
+   也適用），所以這一片可以剛好等於「一個螢幕減掉頁首那一列」。
+   量到的內容高度：標語群 105px ＋ 舞台 328px ＋ 碼與關鍵字 85px ＋ 兩顆按鈕
+   48px ＝ 762px，844px 的機子放得下，740px 的放不下 —— 所以舞台改成跟著螢幕
+   高度縮（40dvh），矮的機子讓動畫小一點，而不是把按鈕擠到摺線下面。
+   ⚠️ 用 dvh 不用 vh：手機瀏覽器的網址列會收合，vh 取的是**收合前**的高度，
+   捲一下就多出一條空白。 */
+@media (max-width: 52rem) {
+  .hero--landing {
+    min-height: calc(100dvh - 3.7rem);   /* 3.7rem ≈ 收起來的頁首那一列 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 1.6rem 2rem;
+    margin-bottom: 1.6rem;
+  }
+  /* 舞台在矮螢幕上讓步。⚠️ 只改 height，aspect-ratio 會自己把寬度跟著收，
+     所以直排的隊伍不會被壓扁。 */
+  .lg-stage { height: min(20.5rem, 40dvh); }
+}
+
+/* ---------- 7. 「播放完整動畫」（只有開了「減少動態效果」的人看得到）----------
+   由 landing.js 長出來，見那裡的說明。做成低調的線框按鈕：它是一個補充選項，
+   不該跟底下「自己發掘／我想學習更多字根」那兩顆主要行動搶。 */
+.lg-motion {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .2rem auto 0;
+  padding: .45rem .9rem;
+  font: inherit;
+  font-size: .85rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.lg-motion:hover { color: var(--ink); border-color: var(--ink-faint); }
+.lg-motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lg-motion svg { width: 1rem; height: 1rem; fill: currentColor; flex: none; }
+/* 手機上放大到手指按得到 */
+@media (max-width: 52rem) {
+  .lg-motion { min-height: 2.4rem; padding: .5rem 1rem; }
 }

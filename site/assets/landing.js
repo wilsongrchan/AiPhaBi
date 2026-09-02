@@ -20,8 +20,26 @@
   var codeEl = document.getElementById('lg-code');
   if (!svg || !codeEl) return;
 
-  var REDUCED = window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* 「減少動態效果」偏好。⚠️ 不是常數，是一個**可以被使用者推翻**的判斷：
+     iOS 的「減少動態效果」開著的人（Wilson 自己就是）看到的是字母直接出現在
+     定位、只有淡入淡出 —— 那是照系統偏好辦事，不是壞掉，但整段動畫要講的
+     「字母飛過去變成筆畫」他就一次也沒看過。
+     所以照偏好當預設，另外給一顆「播放完整動畫」讓想看的人自己開。
+     ⚠️ 記在 sessionStorage，**不是** localStorage：這是無障礙偏好，一次點擊
+     不該永久推翻它。分頁關掉就回到系統偏好；但在同一次瀏覽裡逛去〈字根表〉
+     再回首頁，不用再按一次。
+     ⚠️ 存取要包 try：無痕模式與「封鎖網站資料」底下讀 sessionStorage 會直接
+     丟例外，沒包的話整支 landing.js 在那裡就停了，連動畫都不會播。 */
+  var MOTION_KEY = 'aiphabi-lg-motion';
+  var MOTION_OK = (function () {
+    try { return window.sessionStorage.getItem(MOTION_KEY) === '1'; }
+    catch (e) { return false; }
+  })();
+  function reduced() {
+    if (MOTION_OK) return false;
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
 
   /* 跟 glyphbox.js 的 SVG_TF 同一套算法：字形本身填滿 0–1024，y 軸原點在
    * 左下，縮到 86% 置中再把 y 軸翻回螢幕慣用的方向。 */
@@ -29,6 +47,26 @@
   var SVG_TF = 'translate(' + (1024 * (1 - INSET) / 2).toFixed(1) + ',' +
                (1024 * (1 - INSET) / 2).toFixed(1) + ') scale(' + INSET + ') ' +
                'scale(1,-1) translate(0,-900)';
+
+  /* 排隊的幾何。QUEUE_NEAR_* 是隊伍裡**最靠近舞台**的那一個位置，其餘的往外推。 */
+  var QUEUE_GAP_X = 210;      // 寬螢幕：橫排時兩個字母的間距
+  var QUEUE_GAP_Y = 230;      // 窄螢幕：直排時的間距（字母本身高 260，排緊一點才像一疊）
+  var QUEUE_NEAR_X = -170;    // 寬螢幕：排在字形左邊
+  var QUEUE_NEAR_Y = 1050;    // 窄螢幕：排在字形上面（local y=900 是字形頂端）
+  var QUEUE_MID_X = 512;      // 直排時整列的 x。用字形框的正中央，不是各組筆畫的
+                              // 平均 —— 平均會被偏心的部件拉歪（哈 的 口 在左邊，
+                              // 整列就跟著偏左，看起來像沒對準）。
+
+  /* 舞台的可視範圍。寬螢幕左右各留一大片給橫排的隊伍；窄螢幕改成上面留一片，
+     左右就貼著字形本身（1024 寬）。⚠️ 這兩個值要跟 site.css 裡 .lg-stage 的
+     aspect-ratio 一致，不然 SVG 會在框裡自己置中、留下上下或左右的空白。 */
+  var VIEWBOX_WIDE = '-650 0 2324 1024';
+  var VIEWBOX_TALL = '0 -420 1024 1444';
+
+  /* 跟 site.css 的 52rem 斷點同一條線 —— 導覽收成漢堡選單的那一刻，
+     舞台也該換成直排。 */
+  var NARROW_Q = window.matchMedia('(max-width: 52rem)');
+  function isNarrow() { return NARROW_Q.matches; }
 
   var ORDER = ['哈', '竹', '昌', '石'];
   var DATA = null;
@@ -109,19 +147,31 @@
     }
 
 
-    // 排隊位置：全部字母先在左邊排成一橫排，由左到右照碼的順序排（跟打字、
-    // 跟閱讀方向一樣，第一個字母在最左邊），等飛的時候才一個一個離隊往右飛到
-    // 自己真正該在的位置。整排都站到可視範圍（0–1024）外面，讀起來才像
-    // 「排隊等著上場」而不是「已經在畫面裡了」。
+    // 排隊位置：全部字母先排成一列，照碼的順序排（跟打字、跟閱讀方向一樣，
+    // 第一個字母離舞台最遠、最先出發），等飛的時候才一個一個離隊飛到自己真正
+    // 該在的位置。整排都站到字形範圍（0–1024）外面，讀起來才像「排隊等著上場」
+    // 而不是「已經在畫面裡了」，而且隊尾會被 viewBox 切掉一點，像還有人在後面。
+    //
+    // ⚠️ 方向看螢幕寬窄（Wilson 2026-09-02）：
+    //   寬螢幕 —— 排在**左邊**一橫排，往右飛。舞台是寬的（viewBox 2324×1024），
+    //             左右有的是地方。
+    //   窄螢幕 —— 排在**上面**一直排，往下飛。手機上寬度只有 390px，橫排根本
+    //             站不下，隊伍會整條擠在字形上面糊成一團。
+    // 位置只在建這個字的時候算一次；轉向之後下一個字才換排法，動畫進行中不重排。
     var n = pieces.length;
     var sumY = 0;
     for (var si = 0; si < n; si++) sumY += centers[si].y;
     var midY = sumY / n;
-    var spacing = 210;
-    var queueNearX = -170; // 隊伍裡最靠近舞台（最右）的那個位置
+    var tall = isNarrow();
+    svg.setAttribute('viewBox', tall ? VIEWBOX_TALL : VIEWBOX_WIDE);
     var queue = [];
     for (var qi = 0; qi < n; qi++) {
-      queue.push({ x: queueNearX - (n - 1 - qi) * spacing, y: midY });
+      /* ⚠️ 直排時 y 要**加**才是往上：外層那個 SVG_TF 帶了 scale(1,-1)，
+         在這一層的座標裡 y 越大、畫面上越高（local y=900 剛好是字形頂端）。
+         寫成減的話隊伍會排到字形下面去。 */
+      queue.push(tall
+        ? { x: QUEUE_MID_X, y: QUEUE_NEAR_Y + (n - 1 - qi) * QUEUE_GAP_Y }
+        : { x: QUEUE_NEAR_X - (n - 1 - qi) * QUEUE_GAP_X, y: midY });
     }
 
     // 字母的位置分兩層：外層 .lg-letter-pos 只管「人在哪」（排隊位置飛到定點，
@@ -160,7 +210,7 @@
        沒有字母飛進來 —— iOS 的「減少動態效果」開著就會走到這條路）。
        改成把字母直接放在它**最後該在的位置**，停一下，再純粹用淡入淡出換成
        筆畫。只有透明度在動，沒有任何位移或形變，符合這個偏好的本意。 */
-    if (REDUCED) {
+    if (reduced()) {
       for (var ri = 0; ri < n; ri++) {
         letterPos[ri].style.transform =
           'translate(' + centers[ri].x.toFixed(1) + 'px,' + centers[ri].y.toFixed(1) + 'px)';
@@ -343,7 +393,7 @@
     svg.style.transition = 'none';
     svg.style.opacity = '1';
     buildChar(ch);
-    if (REDUCED) {
+    if (reduced()) {
       timers.push(window.setTimeout(function () {
         svg.style.transition = 'opacity .35s ease';
         svg.style.opacity = '0';
@@ -374,6 +424,32 @@
 
   if (restartBtn) restartBtn.addEventListener('click', restart);
   if (skipBtn) skipBtn.addEventListener('click', skip);
+
+  /* ---------- 「播放完整動畫」：給開了「減少動態效果」的人自己開 ----------
+     ⚠️ 按鈕在這裡長出來、不寫進 HTML：沒開那個偏好的人本來就看得到完整動畫，
+     給他一顆「播放完整動畫」只會讓人以為自己看到的是閹割版。跟導覽的漢堡鈕、
+     章節清單的收合鈕同一個規矩 —— 只在真的用得到的時候才存在。
+     位置擺在碼那一行（OAO → 哈）下面，不塞進右邊那兩顆圓鈕：那兩顆是圖示、
+     沒有字，這一顆需要把話講明白。 */
+  if (reduced() && codeEl && codeEl.parentNode) {
+    var motionBtn = document.createElement('button');
+    motionBtn.type = 'button';
+    motionBtn.className = 'lg-motion';
+    motionBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' +
+      '<span>播放完整動畫</span>';
+    codeEl.parentNode.insertBefore(motionBtn, codeEl.nextSibling);
+
+    motionBtn.addEventListener('click', function () {
+      MOTION_OK = true;
+      try { window.sessionStorage.setItem(MOTION_KEY, '1'); } catch (e) {}
+      motionBtn.remove();
+      /* 導覽也跟著藏起來 —— index.html 那段行內 script 在偏好開著時直接
+         return，所以現在導覽還在。既然他要看完整的一輪，就給他完整的一輪。 */
+      document.body.classList.add('lg-navhide');
+      restart();
+    });
+  }
 
   /* 躲起來那一步在 index.html 的行內 script 做（要趕在第一次繪製之前，這裡太晚，
      見那邊的說明）。這裡只負責把它放出來：正常走 showGuess()，動畫資料抓不到就
