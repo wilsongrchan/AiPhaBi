@@ -1926,6 +1926,28 @@
     }
   });
 
+  /* ---------- 手機用的兩顆鍵：萬用鍵 ` 與提示 = ----------
+     這兩顆在實體鍵盤上順手，在手機上卻要切到符號鍵盤才找得到 —— 而它們正是
+     「不會拆就按一下」跟「卡住了看提示」的出口，藏在第二層等於沒有（Wilson）。
+     ⚠️ 桌面版用 CSS 藏起來，不是不建 —— 轉個方向就該出現，建一次就好。
+     ⚠️ pointerdown 要 preventDefault：不擋的話按鈕會把焦點從試打框搶走，
+     手機鍵盤跟著收起來，按一顆鍵畫面跳一大下。 */
+  var padWrap = document.createElement('div');
+  padWrap.className = 'try-touchkeys';
+  [[WILD, '萬用鍵', WILD], [HINT_KEY, '提示', HINT_KEY]].forEach(function (spec) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'try-touchkey';
+    b.innerHTML = '<kbd data-keep>' + spec[2] + '</kbd><span>' + spec[1] + '</span>';
+    b.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () {
+      typeKey(spec[0]);
+      out.focus({ preventScroll: true });
+    });
+    padWrap.appendChild(b);
+  });
+  if (out.parentNode) out.parentNode.insertBefore(padWrap, out.nextSibling);
+
   /* 詞組選項旁邊那句話：**只講還沒好的狀態**。這是唯一一個「選了之後要等」的
      模式 —— 沒有回饋的話，選了卻還沒有詞候選，看起來就像壞掉。
      載好之後那句就收掉（Wilson）：收錄幾個詞是〈詞組〉頁的事，擺在選項旁邊

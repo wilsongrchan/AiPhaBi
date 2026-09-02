@@ -90,20 +90,53 @@ while (i < css.length) {
   i++;
 }
 
-/* 找：同一個選擇器、同一個屬性，一次在 @media 裡、另一次在它**後面**且無條件。 */
+/* 很粗的權重計算：夠分辨「ID 比 class 大」就好，不追求完全符合規格。 */
+function spec(sel) {
+  return [ (sel.match(/#[\w-]+/g) || []).length,
+           (sel.match(/\.[\w-]+|\[[^\]]*\]|:[a-z-]+\(?/g) || []).length ];
+}
+function higher(a, b) {           // a 的權重是不是嚴格大於 b
+  const x = spec(a), y = spec(b);
+  return x[0] > y[0] || (x[0] === y[0] && x[1] > y[1]);
+}
+
 const bad = [];
 for (let a = 0; a < rules.length; a++) {
   const ra = rules[a];
   if (!ra.media.some(m => /max-width|min-width/.test(m))) continue;
-  for (let b = a + 1; b < rules.length; b++) {
+  for (let b = 0; b < rules.length; b++) {
     const rb = rules[b];
-    if (rb.sel !== ra.sel) continue;
-    if (rb.media.length) continue;                 // 後面那條也有條件，不算
+    if (rb.media.length) continue;                 // 對手也有條件就不算
     const clash = ra.props.filter(p => rb.props.includes(p));
-    if (clash.length) {
-      bad.push(`  ${ra.sel}\n    ${ra.media.join(' ')} 第 ${ra.line} 行設了 ${clash.join('、')}\n` +
-               `    但第 ${rb.line} 行無條件又設了一次 —— 後面的贏，media query 沒有作用`);
+    if (!clash.length) continue;
+
+    /* 兩種輸法：
+       1. 選擇器一模一樣，而對手排在**後面** —— 同權重，後面贏。
+       2. 對手的選擇器**以這一條結尾**（`#cv-groups .jm-cols` 之於 `.jm-cols`）
+          而且權重更高 —— 不管前後都贏。@media 不會提高權重，這一種最容易被
+          「我加了 media query 啊」騙過去。 */
+    const same = rb.sel === ra.sel && b > a;
+    /* ⚠️ 只認**多一個 ID** 的那種。多一個 class（`.cm-wall.is-lg .tianzi` 之於
+       `.tianzi`）通常是「另一個地方的另一個東西」，兩條規則實際上根本match
+       不到同一顆元素，全報出來會淹掉真的問題（實測 6 條裡 3 條是這種）。 */
+    const beats = rb.sel !== ra.sel && rb.sel.endsWith(' ' + ra.sel) &&
+                  spec(rb.sel)[0] > spec(ra.sel)[0];
+    if (!same && !beats) continue;
+
+    if (beats) {
+      // 同一條規則的逗號清單裡已經自己寫了高權重那一版 → 作者處理過了
+      const siblings = rules.filter(r => r.line === ra.line && r.media.join() === ra.media.join());
+      if (siblings.some(r => r.sel === rb.sel)) continue;
+      // 別的 @media 裡已經用同樣高的權重補了一條 → 也算處理過了
+      if (rules.some(r => r.sel === rb.sel && r.media.some(m => /max-width|min-width/.test(m))
+                          && clash.some(p => r.props.includes(p)))) continue;
     }
+
+    bad.push(`  ${ra.sel}\n    ${ra.media.join(' ')} 第 ${ra.line} 行設了 ${clash.join('、')}\n` +
+      (same
+        ? `    但第 ${rb.line} 行無條件又設了一次 —— 同權重、排在後面，media query 沒有作用`
+        : `    但第 ${rb.line} 行的 \`${rb.sel}\` 權重更高（ID 壓過 class），`
+          + `不管前後都贏 —— media query 沒有作用`));
   }
 }
 

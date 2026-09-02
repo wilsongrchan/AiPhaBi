@@ -4030,22 +4030,38 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   }
   .navtoggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  .navtoggle-bars { position: relative; width: 1.15rem; height: .8rem; display: block; }
+  .navtoggle-bars {
+    /* 兩個尺寸拉出來當變數：底下那個 ✕ 的位移是**算出來的**，不是湊出來的。 */
+    --bar-w: 1.15rem;
+    --bar-h: 2px;
+    --box-h: .8rem;
+    position: relative; width: var(--bar-w); height: var(--box-h); display: block;
+  }
   .navtoggle-bars i {
     position: absolute;
     left: 0; right: 0;
-    height: 2px;
+    height: var(--bar-h);
     background: currentColor;
     border-radius: 2px;
     transition: transform .22s ease, opacity .15s ease;
   }
   .navtoggle-bars i:nth-child(1) { top: 0; }
-  .navtoggle-bars i:nth-child(2) { top: 50%; margin-top: -1px; }
+  .navtoggle-bars i:nth-child(2) { top: 50%; margin-top: calc(var(--bar-h) / -2); }
   .navtoggle-bars i:nth-child(3) { bottom: 0; }
-  /* 打開時上下兩條交叉成 ✕，中間那條淡出 */
-  .nav-open .navtoggle-bars i:nth-child(1) { transform: translateY(.39rem) rotate(45deg); }
+
+  /* 打開時上下兩條交叉成 ✕，中間那條淡出。
+     ⚠️ 位移量必須剛好是 (盒高 − 線粗) ÷ 2，兩條才會**在正中央交會**：
+     第一條的中心在 1px、第三條在 11.8px，盒子中心是 6.4px，所以各走 5.4px。
+     原本寫死 .39rem（6.24px），兩條的中心因此差了 1.7px，✕ 是歪的
+     （Wilson 2026-09-02 一眼看出來）。改成 calc 之後不管盒子或線粗怎麼調
+     都還是對稱的。 */
+  .nav-open .navtoggle-bars i:nth-child(1) {
+    transform: translateY(calc((var(--box-h) - var(--bar-h)) / 2)) rotate(45deg);
+  }
   .nav-open .navtoggle-bars i:nth-child(2) { opacity: 0; }
-  .nav-open .navtoggle-bars i:nth-child(3) { transform: translateY(-.39rem) rotate(-45deg); }
+  .nav-open .navtoggle-bars i:nth-child(3) {
+    transform: translateY(calc((var(--box-h) - var(--bar-h)) / -2)) rotate(-45deg);
+  }
 
   /* 打開後：回到桌面版那種「分組直排」的樣子。上面 52rem 那一段把 nav 改成了
      橫排、又用 display:contents 把 .nav-sec 拆掉，這裡要一條一條收回來。 */
@@ -4147,12 +4163,14 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    字母改排在字形**上面**、往下飛（landing.js 的 isNarrow／VIEWBOX_TALL）。
    ⚠️ aspect-ratio 一定要跟 landing.js 的 viewBox 對上（1024 : 1584），
    對不上的話 SVG 會在框裡自己置中，上下或左右留出一條空白，字形看起來歪掉。
-   高度換算：20.5rem 高 → 14.5rem 寬（233px），最窄的手機也站得下。
-   隊伍尾巴會被切掉一點，跟寬螢幕版一樣 —— 那正是「後面還有人在排」的意思。 */
+   高度換算：24rem 高 → 13.8rem 寬（220px），最窄的手機也站得下。
+   ⚠️ 舞台高度是照「字形要多大」挑的，不是照隊伍 —— 隊伍放不放得下由 viewBox
+   決定，跟舞台縮放無關（比例不變，縮放是等比的）。字形在畫面上的高度
+   ＝ 774 ÷ 1783 × 舞台高，24rem 時約 167px。 */
 @media (max-width: 52rem) {
   .lg-stage {
-    height: 20.5rem;
-    aspect-ratio: 1024 / 1444;
+    height: min(24rem, 45dvh);
+    aspect-ratio: 1024 / 1783;
   }
   /* ⚠️ 一定要跟著把 overflow 關掉。.lg-svg 平常是 overflow: visible ——
      寬螢幕靠它讓隊尾那個字母露在 viewBox 左邊外面（「後面還有人在排」）。
@@ -4179,9 +4197,8 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     padding-block: 1.6rem 2rem;
     margin-bottom: 1.6rem;
   }
-  /* 舞台在矮螢幕上讓步。⚠️ 只改 height，aspect-ratio 會自己把寬度跟著收，
-     所以直排的隊伍不會被壓扁。 */
-  .lg-stage { height: min(20.5rem, 40dvh); }
+  /* 舞台高度連同矮螢幕的讓步都寫在上面那一條 min() 裡了，這裡不再重複 ——
+     重複寫一次的話排在後面的會贏，改上面那條會沒有反應。 */
 }
 
 /* ---------- 7. 「播放完整動畫」（只有開了「減少動態效果」的人看得到）----------
@@ -4207,4 +4224,129 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* 手機上放大到手指按得到 */
 @media (max-width: 52rem) {
   .lg-motion { min-height: 2.4rem; padding: .5rem 1rem; }
+}
+
+/* ---------- 8. 字根表在手機上的兩處收窄（Wilson 2026-09-02）----------
+   只動主表（.zg-tbl），〈相近字形辨析〉那張表不受影響。 */
+@media (max-width: 52rem) {
+  /* 「字根」欄：字形自己一行，來源字＋第幾筆一律排到第二行。
+     .zg-shape 本來就是 flex-wrap，把字形那一格的 flex-basis 撐到滿版，
+     後面兩段就被擠到下一行 —— 不用改 HTML 結構。
+     ⚠️ 原本是 `flex: 0 0 1.55rem`，一行放得下就放得下、放不下才折，
+     於是同一欄裡有的一行有的兩行，讀起來參差（「夕 夕 整個字」一行，
+     「⼓ 万 第 3–4 筆」兩行）。 */
+  .zg-tbl .zg-shape > .zg-icon { flex: 0 0 100%; }
+  .zg-tbl .zg-shape { row-gap: .15rem; }
+
+  /* 「字例」欄：四個字縮成三個（取前三個）。第四個在窄螢幕上把整欄撐寬，
+     而那一欄是最後一欄 —— 撐寬就等於整張表要橫捲更多。
+     ⚠️ 用 :nth-child 藏起來、不動資料：換個螢幕寬度就該全部回來。 */
+  .zg-tbl .zg-ex .zg-exg:nth-child(n+4) { display: none; }
+}
+
+/* ---------- 9. 〈約定字表〉在手機上一律單欄（Wilson 2026-09-02）----------
+   ⚠️ 這是**權重**造成的，不是排序：第 1580 行的 `#cv-groups .jm-cols` 用了 ID
+   選擇器（0,1,1,0），比第 1606 行 @media 裡的 `.jm-cols`（0,0,1,0）高一級 ——
+   @media 不會提高權重，所以窄螢幕那條收成單欄的規則**從來沒有生效過**，
+   〈約定字表〉的四塊表在 390px 上一直是兩欄（實測，其中 .cv-grouppair 因為沒被
+   ID 規則蓋到，反而是對的，所以同一頁上兩種區塊行為不一致）。
+   這裡也用 ID，權重才追得上。 */
+@media (max-width: 52rem) {
+  #cv-groups .jm-cols { grid-template-columns: 1fr; column-gap: 0; row-gap: 0; }
+  #cv-groups .cv-grouppair { grid-template-columns: 1fr; column-gap: 0; row-gap: 1.4rem; }
+}
+
+/* ---------- 10. 〈線上試打〉的手機版（Wilson 2026-09-02）---------- */
+
+/* 兩顆觸控鍵（萬用鍵 ` 與提示 =）由 try.js 建出來，只有手機看得到。
+   桌面有實體鍵盤，多兩顆按鈕只是佔位子。 */
+.try-touchkeys { display: none; }
+
+@media (max-width: 52rem) {
+  /* ── 試打框左半、田字格與提示右半 ──────────────────────────
+     原本窄螢幕是單欄、田字格用 order:-1 排到最上面。手機鍵盤一彈出來會吃掉
+     下半個螢幕，於是「打字的地方」跟「提示」永遠不在同一個畫面上，要看提示
+     就得把鍵盤收起來捲上去（Wilson）。改成左右並排，兩邊同時看得見。
+
+     ⚠️ 關鍵是 `.tryarea-main { display: contents }`：試打框跟田字格分屬兩個
+     父層（.tryarea-main 與 aside.practice-cell），不把中間那層拿掉就不可能
+     排在同一列。.tryarea-main 本身只有 flex 排版、沒有背景或邊框，拿掉它的
+     盒子不會少任何視覺。 */
+  .tryarea {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 8.6rem);
+    column-gap: .7rem;
+    padding: .7rem .8rem 1rem;
+  }
+  .tryarea-main { display: contents; }
+
+  /* 參考文章那一整組維持整條寬度 —— 半欄只剩九個字一行，讀不成句子。 */
+  .practice-head, .practice-text, .practice-bar, .practice-progbar, .pyq-bpmf {
+    grid-column: 1 / -1;
+  }
+  /* ⚠️ 用 order 讓試打框跟田字格**相鄰**，自動排版才會把它們放進同一列。
+     只指定 grid-column 是不夠的：田字格在原始碼裡排在拼音查字後面，
+     自動排版會把它丟到再下一列去。 */
+  .practice-head    { order: 1; }
+  .practice-text    { order: 2; }
+  .practice-bar     { order: 3; }
+  .practice-progbar { order: 4; }
+  .typebox          { order: 5; grid-column: 1; margin-top: .6rem; min-width: 0; }
+  .practice-cell    { order: 6; grid-column: 2; }
+  .pyq-row          { order: 7; grid-column: 1 / -1; }
+  .pyq-bpmf         { order: 8; }
+
+  /* 右欄只有 8.6rem，田字格與提示跟著收 */
+  .practice-cell .tianzi { max-width: 100%; }
+  .tz-hint { min-height: 0; }
+
+  /* 試打框在半欄裡不需要那麼高，字級維持大的（那是「你打了什麼」） */
+  .typebox textarea { min-height: 5.2rem; padding: .6rem; }
+  .rail { height: 2.6rem; margin-top: .5rem; padding: .3rem .4rem; }
+
+  /* ── 兩顆觸控鍵 ── */
+  .try-touchkeys {
+    display: flex;
+    gap: .4rem;
+    margin-top: .5rem;
+  }
+  .try-touchkey {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 2.4rem;
+    padding: .35rem .5rem;
+    font: inherit;
+    font-size: .78rem;
+    color: var(--ink-dim);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .try-touchkey kbd {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .82rem;
+    color: var(--ink);
+  }
+  .try-touchkey:active { background: var(--code-bg); }
+
+  /* ── 開關那幾排收緊 ──────────────────────────────────
+     模式／套用簡碼／流暢模式三排在手機上各佔一行，加上原本的行距，光是設定
+     就吃掉小半個螢幕。列距與下外距一起收（Wilson：更緊湊一點）。 */
+  .try-mode { margin-bottom: .45rem; }
+  .short-toggle { gap: .3rem .7rem; margin-bottom: .45rem; font-size: .78rem; }
+  .chk-toggle { gap: .3rem; }
+}
+
+/* ---------- 11. 自由試打的拼音查字：候選換到下一行（Wilson 2026-09-02）----------
+   .pyq-row 是一排三個：拼音／注音鈕（約 110px）＋ 輸入框（12.5rem＝200px 寫死）
+   ＋ 候選框（flex:1 吃剩下的）。手機上整排只有 350px，候選框分到約 40px ——
+   「只有半個字寬」。讓它整排換行，候選自己佔一整行；輸入框改成彈性寬度，
+   把第一行剩下的吃滿。 */
+@media (max-width: 52rem) {
+  .pyq-row { flex-wrap: wrap; }
+  .pyq-input { flex: 1 1 auto; width: auto; min-width: 0; }
+  .pyq-cands-box { flex: 1 0 100%; margin-top: .4rem; }
 }

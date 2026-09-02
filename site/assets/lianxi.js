@@ -289,6 +289,10 @@
     paintSpin();
   }
 
+  /* paintQuestion 的快取：目前畫在台上的是哪個字，以及它那幾條 <path>（照筆順）。
+     換題、或圖被別人重畫過，就要作廢。 */
+  var paintedChar = null, strokeEls = null;
+
   function paintQuestion(q) {
     var strokes = GLYPHS[q.c] || [];
     var cls = {};
@@ -306,16 +310,53 @@
         grp.forEach(function (i) { cls[i] = 'xz-on xz-on-' + Math.min(gi + 1, 3); });
       });
     }
+    var base = q.t ? 'xz-ink' : 'xz-dim';
+
+    /* 快速路徑：同一個字重畫時**只換 class**，不重建整張圖。
+       ⚠️ 第三關每打對一個字母就會走一次這裡，而原本的做法是
+       `stage.innerHTML = …`，等於把整張 SVG 的字串重新拼一次、瀏覽器重新剖析、
+       十幾個 <path> 全部砍掉重生 —— 實測（CPU 降速 4 倍、十四筆的字）打對一鍵
+       要 24ms 的 JS、50ms 才畫得出下一幀，打錯只要 2ms。差的就是這件事，
+       手機上按起來就是黏黏的（Wilson 2026-09-02 回報第三關點字母有延遲）。
+       改成重用既有的 <path>，只有真的變了的那幾條才動。 */
+    /* ⚠️ 還要確認快取的元素**真的還在台上**：過關畫面會把整塊田字格換掉
+       （stage.innerHTML 被別人寫過），那時 strokeEls 指的是一堆已經脫離文件的
+       節點，改它們的 class 畫面上不會有任何反應 —— 而且不會報錯，只會「按了
+       沒動靜」。isConnected 一個判斷就擋掉。 */
+    if (strokeEls && paintedChar === q.c && strokeEls.length === strokes.length &&
+        strokeEls.length && strokeEls[0].isConnected && stage.contains(strokeEls[0])) {
+      var g = strokeEls.length ? strokeEls[0].parentNode : null;
+      for (var k = 0; k < strokeEls.length; k++) {
+        var want = cls[k] || base;
+        if (strokeEls[k].getAttribute('class') === want) continue;
+        strokeEls[k].setAttribute('class', want);
+        /* ⚠️ 亮起來的那條要搬到最後 —— SVG 沒有 z-index，誰畫在後面誰在上層。
+           不搬的話，序號較後的淺色筆畫會壓在剛亮起來的筆畫上面（跟下面完整
+           重建時「off 先畫、on 後畫」是同一個道理）。appendChild 是搬移，
+           不是重建，所以 strokeEls 裡的參照仍然有效。 */
+        if (cls[k] && g) g.appendChild(strokeEls[k]);
+      }
+      stage.classList.remove('is-revealed');
+      paintSpin();
+      return;
+    }
+
     // 沒被選中的先畫完，選中的才畫 —— 照筆順混著畫的話，序號較後的淺色筆畫會
     // 蓋在高亮的筆畫上面（跟〈字根表〉exampleGlyph 同一個坑）。
     var off = '', on = '';
     for (var i = 0; i < strokes.length; i++) {
-      if (cls[i]) on += '<path class="' + cls[i] + '" d="' + strokes[i] + '"/>';
-      else off += '<path class="' + (q.t ? 'xz-ink' : 'xz-dim') + '" d="' + strokes[i] + '"/>';
+      if (cls[i]) on += '<path class="' + cls[i] + '" data-i="' + i + '" d="' + strokes[i] + '"/>';
+      else off += '<path class="' + base + '" data-i="' + i + '" d="' + strokes[i] + '"/>';
     }
     stage.classList.remove('is-revealed');
     stage.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="題目">' +
       ZG.GRID + '<g transform="' + ZG.TF + '">' + off + on + '</g></svg>';
+    /* 記下這一張圖的筆畫元素，照**筆順**擺（DOM 順序不是筆順，上面故意把亮的
+       排到後面），上面的快速路徑才對得上。 */
+    paintedChar = q.c;
+    strokeEls = new Array(strokes.length);
+    var got = stage.querySelectorAll('svg path[data-i]');
+    for (var n = 0; n < got.length; n++) strokeEls[+got[n].getAttribute('data-i')] = got[n];
     paintSpin();
   }
 

@@ -50,7 +50,10 @@
 
   /* 排隊的幾何。QUEUE_NEAR_* 是隊伍裡**最靠近舞台**的那一個位置，其餘的往外推。 */
   var QUEUE_GAP_X = 210;      // 寬螢幕：橫排時兩個字母的間距
-  var QUEUE_GAP_Y = 230;      // 窄螢幕：直排時的間距（字母本身高 260，排緊一點才像一疊）
+  /* 窄螢幕直排的間距。⚠️ 230 不夠 —— 實測相鄰兩個字母的著墨範圍**重疊 26px**
+     （每個字母在畫面上高 71px，間距只有 45px）。橫排時字母是左右錯開的，
+     間距抓 210 沒問題；直排要讓開的是字母**自己的高度**，那是兩回事。 */
+  var QUEUE_GAP_Y = 328;
   var QUEUE_NEAR_X = -170;    // 寬螢幕：排在字形左邊
   var QUEUE_NEAR_Y = 1050;    // 窄螢幕：排在字形上面（local y=900 是字形頂端）
   var QUEUE_MID_X = 512;      // 直排時整列的 x。用字形框的正中央，不是各組筆畫的
@@ -61,7 +64,18 @@
      左右就貼著字形本身（1024 寬）。⚠️ 這兩個值要跟 site.css 裡 .lg-stage 的
      aspect-ratio 一致，不然 SVG 會在框裡自己置中、留下上下或左右的空白。 */
   var VIEWBOX_WIDE = '-650 0 2324 1024';
-  var VIEWBOX_TALL = '0 -420 1024 1444';
+  /* ⚠️ 上面留的空間要**放得下整條隊伍**，不是留個意思。算法（單位是 local，
+     y 越大畫面上越高，字形頂端是 900）：
+       最遠那個字母的中心 = QUEUE_NEAR_Y + (n-1) × QUEUE_GAP_Y
+       換成 viewport：0.86 × (900 − 中心) + 71.7
+       再往上半個字母的外框高（實測 313 單位）才是它的頂端
+     最長的一個字是 哈（OAO，三個字母；竹昌石都只有兩個），用窄螢幕的字母大小
+     （LETTER_SIZE_NARROW）與 QUEUE_GAP_Y 算出來頂端在 −726，所以 viewBox 從
+     −759 起跳，留 33 單位的餘裕。
+     ⚠️ 原本是 −420，只比字形頂端（71.7）高一點點 —— 畫面上只剩 16px 的空間要
+     塞 161px 的隊伍，最上面那個 O 有 43px 被切在標語正下方，看起來像被那行綠字
+     蓋住（Wilson 2026-09-02 回報）。 */
+  var VIEWBOX_TALL = '0 -759 1024 1783';
 
   /* 跟 site.css 的 52rem 斷點同一條線 —— 導覽收成漢堡選單的那一刻，
      舞台也該換成直排。 */
@@ -70,7 +84,13 @@
 
   var ORDER = ['哈', '竹', '昌', '石'];
   var DATA = null;
-  var LETTER_SIZE = 260; // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
+  var LETTER_SIZE = 260;        // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
+  /* 窄螢幕用小一號的字母。直排要在字形上方擠下三個字母（哈＝OAO），260 那一號
+     排開來要 165px 的淨空，舞台得長到 28rem 才放得下，整片首頁就爆出一個螢幕。
+     縮到 175 之後三個字母加間距約 165px，舞台 24rem 就夠，字形也維持得住。
+     ⚠️ 寬螢幕**不要動** —— 那邊是橫排，左右有的是地方，260 是 Wilson 調過的。 */
+  var LETTER_SIZE_NARROW = 175;
+  function letterSize() { return isNarrow() ? LETTER_SIZE_NARROW : LETTER_SIZE; }
 
   /* 字母用**一般字重**，不是粗體（Wilson 2026-08-31：石 的 J 看起來太粗）。
      只有 J 單獨指定 Verdana（為了它頂端天生那一橫，見 fontFor），而 Verdana 在
@@ -190,7 +210,7 @@
             '<g class="lg-letter" style="opacity:0">' +
               '<text text-anchor="middle" dominant-baseline="central" ' +
                 'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="' + LETTER_WEIGHT + '" ' +
-                'font-size="' + LETTER_SIZE + '">' + entry.groups[gi].L + '</text>' +
+                'font-size="' + letterSize() + '">' + entry.groups[gi].L + '</text>' +
             '</g>' +
           '</g>' +
         '</g>';
