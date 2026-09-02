@@ -284,7 +284,8 @@ function draw(data){
   $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${data.totalUniq.toLocaleString()} 字</b>`+
     `（繁簡同字只算一個）；<span class="raw">另計 ${data.total.toLocaleString()} 條碼</span>。`+
     (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'')+
-    ` 目前覆蓋真實中文文本約 <b>${(data.coverage||0).toFixed(1)}%</b>。`+
+    ` 目前覆蓋 librime essay 全量語料約 <b>${(data.coverage||0).toFixed(1)}%</b>`+
+    `（該語料中低頻段有灌水痕跡，見 _padding_suspect_values；扣掉後日常文本約 <b>${(data.coverageEveryday||0).toFixed(1)}%</b>）。`+
     ` 圖表跟著下面的 tile 開關走。`;
 
   const svg=$('#chart'); svg.innerHTML='';
