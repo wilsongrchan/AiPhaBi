@@ -131,18 +131,26 @@
            自動跟著換。字形跟上面拆件動畫同一種（真正的筆畫，不是系統字型），
            田字格也是全站共用的那個 .tianzi（見 assets/glyphbox.js）。 -->
       <div class="guess" id="guess" hidden>
-        <p class="guess-label">猜猜看，這個字怎麼打？</p>
-        <div class="tianzi" id="guess-tianzi"></div>
-        <label class="sr-only" for="guess-input">猜猜看要打哪幾個字母</label>
-        <input type="text" id="guess-input" class="guess-input" maxlength="5" autocomplete="off"
-               autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母" data-keep>
-        <div class="guess-actions">
-          <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
-          <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>
-          <!-- 四個字都看過答案之後才出現：玩完了就給一條往下走的路（Wilson 2026-09-01）。 -->
-          <a class="btn btn-primary" id="guess-more" href="lianxi.html" hidden>去字根練習</a>
+        <div id="guess-play">
+          <p class="guess-label">猜猜看，這個字怎麼打？</p>
+          <div class="tianzi" id="guess-tianzi"></div>
+          <label class="sr-only" for="guess-input">猜猜看要打哪幾個字母</label>
+          <input type="text" id="guess-input" class="guess-input" maxlength="5" autocomplete="off"
+                 autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母" data-keep>
+          <div class="guess-actions">
+            <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
+            <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>
+          </div>
+          <p class="guess-answer" id="guess-answer" aria-live="polite"></p>
         </div>
-        <p class="guess-answer" id="guess-answer" aria-live="polite"></p>
+
+        <!-- 四個字都玩過（猜對、猜錯、跳過都算）之後，田字格那一整塊換成這個 ——
+             一步一步把人帶到下一個可以動手的地方（Wilson 2026-09-01）。 -->
+        <div class="guess-done" id="guess-done" hidden>
+          <p class="guess-done-title">四個字都玩過了</p>
+          <p class="guess-done-sub">字根練習有三關，一關八題，從最基本的字根開始。</p>
+          <a class="btn btn-primary" href="lianxi.html">去字根練習</a>
+        </div>
       </div>
     </div>
 

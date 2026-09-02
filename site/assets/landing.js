@@ -402,7 +402,8 @@
   var checkBtn = document.getElementById('guess-check');
   var answerEl = document.getElementById('guess-answer');
   var nextBtn = document.getElementById('guess-next');
-  var moreBtn = document.getElementById('guess-more');
+  var playEl = document.getElementById('guess-play');
+  var doneEl = document.getElementById('guess-done');
   var guessEl = document.getElementById('guess');
   if (!tianziEl || !input || !checkBtn || !answerEl || !nextBtn || !guessEl) return;
 
@@ -412,7 +413,9 @@
   var GUESS_CHARS = ['回', '岩', '唱', '凶'];
   var codeOf = {};
   var strokesOf = {};
-  var revealed = {};      // 看過答案的字；全部看過就給一條往〈字根練習〉的路
+  /* 玩過的字 —— 猜對、猜錯、按「換一個字」跳過都算數（Wilson）。四個都玩過就把
+     田字格那一整塊換成往〈字根練習〉的入口，一步一步把人帶到下一個能動手的地方。 */
+  var played = {};
   var qi = 0;
   var started = false;
 
@@ -452,12 +455,17 @@
     else if (guess) answerEl.classList.add('is-wrong');
     checkBtn.hidden = true;
 
-    /* 四個字都看過答案就把「去字根練習」放出來 —— 這個小遊戲只有四題，玩完了
-       總得有下一步（Wilson）。⚠️ 只出現、不消失：換一個字再回來的時候把它收掉
-       會讓人以為剛剛看到的是幻覺。 */
-    revealed[GUESS_CHARS[qi]] = 1;
-    if (moreBtn && Object.keys(revealed).length >= GUESS_CHARS.length) {
-      moreBtn.hidden = false;
+    markPlayed();
+  }
+
+  /* 這一題算玩過了。⚠️ 不在 showQuestion 裡標 —— 那樣按三下「換一個字」就會在
+     還沒看第四題的時候跳出結尾畫面。要在**離開**或**答完**的時候才算。 */
+  function markPlayed() {
+    played[GUESS_CHARS[qi]] = 1;
+    if (playEl && doneEl && Object.keys(played).length >= GUESS_CHARS.length) {
+      playEl.hidden = true;
+      doneEl.hidden = false;
+      if (window.AiPhaBiSite) window.AiPhaBiSite.localize(doneEl);
     }
   }
 
@@ -474,11 +482,18 @@
     var guess = input.value.toUpperCase().replace(/[^A-Z]/g, '');
     if (guess === code.toUpperCase()) reveal();
   });
-  nextBtn.addEventListener('click', function () { showQuestion(qi + 1); });
+  nextBtn.addEventListener('click', function () {
+    markPlayed();                       // 跳過也算玩過
+    if (!doneEl.hidden) return;         // 已經跳出結尾畫面就不用再出題了
+    showQuestion(qi + 1);
+  });
 
   window.AiPhaBiGuess = {
     start: function () {
       started = true;
+      /* 重播動畫再回到這裡時，把結尾畫面收起來讓人重玩 —— 玩過的紀錄留著，
+         所以下一次離開題目就會再跳出來。 */
+      if (playEl && doneEl) { doneEl.hidden = true; playEl.hidden = false; }
       showQuestion(qi);
     }
   };

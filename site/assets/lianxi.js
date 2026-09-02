@@ -67,7 +67,6 @@
   var resetBtn = document.getElementById('xz-reset');
   var doneEl = document.getElementById('xz-done');
   var totalEl = document.getElementById('xz-total');
-  var streakEl = document.getElementById('xz-streak');
   var fillEl = document.getElementById('xz-fill');
   var creditEl = document.getElementById('zg-credit');
 
@@ -100,7 +99,6 @@
   var mastered = {};
   var cur = null;           // 目前這一題（POOL 裡的一筆，外加 revealed/right）
   var answered = false, hinted = false, wrong = 0;
-  var streak = 0;
   var lastKey = '';
   var keyBtns = {};
   /* 出過的題目留一份，「上一題」才回得去（Wilson 2026-09-01）。回頭看的人多半是
@@ -418,7 +416,6 @@
     // 補了就會變成「旋轉或翻轉這個字根後這個字根後，像哪個字母？」
     askEl.textContent = q.t ? '試一下打這個字'
       : (q.h ? q.h + '，像哪個字母？' : '這個字根像哪個字母？');
-    askEl.classList.toggle('is-type', !!q.t);
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(askEl);
   }
 
@@ -501,7 +498,6 @@
     var b = keyBtns[L];
     if (b) { b.classList.add('is-wrong'); b.disabled = true; }
     wrong++;
-    streak = 0;
     paintScore();
     if (wrong >= MAX_WRONG) {
       reveal(false, false, '猜了 ' + MAX_WRONG + ' 次，先看答案吧');
@@ -523,7 +519,6 @@
       return;
     }
     wrong++;
-    streak = 0;
     paintScore();
     // 抖的是碼格不是按鍵：錯的是「這個字母不是下一個」，不是那顆鍵壞了
     typedEl.classList.remove('is-bad');
@@ -584,8 +579,13 @@
       keyBtns[q.L].classList.add('is-right');
     }
 
-    // ⚠️ replay＝從「上一題」回頭看已經答過的那一題，**不能再計一次分**：
-    // 記過的題目不會重複記，但連續數字會一路自己長大。
+    /* ⚠️ 過關畫面只在**剛好過關的那一次**出現。少了這一行，關卡一旦過了，
+       之後每答一題都會跳出「第一關完成！」，畫面像卡住一樣（Wilson：
+       「why is the page stuck at im always answered 8/8」）—— 紀錄是存在
+       localStorage 的，他早就把每一關都練過了。 */
+    var wasDone = levelDone(q.lv);
+
+    // ⚠️ replay＝從「上一題」回頭看已經答過的那一題，**不能再計一次分**。
     if (!replay) {
       cur.revealed = true;
       cur.right = right && !wrong;
@@ -594,7 +594,6 @@
         mastered[keyOf(q)] = 1;
         saveOk();
       }
-      streak = right && !wrong ? streak + 1 : 0;
       paintScore();
       paintLevel(q);
     }
@@ -617,8 +616,9 @@
     // 最後一關過了就沒有「下一關」可去 —— 改成把人送去〈字根表〉（Wilson）：
     // 這一頁只練手挑的那幾條，整張表在那邊。
     var last = q.lv >= NLEVELS - 1;
-    nextBtn.hidden = done;
-    if (done) showDone(q.lv, last);
+    var justDone = done && !wasDone && !replay;
+    nextBtn.hidden = justDone;
+    if (justDone) showDone(q.lv, last);
     else nextBtn.focus({ preventScroll: true });
   }
 
@@ -667,7 +667,6 @@
     var done = Math.min(levelScore(lv), goal);
     doneEl.textContent = done;
     totalEl.textContent = goal;
-    streakEl.textContent = streak;
     fillEl.style.width = goal ? (done / goal * 100).toFixed(1) + '%' : '0';
   }
 
@@ -693,7 +692,6 @@
     // 進度是使用者自己累積的東西，砍掉之前先問一聲
     if (!window.confirm('清掉練習紀錄？答對過的題目會全部重來。')) return;
     mastered = {};
-    streak = 0;
     saveOk();
     paintScore();
     history = [];

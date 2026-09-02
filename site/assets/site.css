@@ -3458,6 +3458,29 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   justify-content: center;
   gap: .7rem;
 }
+/* 四個字都玩過之後，田字格那一整塊換成往〈字根練習〉的入口 —— 一步一步把人
+   帶到下一個能動手的地方（Wilson）。高度貼近原本那一塊，換過去時版面不會抽動。 */
+.guess-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 17rem;
+  padding: 1rem;
+}
+.guess-done-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.guess-done-sub {
+  margin: 0 0 .8rem;
+  font-size: .85rem;
+  color: var(--ink-dim);
+}
+
 .guess-answer {
   font-size: .9rem;
   color: var(--ink-dim);
@@ -3624,14 +3647,14 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .xz-letter.is-in { opacity: 1; transform: scale(1); }
 .xz-letter text { fill: var(--zg-on); }
 
-/* 關卡名稱 —— 一直掛在題目上方。第二關的名稱本身就是那一關的提示
-   （「轉一下、翻過來才像」），所以它不能只在答完才出現。 */
+/* 「第一關」——大一點、粗一點（Wilson 2026-09-01）：現在只剩關卡編號，
+   它是這一頁最上面的定位點，太小反而看不到自己在哪一關。 */
 .xz-chapter {
   text-align: center;
-  font-size: .78rem;
-  color: var(--ink-faint);
-  margin: 0 0 .8rem;
-  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 .9rem;
 }
 
 .xz-ask { text-align: center; font-size: .95rem; margin: 1.2rem 0 1rem; }
@@ -3644,10 +3667,6 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   gap: .4rem;
   margin: 0 0 1rem;
 }
-/* 第三關的題目那一句話大一點、粗一點（Wilson）—— 那一關要做的事跟前兩關不同，
-   一眼就要看出來。 */
-.xz-ask.is-type { font-size: 1.15rem; font-weight: 700; }
-
 .xz-slot {
   display: inline-flex;
   align-items: center;
