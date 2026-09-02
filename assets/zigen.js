@@ -31,6 +31,19 @@
       .then(r => (r.ok ? r.json() : null)));
     return cache.get(c);
   }
+  /* 一次要一大批字的筆畫資料（見 server.py 的 /api/glyphs），直接把結果塞進快取——
+     之後這些字的 getGlyph() 都是查表，不用再一個個發 GET。用在字根表的重複檢視：
+     碼表 7000+ 字，一個個抓太慢，一次要完最快。已經在快取裡的字不重複要。 */
+  async function primeGlyphs(chars) {
+    const need = chars.filter(c => !cache.has(c));
+    if (!need.length) return;
+    const p = fetch('/api/glyphs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chars: need }),
+    }).then(r => (r.ok ? r.json() : {}));
+    for (const c of need) cache.set(c, p.then(m => m[c] || null));
+    await p;
+  }
 
   const TIERS = ['primary', 'secondary', 'tertiary'];
   const tierOf = it => it.tier || 'primary';
@@ -335,6 +348,6 @@
     return code.slice(0, head) + (tail ? code.slice(-tail) : '');
   }
 
-  global.Zigen = { SAME_SHAPE, TIERS, tierOf, thrOf, getGlyph, allShapes, shapesOf, buildLibrary,
-                   merge, predict, strokeKind, shorten };
+  global.Zigen = { SAME_SHAPE, TIERS, tierOf, thrOf, getGlyph, primeGlyphs, allShapes, shapesOf,
+                   buildLibrary, merge, predict, strokeKind, shorten };
 })(window);
