@@ -3644,6 +3644,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   gap: .4rem;
   margin: 0 0 1rem;
 }
+/* 第三關的題目那一句話大一點、粗一點（Wilson）—— 那一關要做的事跟前兩關不同，
+   一眼就要看出來。 */
+.xz-ask.is-type { font-size: 1.15rem; font-weight: 700; }
+
 .xz-slot {
   display: inline-flex;
   align-items: center;
@@ -3657,6 +3661,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   color: var(--accent);
 }
 .xz-slot.is-on { border-bottom-color: var(--accent); }
+/* 打對的字母是反白小方塊，底色就是那條字根在圖上的顏色（.tz-chip 見上面），
+   所以格子裡不要再壓一層字色。 */
+.xz-slot .tz-chip { font-size: 1.05rem; min-width: 1.8rem; padding: .18rem .4rem; }
 /* 猜滿三次直接告訴他的那幾個字母：填上去但顏色淡一階，跟自己打對的分得開 */
 .xz-slot.is-told { color: var(--ink-faint); border-bottom-color: var(--line); }
 /* 打錯的時候抖的是碼格，不是按鍵 —— 錯的是「這個字母不是下一個」 */

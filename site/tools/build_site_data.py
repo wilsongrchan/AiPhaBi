@@ -1259,7 +1259,7 @@ def load_lianxi_picks(warn):
     return out
 
 
-def build_lianxi(picks, codes, warn, per_level=8):
+def build_lianxi(picks, codes, max_rule, warn, per_level=8):
     """〈字根練習〉的題目：一題 = 一個字裡的一條字根，問它像哪個英文字母。
 
     每一題只帶四樣東西：哪個字、考哪個字母、那條字根是哪幾筆、屬於第幾關。
@@ -1299,7 +1299,16 @@ def build_lianxi(picks, codes, warn, per_level=8):
             if not code:
                 warn.append(f"〈字根練習〉：「{ch}」沒有碼，打字題出不了")
                 continue
-            made.append({"c": ch, "code": code, "t": 1, "_g": group})
+            # seg[i] ＝ 碼的第 i 個字母對應哪幾筆，給提示與打對之後的上色用。
+            # ⚠️ 要走 _code_groups 的「頭四尾一」對應，不能假設一個字母一段 ——
+            # 碼被砍過的字（藍 HCKAI），最後一個字母對到的是最後一段，不是第五段。
+            groups, code_groups = _code_groups(rec["segments"], max_rule)
+            if len(code_groups) != len(code):
+                warn.append(f"〈字根練習〉：「{ch}」的碼 {code} 有 {len(code)} 個字母，"
+                            f"卻對到 {len(code_groups)} 段，提示上色會錯位，這題跳過")
+                continue
+            made.append({"c": ch, "code": code, "t": 1,
+                         "seg": [groups[g] for g in code_groups], "_g": group})
             continue
         segs = rec["segments"]
         have = "".join(sg["letter"] for sg in segs)
@@ -3047,7 +3056,7 @@ def main():
     zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
                      standard=standard, notes=notes)
 
-    lianxi = build_lianxi(load_lianxi_picks(warn), codes, warn)
+    lianxi = build_lianxi(load_lianxi_picks(warn), codes, max_rule, warn)
 
     # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
     # 印出來才看得出有沒有對錯位置。找不到的直接警告。

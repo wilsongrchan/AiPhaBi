@@ -4,6 +4,10 @@
  * 這一頁把同一張表**翻過來**用 —— 先給形狀，問字母，答完才講取形意圖。
  * （Wilson 2026-09-01：首頁再多一顆「我想學習更多字根」。）
  *
+ * ⚠️ **這一頁是「歡迎模式」**：首頁直接連過來的三關入門，題目是手挑的一小批。
+ * 將來可能另外做一個「完整模式」把整張字根表練過一遍（Wilson 2026-09-01），
+ * 那會是另一個進入點 —— 不要把這裡的題目長成幾百題，這一頁刻意保持短。
+ *
  * ⚠️ **用哪個字出題、考它的哪幾條字根，全部是 Wilson 手挑的**，寫在
  * `site/content/lianxi.md`（`檢 = A O` 這種一行一個字的格式）。建置時對回
  * codes.json 算出「那條字根是哪幾筆」、比對出取形意圖，產生 assets/lianxi.json。
@@ -108,6 +112,7 @@
      才給這排按鈕。每換一題就歸零。 */
   var deg = 0, fx = 1, fy = 1;
   var typed = '';           // 第三關（打整個字）已經打對的碼
+  var hintN = 0;            // 第三關按過幾次提示（＝先幫他標出前幾條字根）
 
   // 打整個字那一種沒有 L，用「打」當它的身分
   function keyOf(q) { return q.c + '|' + (q.t ? '打' : q.L); }
@@ -239,16 +244,26 @@
 
   function paintQuestion(q) {
     var strokes = GLYPHS[q.c] || [];
-    var shade = {};
-    // 打整個字那一種不標任何一段 —— 整個字都是正常墨色，要打的是整串碼
-    (q.g || []).forEach(function (grp, gi) {
-      grp.forEach(function (i) { shade[i] = Math.min(gi + 1, 3); });
-    });
+    var cls = {};
+    if (q.t) {
+      /* 第三關的提示，做法跟試打頁的〈跟著打〉一樣（Wilson）：把已經揭開的那幾條
+         字根用彩虹色分組標出來，一條一個顏色，跟底下碼格那個字母的顏色對得上。
+         揭開幾條 = 已經打對的字數，加上按過幾次提示。⚠️ 提示只上色**不給字母** ——
+         「這幾筆是一組」才是卡住的人需要的，字母要自己認。 */
+      var shown = Math.max(typed.length, hintN);
+      (q.seg || []).forEach(function (grp, gi) {
+        if (gi < shown) grp.forEach(function (i) { cls[i] = 'tz-z' + (gi % 6); });
+      });
+    } else {
+      (q.g || []).forEach(function (grp, gi) {
+        grp.forEach(function (i) { cls[i] = 'xz-on xz-on-' + Math.min(gi + 1, 3); });
+      });
+    }
     // 沒被選中的先畫完，選中的才畫 —— 照筆順混著畫的話，序號較後的淺色筆畫會
     // 蓋在高亮的筆畫上面（跟〈字根表〉exampleGlyph 同一個坑）。
     var off = '', on = '';
     for (var i = 0; i < strokes.length; i++) {
-      if (shade[i]) on += '<path class="xz-on xz-on-' + shade[i] + '" d="' + strokes[i] + '"/>';
+      if (cls[i]) on += '<path class="' + cls[i] + '" d="' + strokes[i] + '"/>';
       else off += '<path class="' + (q.t ? 'xz-ink' : 'xz-dim') + '" d="' + strokes[i] + '"/>';
     }
     stage.classList.remove('is-revealed');
@@ -343,12 +358,13 @@
     resetSpin();
     hideDone();
     typed = '';
+    hintN = 0;
     paintQuestion(item.q);
     paintAsk(item.q);
     paintTyped(item.q, false);
     paintScore();                     // 換關卡時上面那條要跟著換成新關卡的分數
     spinBar.hidden = !item.q.h;
-    hintBtn.hidden = !!item.q.t;      // 打整個字沒有「減至四個選項」這回事
+    hintBtn.textContent = item.q.t ? '提示：標出下一條字根' : '提示：減至四個選項';
     paintLevel(item.q);
     if (!fresh && item.revealed) {
       if (item.q.t) typed = item.q.code;       // 回頭看已答過的打字題，碼格填滿
@@ -370,13 +386,21 @@
     typedEl.hidden = false;
     var html = '';
     for (var i = 0; i < q.code.length; i++) {
-      var got = revealed || i < typed.length;
-      html += '<span class="xz-slot' + (got ? ' is-on' : '') +
-        (revealed && i >= typed.length ? ' is-told' : '') + '">' +
-        (got ? q.code[i] : '') + '</span>';
+      var mine = i < typed.length;                    // 自己打對的
+      var told = revealed && !mine;                   // 看答案時才補上的
+      /* 打對的字母用跟筆畫同色的反白小方塊（.tz-chip）—— 跟試打頁的提示同一種
+         長相，一眼看得出「這個字母就是那幾筆」。 */
+      html += mine
+        ? '<span class="xz-slot is-on"><span class="tz-chip z' + (i % 6) + '">' +
+            q.code[i] + '</span></span>'
+        : '<span class="xz-slot' + (told ? ' is-told' : '') + '">' +
+            (told ? q.code[i] : '') + '</span>';
     }
     typedEl.innerHTML = html;
   }
+
+  // 打對一個字母、或按了提示之後，圖跟碼格都要重畫
+  function repaintType(q) { paintQuestion(q); paintTyped(q, false); }
 
   /* 題目那一句話（兩句都是 Wilson 2026-09-01 指定的字）：
 
@@ -394,6 +418,7 @@
     // 補了就會變成「旋轉或翻轉這個字根後這個字根後，像哪個字母？」
     askEl.textContent = q.t ? '試一下打這個字'
       : (q.h ? q.h + '，像哪個字母？' : '這個字根像哪個字母？');
+    askEl.classList.toggle('is-type', !!q.t);
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(askEl);
   }
 
@@ -492,7 +517,7 @@
     var q = cur.q;
     if (L === q.code[typed.length]) {
       typed += L;
-      paintTyped(q, false);
+      repaintType(q);
       if (typed.length === q.code.length) { reveal(true); return; }
       nudge('');
       return;
@@ -514,7 +539,19 @@
   /* 提示：把選項收成四個字母（正解＋三個隨機）。用過提示這一題就不算學會 —— 不然
      進度條會虛報，而虛報的進度條比沒有進度條還糟。 */
   function hint() {
-    if (answered || !cur || hinted) return;
+    if (answered || !cur) return;
+    var q = cur.q;
+    if (q.t) {
+      // 第三關：一次揭開一條字根（只上色，不給字母）
+      if (hintN >= q.seg.length) return;
+      hinted = true;
+      hintN = Math.max(hintN, typed.length) + 1;
+      repaintType(q);
+      hintBtn.disabled = hintN >= q.seg.length;
+      nudge('這幾筆是一組，它像哪個字母？');
+      return;
+    }
+    if (hinted) return;
     hinted = true;
     hintBtn.disabled = true;
     var keep = {};
@@ -539,6 +576,8 @@
     ALPHA.forEach(function (L) { keyBtns[L].disabled = true; });
     if (q.t) {
       typedEl.classList.remove('is-bad');
+      hintN = q.seg ? q.seg.length : 0;       // 整個字的分組都標出來
+      paintQuestion(q);
       paintTyped(q, true);                    // 沒打完的格子把答案填上去
     } else {
       keyBtns[q.L].classList.remove('is-dim');
