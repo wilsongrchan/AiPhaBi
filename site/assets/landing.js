@@ -466,6 +466,11 @@
       playEl.hidden = true;
       doneEl.hidden = false;
       if (window.AiPhaBiSite) window.AiPhaBiSite.localize(doneEl);
+      /* #guess-done 自己那顆「馬上學習更多字根」跟下面 .hero-cta 的
+         「我想學習更多字根」連的是同一個 lianxi.html——兩顆同時在畫面上
+         看起來像貼錯的複本，藏掉下面那顆（Wilson 抓到）。 */
+      var heroLianxi = document.getElementById('hero-lianxi-cta');
+      if (heroLianxi) heroLianxi.hidden = true;
     }
   }
 

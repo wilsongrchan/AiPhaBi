@@ -3476,9 +3476,20 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   color: var(--accent);
 }
 .guess-done-sub {
-  margin: 0 0 .8rem;
+  margin: 0;
   font-size: .85rem;
   color: var(--ink-dim);
+}
+/* 說明句跟按鈕之間加一句反問當鉤子——不是又講一次「還有更多」，是換個
+   語氣直接問，順著這句話按下去（Wilson）。按鈕文字故意跟下面 .hero-cta
+   那顆「我想學習更多字根」不一樣（這裡是「馬上學習更多字根」）——四個字
+   玩完才看得到這一顆，讀起來像順勢而為；.hero-cta 那顆隨時都在，是给
+   還沒玩就想直接跳過去的人走的，兩顆都在畫面上時不該長得像貼錯的複本。 */
+.guess-done-invite {
+  margin: .8rem 0 .8rem;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .guess-answer {

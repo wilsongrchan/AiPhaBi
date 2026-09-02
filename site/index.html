@@ -149,7 +149,8 @@
         <div class="guess-done" id="guess-done" hidden>
           <p class="guess-done-title">四個字都玩過了</p>
           <p class="guess-done-sub">字根練習有三關，一關八題，從最基本的字根開始。</p>
-          <a class="btn btn-primary" href="lianxi.html">去字根練習</a>
+          <p class="guess-done-invite">想體驗更多？</p>
+          <a class="btn btn-primary" href="lianxi.html">馬上學習更多字根</a>
         </div>
       </div>
     </div>
@@ -159,10 +160,14 @@
     </p>
     <!-- 兩顆按鈕：先講「這是什麼」，再給一條自己動手的路。第二顆接的是
          〈字根練習〉——上面那段拆件動畫看完只是看過，字根練習是同一件事讓人
-         自己答一遍（Wilson 2026-09-01）。 -->
+         自己答一遍（Wilson 2026-09-01）。
+         ⚠️ 「我想學習更多字根」這顆四個字都玩過、上面的 #guess-done 冒出來
+         之後會被 landing.js 藏掉——兩顆都連去 lianxi.html，#guess-done 自己
+         也有一顆「馬上學習更多字根」，兩顆擠在同一屏會像貼錯的複本
+         （Wilson 抓到）。id 是特地加的，讓 landing.js 找得到它。 -->
     <div class="hero-cta">
       <a class="btn btn-primary" href="jieshao.html">立即了解</a>
-      <a class="btn btn-ghost" href="lianxi.html">我想學習更多字根</a>
+      <a class="btn btn-ghost" id="hero-lianxi-cta" href="lianxi.html">我想學習更多字根</a>
     </div>
   </section>
 
