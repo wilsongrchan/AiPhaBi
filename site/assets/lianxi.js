@@ -97,6 +97,11 @@
      第一關出不去 —— 而「跳過」不算走過，那只是換一題。 */
   var seenThisRound = {};
   var mastered = {};
+  /* ⚠️ 進度條走的是**這一輪**答對了幾題（roundOk），不是 localStorage 裡的終身
+     紀錄（mastered）。上一版用 mastered 算，於是練過一輪的人再打開這一頁，
+     進度條永遠停在 8／8、關卡永遠是過的，整頁看起來像壞掉（Wilson 回報兩次）。
+     mastered 留著只做一件事：決定先出哪幾題（沒答對過的優先）。 */
+  var roundOk = {};
   var cur = null;           // 目前這一題（POOL 裡的一筆，外加 revealed/right）
   var answered = false, hinted = false, wrong = 0;
   var lastKey = '';
@@ -156,7 +161,7 @@
   function levelGoal(li) { return Math.min(PASS, levelPool(li).length); }
   function levelScore(li) {
     var n = 0;
-    levelPool(li).forEach(function (q) { if (mastered[keyOf(q)]) n++; });
+    levelPool(li).forEach(function (q) { if (roundOk[keyOf(q)]) n++; });
     return n;
   }
   function levelDone(li) { return levelScore(li) >= levelGoal(li); }
@@ -164,10 +169,13 @@
   /* 這一關接下來能出什麼：先出沒答對也沒看過的，都出過了就從沒答對的裡面再抽。
      兩種都沒有（整關都答對了）回 null，換下一關。 */
   function levelSource(li) {
-    var a = levelLeft(li);
+    var a = levelLeft(li);                                  // 沒答對過也沒看過的
     if (a.length) return a;
     var b = levelPool(li).filter(function (q) { return !mastered[keyOf(q)]; });
-    return b.length ? b : null;
+    if (b.length) return b;                                 // 看過但還沒答對過的
+    // 以前全部答對過了，但**這一輪**還沒過關 —— 照樣要出題給他打
+    var c = levelPool(li).filter(function (q) { return !roundOk[keyOf(q)]; });
+    return c.length ? c : null;
   }
 
   function pickQuestion() {
@@ -466,6 +474,9 @@
   function stayLevel() {
     if (!cur) return;
     forcedLevel = cur.q.lv;
+    // 「再練一遍」就是重新開一輪：進度條歸零，不然按下去畫面停在 8／8 沒事發生
+    levelPool(forcedLevel).forEach(function (q) { delete roundOk[keyOf(q)]; });
+    paintScore();
     var pick = pickFromLevel(forcedLevel);
     if (!pick) return;
     history.push(pick);
@@ -590,9 +601,9 @@
       cur.revealed = true;
       cur.right = right && !wrong;
       seenThisRound[keyOf(q)] = 1;      // 這一關能不能往下走看這個，見 levelLeft
-      if (right && !wrong && !hinted && !mastered[keyOf(q)]) {
-        mastered[keyOf(q)] = 1;
-        saveOk();
+      if (right && !wrong && !hinted) {
+        roundOk[keyOf(q)] = 1;                              // 這一輪的分數
+        if (!mastered[keyOf(q)]) { mastered[keyOf(q)] = 1; saveOk(); }
       }
       paintScore();
       paintLevel(q);
@@ -692,6 +703,7 @@
     // 進度是使用者自己累積的東西，砍掉之前先問一聲
     if (!window.confirm('清掉練習紀錄？答對過的題目會全部重來。')) return;
     mastered = {};
+    roundOk = {};
     saveOk();
     paintScore();
     history = [];
