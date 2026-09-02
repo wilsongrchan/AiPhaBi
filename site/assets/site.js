@@ -239,13 +239,17 @@
            會是假話（Side A 2026-09-02 特別提醒）。分級是照 GB 2312 自己的
            區位碼算的，不是照檔案裡的位置切，見 build_site_data.py。
 
-           這一行沒有連結：GB 2312 沒有像教育部語文成果入口網那樣穩定的官方
-           下載頁，與其編一顆連結不如不放。 */
+           連結指向「國家標準全文公開系統」的 GB/T 2312-1980 頁（2026-09-02 實查
+           200、標題確實是「信息交换用汉字编码字符集 基本集」）—— 那是大陸這邊
+           對應教育部語文成果入口網的官方頁。⚠️ 跟上面那行一樣，HTML 裡的靜態
+           後備值也要是同一顆連結，兩處手動保持一致。 */
         if (gbL1El && d.stats && d.stats.gb2312_l1) {
           var g = d.stats.gb2312_l1;
-          gbL1El.textContent = g.done >= g.total
-            ? ('GB 2312 一級漢字 ' + g.total.toLocaleString('en-US') + ' 字，全部收錄')
-            : ('GB 2312 一級漢字已收錄 ' + g.done.toLocaleString('en-US') + '／' +
+          var gbLink = '<a href="https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=5664A728BD9D523DE3B99BC37AC7A2CC" ' +
+            'target="_blank" rel="noopener">GB 2312 一級漢字</a>';
+          gbL1El.innerHTML = g.done >= g.total
+            ? (gbLink + ' ' + g.total.toLocaleString('en-US') + ' 字，全部收錄')
+            : (gbLink + '已收錄 ' + g.done.toLocaleString('en-US') + '／' +
                g.total.toLocaleString('en-US') + ' 字');
         }
         /* ⚠️ 這幾行的字是 fetch 回來之後才寫進 DOM 的，而繁簡轉換是**載入時掃一遍**

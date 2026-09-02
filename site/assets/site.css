@@ -425,6 +425,11 @@ p { margin: 0 0 1.1rem; max-width: var(--measure); }
   color: var(--ink-dim);
   margin: -.4rem 0 1.6rem;
 }
+/* 連續兩行字表（台灣甲表／GB 2312）要**貼在一起**讀，它們是同一組事實
+   （Wilson 2026-09-02）—— 只有最後一行跟底下的內文拉開距離。 */
+.jieshao-stat + .jieshao-stat {
+  margin-top: -1.25rem;
+}
 
 /* 導語（每頁標題底下那一段）—— ⚠️ 大小以〈字根表〉那一段為準（Wilson 2026-08-28）：
    全站只有這一個尺寸，.zg-intro 與 .lede 是同一種東西的兩個名字，別再讓它們分家。
