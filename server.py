@@ -13,6 +13,8 @@
   /api/rules        GET/PUT  取碼原則
   /api/learned      GET/PUT  你教過系統的事（筆型糾正等）
   /api/glyph?c=字   GET      筆畫輪廓 + 中線（makemeahanzi，大陸筆順）
+  /api/glyphs        POST     同上，一次要一批字（見下方 do_POST）——碼表長到
+                              7000+ 字後，字根表逐字掃描重複要一個個 GET 太慢
   /api/tw?c=字      GET      台灣教育部標準筆順（g0v/zh-stroke-data）
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
@@ -631,6 +633,23 @@ class Handler(BaseHTTPRequestHandler):
         # 把寫入後的新版本回給前端 —— 前端若自己再去 /api/state 撈，
         # 併發寫入時會撈到另一個檔案「還沒寫完」的舊值，下次存檔就自己跟自己 409。
         self._send(200, json.dumps({"ok": True, "stamp": str(dest.stat().st_mtime_ns)}))
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        if u.path == "/api/glyphs":
+            # 字根表的「重複檢視」要挨個已取碼字比對形狀 —— 碼表長到 7000+ 字後，
+            # 一個個 GET /api/glyph 太慢（一分鐘起跳，逐組檢視看起來像按了沒反應）。
+            # 一次把整批字的筆畫資料要回來：GLYPHS 早就整包在記憶體裡，這裡只是
+            # 篩出要的幾千個 key，本來就是毫秒級的事，不必分批。
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            try:
+                chars = json.loads(raw).get("chars") or []
+            except json.JSONDecodeError as e:
+                return self._send(400, json.dumps({"error": str(e)}))
+            # 形狀跟單筆的 /api/glyph 一致（含 c 欄位），呼叫端不用分兩種格式處理
+            out = {c: {"c": c, **GLYPHS[c]} for c in chars if c in GLYPHS}
+            return self._send(200, json.dumps(out, ensure_ascii=False))
+        self._send(404, json.dumps({"error": "not found"}))
 
     def log_message(self, *args):
         pass

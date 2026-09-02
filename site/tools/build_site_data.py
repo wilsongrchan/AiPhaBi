@@ -1174,6 +1174,31 @@ def _pick_for(picks, letter, src, st, warn):
     return loose or None
 
 
+def _lianxi_tf(hint):
+    """把提示那句話解析成「怎麼轉」——{"deg": 角度, "fx": ±1, "fy": ±1}。
+
+    ⚠️ 提示是 Wilson 用自然語言寫的（`雪 = E · 把這個字根左右翻轉後`），這裡只認
+    幾種固定說法。認不出來的由呼叫端出聲，不要默默當成「不用轉」——那會讓揭曉
+    的畫面跟題目那句話互相矛盾。
+
+    角度的正負跟 lianxi.js 的 turn() 同一套：順轉為正、逆轉為負（CSS rotate）。
+    """
+    tf = {"deg": 0, "fx": 1, "fy": 1}
+    hit = False
+    m = re.search(r"(順轉|逆轉|旋轉)\s*(\d+)\s*度", hint)
+    if m:
+        n = int(m.group(2))
+        tf["deg"] = -n if m.group(1) == "逆轉" else n
+        hit = True
+    if "左右翻轉" in hint or "水平翻轉" in hint:
+        tf["fx"] = -1
+        hit = True
+    if "上下翻轉" in hint or "垂直翻轉" in hint:
+        tf["fy"] = -1
+        hit = True
+    return tf if hit else None
+
+
 def load_lianxi_picks(warn):
     """讀 site/content/lianxi.md —— Wilson 手挑〈字根練習〉要考哪幾題。
 
@@ -1314,9 +1339,24 @@ def build_lianxi(picks, codes, max_rule, warn, per_level=8):
         have = "".join(sg["letter"] for sg in segs)
         for L, which in letters:
             picked = [sg for sg in segs if sg["letter"] == L]
+            alt_of = ""
+            # ⚠️ 主碼沒有這個字母時要**再找兼容碼**。兼容碼是同一個字的**另一套
+            # 合法拆法**，那一塊形狀像那個字母這件事照樣成立 —— 而且那正是使用者
+            # 打得出來的一條路。漏掉 alts 是這個專案一再犯的錯（左簡碼、詞組連打
+            # 都中過），這裡是第三次：兒 主碼 FFJL 沒有 E，兼容碼 FEJL 有，
+            # Wilson 兩次要求「兒 = E」都被舊版當成寫錯退掉（2026-09-02 修）。
             if not picked:
+                for a in (rec.get("alts") or []):
+                    hit = [sg for sg in (a.get("segments") or []) if sg["letter"] == L]
+                    if hit:
+                        picked, alt_of = hit, (a.get("code") or "").upper()
+                        break
+            if not picked:
+                alts_have = "／".join((a.get("code") or "").upper()
+                                     for a in (rec.get("alts") or []))
                 warn.append(f"〈字根練習〉：「{ch} = …{L}…」，但 {ch} 拆出來是 "
-                            f"{have}，沒有 {L} 這一段")
+                            f"{have}，沒有 {L} 這一段"
+                            + (f"（兼容碼 {alts_have} 也沒有）" if alts_have else ""))
                 continue
             if which is not None:
                 # 1 起算，負數從後面數（慧 = E:-1 是 W 前面那個 E）
@@ -1331,8 +1371,20 @@ def build_lianxi(picks, codes, max_rule, warn, per_level=8):
             # 但那樣一題要看好幾塊，反而模糊了「這一塊像哪個字母」這件事。
             # 預設第一處，要指定就寫 `E:3`（見上面）。
             q = {"c": ch, "L": L, "g": [picked[0]["strokes"]]}
+            if alt_of:
+                q["alt"] = alt_of          # 這一題的形狀來自兼容碼，不是主碼
             if hint:
                 q["h"] = hint
+                # 揭曉時要**自己轉給他看**（Wilson 2026-09-02），所以提示那句話
+                # 除了給人讀，還要解析成真的角度／翻面。解析不出來就出聲——
+                # 寫了「要轉」卻不說怎麼轉，等於這一題沒有答案可以演。
+                tf = _lianxi_tf(hint)
+                if tf:
+                    q["tf"] = tf
+                else:
+                    warn.append(f"〈字根練習〉：「{ch} = {L}」的提示「{hint}」看不出要"
+                                f"怎麼轉，揭曉時不會自己轉（認得順轉／逆轉 N 度、"
+                                f"旋轉 N 度、左右翻轉、上下翻轉）")
             q["_g"] = group
             made.append(q)
 
@@ -3230,6 +3282,11 @@ def main():
             cs = by_lv.get(i, [])
             extra = f"，答對 {lianxi['pass']} 題過關" if len(cs) > lianxi["pass"] else ""
             print(f"  第 {i + 1} 關：{len(cs)} 題{extra}（{' '.join(cs)}）")
+        # 用兼容碼出的題要講出來 —— 那一題教的形狀不在主碼裡，值得看得見
+        alt_qs = [q for q in lianxi["questions"] if q.get("alt")]
+        if alt_qs:
+            print("  （其中 " + "、".join(f"{q['c']} {q['L']} 取自兼容碼 {q['alt']}"
+                                          for q in alt_qs) + "）")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
              f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else "")

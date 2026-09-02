@@ -135,8 +135,12 @@
           <p class="guess-label">猜猜看，這個字怎麼打？</p>
           <div class="tianzi" id="guess-tianzi"></div>
           <label class="sr-only" for="guess-input">猜猜看要打哪幾個字母</label>
+          <!-- ⚠️ 這個框**不掛 data-keep**：掛了的話連 placeholder 都不會被轉成简體
+               （「在這裡輸入英文字母」會一直是繁體，Wilson 2026-09-02 抓到）。
+               跟〈字根表〉查字框同一個坑，見那邊的說明與 d14f477。框裡沒有文字
+               節點，使用者打進去的字母本來就不會被轉換器碰到。 -->
           <input type="text" id="guess-input" class="guess-input" maxlength="5" autocomplete="off"
-                 autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母" data-keep>
+                 autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母">
           <div class="guess-actions">
             <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
             <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>

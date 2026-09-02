@@ -1457,6 +1457,7 @@ async function findApplications(shape, letter) {
   }
   if (!forms.length) return [];
 
+  await primeCodedGlyphs(codes);
   const out = [];
   for (const [ch, rec] of Object.entries(codes)) {
     if (!rec.segments || !rec.segments.length) continue;
@@ -1672,6 +1673,7 @@ async function charsUsing(shape, letter) {
   }
   if (!forms.length) return [];
 
+  await primeCodedGlyphs(codes);
   const out = [];
   for (const [ch, rec] of Object.entries(codes)) {
     if (!rec.segments) continue;
@@ -1679,7 +1681,12 @@ async function charsUsing(shape, letter) {
     if (!g) continue;
     for (const sg of rec.segments) {
       if (letter && sg.letter !== letter) continue;
-      const v = Shape.strokeVec(sg.strokes.map(i => g.medians[i]));
+      const med = sg.strokes.map(i => g.medians[i]);
+      /* 極少數字（筆畫資料後來重抓過）的 segments 存的筆序會超出目前的筆畫數 ——
+         這種殘留資料掃到就跳過，不要讓一個字的問題炸掉整個掃描
+         （原本沒判斷，這種字一撞到 Shape.strokeVec 就整組拋錯，逐組檢視開不了）。 */
+      if (med.some(m => !m)) continue;
+      const v = Shape.strokeVec(med);
       if (!v) continue;
       if (forms.some(f => f.n === sg.strokes.length && Shape.dist(v, f.v) < thr)) {
         out.push({ ch, rec, seg: sg, code: rec.code });
@@ -1746,6 +1753,21 @@ let codesCache = null;
 let rulesCache = null;
 const loadCodes = async () => (codesCache ||= await fetch('/api/codes').then(r => r.json()));
 const loadRules = async () => (rulesCache ||= await fetch('/api/rules').then(r => r.json()));
+
+/* charsUsing() 要挨個已取碼字比對「誰在用這個形狀」—— 碼表長到現在（7000+ 字有
+   segments），一個個 GET /api/glyph 抓筆畫資料要跑一分鐘起跳，逐組檢視看起來就像
+   按了沒反應；就算分批併發送出，瀏覽器對同一個 origin 的連線數也是有上限的
+   （HTTP/1.1 常見 6 條），分批只是換個方式排隊，還是慢。
+   真正的藥：GLYPHS 早就整包在 server 記憶體裡，一次把全部要的字用
+   POST /api/glyphs 要回來，一個請求、毫秒級——見 server.py、Zigen.primeGlyphs()。
+   之後 charsUsing() 裡的迴圈都是查快取，不用等網路。只抓一次。 */
+let codedGlyphsPrimed = null;
+function primeCodedGlyphs(codes) {
+  if (codedGlyphsPrimed) return codedGlyphsPrimed;
+  const chars = Object.entries(codes).filter(([, r]) => r.segments).map(([ch]) => ch);
+  codedGlyphsPrimed = Zigen.primeGlyphs(chars);
+  return codedGlyphsPrimed;
+}
 
 function letterOfArray(arr) {
   for (const L of data.letters)
@@ -2178,7 +2200,20 @@ async function renderDupes(dup) {
     '<span class="hint">同一個形狀掛在不同字母下，取碼會有歧義。' +
     '一組一組看，決定它們到底是同一個、還是真的不同。</span>';
   const go = el('button', 'primary', `逐組檢視（${dup.length}）`);
-  go.onclick = () => openReview(0);
+  go.onclick = async () => {
+    /* 第一次點要先把已取碼字的筆畫資料批次抓回來（見 primeCodedGlyphs），
+       按下去到真的開窗之間會有一小段空檔 —— 按鈕要有反應，不然像沒按到。 */
+    const label = go.textContent;
+    go.disabled = true; go.textContent = '載入中…';
+    try { await openReview(0); }
+    catch (e) {
+      /* 原本只有 finally，出錯就悄悄吞掉 —— 按鈕恢復正常、視窗卻沒開，
+         看起來像沒反應。開發模式才看得到主控台，先把錯誤講出來。 */
+      console.error('openReview failed:', e);
+      $('#status').textContent = `逐組檢視失敗：${e.message || e}`;
+    }
+    finally { go.disabled = false; go.textContent = label; }
+  };
   panel.append(go);
   box.append(panel);
 }
