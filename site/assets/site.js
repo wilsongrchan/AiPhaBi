@@ -289,4 +289,23 @@
   window.AiPhaBiSite = {
     localize: function (root) { if (current() === 'simp' && t2s) toSimplified(root); }
   };
+
+  /* ---------- Vercel Web Analytics ----------
+     `/_vercel/insights/script.js` 是 Vercel 邊緣自己生出來的路徑，**只有 Vercel
+     服務的網域上有**。GitHub Pages 那一份（專案站，掛在 /AiPhaBi/ 底下）和本機
+     預覽都會 404，所以先看網域再決定要不要載入 —— 不然每一頁都在主控台噴一行紅字。
+
+     ⚠️ 為什麼寫在這裡而不是十二份 HTML 的 <head>：十二頁全都載入 site.js，寫在
+     這裡只有一處要維護，而且才有地方擺上面那個網域判斷。頁與頁之間是**整頁換頁**
+     （不是單頁應用），所以每次導覽本來就是一次新的載入 ＝ 一次瀏覽紀錄，
+     不需要自己接管路由事件。
+
+     只有 Vercel 預設的瀏覽計數，不送自訂事件、不帶任何識別碼。 */
+  var vaHost = location.hostname;
+  if (/(^|\.)aiphabi\.com$/.test(vaHost) || /(^|\.)vercel\.app$/.test(vaHost)) {
+    var vaTag = document.createElement('script');
+    vaTag.defer = true;
+    vaTag.src = '/_vercel/insights/script.js';
+    document.head.appendChild(vaTag);
+  }
 })();
