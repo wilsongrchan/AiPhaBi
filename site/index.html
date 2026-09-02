@@ -139,6 +139,8 @@
         <div class="guess-actions">
           <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
           <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>
+          <!-- 四個字都看過答案之後才出現：玩完了就給一條往下走的路（Wilson 2026-09-01）。 -->
+          <a class="btn btn-primary" id="guess-more" href="lianxi.html" hidden>去字根練習</a>
         </div>
         <p class="guess-answer" id="guess-answer" aria-live="polite"></p>
       </div>

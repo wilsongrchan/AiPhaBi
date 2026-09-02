@@ -36,6 +36,7 @@
   var gameEl = document.getElementById('xz-game');
   var optsEl = document.getElementById('xz-opts');
   var padEl = document.getElementById('xz-pad');
+  var typedEl = document.getElementById('xz-typed');
   var askEl = document.getElementById('xz-ask');
   var spinBar = document.getElementById('xz-spinbar');
   var cwBtn = document.getElementById('xz-cw');
@@ -46,6 +47,10 @@
   var unspinBtn = document.getElementById('xz-reset-spin');
   var nudgeEl = document.getElementById('xz-nudge');
   var levelEl = document.getElementById('xz-chapter');
+  var playEl = document.getElementById('xz-play');
+  var donePanel = document.getElementById('xz-done-panel');
+  var doneTitle = document.getElementById('xz-done-title');
+  var confettiEl = document.getElementById('xz-confetti');
   var hintBtn = document.getElementById('xz-hint');
   var showBtn = document.getElementById('xz-show');
   var nextBtn = document.getElementById('xz-next');
@@ -98,12 +103,14 @@
      想再看一眼剛才的答案，所以連「當時揭曉了沒」一起記，重新問一次等於把他要的
      東西收走。 */
   var history = [], histPos = -1;
-  /* 「轉轉看」的狀態：deg 是角度（0–359，一律 45 的倍數），fx／fy 是左右／上下翻
-     （1 或 -1）。只有寫了提示的題目（要轉、要翻才看得出來的）才給這排按鈕。
-     每換一題就歸零。 */
+  /* 「轉轉看」的狀態：deg 是**累加的**角度（可正可負，45 的倍數，刻意不收進
+     0–359，見 turn()），fx／fy 是左右／上下翻（1 或 -1）。只有寫了提示的題目
+     才給這排按鈕。每換一題就歸零。 */
   var deg = 0, fx = 1, fy = 1;
+  var typed = '';           // 第三關（打整個字）已經打對的碼
 
-  function keyOf(q) { return q.c + '|' + q.L; }
+  // 打整個字那一種沒有 L，用「打」當它的身分
+  function keyOf(q) { return q.c + '|' + (q.t ? '打' : q.L); }
 
   /* ---------- 存下來的東西 ---------- */
 
@@ -208,7 +215,7 @@
     var svg = stage.querySelector('svg');
     /* ⚠️ 轉 45 度的時候要縮到 1/√2：正方形斜著擺，外接框會變成 1.41 倍，
        不縮就會壓到上面的關卡列和下面的題目那一句話。轉 90 的倍數則不必縮。 */
-    var k = (deg % 90) ? 0.72 : 1;
+    var k = (((deg % 90) + 90) % 90) ? 0.72 : 1;   // deg 可能是負的，先正規化再判斷
     if (svg) {
       svg.style.transform = 'rotate(' + deg + 'deg) scale(' + (fx * k) + ',' + (fy * k) + ')';
     }
@@ -233,7 +240,8 @@
   function paintQuestion(q) {
     var strokes = GLYPHS[q.c] || [];
     var shade = {};
-    q.g.forEach(function (grp, gi) {
+    // 打整個字那一種不標任何一段 —— 整個字都是正常墨色，要打的是整串碼
+    (q.g || []).forEach(function (grp, gi) {
       grp.forEach(function (i) { shade[i] = Math.min(gi + 1, 3); });
     });
     // 沒被選中的先畫完，選中的才畫 —— 照筆順混著畫的話，序號較後的淺色筆畫會
@@ -241,7 +249,7 @@
     var off = '', on = '';
     for (var i = 0; i < strokes.length; i++) {
       if (shade[i]) on += '<path class="xz-on xz-on-' + shade[i] + '" d="' + strokes[i] + '"/>';
-      else off += '<path class="xz-dim" d="' + strokes[i] + '"/>';
+      else off += '<path class="' + (q.t ? 'xz-ink' : 'xz-dim') + '" d="' + strokes[i] + '"/>';
     }
     stage.classList.remove('is-revealed');
     stage.innerHTML = '<svg viewBox="0 0 1024 1024" role="img" aria-label="題目">' +
@@ -332,19 +340,43 @@
     hintBtn.hidden = false;
     showBtn.hidden = false;
     nextBtn.hidden = true;
-    nextLvBtn.hidden = true;
-    stayBtn.hidden = true;
-    toZigenBtn.hidden = true;
     resetSpin();
+    hideDone();
+    typed = '';
     paintQuestion(item.q);
     paintAsk(item.q);
+    paintTyped(item.q, false);
+    paintScore();                     // 換關卡時上面那條要跟著換成新關卡的分數
     spinBar.hidden = !item.q.h;
+    hintBtn.hidden = !!item.q.t;      // 打整個字沒有「減至四個選項」這回事
     paintLevel(item.q);
-    if (!fresh && item.revealed) reveal(item.right, true);
+    if (!fresh && item.revealed) {
+      if (item.q.t) typed = item.q.code;       // 回頭看已答過的打字題，碼格填滿
+      reveal(item.right, true);
+    }
     paintNav();
   }
 
-  function paintNav() { prevBtn.disabled = histPos <= 0; }
+  function paintNav() {
+    prevBtn.disabled = histPos <= 0;
+    // 最後一關沒有下一關可跳（Wilson）
+    levelBtn.hidden = NLEVELS < 2 || (cur && cur.q.lv >= NLEVELS - 1);
+  }
+
+  /* 第三關的碼格：打對的填上去，還沒打的留空。**先讓人看到碼有幾個字母**——
+     那是這種題目唯一的線索，也讓「還差幾個」一目瞭然。 */
+  function paintTyped(q, revealed) {
+    if (!q.t) { typedEl.hidden = true; typedEl.textContent = ''; return; }
+    typedEl.hidden = false;
+    var html = '';
+    for (var i = 0; i < q.code.length; i++) {
+      var got = revealed || i < typed.length;
+      html += '<span class="xz-slot' + (got ? ' is-on' : '') +
+        (revealed && i >= typed.length ? ' is-told' : '') + '">' +
+        (got ? q.code[i] : '') + '</span>';
+    }
+    typedEl.innerHTML = html;
+  }
 
   /* 題目那一句話（兩句都是 Wilson 2026-09-01 指定的字）：
 
@@ -360,7 +392,8 @@
   function paintAsk(q) {
     // ⚠️ 提示是**一整句**（「旋轉或翻轉這個字根後」），這裡只接後半，不要再補字：
     // 補了就會變成「旋轉或翻轉這個字根後這個字根後，像哪個字母？」
-    askEl.textContent = q.h ? q.h + '，像哪個字母？' : '這個字根像哪個字母？';
+    askEl.textContent = q.t ? '試一下打這個字'
+      : (q.h ? q.h + '，像哪個字母？' : '這個字根像哪個字母？');
     if (window.AiPhaBiSite) window.AiPhaBiSite.localize(askEl);
   }
 
@@ -375,9 +408,8 @@
 
   function paintLevel(q) {
     if (!NLEVELS) { levelEl.textContent = ''; return; }
-    // 分母是**過關要答對幾題**，不是這一關有幾題（多出來的是備胎，見 PASS）
-    levelEl.textContent = '第' + cn(q.lv + 1) + '關　' +
-      Math.min(levelScore(q.lv), levelGoal(q.lv)) + '／' + levelGoal(q.lv);
+    // 分數在上面那條進度條講過了，這裡只講在第幾關
+    levelEl.textContent = '第' + cn(q.lv + 1) + '關';
   }
 
   /* 下一題／跳過是同一件事：往前走一格。之前按過「上一題」的話，往前是回到
@@ -435,6 +467,7 @@
 
   function answer(L) {
     if (answered || !cur) return;
+    if (cur.q.t) { typeLetter(L); return; }
     if (L === cur.q.L) { reveal(true); return; }
     /* 猜錯：那顆鍵變紅、抖一下，並且說一句「沒關係，再試一次」（Wilson）——
        原本是灰掉加刪除線，看起來像「這顆壞了」而不是「這個猜錯了」。
@@ -447,6 +480,32 @@
     paintScore();
     if (wrong >= MAX_WRONG) {
       reveal(false, false, '猜了 ' + MAX_WRONG + ' 次，先看答案吧');
+      return;
+    }
+    nudge('沒關係，再試一次', 'bad');
+  }
+
+  /* 第三關：一個字母一個字母把碼打出來。打對就填進碼格，打錯就抖一下 ——
+     ⚠️ 打錯的那顆**不能像別關那樣鎖起來**：同一個字母後面可能還要再打一次
+     （嶇 是 WCOOO，O 連著三個）。 */
+  function typeLetter(L) {
+    var q = cur.q;
+    if (L === q.code[typed.length]) {
+      typed += L;
+      paintTyped(q, false);
+      if (typed.length === q.code.length) { reveal(true); return; }
+      nudge('');
+      return;
+    }
+    wrong++;
+    streak = 0;
+    paintScore();
+    // 抖的是碼格不是按鍵：錯的是「這個字母不是下一個」，不是那顆鍵壞了
+    typedEl.classList.remove('is-bad');
+    void typedEl.offsetWidth;                 // 逼重排，同一顆再按一次也會再抖
+    typedEl.classList.add('is-bad');
+    if (wrong >= MAX_WRONG) {
+      reveal(false, false, '打錯 ' + MAX_WRONG + ' 次，先看答案吧');
       return;
     }
     nudge('沒關係，再試一次', 'bad');
@@ -478,8 +537,13 @@
     var q = cur.q;
 
     ALPHA.forEach(function (L) { keyBtns[L].disabled = true; });
-    keyBtns[q.L].classList.remove('is-dim');
-    keyBtns[q.L].classList.add('is-right');
+    if (q.t) {
+      typedEl.classList.remove('is-bad');
+      paintTyped(q, true);                    // 沒打完的格子把答案填上去
+    } else {
+      keyBtns[q.L].classList.remove('is-dim');
+      keyBtns[q.L].classList.add('is-right');
+    }
 
     // ⚠️ replay＝從「上一題」回頭看已經答過的那一題，**不能再計一次分**：
     // 記過的題目不會重複記，但連續數字會一路自己長大。
@@ -501,7 +565,7 @@
        答對、看答案、猜滿三次，三條路都會走到這裡，所以在這裡寫一定蓋得到。 */
     nudge(msg || (right ? '答對了！' : '答案是這個'), msg ? '' : (right ? 'good' : ''));
 
-    overlayLetter(q);
+    if (!q.t) overlayLetter(q);               // 打整個字沒有「那一段像哪個字母」
     /* 「提示／看答案」換成「下一題」—— 同一排、同一個位置。⚠️ 不要用「收掉那一排
        再把下一題放到別處」的做法，也不要在底下長出一塊新的東西：畫面會往上／往下
        跳，而使用者的游標正停在剛按下的那顆字母鍵上（Wilson 兩次回報同一件事，
@@ -515,25 +579,57 @@
     // 這一頁只練手挑的那幾條，整張表在那邊。
     var last = q.lv >= NLEVELS - 1;
     nextBtn.hidden = done;
-    nextLvBtn.hidden = !(done && !last);
-    toZigenBtn.hidden = !(done && last);
-    stayBtn.hidden = !done;
-    if (done) {
-      nudge(last ? '全部關卡完成！' : ('第' + cn(q.lv + 1) + '關完成！'), 'good');
-      (last ? toZigenBtn : nextLvBtn).focus({ preventScroll: true });
-    } else {
-      nextBtn.focus({ preventScroll: true });
+    if (done) showDone(q.lv, last);
+    else nextBtn.focus({ preventScroll: true });
+  }
+
+  /* 過關：田字格那一整塊換成完成畫面 —— 完成一關是個里程碑，讓它佔住畫面正中間，
+     而不是在角落換一顆按鈕（Wilson 2026-09-01）。 */
+  function showDone(lv, last) {
+    doneTitle.textContent = last ? '全部關卡完成！' : ('第' + cn(lv + 1) + '關完成！');
+    nextLvBtn.hidden = last;
+    toZigenBtn.hidden = !last;
+    stayBtn.hidden = false;
+    playEl.hidden = true;
+    donePanel.hidden = false;
+    if (window.AiPhaBiSite) window.AiPhaBiSite.localize(donePanel);
+    confetti();
+    (last ? toZigenBtn : nextLvBtn).focus({ preventScroll: true });
+  }
+
+  function hideDone() {
+    donePanel.hidden = true;
+    playEl.hidden = false;
+    confettiEl.textContent = '';        // 紙屑用完就收，不要留在 DOM 裡跑動畫
+  }
+
+  /* 小紙屑。純 CSS 動畫，一張一張隨機給位置、顏色、快慢 —— 「減少動態效果」
+     底下整個不放（那是慶祝，不是資訊）。 */
+  function confetti() {
+    if (REDUCED) return;
+    confettiEl.textContent = '';
+    for (var i = 0; i < 30; i++) {
+      var bit = document.createElement('i');
+      bit.className = 'xz-bit c' + (i % 6);
+      bit.style.left = (Math.random() * 100).toFixed(1) + '%';
+      bit.style.animationDelay = (Math.random() * 0.45).toFixed(2) + 's';
+      bit.style.animationDuration = (1.5 + Math.random() * 0.9).toFixed(2) + 's';
+      confettiEl.appendChild(bit);
     }
   }
 
   /* ---------- 進度 ---------- */
+  /* 進度條走的是**這一關**：答對幾題 / 過關要幾題（Wilson 2026-09-01：
+     「should reflect out of 8 not out of 44」）。整站總題數對練的人沒有意義 ——
+     他一次只在闖一關，而且一關還有備胎題根本不必做完。 */
   function paintScore() {
-    var done = 0;
-    POOL.forEach(function (q) { if (mastered[keyOf(q)]) done++; });
+    var lv = cur ? cur.q.lv : 0;
+    var goal = levelGoal(lv);
+    var done = Math.min(levelScore(lv), goal);
     doneEl.textContent = done;
-    totalEl.textContent = POOL.length;
+    totalEl.textContent = goal;
     streakEl.textContent = streak;
-    fillEl.style.width = POOL.length ? (done / POOL.length * 100).toFixed(1) + '%' : '0';
+    fillEl.style.width = goal ? (done / goal * 100).toFixed(1) + '%' : '0';
   }
 
   hintBtn.addEventListener('click', hint);
@@ -544,7 +640,10 @@
   levelBtn.addEventListener('click', jumpLevel);
   nextLvBtn.addEventListener('click', jumpLevel);
   stayBtn.addEventListener('click', stayLevel);
-  function turn(by) { deg = (deg + by + 360) % 360; paintSpin(); }
+  /* ⚠️ **不要**把角度收進 0–359：從 0 逆轉 90 度會變成 270，CSS 就繞遠路轉了
+     四分之三圈（Wilson：「按逆轉 90 它其實在順轉 270」）。角度一路累加，
+     轉幾圈都無所謂，瀏覽器自然會走最短的那條路。 */
+  function turn(by) { deg += by; paintSpin(); }
   cwBtn.addEventListener('click', function () { turn(90); });
   ccwBtn.addEventListener('click', function () { turn(-90); });
   ccw45Btn.addEventListener('click', function () { turn(-45); });

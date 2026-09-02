@@ -1189,7 +1189,11 @@ def load_lianxi_picks(warn):
     （二）（三）」覺得莫名其妙，那個名字確實沒有意義：一題該怎麼看是**那一題自己的
     提示**在講。分組存在的理由只有一個：不要讓「要轉的」跟「不用轉的」混進同一關。
 
-    回傳 [(字, [字母…], 提示, 第幾組), …]，照檔案裡的順序。
+    一行只有**一個字、沒有等號**（`嶇`）就是另一種題目：不問字根像哪個字母，
+    而是「試一下打這個字」，要把整串碼打出來（第三關）。
+
+    回傳 [(字, [字母…]／None, 提示, 第幾組), …]，照檔案裡的順序；
+    字母是 None 就是打整個字那一種。
     """
     path = ROOT / "site" / "content" / "lianxi.md"
     if not path.exists():
@@ -1219,6 +1223,13 @@ def load_lianxi_picks(warn):
             head, _, tail = re.split(r"([·・])", line, maxsplit=1)[0], None, ""
             parts = re.split(r"\s*[·・]\s*", line, maxsplit=1)
             line, hint = parts[0].strip(), (parts[1].strip() if len(parts) > 1 else "")
+        # 一行只有一個字：打整個字那一種題目
+        if len(line) == 1 and not re.match(r"[A-Za-z0-9\W]", line):
+            if (ch_only := line) in [x[0] for x in out if x[1] is None]:
+                warn.append(f"〈字根練習〉：「{ch_only}」的打字題寫了不只一次")
+                continue
+            out.append((ch_only, None, "", group))
+            continue
         m = DATA_LINE.match(line)
         if not m:
             continue
@@ -1281,6 +1292,14 @@ def build_lianxi(picks, codes, warn, per_level=8):
         rec = codes.get(ch)
         if not rec or not rec.get("segments"):
             warn.append(f"〈字根練習〉：「{ch}」還沒取碼，出不了題")
+            continue
+        # 打整個字：不標字根，只要把 rec["final"] 那串碼打出來
+        if letters is None:
+            code = (rec.get("final") or "").upper()
+            if not code:
+                warn.append(f"〈字根練習〉：「{ch}」沒有碼，打字題出不了")
+                continue
+            made.append({"c": ch, "code": code, "t": 1, "_g": group})
             continue
         segs = rec["segments"]
         have = "".join(sg["letter"] for sg in segs)
@@ -3194,7 +3213,8 @@ def main():
         by_lv = {}
         for q in lianxi["questions"]:
             by_lv.setdefault(q["lv"], []).append(
-                q["c"] + q["L"] + ("↻" if q.get("h") else ""))
+                q["c"] + (q.get("L", "") + ("↻" if q.get("h") else "")
+                          if not q.get("t") else "＝" + q["code"]))
         print(f"lianxi.json 〈字根練習〉{len(lianxi['questions'])} 題 / "
               f"{lianxi['levels']} 關 / {kb:.0f} KB　手挑，見 site/content/lianxi.md")
         for i in range(lianxi["levels"]):

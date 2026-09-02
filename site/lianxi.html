@@ -95,6 +95,7 @@
       <!-- 關卡名稱。第二關叫「轉一下、翻過來才像」—— 那個名稱**本身就是提示**
            （Wilson 2026-09-01：那一關要先講一聲才公平），所以它一直掛在題目上方，
            不是答完才出現的東西。關卡名稱寫在 site/content/lianxi.md 裡。 -->
+      <div class="xz-play" id="xz-play">
       <p class="xz-chapter" id="xz-chapter"></p>
 
       <!-- 題目：整個字都畫出來，屬於這一條字根的筆畫上色、其餘塗淺。
@@ -118,6 +119,10 @@
         <button type="button" class="xz-mini is-idle" id="xz-reset-spin"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V5l-5 4.5L8 14v-3h5.5a3.5 3.5 0 0 1 0 7H9v2h4.5a5.5 5.5 0 0 0 0-11z"/></svg>還原</button>
       </div>
 
+      <!-- 第三關（打整個字）用的碼格：打對幾個就填幾個，還沒打的留空格。
+           ⚠️ 高度固定，別的關卡用不到它的時候也留著位置。 -->
+      <div class="xz-typed" id="xz-typed" hidden aria-live="polite"></div>
+
       <div class="xz-pad" id="xz-pad" role="group" aria-label="選一個英文字母"></div>
 
       <!-- 答完／猜錯的那一句話都在這裡：「答對了！」「沒關係，再試一次」「答案是這個」。
@@ -133,13 +138,6 @@
         <button type="button" class="btn btn-primary" id="xz-hint">提示：減至四個選項</button>
         <button type="button" class="btn btn-primary" id="xz-show">看答案</button>
         <button type="button" class="btn btn-primary" id="xz-next" hidden>下一題</button>
-        <!-- 這一關十題全部答對之後，「下一題」換成這兩顆（Wilson 2026-09-01）——
-             做完一關是一件事，該讓人挑接下來要幹嘛，而不是默默把他推進下一關。 -->
-        <button type="button" class="btn btn-primary" id="xz-nextlv" hidden>下一關 →</button>
-        <!-- 最後一關過了就沒有「下一關」可去，改成把人送去字根表（Wilson 2026-09-01）。
-             這一頁只練手挑的那幾條，整張表在那邊。 -->
-        <a class="btn btn-primary" id="xz-tozigen" href="zigen.html" hidden>去字根表學習所有字根！</a>
-        <button type="button" class="btn btn-ghost" id="xz-stay" hidden>繼續練習這一關</button>
       </div>
 
       <!-- 走題目：兩個方向都要有。看完想再看一眼剛才那條字根是很自然的事
@@ -152,6 +150,19 @@
         <button type="button" class="btn btn-ghost" id="xz-level">跳到下一關</button>
       </div>
 
+      </div>
+
+      <!-- 過關的那一刻，田字格那一整塊換成這個 —— 完成一關是個里程碑，
+           讓它佔住畫面正中間，而不是在角落換一顆按鈕（Wilson 2026-09-01）。 -->
+      <div class="xz-done" id="xz-done-panel" hidden>
+        <div class="xz-confetti" id="xz-confetti" aria-hidden="true"></div>
+        <p class="xz-done-title" id="xz-done-title" role="status"></p>
+        <div class="xz-done-acts">
+          <button type="button" class="btn btn-primary" id="xz-nextlv" hidden>下一關 →</button>
+          <a class="btn btn-primary" id="xz-tozigen" href="zigen.html" hidden>去字根表學習所有字根！</a>
+          <button type="button" class="btn btn-ghost" id="xz-stay" hidden>繼續練習這一關</button>
+        </div>
+      </div>
     </div>
 
     <div class="xz-opts" id="xz-opts" hidden>

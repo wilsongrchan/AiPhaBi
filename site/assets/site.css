@@ -3636,6 +3636,35 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
 .xz-ask { text-align: center; font-size: .95rem; margin: 1.2rem 0 1rem; }
 
+/* 第三關的碼格：打對幾個填幾個，還沒打的留空。空格看得見（虛線底），
+   人才知道「這個字的碼有幾個字母」—— 那是這種題目唯一的線索。 */
+.xz-typed {
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+  margin: 0 0 1rem;
+}
+.xz-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  height: 2.4rem;
+  border-bottom: 2px solid var(--line);
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--accent);
+}
+.xz-slot.is-on { border-bottom-color: var(--accent); }
+/* 猜滿三次直接告訴他的那幾個字母：填上去但顏色淡一階，跟自己打對的分得開 */
+.xz-slot.is-told { color: var(--ink-faint); border-bottom-color: var(--line); }
+/* 打錯的時候抖的是碼格，不是按鍵 —— 錯的是「這個字母不是下一個」 */
+.xz-typed.is-bad { animation: xz-shake .26s ease; }
+
+/* 打整個字那一種題目：整個字都是正常墨色，不標任何一段 */
+.xz-tianzi .xz-ink { fill: var(--ink); }
+
 /* 「轉轉看」：真的把字根轉過來看（只有要轉、要翻的那些題目才出現）。
    ⚠️ 轉的是筆畫那一層（.xz-spin），田字格留在原地 —— 格子是參考線，
    跟著轉就沒有參考的意義了。 */
@@ -3777,6 +3806,56 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .xz-srcicon svg { width: 100%; height: 100%; fill: var(--ink); }
 .xz-code { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 
+/* ---- 過關畫面：佔住田字格那一整塊 ---- */
+.xz-done {
+  position: relative;
+  overflow: hidden;
+  min-height: 19rem;              /* 大約是原本田字格那一塊的高度，版面不會抽動 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6rem;
+  padding: 2rem 1rem;
+}
+.xz-done-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.xz-done-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
+
+/* 小紙屑。⚠️ pointer-events: none —— 它蓋在按鈕上面，不擋才按得到。 */
+.xz-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.xz-bit {
+  position: absolute;
+  top: -12%;
+  width: 8px;
+  height: 12px;
+  border-radius: 1px;
+  opacity: 0;
+  animation-name: xz-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.xz-bit.c0 { background: var(--rb-0); }
+.xz-bit.c1 { background: var(--rb-1); }
+.xz-bit.c2 { background: var(--rb-2); }
+.xz-bit.c3 { background: var(--rb-3); }
+.xz-bit.c4 { background: var(--rb-4); }
+.xz-bit.c5 { background: var(--rb-5); }
+@keyframes xz-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translateY(23rem) rotate(540deg); opacity: 0; }
+}
+
 .xz-nextrow {
   display: flex;
   align-items: center;
@@ -3820,7 +3899,8 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .xz-letter { transition: none; transform: none; }
   .xz-letter.is-in { transform: none; }
   .xz-fill, .xz-tianzi .xz-on, .xz-key { transition: none; }
-  .xz-key.is-wrong { animation: none; }
+  .xz-key.is-wrong, .xz-typed.is-bad { animation: none; }
+  .xz-bit { display: none; }
   .xz-tianzi svg, .xz-tianzi .xz-letter-fix { transition: none; }
 }
 

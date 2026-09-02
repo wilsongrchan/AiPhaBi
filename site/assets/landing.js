@@ -402,12 +402,17 @@
   var checkBtn = document.getElementById('guess-check');
   var answerEl = document.getElementById('guess-answer');
   var nextBtn = document.getElementById('guess-next');
+  var moreBtn = document.getElementById('guess-more');
   var guessEl = document.getElementById('guess');
   if (!tianziEl || !input || !checkBtn || !answerEl || !nextBtn || !guessEl) return;
 
-  var GUESS_CHARS = ['回', '岩', '唱', '凶', '今', '叮'];
+  /* ⚠️ 這一份跟 landing-glyphs.json 的 guessChars 不必一樣長 —— 那個檔裡還留著
+     今／叮 的筆畫，只是 2026-09-01 依 Wilson 指示不出這兩題了。要加回來的話
+     直接寫進這個陣列就好，字形已經在。 */
+  var GUESS_CHARS = ['回', '岩', '唱', '凶'];
   var codeOf = {};
   var strokesOf = {};
+  var revealed = {};      // 看過答案的字；全部看過就給一條往〈字根練習〉的路
   var qi = 0;
   var started = false;
 
@@ -446,6 +451,14 @@
     if (right) answerEl.classList.add('is-right');
     else if (guess) answerEl.classList.add('is-wrong');
     checkBtn.hidden = true;
+
+    /* 四個字都看過答案就把「去字根練習」放出來 —— 這個小遊戲只有四題，玩完了
+       總得有下一步（Wilson）。⚠️ 只出現、不消失：換一個字再回來的時候把它收掉
+       會讓人以為剛剛看到的是幻覺。 */
+    revealed[GUESS_CHARS[qi]] = 1;
+    if (moreBtn && Object.keys(revealed).length >= GUESS_CHARS.length) {
+      moreBtn.hidden = false;
+    }
   }
 
   checkBtn.addEventListener('click', reveal);
