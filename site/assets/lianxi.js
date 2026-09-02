@@ -771,7 +771,7 @@
     doneSub.hidden = false;
     doneSub.textContent = last
       ? '不用全部答對也可以往下走 —— 整張字根表在〈字根表〉那一頁，想看哪一條就看哪一條。'
-      : '不用把這一關全部答對才能往下走，下一關隨時可以開始。';
+      : '不需要把這一關全部答對，下一關隨時可以開始。';
     nextLvBtn.hidden = last;
     toZigenBtn.hidden = !last;
     nextLvBtn.textContent = '下一關 →';
