@@ -226,7 +226,7 @@
         if (tw4808El && d.stats && d.stats.tw4808) {
           var s = d.stats.tw4808;
           var tw4808Link = '<a href="https://language.moe.gov.tw/material/info?m=9fe3ff5a-5a8c-4817-9e60-6337dd55a509" ' +
-            'target="_blank" rel="noopener">台灣教育部常用國字甲表</a>';
+            'target="_blank" rel="noopener">台灣地區教育部常用國字甲表</a>';
           tw4808El.innerHTML = s.done >= s.total
             ? (tw4808Link + ' ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
             : (tw4808Link + '已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
@@ -246,7 +246,7 @@
         if (gbL1El && d.stats && d.stats.gb2312_l1) {
           var g = d.stats.gb2312_l1;
           var gbLink = '<a href="https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=5664A728BD9D523DE3B99BC37AC7A2CC" ' +
-            'target="_blank" rel="noopener">GB 2312 一級漢字</a>';
+            'target="_blank" rel="noopener">大陸地區國標 GB 2312 第一級漢字</a>';
           gbL1El.innerHTML = g.done >= g.total
             ? (gbLink + ' ' + g.total.toLocaleString('en-US') + ' 字，全部收錄')
             : (gbLink + '已收錄 ' + g.done.toLocaleString('en-US') + '／' +
