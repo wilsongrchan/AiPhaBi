@@ -1,0 +1,6 @@
+# 全站都歡迎索引。真正要擋的內部工具（annotate.html／editor.html 那些）根本
+# 不在這個目錄裡 —— 部署的輸出目錄是 site/，它們留在 repo 根目錄，發佈不到。
+User-agent: *
+Allow: /
+
+Sitemap: https://www.aiphabi.com/sitemap.xml

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字根練習 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="把字根表翻過來練：標出一個字裡的某一條字根，答它像哪個英文字母。答完會講這一條的取形意圖，以及它在字根表的位置。">
+<!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
+     16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
+     仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
+<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
+     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
+     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
+     抓預覽的機器人不會幫你補上網域。 -->
+<link rel="canonical" href="https://www.aiphabi.com/lianxi.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/lianxi.html">
+<meta property="og:title" content="字根練習 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="把字根表翻過來練：標出一個字裡的某一條字根，答它像哪個英文字母。答完會講這一條的取形意圖，以及它在字根表的位置。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+<!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
+<link rel="apple-touch-icon" href="assets/img/logo-180.png">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <!-- 字級：全站共用（見 assets/site.js），每一頁的頁首都有這組按鈕。
+           放在品牌名下面跟繁簡切換一起，兩者都是「這一頁怎麼呈現」的偏好。 -->
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="jieshao.html">簡介</a>
+      <div class="nav-sec">
+        <span class="nav-sec-t">基礎學習</span>
+        <a href="zigen.html">字根表</a>
+        <a href="lianxi.html">字根練習</a>
+        <a href="principles.html">取碼原則</a>
+        <a href="conventional.html">約定字表</a>
+        <a href="jianma.html">簡碼</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">流暢模式</span>
+        <a href="cizu.html">詞組連打</a>
+        <a href="dingping.html">自動上屏</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">體驗工具</span>
+        <a href="try.html">線上試打</a>
+        <a href="chaima.html">拆碼查詢</a>
+      </div>
+      <a href="houji.html">後記</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>字根練習</h1>
+
+
+  <div class="xz-wrap">
+    <p class="xz-loading" id="xz-loading">題目載入中……</p>
+
+    <div class="xz-game" id="xz-game" hidden>
+      <div class="xz-bar">
+        <span class="xz-bar-t">答對過 <b id="xz-done" data-keep>0</b>／<b id="xz-total" data-keep>0</b> 題</span>
+        <span class="xz-track"><i class="xz-fill" id="xz-fill"></i></span>
+      </div>
+
+      <!-- 關卡名稱。第二關叫「轉一下、翻過來才像」—— 那個名稱**本身就是提示**
+           （Wilson 2026-09-01：那一關要先講一聲才公平），所以它一直掛在題目上方，
+           不是答完才出現的東西。關卡名稱寫在 site/content/lianxi.md 裡。 -->
+      <div class="xz-play" id="xz-play">
+      <p class="xz-chapter" id="xz-chapter"></p>
+
+      <!-- 題目：整個字都畫出來，屬於這一條字根的筆畫上色、其餘塗淺。
+           畫的是真正的筆畫輪廓（跟〈字根表〉字例欄同一份資料），不是系統字型 ——
+           系統字型畫不出「這幾筆是一組」。揭曉時字母會疊到字根正上方（見
+           assets/lianxi.js 的 overlayLetter）。 -->
+      <div class="tianzi xz-tianzi" id="xz-glyph"></div>
+
+      <p class="xz-ask" id="xz-ask">這個字根像哪個字母？</p>
+
+      <!-- 真的把字根轉來看（Wilson 2026-09-01）。只有「要轉、要翻才看得出來」的
+           那些題目才出現 —— 正著看就像的題目不需要，多兩顆按鈕只會分心。 -->
+      <div class="xz-spinbar" id="xz-spinbar" hidden>
+        <button type="button" class="xz-mini" id="xz-cw"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(24,0) scale(-1,1)"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></g></svg>順轉 90°</button>
+        <button type="button" class="xz-mini" id="xz-ccw"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>逆轉 90°</button>
+        <button type="button" class="xz-mini" id="xz-ccw45"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>逆轉 45°</button>
+        <button type="button" class="xz-mini" id="xz-flipy"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5h16V3z"/><path d="M4 13.5h16V21z" opacity=".45"/><path class="xz-icon-axis" d="M2 12h20"/></svg>上下翻轉</button>
+        <button type="button" class="xz-mini" id="xz-flipx"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4v16H3z"/><path d="M13.5 4v16H21z" opacity=".45"/><path class="xz-icon-axis" d="M12 2v20"/></svg>左右翻轉</button>
+        <!-- ⚠️ 這一顆用 class 收起來（visibility），不是 hidden：hidden 會把它從版面上
+             拿掉，整排按鈕就往中間縮一次 —— 轉一下、按鈕自己跑掉（Wilson）。 -->
+        <button type="button" class="xz-mini is-idle" id="xz-reset-spin"><svg class="xz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V5l-5 4.5L8 14v-3h5.5a3.5 3.5 0 0 1 0 7H9v2h4.5a5.5 5.5 0 0 0 0-11z"/></svg>還原</button>
+      </div>
+
+      <!-- 第三關（打整個字）用的碼格：打對幾個就填幾個，還沒打的留空格。
+           ⚠️ 高度固定，別的關卡用不到它的時候也留著位置。 -->
+      <div class="xz-typed" id="xz-typed" hidden aria-live="polite"></div>
+
+      <div class="xz-pad" id="xz-pad" role="group" aria-label="選一個英文字母"></div>
+
+      <!-- 答完／猜錯的那一句話都在這裡：「答對了！」「沒關係，再試一次」「答案是這個」。
+           ⚠️ 一律用**同一個位置**（Wilson 2026-09-01）—— 對錯講在不同地方的話，
+           眼睛每答一次就要重新找它在哪。
+           ⚠️ 高度是固定的：這句話時有時無，不留位置的話底下的按鈕會上下跳。 -->
+      <p class="xz-nudge" id="xz-nudge" role="status"></p>
+
+      <!-- 這一排的位置**不動**：答完是把「提示／看答案」換成「下一題」，不是把
+           整排收掉再把按鈕放到別處。收掉的話底下整塊往上跳，而游標正停在剛按下
+           的那顆字母鍵上（見 assets/lianxi.js 的 reveal）。 -->
+      <div class="xz-acts">
+        <button type="button" class="btn btn-primary" id="xz-hint">提示：減至四個選項</button>
+        <button type="button" class="btn btn-primary" id="xz-show">看答案</button>
+        <button type="button" class="btn btn-primary" id="xz-next" hidden>下一題</button>
+      </div>
+
+      <!-- 走題目：兩個方向都要有。看完想再看一眼剛才那條字根是很自然的事
+           （Wilson 2026-09-01），左右方向鍵也走得動。 -->
+      <div class="xz-nav">
+        <button type="button" class="btn btn-ghost" id="xz-prev">← 上一題</button>
+        <button type="button" class="btn btn-ghost" id="xz-skip">跳過 →</button>
+        <!-- 這一顆隨時都在（還沒過關也按得動），所以講「跳到」——過關之後出現的那顆
+             才是「下一關 →」（Wilson 2026-09-01）。 -->
+        <button type="button" class="btn btn-ghost" id="xz-level">跳到下一關</button>
+      </div>
+
+      </div>
+
+      <!-- 過關的那一刻，田字格那一整塊換成這個 —— 完成一關是個里程碑，
+           讓它佔住畫面正中間，而不是在角落換一顆按鈕（Wilson 2026-09-01）。 -->
+      <div class="xz-done" id="xz-done-panel" hidden>
+        <div class="xz-confetti" id="xz-confetti" aria-hidden="true"></div>
+        <p class="xz-done-title" id="xz-done-title" role="status"></p>
+        <div class="xz-done-acts">
+          <button type="button" class="btn btn-primary" id="xz-nextlv" hidden>下一關 →</button>
+          <a class="btn btn-primary" id="xz-tozigen" href="zigen.html" hidden>去字根表學習所有字根！</a>
+          <button type="button" class="btn btn-ghost" id="xz-stay" hidden>繼續練習這一關</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="xz-opts" id="xz-opts" hidden>
+      <button type="button" class="xz-mini" id="xz-reset">清掉練習紀錄</button>
+    </div>
+  </div>
+
+  <p class="xz-foot">
+    想把一條字根的來龍去脈一次看完，去<a href="zigen.html">字根表</a>；想看一個字整串碼是怎麼拆出來的，去<a href="chaima.html">拆碼查詢</a>。
+  </p>
+
+  <noscript>
+    <div class="todo">
+      <b>這一頁需要 JavaScript。</b>題目是現讀 <code>assets/zigen.json</code> 出的，沒有辦法先寫死在頁面裡。
+    </div>
+  </noscript>
+
+  <!-- Arphic Public License 要求隨附授權全文並註明改動；這一行是給讀者看的出處。
+       跟〈字根表〉是同一份字形資料、同一段文字。 -->
+  <p class="zg-credit" id="zg-credit" hidden>
+    字根圖形的筆畫資料來自
+    <a href="https://github.com/skishore/makemeahanzi" data-keep>Make Me a Hanzi</a>，源自 Arphic Technology 的 AR PL 字型，依
+    <a href="ARPHICPL.txt" data-keep>Arphic Public License</a> 散布。本站取出所需字元的字形輪廓（SVG 路徑）並轉存格式，未修改輪廓資料本身。
+  </p>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<!-- ⚠️ glyphbox.js 一定要排在 lianxi.js 前面：田字格、字根圖示、字根在圖上的位置都在那裡 -->
+<script src="assets/glyphbox.js"></script>
+<script src="assets/lianxi.js"></script>
+</body>
+</html>

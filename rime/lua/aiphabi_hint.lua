@@ -225,9 +225,9 @@ local function filter(input, env)
     end
   end
 
-  -- 不打簡體：簡體專屬字整個濾掉（正選、提示都一起濾）
+  -- 不打簡體：簡體專屬字 + 簡體詞（地名詞庫逐字簡化的寫法）整個濾掉（正選、提示都一起濾）
   local function keep(cand)
-    return not (no_simp and data.simp[cand.text])
+    return not (no_simp and (data.simp[cand.text] or data.simp_phrase[cand.text]))
   end
 
   -- 兼容碼：現在打的這串碼剛好是這個字「手動收的另一種拆法」（不是主碼）。

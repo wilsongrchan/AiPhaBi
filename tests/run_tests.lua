@@ -59,6 +59,29 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== 不打簡體：地名詞庫逐字簡化的簡體詞（澳门…）跟簡體專屬單字一起被濾掉 ==")
+do
+  h.check("澳门 在 M.simp_phrase 裡、澳門 不在",
+    data.simp_phrase["澳门"] == true and data.simp_phrase["澳門"] == nil,
+    "expected simp_phrase[澳门]=true, [澳門]=nil")
+  h.check("essay 高頻日常詞的簡體版也進了 M.simp_phrase（这个／我们／因为）",
+    data.simp_phrase["这个"] == true and data.simp_phrase["我们"] == true
+      and data.simp_phrase["因为"] == true,
+    "expected simp_phrase 这个/我们/因为 = true")
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    -- 打 澳门 的詞組碼 wjkqc（見 aiphabi.dict.yaml）：候選同時有簡繁兩式。
+    local base = { code = "wjkqc", schema = schema,
+      cands = { { text = "澳门" }, { text = "澳門" } } }
+    local off = h.run{ code = base.code, schema = schema, options = ALL_ON, cands = base.cands }
+    h.checkPresent(schema .. " · 不打簡體關 → 澳门 照常在", off, "澳门", true)
+    local on_opts = { aiphabi_phrase = true, aiphabi_no_simp = true }
+    local on = h.run{ code = base.code, schema = schema, options = on_opts, cands = base.cands }
+    h.checkPresent(schema .. " · 不打簡體開 → 澳门 被濾掉", on, "澳门", false)
+    h.checkPresent(schema .. " · 不打簡體開 → 澳門 還在", on, "澳門", true)
+  end
+end
+
+print()
 print("== 提示寫法：圓括號＝參考用主碼，沒括號＝可以改打的捷徑碼 ==")
 do
   -- 打簡碼 JKQ：我 要排第一，並標「簡碼 (主碼)」

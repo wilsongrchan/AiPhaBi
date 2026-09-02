@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.08.30"
+  version: "2026.08.31"
   author:
     - wilsongrchan
   description: |
@@ -31,7 +31,7 @@ switches:
     states: [ 偏旁關, 偏旁開 ]
   - name: aiphabi_fuzzy           # 輸入容錯
     states: [ 容錯關, 容錯開 ]
-  - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字
+  - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字＋精選詞庫的簡體詞
     states: [ 不打簡體關, 不打簡體開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]

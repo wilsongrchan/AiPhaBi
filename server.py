@@ -59,7 +59,11 @@ JP_KANJI = SHARED / "jp_kanji.json"      # 日本漢字（新字體＋國字，�
 PRIORITY = SHARED / "priority.json"     # 未取碼優先序（依台港新聞字頻推導）
 VARIANT_GAPS = SHARED / "variant_gaps.json"  # 兼容變體缺口（新聞常用、你取了另一種寫法）
 ORDERINGS = SHARED / "orderings.json"   # 未取碼佇列的多種排序（新聞／姓氏／人名用字）
+TODO_PIN = SHARED / "todo_pin.json"     # 未取碼佇列全域置頂：不分排序來源，這批字一律浮到最前
 CHARFREQ = SHARED / "charfreq.json"     # 現代（台港新聞）字頻：候選字排序用，比 rime-essay 更貼近實際
+TEXTFREQ = SHARED / "textfreq.json"     # 單字出現次數，取自 librime essay.txt（廣泛語料，不侷限新聞一種文
+                                         # 類）：取碼進度頁「覆蓋率」算的是這個，跟候選排序用的 CHARFREQ 分開，
+                                         # 兩者用途不同——候選排序要貼近「現在的」用字習慣，覆蓋率要看夠廣的樣本
 PREDICT_TXT = SHARED / "predict.txt"    # 官方 librime-predict 接續資料（predict.db 的純文字版；智能聯想用）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
@@ -183,6 +187,13 @@ def _load_simp_only(s2t):
     return {c for c in s2t if c not in dual_use}
 
 
+def _load_textfreq():
+    try:
+        return json.loads(TEXTFREQ.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 # 取碼目標：官方字表。「取到哪裡算完成」用這個講，不要用 makemeahanzi 的 9574 字
 # ——那是字形資料的涵蓋範圍，不是任何國家的標準。清單本身在 data/standards/，
 # 每個檔頭都寫了出處。
@@ -227,12 +238,16 @@ def _standards_coverage(coded):
     return out
 
 
-def _cat_counts(text, simp_only, t2s, jp_kanji):
+def _cat_counts(text, simp_only, t2s, jp_kanji, textfreq=None, textfreq_total=0):
     """逐日／現在狀態共用：把一份 codes.json 內容拆成 繁體／簡體／傳承／日本漢字
     四類的字數，外加 trad∩simp 的重疊數（「坏」這種同時是簡體「壞」跟獨立繁體
     「坏」的極少數個案——精確算聯集要扣這個）。
     傳承字＝總數扣掉繁體、簡體（互斥定義）；日本漢字全部落在傳承字裡（jp_kanji.json
-    本身已排掉任何有 s2t／t2s／台灣標準字體的字），所以不需要另外扣。"""
+    本身已排掉任何有 s2t／t2s／台灣標準字體的字），所以不需要另外扣。
+    coverage：拿 textfreq（見 TEXTFREQ，librime essay 語料的單字計次，比新聞字頻
+    廣得多的樣本）當「真實中文文本」的抽樣，算「這批取碼字」佔全部出現次數的比
+    例——不是字數覆蓋率，是「打得出多少實際文字」的覆蓋率，罕用字取再多也不太
+    會動這個數字。"""
     try:
         d = json.loads(text)
     except (json.JSONDecodeError, TypeError):
@@ -242,8 +257,12 @@ def _cat_counts(text, simp_only, t2s, jp_kanji):
     trad = {c for c in coded if c in t2s}
     jp = {c for c in coded if c in jp_kanji}
     inherited = coded - simp - trad
-    return {"total": len(coded), "trad": len(trad), "simp": len(simp),
-            "inter": len(simp & trad), "inherited": len(inherited), "jp": len(jp)}
+    out = {"total": len(coded), "trad": len(trad), "simp": len(simp),
+           "inter": len(simp & trad), "inherited": len(inherited), "jp": len(jp)}
+    if textfreq_total:
+        covered = sum(textfreq.get(c, 0) for c in coded)
+        out["coverage"] = round(covered / textfreq_total * 100, 2)
+    return out
 
 
 def progress_data():
@@ -251,6 +270,8 @@ def progress_data():
     simp_only = _load_simp_only(s2t)
     t2s = _load_t2s()
     jp_kanji = _load_jp_kanji()
+    textfreq = _load_textfreq()
+    textfreq_total = sum(textfreq.values())
     try:
         head = _git("rev-parse", "HEAD")
         if head.returncode != 0:
@@ -271,7 +292,8 @@ def progress_data():
             if len(parts) < 2:
                 continue
             h, date = parts[0], parts[1]
-            c = _cat_counts(_git("show", f"{h}:data/codes.json").stdout, simp_only, t2s, jp_kanji)
+            c = _cat_counts(_git("show", f"{h}:data/codes.json").stdout, simp_only, t2s, jp_kanji,
+                             textfreq, textfreq_total)
             if c is None:
                 continue
             if date not in day_last:
@@ -287,6 +309,7 @@ def progress_data():
     simp_chars = trad_chars = inherited_chars = jp_chars = []
     standards = []
     raw = uniq = 0
+    coverage = 0.0
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
@@ -299,15 +322,19 @@ def progress_data():
             inherited_chars = sorted(coded_chars - set(simp_chars) - set(trad_chars))
             raw = len(coded_chars)
             uniq = raw - len(simp_chars)
+            if textfreq_total:
+                covered = sum(textfreq.get(c, 0) for c in coded_chars)
+                coverage = round(covered / textfreq_total * 100, 2)
         except json.JSONDecodeError:
             pass
     elif days:
         last = days[-1]
         raw, uniq = last["total"], last["total"] - last["simp"]
+        coverage = last.get("coverage", 0.0)
 
     return {"days": days, "total": raw, "totalUniq": uniq,
             "totalSimp": len(simp_chars), "totalTrad": len(trad_chars),
-            "totalJp": len(jp_chars),
+            "totalJp": len(jp_chars), "coverage": coverage,
             "simpChars": simp_chars, "tradChars": trad_chars,
             "inheritedChars": inherited_chars, "jpChars": jp_chars,
             "standards": standards}
@@ -479,6 +506,11 @@ class Handler(BaseHTTPRequestHandler):
                 ords = {}
             for spec in STANDARDS:
                 ords[spec["id"]] = _load_standard(spec["file"])
+            try:
+                ords["pin"] = json.loads(TODO_PIN.read_text("utf-8")).get("order", []) \
+                    if TODO_PIN.exists() else []
+            except json.JSONDecodeError:
+                ords["pin"] = []
             return self._send(200, json.dumps(ords, ensure_ascii=False))
         if u.path == "/api/charfreq":
             return self._send(200, CHARFREQ.read_text("utf-8") if CHARFREQ.exists()

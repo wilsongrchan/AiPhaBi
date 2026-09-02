@@ -89,6 +89,9 @@
      試打頁同一畫面上就會同時出現：第一條字根的筆畫是 rb-0，打歪的那幾碼是這個。
      淺色底下對比 7.66:1，rb-0 是 4.17，亮度差 11.3，不會看成同一個紅。 */
   --warn: #a4161a;
+  /* 猜錯的字母鍵底色（〈字根練習〉）。很淡的一層紅 —— 猜錯的鍵會一直留在畫面上，
+     實心紅一排下來太兇，而且會跟答對那顆實心綠搶。 */
+  --warn-soft: #fdeeee;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -121,6 +124,7 @@
        （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
        只剩 4.47，低於 4.5 就不收。 */
     --warn: #ee4653;
+    --warn-soft: #3a1f22;
   }
 }
 
@@ -253,6 +257,11 @@ kbd {
 body { padding-inline-start: var(--nav-w); }
 
 .brand {
+  /* 圖示在左、字在右（Wilson）。圖示本身已經帶圓角與透明背景，不用再加
+     border-radius —— 見 assets/img/logo-512.png 的做法。 */
+  display: flex;
+  align-items: center;
+  gap: .55rem;
   font-weight: 700;
   font-size: 1rem;
   line-height: 1.4;
@@ -260,6 +269,12 @@ body { padding-inline-start: var(--nav-w); }
   text-decoration: none;
   letter-spacing: .04em;
   white-space: nowrap;
+}
+
+.brand-logo {
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
 }
 
 .brand .en {
@@ -318,8 +333,14 @@ nav.site a[aria-current="page"] {
 }
 
 /* 組員縮排一階。縮排加在 padding 而不是整個 .nav-sec 上：目前頁面那條橙色左框
-   要跟簡介／線上試打／後記對齊成同一條直線，整組推進去的話框線會參差不齊。 */
-nav.site .nav-sec > a { padding-inline-start: 1.35rem; }
+   要跟簡介／線上試打／後記對齊成同一條直線，整組推進去的話框線會參差不齊。
+
+   ⚠️ 第二條選擇器不能省：site.js 給有章節清單的那一頁加收合箭頭時，會把連結
+   包進 .pr-navhead 裡（見「側邊欄章節清單：可以收起來」），那個連結就不再是
+   .nav-sec 的**直接子元素**，`> a` 選不到它，縮排整個掉光 —— 畫面上就是「有
+   箭頭的那一條標題比別條往左凸出來一截」（Wilson 2026-08-31 看出來的）。 */
+nav.site .nav-sec > a,
+nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 1.35rem; }
 
 /* 章節錨點本來就縮一階（.pr-sidenav 的 1.1rem），在組裡要再讓開組員那一階 */
 nav.site .nav-sec .pr-sidenav { padding-inline-start: 1.85rem; }
@@ -716,6 +737,11 @@ tbody tr:last-child td { border-bottom: 0; }
 /* .zg-h / .zg-letter 已不再使用：字母改成表格最左邊的欄，不再每個字母一條標題。
    保留 .zg-key 的樣式，字母欄和辨析表都還在用。 */
 .zg-tbl tbody tr { scroll-margin-top: 5rem; }   /* 讓開 A–Z 列 ＋ 表頭 */
+
+/* 側邊欄的〈相近字形辨析〉跳過來時，標題要讓開黏在頂端的 A–Z 列（實測不讓開的話
+   h2 落在 top=0，而 A–Z 列的下緣在 45px，標題整條被蓋住）。這裡不必像表格列那樣
+   多讓一個表頭的高度，所以值比 .zg-tbl tbody tr 小一點。 */
+#zg-similar { scroll-margin-top: 4rem; }
 
 .zg-h {
   display: flex;
@@ -1535,7 +1561,18 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 /* 三欄之後每欄變窄，左右內距跟著收，不然表頭會折行 */
 .jm-compact th, .jm-compact td { padding: .28rem 1rem; }
 
-/* 大／甲、馬／己兩對字數少的組並排放，省掉上下堆疊的空間（見 conventional.js 的
+/* ⚠️〈約定字表〉裡整條寬度的組（土／甲字類）自己拆欄時借用 .jm-cols，但那條規則是
+   〈簡碼〉頁的**三欄**（約定簡碼表用的）。三欄裡只放兩張表，第二張就落在整條寬度的
+   三分之一處，而並排的兩組（大｜目）是各佔一半、第二組落在二分之一處 —— 兩種機制
+   的右半邊對不齊，整頁看起來歪歪的（Wilson 2026-08-31 一眼看出來）。
+   這一頁改回兩欄，欄距也跟 .cv-grouppair 取同一個值，兩種情況的右半邊才落在同一條
+   垂直線上。用 ID 選擇器，權重比 .jm-cols 高，不管檔案裡誰先誰後都贏。 */
+#cv-groups .jm-cols {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 2.5rem;
+}
+
+/* 大／目、馬／己兩對字數少的組並排放，省掉上下堆疊的空間（見 conventional.js 的
    SIDE_BY_SIDE_PAIRS）。align-items: start 理由跟 .jm-cols 一樣：兩組字數不同，
    高度本來就不會一樣，不要為了湊高度拉伸列高。 */
 .cv-grouppair {
@@ -1950,7 +1987,12 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   /* 窄螢幕：品牌 → 導覽連結 → 繁簡／字級，橫排。桌面版的 DOM 順序是品牌／控制項／
      導覽（控制項擺在「AiPhaBi」下面），這裡用 order 把控制項挪到橫列最右側，
      不用改 HTML 順序。 */
-  nav.site { flex-direction: row; width: auto; gap: 1rem; margin-inline-end: auto; order: 1; }
+  /* ⚠️ flex-wrap 是必要的，不是保險：橫排的導覽在手機上量出來有 715px（zigen 那
+     幾頁掛了章節清單更寬，893px），視窗只有 390px —— 不換行的話**整個頁面**跟著
+     被撐寬，每一頁都可以左右滑，正文的右邊被切掉。這是十一頁一起的毛病，
+     2026-09-01 加〈字根練習〉時量出來（那一條連結又多了 60px）。 */
+  nav.site { flex-direction: row; flex-wrap: wrap; width: auto; gap: .5rem 1rem;
+             margin-inline-end: auto; order: 1; }
   nav.site a { padding: .2rem 0; border-radius: 0; border-inline-start: 0;
                border-bottom: 2px solid transparent; }
   nav.site a[aria-current="page"] { background: none; border-bottom-color: var(--accent); }
@@ -1958,8 +2000,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      組員直接變成橫列的項目，排出來跟沒分組時一模一樣。 */
   .nav-sec { display: contents; }
   .nav-sec-t { display: none; }
-  nav.site .nav-sec > a { padding-inline-start: 0; }
+  nav.site .nav-sec > a,
+  nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 0; }
   .brand .en { display: inline; margin-inline-start: .45em; }
+  /* 橫列的頁首只有一行高，圖示跟著收小一點，不然它比整行字還高 */
+  .brand-logo { width: 1.6rem; height: 1.6rem; }
 
   .topbar-controls { order: 2; flex-direction: row; align-items: center; gap: .7rem; }
   .zg-size, .topbar-controls .zg-size { flex-direction: row; align-items: center; gap: .35rem; }
@@ -1969,6 +2014,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .zg-jump { top: 3.4rem; }
   .zg-tbl thead th { top: 5.9rem; }
   .zg-tbl tbody tr { scroll-margin-top: 8.5rem; }
+  #zg-similar { scroll-margin-top: 6.5rem; }
 
 }
 
@@ -2093,6 +2139,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    讀者「等一下會有三個東西」。 */
 .pr-card.is-unborn, .pr-example.is-unborn { display: none; }
 
+/* 原字卡上那個佔位標籤：只佔高度，不要被看見，也不要被選取或被朗讀。
+   不能用 display:none／height:0 —— 那就不佔高度了，整件事就白做了。 */
+.pr-label.is-placeholder { visibility: hidden; user-select: none; }
+
 /* 判定為錯的拆法：**筆畫也一起淡掉**，不是只有底下的碼淡掉（Wilson）。
    用的就是碼那邊本來已經在用的手法（.pr-code span 的 opacity: .55），同一個值，
    兩邊看起來才是同一件事。顏色留著不動 —— 分組是靠顏色看的，而「哪幾筆併成
@@ -2103,7 +2153,9 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    高度比後面三張卡片矮（少了標籤和碼那兩行），補上等高的留白，換到第 3 步時
    方塊不會忽然抽高一截 —— 它是黏在頂端的，抽高會把整段內文往下推。 */
 .zg-altsvg path.ink { fill: var(--ink); }
-.pr-card.is-plain { padding-block: .9rem; }
+/* 原字卡不再用 padding 去湊高度 —— 上下兩行的佔位元素（見 principles.js 的
+   plainCard）已經讓它跟有標籤的卡片結構一致，padding 反而會多出來。 */
+.pr-coderow.is-placeholder { visibility: hidden; user-select: none; }
 
 /* 〈原則套用順序〉：原則名稱自成一行、說明另起一行（Wilson）。
    名稱後面的「：」跟著拿掉 —— 冒號掛在行尾沒有東西接，看起來像斷句斷掉了。
@@ -2457,6 +2509,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .tianzi { max-width: 10rem; }
 }
 
+
 /* 田字格的提示：被提示到的筆畫用取碼原則頁那一套彩虹分組色 —— 同一條字根
  * 同一個顏色。沒按 / 之前整個字是黑的（.tz-ink）。 */
 .tianzi .tz-z0 { fill: var(--rb-0); }
@@ -2577,11 +2630,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .pyq-bpmf-key {
   flex: 1;
   min-width: 0;
-  height: 2.3rem;
+  height: 2.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 600 .95rem/1 inherit;
+  font: 600 1.6rem/1 inherit;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
@@ -2592,11 +2645,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .pyq-bpmf-key:hover { border-color: var(--accent); color: var(--accent); }
 /* 清除鍵比字母鍵寬一點、字級小一點——它是文字不是符號，跟旁邊的注音符號
    混在一起大小一樣會很擠。 */
-.pyq-bpmf-key.is-wide { flex: 1.6; font-size: .78rem; }
+.pyq-bpmf-key.is-wide { flex: 1.6; font-size: 1rem; }
 /* 調號鍵（ˊˇˋ˙）：符號本身很小，字級比字母鍵拉大一點才看得清楚；顏色
    淡一階（ink-dim）暗示「這個可打可不打」——查詢不分聲調（見 try.js
    onPyqInput），不是真的操作要求。 */
-.pyq-bpmf-key.is-tone { font-size: 1.3rem; color: var(--ink-dim); }
+.pyq-bpmf-key.is-tone { font-size: 1.7rem; color: var(--ink-dim); }
 
 /* 拆碼圖那一塊：跟 .typebox 的上外距（.9rem）一樣，讓這個面板的上緣跟
    左邊試打框的 textarea 上緣切齊（Wilson）。田字格跟色塊碼都給固定高度
@@ -2613,6 +2666,107 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    跟固定高度那套邏輯一致（見上面拆碼圖／田字格的說明），選到約定字跟選到
    一般字，側欄高度不該不一樣。 */
 .pyq .tz-hint { margin-top: .6rem; height: 3.3rem; min-height: 0; }
+
+/* 姓名常用字：故意擺在 #tryarea 這個 grid 外面，不跟著拆碼圖那欄的固定
+   高度被拖出一段空白——詳見 try.html 裡這一塊的說明。上外距換成跟
+   .tryarea 自己的下外距一樣（1.4rem）：這一塊現在是接在卡片後面的新
+   段落，不是卡片裡的最後一列，用卡片本來的外距當作跟卡片的距離，
+   比另外量一個數字更不容易兜不起來。 */
+.namechars { margin: 1.4rem 0; padding-top: .5rem; border-top: 1px dashed var(--line); }
+.namechars-tag { margin: 0 0 .7rem; font-size: .82rem; color: var(--accent); }
+
+/* 姓氏／男女名左右並排兩欄，各欄自己是「標籤在左、內容在右」——見
+   try.html 裡的說明：並排之後兩邊各自維持自己原本的捲動方向（姓氏橫向、
+   男女名直向），只是排成兩個平行的小面板。 */
+/* 40 / 60 分——男女名的字卡牆字比姓氏多（45 對 40，但姓氏字卡本身也窄），
+   實際佔用的欄寬用視覺抓：字卡牆要有比姓氏更寬的欄位才不會被擠成一直捲
+   （Wilson）。 */
+.namechars-cols {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  /* 兩欄各自算自己的高度，不要互相拉齊——兩欄字卡牆的行數不一定剛好
+   * 一樣多（40 字跟 45 字分到不同欄寬，折成的行數不會剛好對齊），拉齊
+   * 只會逼比較矮的那欄多出一截沒東西的空白。 */
+  align-items: start;
+  gap: .6rem 1.6rem;
+}
+/* 窄螢幕：兩欄並排收成上下疊，各自維持自己原本「標籤在左、內容在右」的
+   排法——欄寬只剩一欄寬時，並排會把兩邊都擠成窄直條，兩個都比原本難用。
+   ⚠️ 這條**必須**接在上面 .namechars-cols 的基礎規則後面，不能擺在檔案
+   前段的其他窄螢幕 media query 堆裡——CSS 层叠是照檔案順序，擺前面的話
+   即使 media query 條件成立，還是會被後面那條沒有 media query、選擇器
+   優先度一樣高的基礎規則蓋掉，媒體查詢形同虛設（親眼在 400px 寬量到還是
+   2fr 3fr，才發現是這個順序問題）。 */
+@media (max-width: 34rem) {
+  .namechars-cols { grid-template-columns: 1fr; gap: 1rem; }
+}
+/* min-width: 0 不能省——grid 欄位預設 min-width: auto，會拿裡面那條可以
+   橫向捲的姓氏列的「完整展開寬度」（40 個字卡連成一排）當作這一欄的最小
+   寬度，把 2fr／3fr 的比例整個沖垮，變成姓氏那欄自己撐到 1700+px、
+   男女名那欄被擠到剩不到 8rem（親眼在 devtools 量到的）。 */
+/* 標籤／切換鈕在上，字卡牆在下——不是標籤在左內容在右（Wilson）。 */
+.namechars-col { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.namechars-label {
+  font-size: .82rem;
+  color: var(--ink-dim);
+}
+
+/* 男/女名切換鈕：橫的並排（Wilson），跟左邊「常用姓氏」純文字標籤一樣
+   貼在自己那欄字卡牆的上面——兩欄現在都是「標籤／切換鈕在上，字卡牆
+   在下」同一種結構。長相沿用 .jm-sortbar-btns 那套「按下去變實心」的
+   橫排藥丸鈕，跟拼音／注音那顆切換鈕是同一個系統，不用另外自創一套。 */
+.namechars-gender { align-self: flex-start; font-size: .82rem; }
+.namechars-gender button { padding: .3rem .9rem; }
+
+/* 姓氏／男名／女名共用同一顆字卡牆：固定三行高、超出的部分往下捲，不是
+   不斷換行撐高整個面板——字全部攤開會把面板拉得很長，固定高度讓兩欄
+   「看得出還有更多」，捲軸本身就是提示（Wilson：姓氏也要跟男/女名一樣
+   上下捲，不要一個橫向捲一個縱向捲）。
+   align-content: flex-start 不能省：flex-wrap 容器给了固定高度之後，
+   預設的 align-content: normal 會把行距拉開去撐滿整個高度，字卡會變成
+   一行一行分散開，不是「捲軸以外看不到」該有的樣子。 */
+.namechars-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: .35rem;
+  max-height: 6.6rem;
+  overflow-y: auto;
+  padding-right: .3rem;   /* 捲軸旁留一點空隙，不要貼死最後一欄字卡 */
+  min-width: 0;
+  /* 瀏覽器原生捲軸太粗，會搶走字卡的注意力，但完全藏起來（scrollbar-width:
+     none）又會讓人看不出能捲，細一點、顏色淡一點剛好在「看得到」跟
+     「不礙眼」中間。Firefox／新版 Safari 走 scrollbar-width／
+     scrollbar-color；Chrome／舊版 Safari 走 ::-webkit-scrollbar，
+     兩套都要寫。 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.namechars-wrap::-webkit-scrollbar { width: 7px; }
+.namechars-wrap::-webkit-scrollbar-track { background: transparent; }
+.namechars-wrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+
+/* 字卡本身沿用 .practice-pickbtn 的藥丸鈕長相（邊框／底色／hover 變主色），
+   但字級拉大——這裡放的是單一個漢字，要一眼認出來，不是一句話。 */
+.namechars-chip {
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: .35rem .55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  flex: none;
+}
+.namechars-chip:hover { border-color: var(--accent); color: var(--accent); }
+/* 剛點過的那個字：跟拆碼圖右欄現在顯示的是同一個字，加個底色呼應一下，
+   不然點了字、答案跑到右邊側欄去，看不出兩邊是同一件事。 */
+.namechars-chip.is-sel { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+/* 窄螢幕：.tryarea 收成單欄時姓名常用字自然也是滿版，不用另外處理；
+   姓氏列維持橫向捲（不然 40 個字疊成一直排會把整頁拉得很長）。 */
 
 /* 按鍵指南：兩欄並排。用 grid 而不是表格 —— 表格要橫向捲才塞得下兩組，
  * grid 在窄螢幕自己收成一欄。每一格是「鍵｜說明」，鍵那一欄寬度看內容，
@@ -3005,6 +3159,49 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   filter: blur(48px);
   animation: hero-drift 20s ease-in-out infinite alternate;
 }
+/* ---------- 首頁：漸層鋪滿整個視窗 ----------
+   原本 .hero-bg 是 absolute，關在 .hero--landing 裡面，而那一節又被 main.wrap
+   的 max-width（58rem）與 padding-block（3rem）框住，所以漸層四周一圈白邊
+   （Wilson：要全頁都是漸層，不要白框）。
+
+   做法是把它改成 fixed 鋪滿視窗、擺在所有東西後面（z-index: -1）。這樣不必去
+   跟 .wrap 的寬度、body 的 padding-inline-start 算負外距，版面一個 px 都不用動，
+   漸層自然連側邊欄底下、頁尾底下都鋪到 —— 側邊欄本身是不透明的 --surface，
+   會蓋在漸層上面，所以「白色側邊欄」照舊（Wilson 說白側邊欄是好的）。
+   ⚠️ fixed 元素的 filter: blur 由它自己帶著（見上面 .hero-bg），不要往祖先加
+   transform／filter，那會讓 fixed 改以祖先為包含塊，整片漂掉。 */
+.lg-body .hero-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+/* 頁尾要透光，不然漸層在底部被一條白色橫帶切掉 */
+.lg-body footer.wrap { background: none; }
+
+/* 側邊欄在首頁**先躲在左邊**，等拆件動畫播完一輪才滑出來（Wilson）。第一眼
+   只有漸層與動畫，不被導覽分心；動畫收尾接上猜猜看的那一刻，導覽才登場。
+
+   ⚠️ 躲起來的 class 是 landing.js 加上去的，不是寫死在 HTML 裡 —— 沒有 JS 的
+   時候 class 永遠不會出現，側邊欄就一直是看得見的。反過來寫（HTML 先藏、JS 負責
+   顯示）的話，JS 一壞整個導覽就永遠消失。
+   ⚠️ body 的 padding-inline-start 不跟著變：側邊欄只是移出畫面，版面不重排，
+   所以滑進來的時候正文不會跳。那條空出來的直帶由滿版漸層補上。 */
+.topbar { transition: transform .55s cubic-bezier(.22, .61, .36, 1); }
+.lg-body.lg-navhide .topbar { transform: translateX(-100%); }
+
+/* 導覽還沒進場時，正文要**置中在整個視窗**，不要先把側邊欄那條寬度空在那裡
+   —— 空著會讓整頁看起來偏右（Wilson）。body 的 padding-inline-start 平常是
+   var(--nav-w)（讓開側邊欄），躲起來的時候歸零，導覽滑進來時再變回去。
+   兩者用同一條時間曲線與時長，看起來就是「導覽把正文推到右邊」這一個動作，
+   而不是兩件各自發生的事。 */
+.lg-body { transition: padding-inline-start .55s cubic-bezier(.22, .61, .36, 1); }
+.lg-body.lg-navhide { padding-inline-start: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar, .lg-body { transition: none; }
+}
+
 @keyframes hero-drift {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
   50%  { transform: translate3d(-2.5%, 2%, 0) scale(1.08); }
@@ -3024,10 +3221,26 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .hero-title {
   font-size: clamp(2.3rem, 6vw, 3.4rem);
   line-height: 1.2;
-  margin: 0 0 .9rem;
+  /* 下外距收窄，讓標語貼著品牌名（Wilson）—— 兩行是一組，離太遠會各自為政。
+     標語自己的下外距（1.1rem）維持不變，跟底下的動畫仍然分得開。 */
+  margin: 0 0 .2rem;
   letter-spacing: .01em;
 }
-.hero-title .en { color: var(--accent); }
+/* 品牌名整串都用正文墨色，AiPhaBi 不另外上主色（Wilson 2026-08-31）——
+   主色讓給底下那句標語，一個畫面裡只留一個綠色的重點。 */
+.hero-title .en { color: inherit; }
+
+/* 標語（Wilson 寫的）。排在品牌名底下、關鍵詞那一列上面 —— 跟宇浩、虎碼、搜狗
+   那幾個站同一個結構：先一句有溫度的話，再一列講清楚是什麼的關鍵詞。
+   字級介於品牌名與關鍵詞之間，顏色用正文墨色（不是 --ink-dim）：它是一句話，
+   不是註記，淡掉會變成關鍵詞的附屬品。 */
+.hero-tagline {
+  font-size: clamp(1.25rem, 3.2vw, 1.75rem);
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: .06em;
+  margin: 0 0 1.1rem;
+}
 
 /* 拆件動畫——首頁最主要的視覺，見 assets/landing.js 跟 assets/landing-glyphs.json。
    幾個手選的字（哈／竹／晶／石）輪流播：每個字要用到的字母先在左邊排隊登場，
@@ -3130,6 +3343,31 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .lg-restart { transform: translateY(-50%); }
 .lg-skip:hover, .lg-restart:hover { color: var(--accent); border-color: var(--accent); }
 .lg-skip svg, .lg-restart svg { width: 1.15rem; height: 1.15rem; fill: currentColor; }
+/* 滑鼠停留才顯示的文字提示——原本用 title 屬性，但瀏覽器原生 title 的
+   停留時間是瀏覽器自己控制的，網頁沒辦法調（Wilson：「hover threshold is
+   too long」）。改成自己畫的小氣泡，用 transition-delay 控制停留多久才顯示
+   （.6s），滑開的時候不等，立刻淡出。往左彈出，不往上或往右——按鈕貼著
+   .lg-box 右邊緣，.hero--landing 又是 overflow:hidden，往右會被切掉；往上
+   彈在 .lg-skip 那顆（本來就已經站得比較高）risk 頂到 hero 區塊上緣。往左
+   是唯一保證有空間的方向。 */
+.lg-tip {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: .55rem;
+  white-space: nowrap;
+  font-size: .74rem;
+  line-height: 1.4;
+  padding: .3rem .6rem;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+.lg-skip:hover .lg-tip, .lg-restart:hover .lg-tip { opacity: 1; transition-delay: .6s; }
 
 /* 關鍵詞——不是完整的句子，就是幾個詞用點隔開，跟下面的長文分開語氣 */
 .hero-keywords {
@@ -3141,7 +3379,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   color: var(--ink-dim);
   margin: 0 0 1.8rem;
 }
-.hero-keywords .dot { margin: 0 .6em; color: var(--line); }
+/* 用 --line（邊框那組很淡的灰）當分隔點的顏色，在淺色主題底下（#d8e6e5
+   對 #fcfefe 的背景）幾乎看不見（Wilson：「otherwise cant see」）。換成
+   --accent——這個 token 本來就是主色綠，淺色／深色主題各自有對比夠的版本，
+   不用另外寫 media query 分兩套。 */
+.hero-keywords .dot { margin: 0 .6em; color: var(--accent); }
 
 .hero-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
 
@@ -3153,6 +3395,14 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   font-size: .92rem;
   text-decoration: none;
   border: 1px solid transparent;
+  /* .btn 大多掛在 <a> 上，<a> 本來就繼承頁面字體，這行對它是沒差的無操作；
+     但〈猜猜看〉的「看答案」是唯一一個掛在 <button> 上的 .btn —— 表單控制項
+     不像 <a> 會自動繼承頁面字體，瀏覽器預設給它套系統原生控制項字型（Mac 是
+     San Francisco），不是 body 的 Noto Sans TC。旁邊「換一個字」(.guess-next)
+     有寫 font: inherit 所以吃得到 Noto Sans TC；兩顆按鈕字型不同，即使都寫
+     line-height: normal，各自字型量出來的「normal」還是不一樣高，兩顆按鈕
+     還是對不齊（Wilson 回報過兩次，上一次只修了 line-height 那一半）。 */
+  font-family: inherit;
 }
 .btn:hover { text-decoration: none; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
@@ -3208,6 +3458,30 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   justify-content: center;
   gap: .7rem;
 }
+/* 四個字都玩過之後，田字格那一整塊換成往〈字根練習〉的入口 —— 一步一步把人
+   帶到下一個能動手的地方（Wilson）。高度貼近原本那一塊，換過去時版面不會抽動。 */
+.guess-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 17rem;
+  padding: 1rem;
+}
+/* 反問當鉤子，不講「四個字都玩過了」那種結算式的話（Wilson：拿掉標題跟
+   說明句，只留這句反問）——直接問，順著這句話按下去。按鈕文字故意跟
+   下面 .hero-cta 那顆「我想學習更多字根」不一樣（這裡是「馬上學習更多
+   字根」）——四個字玩完才看得到這一顆，讀起來像順勢而為；.hero-cta 那顆
+   隨時都在，是给還沒玩就想直接跳過去的人走的，兩顆都在畫面上時不該
+   長得像貼錯的複本。 */
+.guess-done-invite {
+  margin: 0 0 .8rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .guess-answer {
   font-size: .9rem;
   color: var(--ink-dim);
@@ -3261,10 +3535,31 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
 /* 結語與落款：跟正文拉開距離，落款淡一階、靠右，像信末署名 */
 .hj-close { margin-top: 2.2rem; }
+
+/* 署名。中文書信的收尾是「署名在上、日期在下」，兩行都靠右，所以跟 .hj-date
+   共用同一條右邊界（--hj-measure）。署名與日期**同一個顏色**（--ink-dim，比正文淡
+   一階）—— Wilson：落款那兩行是一塊，不要一深一淺。跟日期之間留一點點就好。 */
+/* ⚠️ 選擇器要寫成 .hj-page .hj-sign（兩個 class）：`.hj-page p`（一個 class ＋
+   一個元素）的權重比單一 class 高，只寫 .hj-sign 的話 font-size 根本不作數。
+   同一個檔案裡 .hj-date 就是這樣 —— 它寫著 .92rem，實際量出來是 16px，那條
+   字級從來沒生效過。這裡先把自己寫對，.hj-date 要不要跟著修是另一件事。 */
+.hj-page .hj-sign {
+  font-size: 1rem;
+  color: var(--ink-dim);
+  margin-top: 2.4rem;
+  margin-bottom: 0;
+  max-width: var(--hj-measure);
+  text-align: end;
+}
+.hj-sign + .hj-date { margin-top: .35rem; }
+
+/* 只留真的會生效的兩條。原本還寫著 font-size: .92rem 與 margin-top: 2.4rem，
+   但這一頁的 `.hj-page p`（一個 class ＋ 一個元素）權重比單一 class 的 .hj-date
+   高，那兩條從來沒作數過（實測字級一直是 16px、上外距 5.6px，不是 14.7 與 38.4）。
+   留著只會讓後人改了沒反應、跑去別的地方找原因，所以刪掉。
+   真要改字級或上下間距，選擇器得寫成 `.hj-page .hj-date` 才蓋得過去。 */
 .hj-date {
   color: var(--ink-dim);
-  font-size: .92rem;
-  margin-top: 2.4rem;
   max-width: var(--hj-measure);
   text-align: end;
 }
@@ -3287,4 +3582,362 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   font-size: var(--credit-size);
   color: var(--ink-faint);
   line-height: 1.7;
+}
+
+/* ---------------------------------------------------------------------------
+   〈字根練習〉（lianxi.html）
+   一次一條字根：標出它在字裡的筆畫，問它像哪個英文字母。整頁只有一件事要做，
+   所以版面窄、置中，跟首頁的〈猜猜看〉是同一種節奏。
+   ⚠️ 這一節整段排在檔案**最後面**是刻意的：底下要蓋掉 .zg-key（揭曉那顆大鍵帽）
+   跟 .short-toggle（設定那一排）的既有值，兩邊都是一個 class 的權重，同權重靠
+   出現順序決勝負 —— 插在檔案中間就會靜靜地輸掉（這個檔案已經因為這件事被咬過
+   四次，見〈拆碼查詢〉那一節的註解）。
+   --------------------------------------------------------------------------- */
+
+.xz-wrap { max-width: 34rem; margin: 1.8rem auto 0; }
+
+.xz-loading { text-align: center; color: var(--ink-dim); font-size: .9rem; padding: 3.5rem 0; }
+
+/* 進度條：答對過幾條 / 這個範圍裡共幾條。⚠️ 只算「第一次就答對、沒用提示」的，
+   用了提示或猜錯過都不記 —— 虛報的進度條比沒有進度條還糟（見 lianxi.js 的 hint）。 */
+.xz-bar {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  font-size: .78rem;
+  color: var(--ink-dim);
+  margin-bottom: 1.4rem;
+}
+.xz-bar-t { white-space: nowrap; }
+.xz-bar b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.xz-track {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.xz-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width .45s ease;
+}
+
+/* 題目那一格。田字格本身的長相全部沿用 .tianzi（見上面那一節），這裡只調大小、
+   以及「這幾筆是字根」的上色 —— 顏色跟〈字根表〉字例欄同一套（--zg-on／--zg-off），
+   兩頁講的是同一件事，不該長得不一樣。 */
+.xz-tianzi { max-width: 15rem; }
+.xz-tianzi .xz-dim { fill: var(--zg-off); }
+.xz-tianzi .xz-on { fill: var(--zg-on); transition: opacity .5s ease; }
+/* 同一條字根在一個字裡出現第二、第三次時深一階（朋＝月月）。⚠️ 這兩條要排在
+   .xz-on 後面：同樣是一個 class 的權重，靠順序贏。 */
+.xz-tianzi .xz-on-2 { fill: var(--zg-on-2); }
+.xz-tianzi .xz-on-3 { fill: var(--zg-on-3); }
+/* 揭曉：字根的筆畫淡下去，字母在同一個位置浮上來（位置是 ZG.rootBox 從那幾筆
+   真正的座標算的，不是目測）。讀起來是「這幾筆就是這個字母」—— 首頁那段拆件
+   動畫反過來講一次。 */
+.xz-tianzi.is-revealed .xz-on { opacity: .28; }
+.xz-letter {
+  opacity: 0;
+  transform: scale(.55);
+  transition: opacity .4s ease, transform .5s cubic-bezier(.34, 1.4, .64, 1);
+}
+.xz-letter.is-in { opacity: 1; transform: scale(1); }
+.xz-letter text { fill: var(--zg-on); }
+
+/* 「第一關」——大一點、粗一點（Wilson 2026-09-01）：現在只剩關卡編號，
+   它是這一頁最上面的定位點，太小反而看不到自己在哪一關。 */
+.xz-chapter {
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 .9rem;
+}
+
+.xz-ask { text-align: center; font-size: .95rem; margin: 1.2rem 0 1rem; }
+
+/* 第三關的碼格：打對幾個填幾個，還沒打的留空。空格看得見（虛線底），
+   人才知道「這個字的碼有幾個字母」—— 那是這種題目唯一的線索。 */
+.xz-typed {
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+  margin: 0 0 1rem;
+}
+.xz-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  height: 2.4rem;
+  border-bottom: 2px solid var(--line);
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--accent);
+}
+.xz-slot.is-on { border-bottom-color: var(--accent); }
+/* 打對的字母是反白小方塊，底色就是那條字根在圖上的顏色（.tz-chip 見上面），
+   所以格子裡不要再壓一層字色。 */
+.xz-slot .tz-chip { font-size: 1.05rem; min-width: 1.8rem; padding: .18rem .4rem; }
+/* 猜滿三次直接告訴他的那幾個字母：填上去但顏色淡一階，跟自己打對的分得開 */
+.xz-slot.is-told { color: var(--ink-faint); border-bottom-color: var(--line); }
+/* 打錯的時候抖的是碼格，不是按鍵 —— 錯的是「這個字母不是下一個」 */
+.xz-typed.is-bad { animation: xz-shake .26s ease; }
+
+/* 打整個字那一種題目：整個字都是正常墨色，不標任何一段 */
+.xz-tianzi .xz-ink { fill: var(--ink); }
+
+/* 「轉轉看」：真的把字根轉過來看（只有要轉、要翻的那些題目才出現）。
+   ⚠️ 轉的是筆畫那一層（.xz-spin），田字格留在原地 —— 格子是參考線，
+   跟著轉就沒有參考的意義了。 */
+.xz-spinbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .3rem 1rem;
+  margin: -.4rem 0 .9rem;
+}
+/* 轉／翻按鈕的小圖示。⚠️ 這一排的按鈕現在是「圖示＋字」，所以 .xz-mini 底下
+   要能排成一列並且垂直對齊 —— 只有這一排這樣，別處的 .xz-mini 仍然是純文字。 */
+.xz-spinbar .xz-mini { display: inline-flex; align-items: center; gap: .3rem; }
+/* 「還原」還用不到的時候**留著位置**，只是看不見 —— 拿掉的話整排會往中間縮一次，
+   轉一下按鈕就在游標底下跑掉了（Wilson）。跟 .xz-nudge 的 min-height 同一個道理。 */
+.xz-spinbar .xz-mini.is-idle { visibility: hidden; pointer-events: none; }
+.xz-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+  fill: currentColor;
+}
+/* 鏡面那條虛線：不填色，只描邊 */
+.xz-icon-axis {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-dasharray: 2.4 2.4;
+  opacity: .8;
+}
+
+/* 轉的是**整個田字格**（連格線一起）—— 整塊一起轉，版面上看起來才一致（Wilson）。
+   正方形轉 90° 佔的位置一樣大，所以周圍的東西不會被推。 */
+.xz-tianzi svg {
+  transform-origin: 50% 50%;
+  transition: transform .45s cubic-bezier(.22, .68, 0, 1);
+}
+/* 疊上去的字母要反向轉回來（字母本身當然要正著寫），見 lianxi.js 的 paintSpin */
+.xz-tianzi .xz-letter-fix { transition: transform .45s cubic-bezier(.22, .68, 0, 1); }
+
+/* 26 個字母排成 A–M／N–Z 兩排。整排都在畫面上（不是選項四選一）才是在練
+   「這個形狀像哪個字母」；四選一那種題目用刪去法就能猜掉一半。 */
+.xz-pad { display: grid; grid-template-columns: repeat(13, 1fr); gap: .3rem; }
+.xz-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.3rem;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, opacity .2s ease;
+}
+.xz-key:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.xz-key:disabled { cursor: default; }
+/* 猜錯的那顆**變紅、抖一下**（Wilson 2026-09-01）——原本是灰掉加刪除線，
+   讀起來像「這顆按鈕壞了」而不是「這個猜錯了」。留在原位但按不動：同一個字母
+   不用再試一次，而且「我剛剛猜過哪幾個」本身就是有用的資訊。
+   ⚠️ 用外框紅不用實心紅：猜錯的鍵會一直留在畫面上，實心紅一排下來太兇，
+   而且會跟答對那顆實心綠搶。 */
+.xz-key.is-wrong {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  color: var(--warn);
+  animation: xz-shake .26s ease;
+}
+/* 幅度刻意小（最大 ±2px，一顆鍵寬約 38px）—— Wilson 2026-09-01：原本 ±4px
+   抖得太用力。這一下是「這個不對」的提醒，不是警報。 */
+@keyframes xz-shake {
+  20%, 80% { transform: translateX(-1px); }
+  40%, 60% { transform: translateX(2px); }
+  50% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+.xz-key.is-dim { opacity: .22; }
+.xz-key.is-right {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+/* 動作那一排：答題前是「提示／看答案」，答完換成「下一題」——同一排、同一個位置，
+   不是收掉再放到別處（見 lianxi.js 的 reveal 那段註解）。 */
+.xz-acts { display: flex; justify-content: center; gap: .7rem; margin-top: .5rem; }
+/* 走題目那一排：比動作那排輕一階（外框綠，不是實心綠），它是「換一題」不是
+   「這一題要怎麼樣」。 */
+.xz-nav { display: flex; justify-content: center; gap: .7rem; margin-top: .6rem; }
+.xz-nav .btn { font-size: .82rem; padding: .4rem 1rem; }
+.xz-acts .btn:disabled,
+.xz-nav .btn:disabled {
+  opacity: .4;
+  cursor: default;
+  /* 停用的實心綠鈕不要再對 hover 有反應，不然看起來像還能按 */
+  pointer-events: none;
+}
+/* 猜錯／提示時的一句話。⚠️ min-height 是必要的：這句話時有時無，不留位置的話
+   底下的按鈕會上下跳，而游標正停在剛按下的那顆字母鍵上。 */
+.xz-nudge {
+  min-height: 1.4em;
+  margin: .7rem 0 0;
+  text-align: center;
+  font-size: .82rem;
+  color: var(--ink-dim);
+}
+.xz-nudge.is-bad { color: var(--warn); }
+.xz-nudge.is-good { color: var(--accent); font-weight: 600; }
+
+.xz-mini {
+  background: none;
+  border: 0;
+  padding: .2rem 0;
+  font: inherit;
+  font-size: .8rem;
+  color: var(--ink-dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.xz-mini:hover:not(:disabled) { color: var(--accent); }
+.xz-mini:disabled { color: var(--ink-faint); text-decoration: none; cursor: default; opacity: .6; }
+
+.xz-reveal { margin-top: 1.3rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
+
+.xz-ansrow { display: flex; align-items: flex-start; gap: 1rem; }
+/* ⚠️ 蓋掉 .zg-key 的 1.8rem 見方 —— 同權重，靠排在它後面贏（見本節開頭）。 */
+.xz-bigkey { flex: none; min-width: 3rem; height: 3rem; font-size: 1.75rem; }
+.xz-ansbody { flex: 1; min-width: 0; }
+.xz-ansbody p { margin: 0 0 .4rem; line-height: 1.7; }
+.xz-desc { font-size: .9rem; color: var(--ink); }
+.xz-desc.is-todo { color: var(--ink-faint); }
+.xz-src, .xz-code { font-size: .82rem; color: var(--ink-dim); }
+.xz-src { display: flex; align-items: center; gap: .4rem; }
+.xz-srcicon { display: inline-flex; width: 1.5rem; height: 1.5rem; flex: none; }
+.xz-srcicon svg { width: 100%; height: 100%; fill: var(--ink); }
+.xz-code { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+
+/* ---- 過關畫面：佔住田字格那一整塊 ---- */
+.xz-done {
+  position: relative;
+  overflow: hidden;
+  min-height: 19rem;              /* 大約是原本田字格那一塊的高度，版面不會抽動 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6rem;
+  padding: 2rem 1rem;
+}
+.xz-done-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.xz-done-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
+
+/* 小紙屑。⚠️ pointer-events: none —— 它蓋在按鈕上面，不擋才按得到。 */
+.xz-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.xz-bit {
+  position: absolute;
+  top: -12%;
+  width: 8px;
+  height: 12px;
+  border-radius: 1px;
+  opacity: 0;
+  animation-name: xz-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.xz-bit.c0 { background: var(--rb-0); }
+.xz-bit.c1 { background: var(--rb-1); }
+.xz-bit.c2 { background: var(--rb-2); }
+.xz-bit.c3 { background: var(--rb-3); }
+.xz-bit.c4 { background: var(--rb-4); }
+.xz-bit.c5 { background: var(--rb-5); }
+@keyframes xz-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translateY(23rem) rotate(540deg); opacity: 0; }
+}
+
+.xz-nextrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.1rem;
+}
+.xz-link { font-size: .82rem; }
+
+/* 設定那一排沿用試打頁的 .short-toggle／.chk-toggle，不另開一套長相。
+   .short-toggle 本身帶 margin-bottom: .8rem，而且還有一條
+   `.short-toggle + .short-toggle { margin-top: -.35rem }`（那是給試打頁**上下
+   堆疊**用的），兩者都會讓這裡橫排的兩組開關對不齊同一條線。
+   ⚠️ 兩條選擇器都要寫。本節排在那兩條後面，同權重後來者贏，所以蓋得掉 ——
+   但哪天這一節被搬到檔案中間，只寫其中一條就會靜靜地只蓋到第一組
+   （〈拆碼查詢〉那一節就是為了這件事才把相鄰形式整條寫出來的）。 */
+.xz-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem 2.2rem;
+  margin-top: 2.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+.xz-opts > .short-toggle,
+.xz-opts > .short-toggle + .short-toggle { margin: 0; }
+
+.xz-foot { max-width: 34rem; margin: 2.4rem auto 0; font-size: .85rem; color: var(--ink-dim); }
+
+@media (max-width: 34rem) {
+  /* 手機上 13 欄一顆鍵只剩 20px 出頭，按不到 —— 收成 7 欄（4 排）。 */
+  .xz-pad { grid-template-columns: repeat(7, 1fr); gap: .35rem; }
+  .xz-bar { flex-wrap: wrap; }
+  .xz-track { order: 3; flex-basis: 100%; }
+}
+
+/* 「減少動態效果」：位移與縮放全部拿掉，只留下最後的狀態。字母照樣要出現 ——
+   那是這一頁的答案本身，不是裝飾（跟首頁那段動畫踩過的坑一樣，見 landing.js）。 */
+@media (prefers-reduced-motion: reduce) {
+  .xz-letter { transition: none; transform: none; }
+  .xz-letter.is-in { transform: none; }
+  .xz-fill, .xz-tianzi .xz-on, .xz-key { transition: none; }
+  .xz-key.is-wrong, .xz-typed.is-bad { animation: none; }
+  .xz-bit { display: none; }
+  .xz-tianzi svg, .xz-tianzi .xz-letter-fix { transition: none; }
+}
+
+/* 從〈字根練習〉連回〈字根表〉時，閃一下被指到的那一列 —— 整張表 366 列，
+   只把它捲到視窗頂端還是找不到（見 zigen.js 的 gotoHash）。 */
+.zg-tbl tbody tr.is-flash > td { animation: zg-flash 2.4s ease-out; }
+@keyframes zg-flash {
+  0%, 55% { background: var(--accent-soft); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zg-tbl tbody tr.is-flash > td { animation: none; background: var(--accent-soft); }
 }

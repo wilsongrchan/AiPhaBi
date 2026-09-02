@@ -4,14 +4,36 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>簡介 · 愛發筆 AiPhaBi</title>
-<meta name="description" content="愛發筆輸入法是一款全新的中文字形輸入法。其最大的特點是所有的字根都直接取形於英文字母本身，這代表無需特定的中文鍵盤就可以使用愛發筆，也無需硬背字根在鍵盤上的位置。">
+<meta name="description" content="愛發筆輸入法是一款全新的中文字形輸入法。其最大的特點是所有的字根都直接取形於英文字母本身，這代表無需特定的中文鍵盤就可以使用愛發筆，也無需硬背字根在鍵盤上的位置，學習門檻極低，適合沒有學習過或者放棄過學習字形輸入法的中文用戶。">
+<!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
+     16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
+     仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
+<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
+     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
+     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
+     抓預覽的機器人不會幫你補上網域。 -->
+<link rel="canonical" href="https://www.aiphabi.com/jieshao.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/jieshao.html">
+<meta property="og:title" content="簡介 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="愛發筆輸入法是一款全新的中文字形輸入法。其最大的特點是所有的字根都直接取形於英文字母本身，這代表無需特定的中文鍵盤就可以使用愛發筆，也無需硬背字根在鍵盤上的位置，學習門檻極低，適合沒有學習過或者放棄過學習字形輸入法的中文用戶。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+<!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
+<link rel="apple-touch-icon" href="assets/img/logo-180.png">
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
     <div class="topbar-controls">
       <div class="langtoggle" role="group" aria-label="字體切換">
         <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
@@ -32,6 +54,7 @@
       <div class="nav-sec">
         <span class="nav-sec-t">基礎學習</span>
         <a href="zigen.html">字根表</a>
+        <a href="lianxi.html">字根練習</a>
         <a href="principles.html">取碼原則</a>
         <a href="conventional.html">約定字表</a>
         <a href="jianma.html">簡碼</a>
@@ -57,10 +80,10 @@
   <h1>簡介</h1>
 
   <p class="lede">
-    愛發筆輸入法是一款全新的中文字形輸入法。其最大的特點是所有的字根都直接取形於英文字母本身，這代表無需特定的中文鍵盤就可以使用愛發筆，也無需硬背字根在鍵盤上的位置。
+    愛發筆輸入法是一款全新的中文字形輸入法。其最大的特點是所有的字根都直接取形於英文字母本身，這代表無需特定的中文鍵盤就可以使用愛發筆，也無需硬背字根在鍵盤上的位置，學習門檻極低，適合沒有學習過或者放棄過學習字形輸入法的中文用戶。
   </p>
 
-  <p class="jieshao-stat" id="tw4808-stat">教育部常用國字甲表 4,808 字，全部收錄</p>
+  <p class="jieshao-stat" id="tw4808-stat"><a href="https://language.moe.gov.tw/material/info?m=9fe3ff5a-5a8c-4817-9e60-6337dd55a509" target="_blank" rel="noopener">台灣教育部常用國字甲表</a> 4,808 字，全部收錄</p>
 
   <h2>愛發筆輸入法和已有的字形輸入法有什麼不同？</h2>
 
@@ -108,15 +131,15 @@
   <h2>總結</h2>
 
   <p>
-    綜上，愛發筆輸入法旨在透過將字根形狀連接到英文字母本身、以筆順取碼、以及統一的「頭四尾一」的截碼規則，將形碼輸入法的學習門檻降到最低，免除用戶記憶字根和鍵位、重新學習拆碼和截碼邏輯的需要。而其他所有功能，包括簡碼、三簡碼、詞組連打等，亦皆源於主碼，學習簡單原則後便可推導。對比某些形碼輸入法，為了縮短碼長的同時保證不重碼，需要另外記憶大量無理碼，愛發筆輸入法的簡碼和三簡碼都無需額外記憶，不增加學習成本。此外，這些功能皆由用戶自行選擇使用與否。對拆碼沒有信心的初學者，可以選擇開啟所有功能，廣撒漁網，減少因為打錯碼而連一個字都沒得選的困擾；而如果對拆碼有信心的老手，也可以關掉所有功能，追求一擊即中，減少選字列內的候選字詞的干擾。
+    綜上，愛發筆輸入法旨在透過將字根形狀連接到英文字母本身、以筆順取碼、以及統一的「頭四尾一」的截碼規則，將字形輸入法的學習門檻降到最低，免除用戶記憶字根和鍵位、重新學習拆碼和截碼邏輯的需要。而其他所有功能，包括簡碼、三簡碼、詞組連打等，亦皆源於主碼，學習簡單原則後便可推導。對比某些字形輸入法，為了縮短碼長的同時保證不重碼，需要另外記憶大量無理碼，愛發筆輸入法的簡碼和三簡碼都無需額外記憶，不增加學習成本。此外，這些功能皆由用戶自行選擇使用與否。對拆碼沒有信心的初學者，可以選擇開啟所有功能，廣撒漁網，減少因為打錯碼而連一個字都沒得選的困擾；而如果對拆碼有信心的老手，也可以關掉所有功能，追求一擊即中，減少選字列內的候選字詞的干擾。
   </p>
 
   <p>
-    愛發筆輸入法的一大目標，正是改善用戶在學習初期，因對筆順或拆碼邏輯等原因打錯一兩個碼時，選字列無字可選，必須全部刪除重頭再試的挫敗感。因此，對比傳統形碼輸入法，愛發筆輸入法的重碼率的確未必是最低，甚至打開了大量的功能後，重碼率可能會更高。但愛發筆輸入法內置智能字頻排序以及用戶字頻排序，讓常用字詞預設為首位候選，但如果用戶頻繁選擇另一字詞，系統會自動學習將其提前，儘量貼合用戶實際打字需要及習慣，幫助用戶實現接近傳統形碼輸入法的無選字盲打。
+    愛發筆輸入法的一大目標，正是改善用戶在學習初期，因對筆順或拆碼邏輯等原因打錯一兩個碼時，選字列無字可選，必須全部刪除重頭再試的挫敗感。因此，對比傳統字形輸入法，愛發筆輸入法的重碼率的確未必是最低，甚至打開了大量的功能後，重碼率可能會更高。但愛發筆輸入法內置智能字頻排序以及用戶字頻排序，讓常用字詞預設為首位候選，但如果用戶頻繁選擇另一字詞，系統會自動學習將其提前，儘量貼合用戶實際打字需要及習慣，幫助用戶實現接近傳統字形輸入法的無選字盲打。
   </p>
 
   <!-- 〈目前進度〉整段移除（2026-08-17，Wilson 決定）：網站要等取碼做完才公開，
-       到時候要講的是「教育部常用國字甲表 4808 字全部收錄」，不是 95.8% 的進度條。
+       到時候要講的是「台灣教育部常用國字甲表 4808 字全部收錄」，不是 95.8% 的進度條。
        百分比在上線首頁上讀起來就是「還沒做完」，而第一印象只有一次。
 
        stats 的產生邏輯留著不動（build_site_data.py 照算 tw4808／gb2312），

@@ -111,9 +111,10 @@
     return t;
   }
 
-  // 字數多的組（數字／木／土字類）拆兩欄，跟〈簡碼〉頁約定簡碼表同一招——減少捲動，
-  // 兩欄各自完整連續（不是逐行交錯）。字數少的組（4～6 字）一欄就夠，硬拆兩欄反而
-  // 兩邊都稀稀落落。閾值抓 8：剛好卡在「土字類」8 字跟「甲字類」6 字之間。
+  // 字數多的組（數字／木／土／甲字類）拆兩欄，跟〈簡碼〉頁約定簡碼表同一招——減少
+  // 捲動，兩欄各自完整連續（不是逐行交錯）。字數少的組（4～5 字）一欄就夠，硬拆兩欄
+  // 反而兩邊都稀稀落落。閾值 8 是「整條寬度才拆」的意思，所以只有沒配對的組會走到
+  // 這裡拆欄（配對的組各佔一半，本來就窄）。
   var TWO_COL_MIN = 8;
 
   function groupTables(chars) {
@@ -146,18 +147,47 @@
     return wrap;
   }
 
-  // 數字／木／土字類（3 組）字數多，各自獨立整條寬度顯示；剩下四組（大／甲／馬／己
-  // 字類）都只有 4～6 字，兩兩並排比較省空間——大配甲、馬配己，順序照
-  // CONVENTIONAL_GROUP_ORDER（build_site_data.py）排好，這裡直接寫死索引對
-  // （Wilson 2026-08-21：明確要「大甲」「馬己」這樣配，不是隨便兩兩湊）。
-  var SIDE_BY_SIDE_PAIRS = [[3, 4], [5, 6]];
+  /* 字數多的組各自佔整條寬度（自己再拆兩欄，見 TWO_COL_MIN）；字數少的組兩兩並排
+     比較省空間 —— Wilson 指定的配對是「大配目」「馬配己」，不是隨便兩兩湊。
+
+     ⚠️ 用**組名**配對，不是寫死索引。原本寫的是 [[3,4],[5,6]]，Side A 2026-08-31
+     在表尾加了「目字類」之後，它排在索引 7、沒有任何一對認領它，就自己整條寬度
+     孤零零地擺在最下面（5 個字配一整排），而且一個字都不會報錯。用名字配對的話，
+     新來的組會落到「整條寬度」這個安全的預設，配對關係也一眼看得懂。 */
+  var SIDE_BY_SIDE_PAIRS = [['大字類', '目字類'], ['馬字類', '己字類']];
+
+  /* 側邊欄那串章節連結也從資料長出來，不要用手維護 —— 手寫的清單就是這一頁
+     出事的原因：Side A 加了「目字類」，卡牆自己長出來了，側邊欄卻還停在七條
+     （Wilson 2026-08-31 發現）。順序照**畫面上的順序**（配對的兩組左右相鄰，
+     所以左邊那個先數），不是照資料裡的順序，不然讀者照著側邊欄找會對不上。 */
+  function renderSideNav(order) {
+    var ul = document.querySelector('nav.site .pr-sidenav');
+    if (!ul) return;
+    ul.textContent = '';
+    order.forEach(function (item, n) {
+      var a = el('a', null, (n + 1) + '. ' + item.g.name);
+      a.href = '#cv-' + (item.i + 1);
+      var li = el('li');
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+  }
 
   function render() {
     if (!DATA) return;
     root.textContent = '';
     var groups = DATA.groups || [];
+    var byName = {};
+    groups.forEach(function (g, i) { byName[g.name] = i; });
     var paired = {};
-    SIDE_BY_SIDE_PAIRS.forEach(function (pair) { paired[pair[0]] = pair[1]; paired[pair[1]] = true; });
+    SIDE_BY_SIDE_PAIRS.forEach(function (pair) {
+      var a = byName[pair[0]], b = byName[pair[1]];
+      // 組被改名或拿掉就當它沒配對（各自整條寬度），不要讓整頁掛掉
+      if (a == null || b == null) return;
+      paired[a] = b;
+      paired[b] = true;
+    });
+    var order = [];                                 // 畫面上的先後，給側邊欄用
     groups.forEach(function (g, i) {
       if (paired[i] === true) return;               // 已經在配對的另一半畫過了
       if (typeof paired[i] === 'number') {
@@ -166,10 +196,13 @@
         row.appendChild(groupBlock(g, i));
         row.appendChild(groupBlock(groups[j], j));
         root.appendChild(row);
+        order.push({ g: g, i: i }, { g: groups[j], i: j });
         return;
       }
       root.appendChild(groupBlock(g, i));
+      order.push({ g: g, i: i });
     });
+    renderSideNav(order);
   }
 
   var colorBtns = document.querySelectorAll('[data-cv-color]');

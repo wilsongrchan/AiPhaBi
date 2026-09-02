@@ -3,15 +3,55 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>愛發筆 AiPhaBi · 字根取形於英文字母的中文輸入法</title>
-<meta name="description" content="愛發筆輸入法是一款全新的中文字形輸入法。其最大的特點是所有的字根都直接取形於英文字母本身，這代表無需特定的中文鍵盤就可以使用愛發筆，也無需硬背字根在鍵盤上的位置。">
+<title>愛發筆輸入法</title>
+<meta name="description" content="字根直接取形於英文字母，無需中文鍵盤，也無需硬背字根鍵位。">
+<!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
+     16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
+     仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
+<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
+     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
+     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
+     抓預覽的機器人不會幫你補上網域。 -->
+<link rel="canonical" href="https://www.aiphabi.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/">
+<meta property="og:title" content="愛發筆輸入法">
+<meta property="og:description" content="字根直接取形於英文字母，無需中文鍵盤，也無需硬背字根鍵位。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+<!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
+<link rel="apple-touch-icon" href="assets/img/logo-180.png">
 <link rel="stylesheet" href="assets/site.css">
 </head>
-<body>
+<body class="lg-body">
+<!-- 導覽先躲在左邊，等拆件動畫播完一輪才滑出來（見 landing.js 的 revealNav）。
+     ⚠️ 這段一定要**同步、在第一次繪製之前**跑，所以寫在這裡而不是放進 landing.js：
+     landing.js 要等 fetch 回來才動作，那時畫面已經畫過一輪，使用者會看到側邊欄
+     先出現、再滑出去、最後又滑回來。在這裡加 class 的話，第一次繪製時它就已經
+     在左邊了，CSS 過渡也不會對「初始狀態」動畫，所以只有最後滑進來那一下會動。
+     ⚠️ 保險計時器也放這裡：就算 landing.js 整個載入失敗，30 秒後導覽一定回來。 -->
+<script>
+(function () {
+  var m = window.matchMedia;
+  if (!m) return;                                     // 太舊的瀏覽器就別玩花樣
+  if (m('(prefers-reduced-motion: reduce)').matches) return;
+  if (m('(max-width: 52rem)').matches) return;        // 窄螢幕的導覽是頂部橫列
+  document.body.classList.add('lg-navhide');
+  window.setTimeout(function () {
+    document.body.classList.remove('lg-navhide');
+  }, 30000);
+})();
+</script>
 
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="index.html">愛發筆<span class="en" data-keep>AiPhaBi</span></a>
+    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
     <div class="topbar-controls">
       <div class="langtoggle" role="group" aria-label="字體切換">
         <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
@@ -32,6 +72,7 @@
       <div class="nav-sec">
         <span class="nav-sec-t">基礎學習</span>
         <a href="zigen.html">字根表</a>
+        <a href="lianxi.html">字根練習</a>
         <a href="principles.html">取碼原則</a>
         <a href="conventional.html">約定字表</a>
         <a href="jianma.html">簡碼</a>
@@ -61,6 +102,7 @@
     <div class="hero-bg" aria-hidden="true"></div>
     <p class="hero-kicker">中文字形輸入法</p>
     <h1 class="hero-title">愛發筆 <span class="en" data-keep>AiPhaBi</span></h1>
+    <p class="hero-tagline">發掘中文打字的樂趣</p>
 
     <!-- 這個位置先播一輪拆件動畫（哈／竹／昌／石各播一次：字母先登場、飛到
          定點、淡出換成真正的筆畫，逐字根疊出整個字），播完原地換成「猜猜看」
@@ -70,15 +112,17 @@
            只有圖示不寫字（Wilson），疊在重播圖示正上方。 -->
       <button type="button" class="lg-skip" id="lg-skip" aria-label="跳過動畫，直接看猜猜看">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        <span class="lg-tip" aria-hidden="true">跳過動畫</span>
       </button>
       <!-- 重播圖示——不管現在是動畫還是猜猜看階段都看得到，按了就從頭重播
            動畫（見 assets/landing.js 的 restart()）。位置貼著範例字的高度
            置中，不是釘死在角落（Wilson）。 -->
       <button type="button" class="lg-restart" id="lg-restart" aria-label="重新播放拆件動畫">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        <span class="lg-tip" aria-hidden="true">重播動畫</span>
       </button>
       <div class="lg-stage" id="lg-stage">
-        <svg id="lg-svg" class="lg-svg" viewBox="-650 0 1674 1024" aria-hidden="true"></svg>
+        <svg id="lg-svg" class="lg-svg" viewBox="-650 0 2324 1024" aria-hidden="true"></svg>
       </div>
       <p class="lg-code" id="lg-code" aria-live="polite"></p>
 
@@ -87,24 +131,43 @@
            自動跟著換。字形跟上面拆件動畫同一種（真正的筆畫，不是系統字型），
            田字格也是全站共用的那個 .tianzi（見 assets/glyphbox.js）。 -->
       <div class="guess" id="guess" hidden>
-        <p class="guess-label">猜猜看，這個字怎麼打？</p>
-        <div class="tianzi" id="guess-tianzi"></div>
-        <label class="sr-only" for="guess-input">猜猜看要打哪幾個字母</label>
-        <input type="text" id="guess-input" class="guess-input" maxlength="5" autocomplete="off"
-               autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母" data-keep>
-        <div class="guess-actions">
-          <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
-          <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>
+        <div id="guess-play">
+          <p class="guess-label">猜猜看，這個字怎麼打？</p>
+          <div class="tianzi" id="guess-tianzi"></div>
+          <label class="sr-only" for="guess-input">猜猜看要打哪幾個字母</label>
+          <input type="text" id="guess-input" class="guess-input" maxlength="5" autocomplete="off"
+                 autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在這裡輸入英文字母" data-keep>
+          <div class="guess-actions">
+            <button type="button" id="guess-check" class="btn btn-ghost">看答案</button>
+            <button type="button" id="guess-next" class="guess-next" hidden>換一個字</button>
+          </div>
+          <p class="guess-answer" id="guess-answer" aria-live="polite"></p>
         </div>
-        <p class="guess-answer" id="guess-answer" aria-live="polite"></p>
+
+        <!-- 四個字都玩過（猜對、猜錯、跳過都算）之後，田字格那一整塊換成這個 ——
+             一步一步把人帶到下一個可以動手的地方（Wilson 2026-09-01）。
+             只留一句反問＋按鈕，不講「四個字都玩過了」那種結算式的話
+             （Wilson 2026-09-01：拿掉標題跟說明句）。 -->
+        <div class="guess-done" id="guess-done" hidden>
+          <p class="guess-done-invite">想體驗更多？</p>
+          <a class="btn btn-primary" href="lianxi.html">馬上學習更多字根</a>
+        </div>
       </div>
     </div>
 
     <p class="hero-keywords">
-      <span>字根即字母形狀</span><span class="dot">·</span><span>免記鍵位</span><span class="dot">·</span><span>低重碼</span>
+      <span>字根取形於英文字母</span><span class="dot">·</span><span>免記鍵位</span><span class="dot">·</span><span>字根單編碼</span><span class="dot">·</span><span>26鍵</span><span class="dot">·</span><span>常用字低重碼</span>
     </p>
+    <!-- 兩顆按鈕：先講「這是什麼」，再給一條自己動手的路。第二顆接的是
+         〈字根練習〉——上面那段拆件動畫看完只是看過，字根練習是同一件事讓人
+         自己答一遍（Wilson 2026-09-01）。
+         ⚠️ 「我想學習更多字根」這顆四個字都玩過、上面的 #guess-done 冒出來
+         之後會被 landing.js 藏掉——兩顆都連去 lianxi.html，#guess-done 自己
+         也有一顆「馬上學習更多字根」，兩顆擠在同一屏會像貼錯的複本
+         （Wilson 抓到）。id 是特地加的，讓 landing.js 找得到它。 -->
     <div class="hero-cta">
-      <a class="btn btn-primary" href="jieshao.html">立即了解</a>
+      <a class="btn btn-primary" href="jieshao.html">自己發掘</a>
+      <a class="btn btn-ghost" id="hero-lianxi-cta" href="lianxi.html">我想學習更多字根</a>
     </div>
   </section>
 

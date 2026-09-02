@@ -33,6 +33,18 @@
   var ORDER = ['哈', '竹', '昌', '石'];
   var DATA = null;
   var LETTER_SIZE = 260; // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
+
+  /* 字母用**一般字重**，不是粗體（Wilson 2026-08-31：石 的 J 看起來太粗）。
+     只有 J 單獨指定 Verdana（為了它頂端天生那一橫，見 fontFor），而 Verdana 在
+     macOS 只有 Regular 跟 Bold 兩個字重，沒有 semibold。260px 之下實測直劃寬度：
+
+         字重 700：J(Verdana) 49　O(系統無襯線) 43　A 42   ← J 比鄰居粗 15%
+         字重 400：J(Verdana) 25　O 28　A 28              ← J 比鄰居細一點點
+
+     400 這一組差距小得多，而且 J 頂端那一橫照樣在（頂端寬 65 對直劃 25）。
+     ⚠️ 只把 J 調細、其他字母留 700 是不行的：那會變成 25 對 43，反過來太細。
+     字重要一起調。 */
+  var LETTER_WEIGHT = 400;
   // ⚠️ 原本改用襯線字體（Georgia）讓 J 的字腳帶一橫，跟石字 J 那組字根的
   // 取形意圖對得上；但改完不久 Wilson 就開始回報 A 飛的時候留殘影，時間點
   // 很接近，換過三種完全不同的動畫排程方式（CSS transition、Web
@@ -83,11 +95,6 @@
       pieces[i].style.transformOrigin = centers[i].x + 'px ' + centers[i].y + 'px';
     }
 
-    if (REDUCED) {
-      // 不做逐字登場，直接呈現組好的字
-      for (var r = 0; r < pieces.length; r++) pieces[r].style.opacity = '1';
-      return;
-    }
 
     // 排隊位置：全部字母先在左邊排成一橫排，由左到右照碼的順序排（跟打字、
     // 跟閱讀方向一樣，第一個字母在最左邊），等飛的時候才一個一個離隊往右飛到
@@ -119,7 +126,7 @@
           '<g transform="scale(1,-1)">' +
             '<g class="lg-letter" style="opacity:0">' +
               '<text text-anchor="middle" dominant-baseline="central" ' +
-                'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="700" ' +
+                'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="' + LETTER_WEIGHT + '" ' +
                 'font-size="' + LETTER_SIZE + '">' + entry.groups[gi].L + '</text>' +
             '</g>' +
           '</g>' +
@@ -132,6 +139,29 @@
     // 逼一次重排，讓上面設好的「字母都還在排隊、筆畫都還沒登場」狀態先真的
     // 畫出來，下面才有東西可以做 transition。
     svg.getBoundingClientRect();
+
+    /* 減少動態偏好：不做飛行、彈跳、揉散，但**字母還是要出現**。
+       ⚠️ 原本這裡是直接把筆畫的 opacity 設成 1 就 return，連字母都還沒建出來
+       —— 畫面上就只剩幾個字輪流出現，完全看不到「這個字母＝這幾筆」這件事，
+       而那正是整段動畫要講的東西（Wilson 2026-08-31：iPhone 上只看到字在輪播，
+       沒有字母飛進來 —— iOS 的「減少動態效果」開著就會走到這條路）。
+       改成把字母直接放在它**最後該在的位置**，停一下，再純粹用淡入淡出換成
+       筆畫。只有透明度在動，沒有任何位移或形變，符合這個偏好的本意。 */
+    if (REDUCED) {
+      for (var ri = 0; ri < n; ri++) {
+        letterPos[ri].style.transform =
+          'translate(' + centers[ri].x.toFixed(1) + 'px,' + centers[ri].y.toFixed(1) + 'px)';
+        letters[ri].style.opacity = '1';
+      }
+      timers.push(window.setTimeout(function () {
+        for (var k = 0; k < n; k++) {
+          letters[k].style.transition = 'opacity .45s ease';
+          letters[k].style.opacity = '0';
+          pieces[k].style.opacity = '1';        // .lg-piece 本來就有 .55s 的淡入
+        }
+      }, 1400));
+      return;
+    }
 
     function popIn(el, easing) {
       el.style.transition = 'none';
@@ -269,7 +299,15 @@
     if (raf !== null) { window.cancelAnimationFrame(raf); raf = null; }
   }
 
+  /* 動畫播完一輪 → 側邊欄滑出來（Wilson）。放在 showGuess 而不是別的地方，
+     因為這正是「動畫結束、換成猜猜看」的那一刻。重播時不再收回去：導覽出現過
+     一次之後又消失會像壞掉。 */
+  function revealNav() {
+    document.body.classList.remove('lg-navhide');
+  }
+
   function showGuess() {
+    revealNav();
     if (stageEl) stageEl.hidden = true;
     codeEl.hidden = true;
     if (guessEl) guessEl.hidden = false;
@@ -324,13 +362,19 @@
   if (restartBtn) restartBtn.addEventListener('click', restart);
   if (skipBtn) skipBtn.addEventListener('click', skip);
 
+  /* 躲起來那一步在 index.html 的行內 script 做（要趕在第一次繪製之前，這裡太晚，
+     見那邊的說明）。這裡只負責把它放出來：正常走 showGuess()，動畫資料抓不到就
+     在 .catch 裡放 —— 那時 showGuess() 永遠不會被呼叫，不放的話導覽就消失了。 */
   fetch('assets/landing-glyphs.json')
     .then(function (r) { return r.json(); })
     .then(function (d) {
       DATA = d;
       advance();
     })
-    .catch(function () { /* 拆件動畫顯示不出來就算了，不擋首頁其他部分 */ });
+    .catch(function () {
+      // 拆件動畫顯示不出來就算了，不擋首頁其他部分——但導覽一定要在
+      revealNav();
+    });
 })();
 
 /* 猜猜看——只有 index.html 用得到，跟上面的拆件動畫完全獨立（一個是看展示、
@@ -358,12 +402,20 @@
   var checkBtn = document.getElementById('guess-check');
   var answerEl = document.getElementById('guess-answer');
   var nextBtn = document.getElementById('guess-next');
+  var playEl = document.getElementById('guess-play');
+  var doneEl = document.getElementById('guess-done');
   var guessEl = document.getElementById('guess');
   if (!tianziEl || !input || !checkBtn || !answerEl || !nextBtn || !guessEl) return;
 
-  var GUESS_CHARS = ['回', '岩', '唱', '凶', '今'];
+  /* ⚠️ 這一份跟 landing-glyphs.json 的 guessChars 不必一樣長 —— 那個檔裡還留著
+     今／叮 的筆畫，只是 2026-09-01 依 Wilson 指示不出這兩題了。要加回來的話
+     直接寫進這個陣列就好，字形已經在。 */
+  var GUESS_CHARS = ['回', '岩', '唱', '凶'];
   var codeOf = {};
   var strokesOf = {};
+  /* 玩過的字 —— 猜對、猜錯、按「換一個字」跳過都算數（Wilson）。四個都玩過就把
+     田字格那一整塊換成往〈字根練習〉的入口，一步一步把人帶到下一個能動手的地方。 */
+  var played = {};
   var qi = 0;
   var started = false;
 
@@ -402,6 +454,24 @@
     if (right) answerEl.classList.add('is-right');
     else if (guess) answerEl.classList.add('is-wrong');
     checkBtn.hidden = true;
+
+    markPlayed();
+  }
+
+  /* 這一題算玩過了。⚠️ 不在 showQuestion 裡標 —— 那樣按三下「換一個字」就會在
+     還沒看第四題的時候跳出結尾畫面。要在**離開**或**答完**的時候才算。 */
+  function markPlayed() {
+    played[GUESS_CHARS[qi]] = 1;
+    if (playEl && doneEl && Object.keys(played).length >= GUESS_CHARS.length) {
+      playEl.hidden = true;
+      doneEl.hidden = false;
+      if (window.AiPhaBiSite) window.AiPhaBiSite.localize(doneEl);
+      /* #guess-done 自己那顆「馬上學習更多字根」跟下面 .hero-cta 的
+         「我想學習更多字根」連的是同一個 lianxi.html——兩顆同時在畫面上
+         看起來像貼錯的複本，藏掉下面那顆（Wilson 抓到）。 */
+      var heroLianxi = document.getElementById('hero-lianxi-cta');
+      if (heroLianxi) heroLianxi.hidden = true;
+    }
   }
 
   checkBtn.addEventListener('click', reveal);
@@ -417,11 +487,18 @@
     var guess = input.value.toUpperCase().replace(/[^A-Z]/g, '');
     if (guess === code.toUpperCase()) reveal();
   });
-  nextBtn.addEventListener('click', function () { showQuestion(qi + 1); });
+  nextBtn.addEventListener('click', function () {
+    markPlayed();                       // 跳過也算玩過
+    if (!doneEl.hidden) return;         // 已經跳出結尾畫面就不用再出題了
+    showQuestion(qi + 1);
+  });
 
   window.AiPhaBiGuess = {
     start: function () {
       started = true;
+      /* 重播動畫再回到這裡時，把結尾畫面收起來讓人重玩 —— 玩過的紀錄留著，
+         所以下一次離開題目就會再跳出來。 */
+      if (playEl && doneEl) { doneEl.hidden = true; playEl.hidden = false; }
       showQuestion(qi);
     }
   };

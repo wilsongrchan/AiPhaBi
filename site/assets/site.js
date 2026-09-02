@@ -48,18 +48,24 @@
       var collapsed = false;
       try { collapsed = localStorage.getItem(SUB_KEY) === '1'; } catch (e) {}
 
-      var apply = function () {
+      /* ⚠️ 這支一定要叫 paintCollapse，不能叫 apply —— 底下「繁簡切換」那一節
+         有一個 function apply(lang, root)，而整個檔案是同一個 IIFE、var 又是
+         函式作用域，取同一個名字會在執行到這裡時把它整個蓋掉。症狀很難聯想：
+         有章節清單的那六頁（字根表／取碼原則／約定字表／簡碼／詞組連打／自動
+         上屏）按「简」完全沒反應，沒有任何錯誤訊息，因為按鈕呼叫到的是這支
+         收合函式；沒有章節清單的頁面（首頁等）則完全正常。 */
+      var paintCollapse = function () {
         sub.hidden = collapsed;
         btn.setAttribute('aria-expanded', String(!collapsed));
         // 名字要講「按下去會發生什麼」，不是「現在是什麼狀態」
         btn.setAttribute('aria-label', collapsed ? '展開章節' : '收合章節');
         btn.title = btn.getAttribute('aria-label');
       };
-      apply();
+      paintCollapse();
 
       btn.addEventListener('click', function () {
         collapsed = !collapsed;
-        apply();
+        paintCollapse();
         try { localStorage.setItem(SUB_KEY, collapsed ? '1' : '0'); } catch (e) {}
       });
     }
@@ -86,7 +92,33 @@
     while ((n = it.nextNode())) if (n.nodeValue.trim() && convertible(n)) fn(n);
   }
 
+  /* ⚠️ placeholder／title／aria-label 是**屬性**，不是文字節點，TreeWalker 走不到
+     它們 —— 切成简體之後，輸入框裡的提示字（「在這裡輸入拼音即可查字」）仍然是
+     繁體（Wilson 2026-08-31 發現）。這裡另外走一遍這幾個屬性，規則跟文字節點
+     一樣：SKIP 標籤與 data-keep 底下的一律不碰。 */
+  var ATTRS = ['placeholder', 'title', 'aria-label'];
+  var origAttr = new WeakMap();      // 元素 -> { 屬性名: 原本的繁體字串 }
+
+  function walkAttrs(root, fn) {
+    var all = root.querySelectorAll('[placeholder], [title], [aria-label]');
+    Array.prototype.forEach.call(all, function (el) {
+      // convertible() 是看文字節點的父鏈，這裡直接看元素自己這條鏈
+      for (var e = el; e && e.nodeType === 1; e = e.parentNode) {
+        if (SKIP[e.tagName] && e !== el) return;
+        if (e.hasAttribute('data-keep')) return;
+      }
+      ATTRS.forEach(function (a) { if (el.hasAttribute(a)) fn(el, a); });
+    });
+  }
+
   function toSimplified(root) {
+    walkAttrs(root, function (el, a) {
+      var store = origAttr.get(el) || {};
+      if (!(a in store)) { store[a] = el.getAttribute(a); origAttr.set(el, store); }
+      var out = '';
+      for (var ch of store[a]) out += (t2s[ch] || ch);
+      if (out !== el.getAttribute(a)) el.setAttribute(a, out);
+    });
     walk(root, function (node) {
       if (!original.has(node)) original.set(node, node.nodeValue);
       var src = original.get(node), out = '';
@@ -97,6 +129,10 @@
   }
 
   function toTraditional(root) {
+    walkAttrs(root, function (el, a) {
+      var store = origAttr.get(el);
+      if (store && a in store) el.setAttribute(a, store[a]);
+    });
     walk(root, function (node) {
       if (original.has(node)) node.nodeValue = original.get(node);
     });
@@ -180,12 +216,19 @@
         /* 〈簡介〉頁：教育部甲表收滿了就講「全部收錄」，沒收滿就講分數——哪一句
            由資料決定，不要在 HTML 裡手寫死其中一句（2026-08-17 Wilson 的指示，
            原本寫在 index.html 移除〈目前進度〉那段旁邊的註解裡；首頁改版成
-           landing 頁之後，這個位置跟著〈簡介〉的內容一起搬進 jieshao.html）。 */
+           landing 頁之後，這個位置跟著〈簡介〉的內容一起搬進 jieshao.html）。
+           「台灣教育部常用國字甲表」連到教育部語文成果入口網的常用字下載頁（Wilson
+           要求加連結）——那一頁掛的是「教育部4808個常用字」的 ODF／PDF 下載，
+           4,808 字這個數字跟 data/standards/tw_common_4808.txt 的來源說明
+           一致。HTML 裡的靜態後備值（沒 JS／抓不到 dict.json 時）也要是同一顆
+           連結，兩處手動保持一致。 */
         if (tw4808El && d.stats && d.stats.tw4808) {
           var s = d.stats.tw4808;
-          tw4808El.textContent = s.done >= s.total
-            ? ('教育部常用國字甲表 ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
-            : ('教育部常用國字甲表已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
+          var tw4808Link = '<a href="https://language.moe.gov.tw/material/info?m=9fe3ff5a-5a8c-4817-9e60-6337dd55a509" ' +
+            'target="_blank" rel="noopener">台灣教育部常用國字甲表</a>';
+          tw4808El.innerHTML = s.done >= s.total
+            ? (tw4808Link + ' ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
+            : (tw4808Link + '已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
         }
       })
       .catch(function () { /* 留著 HTML 裡的後備值 */ });

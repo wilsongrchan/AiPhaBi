@@ -419,7 +419,7 @@ def build_principles(codes, max_rule=None):
     return out
 
 
-def build_practice_hints(chars, codes, zigen_raw, max_rule):
+def build_practice_hints(chars, codes, zigen_raw, max_rule, full=False):
     """一批字每個字的「這一段是哪一個字根」—— 給 `/` 提示鏈、拼音查字共用。
 
     為什麼要算：`codes.json` 的 segments 只記字母，不記是哪一條字根。而同一個
@@ -474,9 +474,13 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
                         vecs.append(v)
                 if not vecs:
                     continue
+                # src／sst＝這條字根取自哪個字的哪幾筆。輸出**預設不帶**（practice.json
+                # 與 pinyin_glyphs.json 各有三千多字，每段多兩個欄位會白白撐大好幾百 KB），
+                # 只有 full=True 的呼叫端（〈字根練習〉，幾十題）才拿得到。
                 by.setdefault((L["letter"], len(g["strokes"])), []).append(
                     {"thr": sh.get("thr", gthr), "vecs": vecs,
-                     "desc": (it.get("desc") or "").strip()})
+                     "desc": (it.get("desc") or "").strip(),
+                     "src": g.get("src") or "", "sst": list(g.get("strokes") or ())})
 
     # 「頭四尾一」：碼超過 max 就只打頭 head 段加尾 tail 段，中間那幾段不用打。
     # 主碼、兼容碼各自算各自的（兩套拆法段數常常不一樣）。
@@ -515,6 +519,8 @@ def build_practice_hints(chars, codes, zigen_raw, max_rule):
                 unmatched += 1
             one = {"L": seg["letter"], "st": seg["strokes"],
                    "d": best["desc"] if best else ""}
+            if full and best:
+                one["src"], one["sst"] = best["src"], best["sst"]
             if skipped and seg["strokes"]:
                 prev = max(segments[si - 1]["strokes"]) if si else -1
                 lo = min(seg["strokes"])
@@ -715,6 +721,28 @@ PINYIN_TOP_N = 3000
 PINYIN_SIMP_TOP_N = 500
 
 
+def _name_chars():
+    """〈線上試打〉自由試打那一排「常用姓氏／男名／女名常用字」用到的字。
+
+    ⚠️ 名單**從 site/assets/try.js 現讀**，不在這裡抄一份 —— 抄了就會有兩份會
+    分岔的名單，而分岔的症狀是「某個名字用字點下去沒有拆碼圖」，很難聯想到是
+    這裡漏了。跟 site/tools/cut_fn.js 從 try.js 切函式出來測試是同一個道理。
+
+    這些字一律要進拆碼圖那一份：那一排字卡的用途就是「點一個字看它怎麼拆」，
+    點下去沒有圖等於那張卡是壞的（Wilson 2026-08-31）。它們不一定擠得進字頻前
+    3000 名 —— 芊、蓁、晗、曦 這種只有取名才會用的字，本來就不常出現在新聞語料裡。
+    """
+    src = (ROOT / "site" / "assets" / "try.js").read_text("utf-8")
+    out = []
+    for name in ("NAME_SURNAMES", "NAME_MALE", "NAME_FEMALE"):
+        m = re.search(r"var\s+%s\s*=\s*'([^']*)'" % name, src)
+        if not m:
+            print(f"  ⚠️ try.js 裡找不到 {name} —— 那一排名字用字可能沒有拆碼圖")
+            continue
+        out.extend(m.group(1))
+    return out
+
+
 def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
     """拼音查字：〈自由試打〉頁想到一個字的讀音、不知道怎麼拆碼時查——輸入拼音
     （不分聲調），列出候選字，選了就看它的拆碼圖跟碼。跟〈跟著打〉互補：那邊是
@@ -752,14 +780,24 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
     # （加上下面的簡體字補收）。兩者分開之後，打 long 查得到 笼（AAXCQ）、
     # 攏（KIVDE）這些沒有圖但有碼的字，它們的碼會排成深灰的碼格。索引本身只有
     # 61 KB（限縮成 3000 個是 29 KB），而 7.9 MB 的那一份完全沒有變大。
-    top = sorted(coded, key=lambda c: -charfreq.get(c, 0))[:PINYIN_TOP_N]
+    # ⚠️ 兩個排序都要有**同分時的第二把尺**（這裡用字元本身），而且來源要是
+    # list 不是 set。原本 simp_only 是走 `for c in coded_set`（set 的走訪順序在
+    # 每個行程都不一樣，Python 的字串雜湊每次啟動重新加鹽），同分的字誰排前面
+    # 就跟著變，切到第 500 名那一刀會切在不同的地方 —— 連跑兩次建置，
+    # pinyin_glyphs.json 的內容就不一樣（實測 3374 對 3375 字）。
+    # 沒有字頻的字全部同分（charfreq.get(c, 0) 都是 0），所以同分的字很多，
+    # 不是罕見的邊角情況。建置要能重現，不然「這次部署跟上次差在哪」沒得比。
+    top = sorted(coded, key=lambda c: (-charfreq.get(c, 0), c))[:PINYIN_TOP_N]
     coded_set = set(coded)
-    simp_only = [c for c in coded_set if c in s2t_raw]
+    simp_only = [c for c in coded if c in s2t_raw]
     simp_top = sorted(
         simp_only,
-        key=lambda c: -max((charfreq.get(t, 0) for t in s2t_raw[c]), default=0),
+        key=lambda c: (-max((charfreq.get(t, 0) for t in s2t_raw[c]), default=0), c),
     )[:PINYIN_SIMP_TOP_N]
-    chars = set(top) | set(simp_top)
+    # 名字用字（常用姓氏／男名／女名）一律收進來，不管字頻排第幾 —— 那一排字卡
+    # 的用途就是點下去看拆碼圖，沒有圖等於那張卡是壞的。
+    name_chars = [c for c in _name_chars() if c in coded_set]
+    chars = set(top) | set(simp_top) | set(name_chars)
     if not coded:
         return None, None
 
@@ -818,6 +856,21 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
 
     segs = build_practice_hints(chars, codes, zigen_raw, max_rule)
     glyphs = _practice_glyphs(chars)
+
+    # 名字用字每一個都要畫得出拆碼圖。沒有的話那張字卡點下去只有碼、沒有圖，
+    # 而那一排的用途正是看圖，所以這裡出聲 —— 不出聲的話只有真的去點才會發現。
+    #
+    # ⚠️ 檢查的是 _name_chars() 的**全部**，不是 name_chars（那一份已經先被
+    # coded_set 濾過）。第一版寫成濾過的那一份，結果正好漏掉唯一有問題的那個字：
+    # 祐 在 codes.json 裡沒有 segments，被 coded_set 擋掉，於是「沒有圖」的字
+    # 反而不會被「沒有圖」的檢查抓到。要抓的就是這種。
+    _name_nofig = [c for c in dict.fromkeys(_name_chars())
+                   if c not in segs or c not in glyphs]
+    if _name_nofig:
+        _why = {c: ("codes.json 沒有 segments" if c not in coded_set else "字形資料沒收這個字")
+                for c in _name_nofig}
+        print(f"  ⚠️ {len(_name_nofig)} 個名字用字沒有拆碼圖："
+              + "、".join(f"{c}（{_why[c]}）" for c in _name_nofig))
     # ⚠️ 拆成兩份，因為兩份的**下載時機**不一樣（Wilson 2026-08-24）：
     #   pinyin.json        —— 查得到什麼字。約 30KB，載入頁面時就抓。
     #   pinyin_glyphs.json —— 那些字長什麼樣、怎麼拆。約 7.9MB，等使用者真的
@@ -1119,6 +1172,196 @@ def _pick_for(picks, letter, src, st, warn):
         return exact
     loose = picks.get((letter, src, None))
     return loose or None
+
+
+def load_lianxi_picks(warn):
+    """讀 site/content/lianxi.md —— Wilson 手挑〈字根練習〉要考哪幾題。
+
+    一行一個字：`字 = 字母 字母 …`，意思是「拿這個字出題，考它的這幾條字根」。
+    例如 `檢 = A O`（檢 拆成 T A O O Y Y，只考 A 跟 O 那幾段）、`虐 = E`。
+
+    ⚠️ 為什麼是**照字**挑而不是照字根挑：Wilson 2026-09-01 給的清單就是這個形狀
+    （「use 檢 A and O only，史 O and X」）。挑字的人在意的是「用哪個字來問」，
+    字根是那個字裡的哪幾段。第一版做成照字根挑、例字隨機配，他要的不是那個。
+
+    `## 分組 · 名稱` 把題目分組。分組**只決定哪幾題排在一起**（每組再切成每關十題），
+    名稱不會出現在網站上 —— Wilson 2026-09-01 看到自動切出來的「正著看就像（一）
+    （二）（三）」覺得莫名其妙，那個名字確實沒有意義：一題該怎麼看是**那一題自己的
+    提示**在講。分組存在的理由只有一個：不要讓「要轉的」跟「不用轉的」混進同一關。
+
+    一行只有**一個字、沒有等號**（`嶇`）就是另一種題目：不問字根像哪個字母，
+    而是「試一下打這個字」，要把整串碼打出來（第三關）。
+
+    回傳 [(字, [字母…]／None, 提示, 第幾組), …]，照檔案裡的順序；
+    字母是 None 就是打整個字那一種。
+    """
+    path = ROOT / "site" / "content" / "lianxi.md"
+    if not path.exists():
+        warn.append("〈字根練習〉：找不到 site/content/lianxi.md，整頁沒有題目")
+        return []
+    # 說明區塊裡的 ``` 範例不要被當成資料（examples.md 也是這樣防的）
+    text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
+    out, seen = [], set()
+    group = 0
+    GROUP_LINE = re.compile(r"^#{1,6}\s*分組\s*[·・:：\-]\s*\S")
+    # ⚠️ 只認「左邊一個字、右邊只有英文字母」這一種行。說明區裡有
+    # 「例如 `檢 = A O`：檢 拆成…」這種句子，鬆一點的規則會把它們也當成資料
+    # （實測會多出三條莫名其妙的警告）。右邊出現中文、標點、反引號一律不算。
+    DATA_LINE = re.compile(r"^(\S+)\s*=\s*([A-Za-z][A-Za-z0-9:\-\s]*)$")
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            if GROUP_LINE.match(line):
+                group += 1
+            continue
+        # 「· 短語」是這一題的提示（第二關那種要轉、要翻的），可有可無。
+        # 提示會被寫成問句：「將這個字根水平翻轉，像哪個英文字母？」
+        hint = ""
+        if "·" in line or "・" in line:
+            head, _, tail = re.split(r"([·・])", line, maxsplit=1)[0], None, ""
+            parts = re.split(r"\s*[·・]\s*", line, maxsplit=1)
+            line, hint = parts[0].strip(), (parts[1].strip() if len(parts) > 1 else "")
+        # 一行只有一個字：打整個字那一種題目
+        if len(line) == 1 and not re.match(r"[A-Za-z0-9\W]", line):
+            if (ch_only := line) in [x[0] for x in out if x[1] is None]:
+                warn.append(f"〈字根練習〉：「{ch_only}」的打字題寫了不只一次")
+                continue
+            out.append((ch_only, None, "", group))
+            continue
+        m = DATA_LINE.match(line)
+        if not m:
+            continue
+        ch, right = m.group(1), m.group(2)
+        if len(ch) != 1:
+            # 靜靜跳過等於幫使用者藏起一個打錯的字（「檢查 = A」）——出聲比較好
+            warn.append(f"〈字根練習〉：「{ch}」不是單一個字，那一行跳過")
+            continue
+        # 「E:3」＝這個字裡第 3 個 E 那一段（負數從後面數，E:-1 是最後一個）。
+        # 慧 拆成 E E E W，Wilson 要的是 W 前面那個 E，寫成 E:3 或 E:-1。
+        letters = [(m.group(1), int(m.group(2)) if m.group(2) else None)
+                   for m in re.finditer(r"([A-Za-z])(?::(-?\d+))?", right.upper())]
+        if not letters:
+            warn.append(f"〈字根練習〉：「{ch}」那一行沒寫要考哪個字母")
+            continue
+        # ⚠️ 重複的判準是「字＋字母」不是「字」：同一個字可以出現在不同關卡考不同的
+        # 字根（兒 在第一關考 L）。真正該擋的是同一條題目寫了兩次。
+        dup = [L for L, _ in letters if (ch, L) in seen]
+        if dup:
+            warn.append(f"〈字根練習〉：「{ch} = {' '.join(dup)}」寫了不只一次，後面那次跳過")
+            letters = [t for t in letters if (ch, t[0]) not in seen]
+            if not letters:
+                continue
+        for L, _ in letters:
+            seen.add((ch, L))
+        out.append((ch, letters, hint, group))
+    return out
+
+
+def build_lianxi(picks, codes, max_rule, warn, per_level=8):
+    """〈字根練習〉的題目：一題 = 一個字裡的一條字根，問它像哪個英文字母。
+
+    每一題只帶四樣東西：哪個字、考哪個字母、那條字根是哪幾筆、屬於第幾關。
+    ⚠️ 揭曉時**不再列出取形意圖／取自哪個字／整串碼**（Wilson 2026-09-01：
+    每答對一次頁面就長出一塊，畫面跟著彈；那些東西在〈字根表〉看就好）。
+    所以這裡也不再呼叫比對器 —— 沒有人用的資料就不要產。
+
+    ⚠️ 哪幾筆屬於哪一條字根一律**現算**（codes.json 的 segments），這一頁不手寫
+    任何一條「某某字根是某字母」—— 那是這個專案最會過期的東西。
+
+    ⚠️ 同一個字母在一個字裡出現好幾次（檢 的兩個 O、巡 的三個 L）算**同一題**，
+    而且**只標第一處**（Wilson 2026-09-01：一次看一塊就好）。分成兩題會連著問
+    兩次一模一樣的問題，幾處一起標又會讓人不知道該看哪一塊。
+
+    關卡：**一組就是一關**（`## 分組 · 名稱`）。⚠️ 曾經改成「每十題自動切一關」，
+    但那會把同一組的題目切到第二、第三關去，Wilson 立刻反映「山 美 定 正 應該是
+    第一關」—— 他心裡的關卡就是他分的那兩組。所以分組是唯一的分關依據。
+    關卡只有編號、沒有名字 —— 一題該怎麼看是那一題自己的提示在講。
+
+    per_level 是**過關要答對幾題**（8），不是一關有幾題。一關**可以多過** 8 題，
+    多出來的是備胎：不喜歡的題目可以跳過，還有別的可以練（Wilson 2026-09-01：
+    「題庫 19 題，不代表 user 需要全部做完才能通關」）。少於 8 題才出聲 ——
+    那一關永遠過不了。
+    """
+    if not picks:
+        return None
+
+    made = []
+    for ch, letters, hint, group in picks:
+        rec = codes.get(ch)
+        if not rec or not rec.get("segments"):
+            warn.append(f"〈字根練習〉：「{ch}」還沒取碼，出不了題")
+            continue
+        # 打整個字：不標字根，只要把 rec["final"] 那串碼打出來
+        if letters is None:
+            code = (rec.get("final") or "").upper()
+            if not code:
+                warn.append(f"〈字根練習〉：「{ch}」沒有碼，打字題出不了")
+                continue
+            # seg[i] ＝ 碼的第 i 個字母對應哪幾筆，給提示與打對之後的上色用。
+            # ⚠️ 要走 _code_groups 的「頭四尾一」對應，不能假設一個字母一段 ——
+            # 碼被砍過的字（藍 HCKAI），最後一個字母對到的是最後一段，不是第五段。
+            groups, code_groups = _code_groups(rec["segments"], max_rule)
+            if len(code_groups) != len(code):
+                warn.append(f"〈字根練習〉：「{ch}」的碼 {code} 有 {len(code)} 個字母，"
+                            f"卻對到 {len(code_groups)} 段，提示上色會錯位，這題跳過")
+                continue
+            made.append({"c": ch, "code": code, "t": 1,
+                         "seg": [groups[g] for g in code_groups], "_g": group})
+            continue
+        segs = rec["segments"]
+        have = "".join(sg["letter"] for sg in segs)
+        for L, which in letters:
+            picked = [sg for sg in segs if sg["letter"] == L]
+            if not picked:
+                warn.append(f"〈字根練習〉：「{ch} = …{L}…」，但 {ch} 拆出來是 "
+                            f"{have}，沒有 {L} 這一段")
+                continue
+            if which is not None:
+                # 1 起算，負數從後面數（慧 = E:-1 是 W 前面那個 E）
+                idx = which - 1 if which > 0 else len(picked) + which
+                if not 0 <= idx < len(picked):
+                    warn.append(f"〈字根練習〉：「{ch} = {L}:{which}」，但 {ch} 裡只有 "
+                                f"{len(picked)} 個 {L}")
+                    continue
+                picked = [picked[idx]]
+            # ⚠️ 同一個字母在一個字裡出現好幾次（檢 的兩個 O、巡 的三個 L）時
+            # **只標一處**（Wilson 2026-09-01）。原本是幾處一起標、各疊一個字母，
+            # 但那樣一題要看好幾塊，反而模糊了「這一塊像哪個字母」這件事。
+            # 預設第一處，要指定就寫 `E:3`（見上面）。
+            q = {"c": ch, "L": L, "g": [picked[0]["strokes"]]}
+            if hint:
+                q["h"] = hint
+            q["_g"] = group
+            made.append(q)
+
+    if not made:
+        warn.append("〈字根練習〉：一題都沒生出來，練習頁會說還沒挑")
+        return None
+
+    glyphs = _practice_glyphs({q["c"] for q in made})
+    missing = sorted({q["c"] for q in made if q["c"] not in glyphs})
+    if missing:
+        warn.append(f"〈字根練習〉：{len(missing)} 個字沒有字形資料（{''.join(missing)}），"
+                    f"那幾題畫不出來")
+    made = [q for q in made if q["c"] in glyphs]
+
+    # 一組＝一關
+    groups = sorted({q["_g"] for q in made})
+    for lv, g in enumerate(groups):
+        mine = [q for q in made if q["_g"] == g]
+        for q in mine:
+            q["lv"] = lv
+        if len(mine) < per_level:
+            warn.append(f"〈字根練習〉：第 {lv + 1} 關只有 {len(mine)} 題，"
+                        f"少於過關需要的 {per_level} 題（在 lianxi.md 補幾題）")
+    n_levels = len(groups)
+    for q in made:
+        q.pop("_g", None)
+
+    return {"note": "generated by site/tools/build_site_data.py — 手挑清單在 site/content/lianxi.md",
+            "levels": n_levels, "pass": per_level, "questions": made, "glyphs": glyphs}
 
 
 def load_intent_notes(warn):
@@ -2022,6 +2265,32 @@ CORPUS_SKIP = {
     "世界地名": ("中國", "南韓", "韓國", "北韓", "朝鮮"),
 }
 
+# 日常用語沒有精選檔可循，原本照詞頻挑最高的幾個，結果全是「就是／但是／所以」
+# 這類文法虛詞——高頻不代表讀者看得出詞庫收錄的廣度。改成手排，橫跨真實的詞頻
+# 量級（>10萬／5–10萬／1–5萬／1萬以下），讀者才看得出「近3萬9千個日常用語」實際
+# 涵蓋多廣，不是只有招呼語等級的詞才收得到（Wilson 2026-08-30）。也刻意避開地名、
+# 人名這類本來就有自己分類的詞（見上面 CORPUS_GROUPS）——日常用語這組要讓讀者
+# 看到的是「其他組舉不到的那種詞」，不是重複別組已經在講的東西（蘋果、獅子這種
+# 已經被品牌／星座那兩組認領走的詞，即使長得像日常詞彙也不會出現在這裡）。
+# 也刻意混進具體名詞、形容詞（水果／盒子／熊貓／玫瑰／便宜／高興／龐大），不是
+# 全部堆在中性動詞、連接詞——具體的詞才讓讀者聯想到一整類相鄰詞彙（看到「電影」
+# 會想到「電視劇、電影院」；看到「水果」會想到「蔬菜、青菜」），比字面上那個詞
+# 本身更有代表性。同樣的理由，也刻意混進動詞、副詞（決定／運動／突然），不要讓
+# 整組看起來只有名詞、只有職場詞——詞性跟主題都要雜（Wilson 2026-08-30：「不想
+# 讓人以為只收名詞或只收職場用語」）。原本這裡還放了「謝謝」，但跟「你好」同樣
+# 是招呼語，兩個放在一起讀起來像同一組，換成「決定」（Wilson：兩個是 repeat）。
+# 這一組收錄量最大（近3萬9千個），例詞名額多給一點——見下面 DAILY_PICKS_N，
+# 不動全域的 CORPUS_PICKS（那個是給其他有精選檔的分類用的，維持 10 個）。
+# 權重數字見 rime/aiphabi.dict.yaml 第三欄，2026-08-30 建置時：
+#   我們 47.9萬　電影 10.3萬｜也可以 8.0萬　客戶 6.0萬　運動 58476　決定 53056
+#   一個人 4.7萬　突然 43913　流量 3.2萬　你好 2.1萬｜便宜 15487　水果 12988
+#   高興 9469　盒子 6257　玫瑰 4732　最後一次 4529　龐大 4257　熊貓 2622｜
+#   信封 1285　加班費 1227　複診 864
+DAILY_PICKS_N = 21
+DAILY_PICKS = ("我們", "電影", "也可以", "客戶", "運動", "決定", "一個人",
+               "突然", "流量", "你好", "便宜", "水果", "高興", "盒子", "玫瑰",
+               "最後一次", "龐大", "熊貓", "信封", "加班費", "複診")
+
 
 def _first_strokes(ch, codes):
     """這個字幾筆。跟 build_jianma 的 stroke_count 同一招：codes.json 沒有筆劃數
@@ -2088,12 +2357,35 @@ def build_corpus(pc, ship, weight, warn, codes):
     def rank(w):
         return -weight.get(w, 0)
 
+    def best_code(w, got):
+        """例詞要印哪一條碼：最短的那一條；同樣長的時候**不走兼容碼**的優先。
+
+        ⚠️ 原本是 `min(got, key=len)`，而 got 是一個 set —— 同樣長的候選誰被 min
+        選中取決於 set 的走訪順序，每個行程都不一樣（Python 的字串雜湊每次啟動
+        重新加鹽）。實測連跑兩次建置，這一頁有四個例詞的碼會換成另一條同樣長的
+        碼，而那條常常是**兼容碼**：等於頁面每次部署自己決定要教主碼還是兼容碼。
+        頁面上教的碼必須是穩定的、而且是主要那條。
+        """
+        chs = list(w)
+        if len(chs) == 2:
+            # char_options 第一項就是那個字最短的一條（約定簡碼 → 三簡碼 → 主碼），
+            # 兼容碼一律排在後面，所以兩個字各取第一項就是「最短且不靠兼容碼」。
+            opts = [pc.char_options(c) for c in chs]
+            plain = opts[0][0][0] + opts[1][0][0] if all(opts) else None
+        else:
+            cands = ["".join(pc.piece(c, m)[0] for c in chs)
+                     for m in ("main", "simp", "t3")]
+            plain = min(sorted(cands), key=len)
+        # sorted() 是為了同分時有一把確定的尺，不是為了排序本身
+        shortest = min(sorted(got), key=len)
+        return plain if plain and len(plain) <= len(shortest) else shortest
+
     def entry(w):
         got = pc.word_codes(w)
         if not got or w not in ship:
             return None
         _pos, sigs = pc.si4_of(w)
-        return {"w": w, "code": min(got, key=len).upper(),
+        return {"w": w, "code": best_code(w, got).upper(),
                 "si4": sigs[0].upper() if sigs else ""}
 
     groups, claimed, taken = [], {}, set()
@@ -2238,16 +2530,37 @@ def build_corpus(pc, ship, weight, warn, codes):
                             f"沒有分到任何一組，那 {len(ws)} 個詞不會出現在網站上")
 
     # 精選檔以外的詞＝rime-essay 高頻詞表那一批（日常用語），量最大的一塊。
-    # 它沒有分類可言，所以只按詞頻舉例；數字是「總數減掉精選檔收得到的」。
+    # 它沒有分類可言；數字是「總數減掉精選檔收得到的」。例詞照 DAILY_PICKS 手排
+    # （見上面註解），順序就是排版順序，名額是 DAILY_PICKS_N（比其他組的
+    # CORPUS_PICKS 多，這一組收錄量最大）。手排的詞如果哪天從出貨碼表消失了
+    # （essay.txt 換過一批、詞被砍掉），就跳過並警告，不讓建置直接壞掉；
+    # 名額不夠時照舊按詞頻補滿，保證這張卡片一定有 DAILY_PICKS_N 個例子。
     curated = {w for secs in files.values() for _t, ws in secs for w in ws}
     daily = [w for w in ship if w not in curated and w not in pinned_extra]
-    picks = []
-    for w in sorted(daily, key=rank):
+    daily_set = set(daily)
+    picks, chosen = [], set()
+    for w in DAILY_PICKS:
+        if w not in daily_set:
+            warn.append(f"日常用語：手排的例詞「{w}」舉不出來"
+                        f"（{'已被別組收走' if w in curated or w in pinned_extra else '不在出貨碼表裡'}）")
+            continue
         e = entry(w)
-        if e:
-            picks.append(e)
-        if len(picks) >= CORPUS_PICKS:
+        if not e:
+            warn.append(f"日常用語：手排的例詞「{w}」算不出碼，跳過")
+            continue
+        picks.append(e)
+        chosen.add(w)
+        if len(picks) >= DAILY_PICKS_N:
             break
+    if len(picks) < DAILY_PICKS_N:
+        for w in sorted(daily, key=rank):
+            if w in chosen:
+                continue
+            e = entry(w)
+            if e:
+                picks.append(e)
+            if len(picks) >= DAILY_PICKS_N:
+                break
     if picks:
         groups.insert(0, {"name": "日常用語", "n": len(daily), "picks": picks,
                           "src": "rime-essay 高頻詞表"})
@@ -2297,10 +2610,14 @@ def build_phrase_dict(codes, rules, max_rule):
             continue
         if got != ship[w]:
             drift.append(w)
-        for c in got:
+        # ⚠️ sorted()：got 是一個 set（_ship_read 存的就是 set），走訪順序每個行程
+        # 都不一樣，於是 by_code 的**鍵**插入順序跟著變 —— 內容一模一樣，檔案的
+        # 位元組卻不同（實測連跑兩次 md5 就不一樣）。這樣「這次部署跟上次差在哪」
+        # 就沒得比了。各串詞的順序不受影響，那是照 order 的迴圈決定的。
+        for c in sorted(got):
             by_code.setdefault(c, []).append(w)
         _, sigs = pc.si4_of(w)
-        for c in sigs:
+        for c in sorted(sigs):
             by_si4.setdefault(c, []).append(w)
         # 四碼反向提醒：只有「四碼真的比平常打法短」才提醒，跟 build_rime.py 一致
         if sigs and min(len(c) for c in got) > 4:
@@ -2548,7 +2865,9 @@ def build_pyphrase(phrase_dict):
     for ws in phrase_dict.get("codes", {}).values():
         words.update(ws)
     idx = {}
-    for w in words:
+    # sorted()：set 的走訪順序每個行程都不一樣，直接走會讓 idx 的鍵順序跟著變 ——
+    # 內容一模一樣、檔案的位元組卻不同，「這次部署跟上次差在哪」就沒得比了。
+    for w in sorted(words):
         if not (2 <= len(w) <= 4):
             continue
         py = "".join(pypinyin.lazy_pinyin(w, style=pypinyin.Style.NORMAL,
@@ -2671,6 +2990,16 @@ def main():
     t2s = {k: (v[0] if isinstance(v, list) else v) for k, v in t2s_raw.items()}
     t2s = {k: v for k, v in t2s.items() if k != v}
 
+    def _site_copy():
+        """會發佈出去、而且會被繁簡切換碰到的文案。
+
+        ⚠️ 不只 site/*.html —— 試打文本（site/content/practice.md）、字根表的
+        辨析與意圖說明都是從 site/content 讀進頁面的，底下那幾道「這個詞不該
+        這樣轉」的檢查漏掉它們就等於沒查（狼藉正是在 practice.md 裡）。
+        """
+        return (sorted((ROOT / "site").glob("*.html")) +
+                sorted((ROOT / "site" / "content").glob("*.md")))
+
     # ⚠️「著」：OpenCC 的單字表故意不收它 —— 它在繁→簡這個方向也是一對多
     # （趁著／看著 要作「着」，但 著名／顯著／著作 維持「著」），字級的轉換分不出來，
     # OpenCC 自己是靠詞表處理的。這個網站只有字表，所以在這裡明寫成「着」：
@@ -2682,11 +3011,36 @@ def main():
                 "著手", "巨著", "鉅著", "論著", "專著", "著眼", "著想", "昭著",
                 "著重", "著稱", "卓著", "著色")
     zhu_hits = []
-    for page in sorted((ROOT / "site").glob("*.html")):
+    for page in _site_copy():
         text = page.read_text("utf-8")
         for word in keep_zhu:
             if word in text:
                 zhu_hits.append(f"{page.name} 的「{word}」")
+
+    # ⚠️ 反轉出來的對照表會多出幾條**方向相反**的合併。data/opencc.json 的 t2s 是
+    # 從 s2t 反轉來的（見 fetch_data.py：4,148 條裡有 4,032 條對得上反轉結果），
+    # 而 s2t 收的是「簡體某字在繁體可能寫成什麼」——例如「象 → 像」（好象／好像
+    # 那種舊寫法）。反過來讀就變成「像 → 象」，但在現代規範簡體裡「像」本來就是
+    # 規範字（好像、圖像），轉成「象」是錯字。同一個坑：「俱 → 具」（一應俱全
+    # 不是一應具全）、「藉 → 借」（狼藉不是狼借）。
+    #
+    # 這三個字站上都真的有：〈字根表〉〈字根練習〉的「像哪個英文字母」、〈後記〉
+    # 的「好像」、〈線上試打〉文本（三字經「名俱揚」、背影「滿院狼藉」）——
+    # 簡體檢視下每一處都在印錯字，而且看起來完全正常。所以這裡直接不轉。
+    #
+    # 「像」「俱」在現代規範簡體裡是無條件不轉的；「藉」跟「著」一樣是一對多
+    # （憑藉／藉此 該作「借」，狼藉／慰藉 維持「藉」），所以配一道跟 keep_zhu
+    # 同樣的檢查。⚠️「覆」是下一個候選（答覆→答复，但覆蓋維持覆），目前只出現
+    # 在 site/content/examples.md 那種不會發佈的建置輸入裡，所以先不動它。
+    for wrong in ("像", "俱", "藉"):
+        t2s.pop(wrong, None)
+    borrow_jie = ("憑藉", "藉此", "藉口", "藉故", "藉機", "藉由", "藉著", "藉以")
+    jie_hits = []
+    for page in _site_copy():
+        text = page.read_text("utf-8")
+        for word in borrow_jie:
+            if word in text:
+                jie_hits.append(f"{page.name} 的「{word}」")
 
     zigen_raw = load("zigen.json")
     warn = []
@@ -2701,6 +3055,8 @@ def main():
     notes = load_intent_notes(warn)
     zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
                      standard=standard, notes=notes)
+
+    lianxi = build_lianxi(load_lianxi_picks(warn), codes, max_rule, warn)
 
     # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
     # 印出來才看得出有沒有對錯位置。找不到的直接警告。
@@ -2817,6 +3173,10 @@ def main():
             json.dumps(pinyin_glyphs, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "zigen.json").write_text(
         json.dumps(zg, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    # 〈字根練習〉的題目 —— 手挑的，見 site/content/lianxi.md
+    if lianxi:
+        (OUT / "lianxi.json").write_text(
+            json.dumps(lianxi, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "principles.json").write_text(
         json.dumps(principles, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "jianma.json").write_text(
@@ -2846,15 +3206,35 @@ def main():
         kb = (OUT / "pinyin.json").stat().st_size / 1024
         mb = (OUT / "pinyin_glyphs.json").stat().st_size / 1024 / 1024
         n_chars = len({c for v in pinyin["index"].values() for c in v})
-        n_glyph = len(pinyin_glyphs['segs'])
+        # ⚠️ 這個數字要另外開一個變數：原本直接寫回 n_glyph，把上面 build_glyphs()
+        # 回傳的字數整個蓋掉，於是最後那行 glyphs.json 印的是拼音查字的字數
+        # （3,374），而 glyphs.json 其實只有 1,555 字 —— 建置紀錄是拿來對帳的，
+        # 印錯的數字比不印還糟。
+        n_pyglyph = len(pinyin_glyphs['segs'])
         print(f"pinyin.json {len(pinyin['index'])} 個拼音 / {n_chars} 字 / {kb:.0f} KB"
-              f"（載入就抓；查得到全部已取碼的字，其中 {n_glyph} 個有拆碼圖）")
-        print(f"pinyin_glyphs.json {n_glyph} 字有拆碼圖 / {mb:.1f} MB"
+              f"（載入就抓；查得到全部已取碼的字，其中 {n_pyglyph} 個有拆碼圖）")
+        print(f"pinyin_glyphs.json {n_pyglyph} 字有拆碼圖 / {mb:.1f} MB"
               f"（點進查字框才抓；已取碼的字裡，現代字頻最高的前 {PINYIN_TOP_N} 個，"
-              f"加上真正的簡化字裡最常用的前 {PINYIN_SIMP_TOP_N} 個）")
+              f"加上真正的簡化字裡最常用的前 {PINYIN_SIMP_TOP_N} 個，"
+              f"再加上名字用字那一排）")
+    if lianxi:
+        kb = (OUT / "lianxi.json").stat().st_size / 1024
+        by_lv = {}
+        for q in lianxi["questions"]:
+            by_lv.setdefault(q["lv"], []).append(
+                q["c"] + (q.get("L", "") + ("↻" if q.get("h") else "")
+                          if not q.get("t") else "＝" + q["code"]))
+        print(f"lianxi.json 〈字根練習〉{len(lianxi['questions'])} 題 / "
+              f"{lianxi['levels']} 關 / {kb:.0f} KB　手挑，見 site/content/lianxi.md")
+        for i in range(lianxi["levels"]):
+            cs = by_lv.get(i, [])
+            extra = f"，答對 {lianxi['pass']} 題過關" if len(cs) > lianxi["pass"] else ""
+            print(f"  第 {i + 1} 關：{len(cs)} 題{extra}（{' '.join(cs)}）")
     print(f"t2s.json   {len(t2s)} 組繁簡對照"
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
-             f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else ""))
+             f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else "")
+          + (f"  ⚠️ {'、'.join(jie_hits)} 的「藉」該轉成「借」，但站上另有「狼藉」"
+             f"這種要維持「藉」的用法，單字表分不出來 —— 改寫用詞" if jie_hits else ""))
     if n_glyph:
         kb = (OUT / "glyphs.json").stat().st_size / 1024
         print(f"glyphs.json {n_glyph} 字的筆畫輪廓 / {kb:.0f} KB  （Arphic PL，見 site/ARPHICPL.txt）")
