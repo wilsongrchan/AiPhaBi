@@ -110,8 +110,8 @@
     <!-- 兩排設定收進可收合的區塊，**預設收起來**（Wilson 2026-09-02）：
          這一頁的主戲是「看著文本打字」，設定是進來調一次就不再動的東西，
          攤開來卻要吃掉手機上小半個螢幕，把試打框跟提示一路推到摺線底下。 -->
-    <details class="try-opts">
-      <summary>設定<span class="try-opts-sum" id="try-opts-sum"></span></summary>
+    <details class="try-opts" id="try-settings">
+      <summary>打字設定<span class="try-opts-sum" id="try-opts-sum"></span></summary>
     <div class="short-toggle">
       <span>套用簡碼</span>
       <label class="chk-toggle">
@@ -163,8 +163,8 @@
              ⚠️ JS 沒跑到的話它就是開著的，跟以前一樣，不會變成「一個打不開的
              摺疊」。 -->
         <details class="try-opts practice-pickwrap" id="practice-pickwrap" open>
-          <summary>換一篇</summary>
-          <span class="practice-pick" id="practice-pick" role="group" aria-label="換一篇"></span>
+          <summary>更換文本</summary>
+          <span class="practice-pick" id="practice-pick" role="group" aria-label="更換文本"></span>
         </details>
       </div>
       <!-- 手機上這一排是「說明句 ＋ 兩顆圖示鈕」（Wilson 2026-09-03）：
@@ -297,7 +297,7 @@
     </div>
   </div>
 
-  <details class="try-opts try-keyguide">
+  <details class="try-opts try-keyguide" id="try-keyguide">
     <summary><h2>按鍵指南</h2></summary>
 
   <!-- 兩欄並排（Wilson）：左右各一組，配對照用途分 —— 輸入／選字／刪除／輔助。

@@ -1171,7 +1171,11 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    的 textarea」內建的行為，不是這裡哪個屬性算錯。跟 .rail 之間留的 .7rem
    margin-top 因此變成視覺上比其他地方的 .7rem 多一截，這裡扣掉那 8px，
    跟下面拼音那排（rail→.pyq-row）的間距才看起來一樣（Wilson）。 */
-.typebox textarea + .rail { margin-top: .2rem; }
+/* ⚠️ 這條只在**手機**生效（見第 10 節）。桌面版兩顆觸控鍵雖然 display:none，
+   但它們一直在 DOM 裡；本來夾在 textarea 與 .rail 中間，相鄰選擇器根本配不到，
+   所以這條在桌面從來沒起過作用（量到的桌面間距一直是 .rail 自己的 .7rem）。
+   2026-09-03 把觸控鍵搬到候選列後面之後它突然配到了，桌面間距少了 8px ——
+   那不是修好，是把一個沒人要求的改動帶進桌面版。改成只在手機下這條。 */
 
 .rail {
   display: flex;
@@ -2288,12 +2292,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .tryarea-main { display: flex; flex-direction: column; min-height: 0; }
 
 .practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; flex: none; }
-/* ⚠️ padding-top／border-top 要一起歸零，不是只歸零 margin：全域的 h2 帶著
-   `padding-top: 1.1rem; border-top: 1px solid var(--line)`，那條線本來是章節
-   分隔線、橫跨整個欄寬。這顆 h2 是 flex 項目，寬度縮到文字那麼寬，於是那條線
-   變成標題左上角一截 75px 的短橫槓，看起來像畫壞了（Wilson 2026-09-03：
-   「weird line starts」）。上方的空白也是它來的。 */
-.practice-head h2 { margin: 0; padding-top: 0; border-top: 0; color: var(--accent); }
+.practice-head h2 { margin: 0; color: var(--accent); }
 .practice-src { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 
 .practice-text {
@@ -4251,6 +4250,47 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    `display: contents` 是關鍵：包裝層自己不生盒子，裡面的東西直接變成原本那個
    父層（.practice-head 的 flex／.tryarea 的格線）的項目 —— 跟以前的結構完全
    等價，不是「看起來很像」。 */
+/* 按鍵指南：summary 裡包的是原本那顆 <h2>。
+   **桌面版完全照原樣**（Wilson 2026-09-03：「everything i said today should only
+   be for the mobile site」）—— summary 當成區塊、箭頭藏起來、<h2> 保留它自己的
+   外距與那條章節分隔線，加上 try.js 的 syncFoldables() 強制展開，畫出來就是
+   加摺疊之前的樣子。手機版才變成真的可以收合（見第 10 節）。 */
+#try-keyguide > summary { display: block; font-size: inherit; color: inherit; padding: 0; cursor: default; }
+#try-keyguide > summary::before { display: none; }
+
+/* 兩排開關本來是 .tryarea 的**格線項目**，中間隔著格線自己的 row-gap（1.4rem
+   ＝22.4px），加上各自的 margin，量到的間距是 29.6px。包進 <details> 之後它們
+   變成一般流內的兄弟：row-gap 沒了，上下 margin 還會**合併**（取大的那個，不是
+   相加），兩排一下子貼在一起。1.85rem＝29.6px 是合併後要的那個值，不是差額。
+   手機版本來就要收緊，見第 10 節。 */
+.try-opts > .short-toggle + .short-toggle { margin-top: 1.85rem; }
+
+/* ⚠️ <details> 會擋掉 margin 合併（它自己是一個新的區塊格式化脈絡），所以
+   .try-opts 的 margin-bottom（.7rem）**加**在最後一排開關自己的 .8rem 後面，
+   而不是取大的那個 —— 桌面版整塊因此比原本低 11.2px，底下每一樣東西跟著掉。
+   桌面版這一層不需要自己的下外距，格線的 row-gap 已經在管間距了。 */
+#try-settings { margin-bottom: 0; }
+
+/* 按鍵指南的間距也要還原：<details> 這一層擋掉了 margin 合併。
+   外距挪到 details 身上（它跟上面的 .tryarea 是兄弟，會正常合併成 2rem），
+   <h2> 自己的外距歸零，底下 <dl> 的 1.2rem 上外距就直接決定那段距離 ——
+   跟原本「h2 的 .8rem 與 dl 的 1.2rem 合併成 1.2rem」的結果一樣。
+   h2 的 padding-top 與 border-top 留著，那是章節分隔線。 */
+/* ⚠️ 一律用 id。`.try-keyguide > summary` 跟 `.try-opts > summary` 權重一樣
+   （一個 class ＋一個元素），而 .try-opts 那組排在這個檔案後面，後來者贏 ——
+   量到的 summary 仍然是 inline-flex、上下還帶著 .3rem 內距，章節分隔線因此
+   高了 5px。`.try-keyguide { margin-top }` 同理會被 `.try-opts { margin: 0 0 .7rem }`
+   這個**簡寫**整條蓋掉（簡寫會把沒寫的那幾邊設回 0）。
+   這是這個檔案第三次踩「權重相同、選擇器字串不同」——css_order_test 比對不出來。 */
+#try-keyguide { margin: 2rem 0 0; }
+#try-keyguide > summary h2 { display: block; margin: 0; }
+
+/* 「打字設定」在桌面**不是摺疊**：摘要那一行整個藏掉，內容由 try.js 的
+   syncFoldables() 強制展開 —— 畫出來就是原本那兩排開關，沒有多一行標題。
+   ⚠️ 權重要壓過後面的 `.try-opts > summary { display: inline-flex }`（同權重、
+   排在後面就贏），所以用 id。 */
+#try-settings > summary { display: none; }
+
 .practice-pickwrap { display: contents; }
 /* ⚠️ 篇目那幾顆本來靠自己的 `margin-inline-start: auto` 貼到右緣。包進 <details>
    之後那招失效了 —— 即使外層是 display: contents，瀏覽器仍然在中間插一層自己的
@@ -4264,6 +4304,19 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    後來者贏 —— 桌面版就會多冒出一顆「⌄ 換一篇」。多帶一層父選擇器把權重拉高。 */
 .practice-head > .practice-pickwrap > summary { display: none; }
 .practice-progrow { display: contents; }
+/* ⚠️ 桌面版的直排順序要**明講**。進度那一排（.practice-bar）與進度長條在原始碼
+   裡被搬到參考文章**前面**了 —— 那是手機版要的（Wilson 2026-09-02：眼睛從
+   「要打什麼」移到「打了什麼」不要跨過一排按鈕），桌面版原本是
+   「文章 → 進度那排 → 長條」。.tryarea-main 在桌面是直排 flex，用 order 排回去。
+   ⚠️ .practice-progrow 是 display: contents，order 對它沒有作用（它自己不生盒子），
+   要下在真正變成 flex 項目的 .practice-progbar 上。 */
+.tryarea-main > .practice-head { order: 1; }
+.practice-text  { order: 2; }
+.practice-bar   { order: 3; }
+.practice-progbar { order: 4; }
+.typebox        { order: 5; }
+.pyq-row        { order: 6; }
+.pyq-bpmf       { order: 7; }
 .practice-prog-narrow { display: none; }
 .practice-btn-i { display: none; }
 
@@ -4307,20 +4360,67 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   /* ⚠️ 順序要跟改過的 DOM 一致：標題 → 進度那一排 → 進度條 → 文本。
      進度／跳過／從頭開始搬到文本**上面**（Wilson 2026-09-02），文本才貼著
      底下的試打框與提示 —— 眼睛從「要打什麼」移到「打了什麼」不必跨過一排按鈕。 */
-  .practice-head    { order: 1; }
-  .practice-bar     { order: 2; }
-  .practice-progrow { order: 3; }
-  .practice-text    { order: 4; }
-  .typebox          { order: 5; grid-column: 1; margin-top: .6rem; min-width: 0; }
+  /* ── 標題與兩顆摺疊排成兩列兩欄（Wilson 2026-09-03）──────────────
+       試打文本            《登鸛雀樓》王之渙
+       ⌄ 打字設定          ⌄ 更換文本
+     「打字設定」與「更換文本」要並排、而且在綠色標題底下。它們分屬兩個父層
+     （設定是 .tryarea 的直接子元素，因為自由試打也要用得到；更換文本在
+     .practice-head 裡），唯一能把兩者放進同一列的辦法就是把 .practice-head
+     也攤平成 display: contents，讓 h2／出處／更換文本一起變成格線項目，再各自
+     指定欄位。四個項目剛好排成兩列兩欄，跟底下試打框／田字格的兩欄對齊。
+     ⚠️ .practice-head 帶 data-practice，自由試打時整塊 hidden —— site.css 開頭
+     那條 `[hidden]{display:none!important}` 蓋得過 display:contents，所以自由
+     試打時 h2／出處／更換文本仍然是收起來的，而設定照樣在（它在外面）。 */
+  .practice-head    { display: contents; }
+  .practice-head h2 { order: 1; grid-column: 1; }
+  .practice-src     { order: 1; grid-column: 2; align-self: baseline; margin-inline-end: 0; }
+  /* ⚠️ 篇目那顆的選擇器要寫到 .practice-head 這一層。它同時是 `.try-opts`
+     （沿用「設定」那套長相），而 `.try-opts { grid-column: 1 / -1 }` 排在這個
+     檔案**後面**、權重又一樣，後來者贏 —— 只寫 .practice-pickwrap 的話它會被
+     拉回整條寬，兩顆摺疊就一上一下而不是並排（量到：更換文本掉到 y310、
+     仍然在 x39）。設定那顆用 id，本來就贏得過。
+     這是這個檔案第二次踩同一種：**權重相同、選擇器字串不同**，
+     css_order_test 比對不出來，只能靠量。 */
+  #try-settings     { order: 2; grid-column: 1; margin: .1rem 0 .5rem; }
+  .practice-head > .practice-pickwrap { order: 2; grid-column: 2; margin: .1rem 0 .5rem; }
+  /* 展開的時候要整條寬：兩顆摺疊裡面裝的是四顆篇目／兩排開關，塞進半欄
+     （165px／138px）會一顆一行。攤開就自己佔一整列，收起來再回到並排。 */
+  #try-settings[open] { grid-column: 1 / -1; }
+  .practice-head > .practice-pickwrap[open] { grid-column: 1 / -1; }
+
+  .practice-bar     { order: 3; }
+  .practice-progrow { order: 4; }
+  .practice-text    { order: 5; }
+  .typebox          { order: 6; grid-column: 1; margin-top: .6rem; min-width: 0; }
   /* margin-top 跟 .typebox 一樣：兩欄是各自獨立的 grid 項目，上緣要對齊只能
      自己對，不然田字格會比試打框高出 9.6px（Wilson：「misaligned」）。 */
-  .practice-cell    { order: 6; grid-column: 2; margin-top: .6rem; }
+  .practice-cell    { order: 7; grid-column: 2; margin-top: .6rem; }
   /* 自由試打時右欄裡的是 .pyq（拆碼圖），它自己還帶著 .9rem 的上外距 —— 疊在
      .practice-cell 的 .6rem 上面，拆碼圖就比左邊的試打框低 14px。這一欄的上緣
      已經由 .practice-cell 對齊了，裡面不要再推一次。 */
   .pyq { margin-top: 0; }
-  .pyq-row          { order: 7; grid-column: 1 / -1; }
-  .pyq-bpmf         { order: 8; }
+  .pyq-row          { order: 8; grid-column: 1 / -1; }
+  .pyq-bpmf         { order: 9; }
+
+  /* ── 兩字詞：小格改成疊在主格子的上緣（Wilson 2026-09-03）──────────
+     原本 .tz-prow 是主格子**上面**獨立的一排，兩顆小格各佔 27% 寬，中間一大片
+     空的，整排連下外距吃掉約 33px —— 手機的右欄本來就只有 138px，這一排等於
+     白白墊高一截。改成絕對定位掛在主格子的兩個上角、壓在框線上：小格本來就是
+     「剛打完的」跟「等一下要打的」，不是主角，疊在角落反而更清楚誰是主格。
+     ⚠️ .tianzi 本身已經是 position: relative，這裡直接對它定位。
+     ⚠️ 空的那一側照舊用 visibility:hidden 佔位（見 drawPair 的說明），絕對定位
+     之後它本來就不影響版面，留著是為了不動到那邊的邏輯。 */
+  #tianzi .tz-prow {
+    position: absolute;
+    top: -11%;
+    left: -7%;
+    right: -7%;
+    margin: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+  /* 疊上去要有自己的底色，不然主格子的筆畫會從小格底下透出來 */
+  #tianzi .tz-mini { width: 30%; background: var(--surface); border-radius: 3px; }
 
   /* 右欄只有 8.6rem，田字格與提示跟著收 */
   .practice-cell .tianzi { max-width: 100%; }
@@ -4331,13 +4431,21 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .pyq .tianzi { height: auto; }
   .tz-hint { min-height: 0; }
 
-  /* 試打框在半欄裡不需要那麼高，字級維持大的（那是「你打了什麼」） */
-  .typebox textarea { min-height: 5.2rem; padding: .6rem; }
+  /* 試打框在半欄裡不需要那麼高，字級也跟著收 —— 1.2rem（19.2px）是配整條寬的
+     桌面框訂的，塞進 162px 的半欄一行只放得下七個字（Wilson 2026-09-03：
+     「a bit big given how small the box is」）。
+     ⚠️ 收到 16px 就停，不能再小：低於 16px 的話 iOS 一點進去就會把整頁放大
+     （見第 16 節）。16px 一行剛好九個字。 */
+  .typebox textarea { min-height: 5.2rem; padding: .6rem; font-size: 16px; line-height: 1.6; }
   /* ⚠️ 上下內距歸零（左右留著）。候選字整顆高 39.5px，而這一格的內距框只有
      39.6px —— 只要上下再留 .3rem，內容就比內容框高，於是憑空多出 4px 可捲的
      高度。歸零之後 scrollHeight 正好等於 clientHeight，一點溢出都沒有。
      外觀不變：.rail 是 align-items: center 的固定高度框，內容一律置中。 */
   .rail { height: 2.6rem; margin-top: .5rem; padding: 0 .4rem; }
+  /* Chromium 在 resize:vertical 的 textarea 後面會多出約 8px 說不出從哪來的
+     間距（量過盒模型都對不上，換一個空 div 照樣多 8px）。手機版候選列就緊接在
+     試打框下面，扣掉那 8px，看起來才跟別處的間距一樣。 */
+  .typebox textarea + .rail { margin-top: .2rem; }
   /* ⚠️ overflow-y 一定要寫出來（Wilson 2026-09-03：「idk why it allows vertical
      scrolling」）。CSS 的規則是：兩軸只要有一軸不是 visible，另一軸的 visible
      就會被算成 auto —— 只寫 overflow-x: auto，直向也跟著變成可捲的。候選字高
@@ -4394,6 +4502,47 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      上藏起來（Wilson 2026-09-03）：候選字用手指點就選了，提示有觸控鍵。 */
   .keyguide .kg-nomobile { display: none; }
 
+  /* 手機版才把「打字設定」與「按鍵指南」變成真的摺疊（桌面見上面第 19 節）。
+     ⚠️ 這幾條要排在第 19 節那組桌面預設值**後面**才蓋得掉，權重也要一樣。 */
+  #try-settings > summary { display: inline-flex; }
+  /* 手機版兩排開關要貼緊（桌面補回來的那 22.4px 是為了維持原樣，見上面），
+     展開之後第一排也貼著標題走。 */
+  .try-opts > .short-toggle + .short-toggle { margin-top: -.35rem; }
+  .try-opts[open] > .short-toggle:first-of-type { margin-top: .3rem; }
+  #try-keyguide { margin: 2rem 0 0; padding-top: 1.1rem; border-top: 1px solid var(--line); }
+  #try-keyguide > summary { display: inline-flex; padding: .3rem 0; cursor: pointer; }
+  #try-keyguide > summary::before { display: block; align-self: center; }
+  /* 分隔線改由 <details> 畫（h2 是 inline-flex 的項目，border-top 只會沿著
+     文字畫出一小截）。 */
+  #try-keyguide > summary h2 { display: inline; margin: 0; padding-top: 0; border-top: 0; }
+  /* 〈試打文本〉那顆 h2 同理：它是格線項目，寬度縮到文字那麼寬，全域 h2 的
+     border-top 就變成標題左上角一截 75px 的短橫槓（Wilson：「weird line
+     starts」），上方的空白也是它的 padding-top 來的。 */
+  .practice-head h2 { padding-top: 0; border-top: 0; }
+
+  /* 流暢模式的三顆單選鈕改成直排、切齊左緣（Wilson 2026-09-03：「so the 上屏
+     one doesn't oddly shift to the next line alone」）。橫排時「無／詞組連打／
+     單字上屏」加起來剛好比一行多一點，最後一顆永遠自己掉一行，看起來像排錯了
+     而不是排不下。直排就沒有這個問題，三個選項也一眼看得出是同一組互斥的。
+     ⚠️ 只挑 role="radiogroup" 那一排：套用簡碼那排只有兩顆、擠得下，直排反而
+     多吃兩行。 */
+  .short-toggle[role="radiogroup"] {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .3rem;
+  }
+  /* 「怎麼運作？」是「單字上屏」的附註，直排之後接在它下面，縮排對齊選項的
+     文字（勾選框 1rem ＋ .3rem 間隔），讀起來還是掛在那一顆上。 */
+  .short-toggle[role="radiogroup"] .short-toggle-link {
+    margin-inline-start: 1.3rem;
+    margin-top: -.1rem;
+  }
+
+  /* 田字格底下那一行只有「單字上屏」用得到（見 try.js 的 markFlowMode）。
+     其他模式不留位子 —— 不然田字格與底下那行說明之間永遠空著一截。 */
+  .practice-flow { min-height: 0; margin-top: 0; }
+  .has-flowline .practice-flow { min-height: 1.2em; margin-top: .35rem; }
+
   .try-mode { margin-bottom: .45rem; }
   .short-toggle { gap: .3rem .7rem; margin-bottom: .45rem; font-size: .78rem; }
   .chk-toggle { gap: .3rem; }
@@ -4408,7 +4557,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      四顆篇目在窄螢幕一定換行（標題＋出處＋四顆遠超過一欄寬），本來變成一整排
      縮排 37px 的懸空按鈕。改成跟「設定」一樣的 <details>，預設收起來，
      展開的時候自己佔滿一整行、切齊左緣。 */
-  .practice-pickwrap { display: block; flex: 1 0 100%; margin: .2rem 0 0; }
+  .practice-pickwrap { display: block; }
   /* 權重要跟上面桌面那條一樣（見那裡的說明），而且排在它後面才蓋得掉 */
   .practice-head > .practice-pickwrap > summary { display: inline-flex; }
   .practice-pick { display: flex; flex-wrap: wrap; margin: .25rem 0 0; }
@@ -4667,17 +4816,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .try-opts[open] > summary::before { transform: rotate(45deg); }
 .try-opts > summary:hover { color: var(--ink); }
 .try-opts > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* 展開之後第一排選項貼著標題，不要再多一層間距 */
-.try-opts[open] > .short-toggle:first-of-type { margin-top: .3rem; }
 
-/* 按鍵指南：summary 裡包的是原本那顆 <h2>，讓它照原樣顯示、只是可以收合。
-   ⚠️ 分隔線改掛在 <details> 身上，不能留在 h2：h2 現在是 display:inline，
-   border-top 只會沿著文字畫出一截短橫槓（跟 .practice-head h2 同一個坑）。
-   掛在區塊層的 .try-keyguide 才畫得出原本那條橫跨整欄的線。 */
-.try-keyguide { margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
-.try-keyguide > summary { font-size: inherit; color: inherit; padding: 0; }
-.try-keyguide > summary h2 { display: inline; margin: 0; padding-top: 0; border-top: 0; }
-.try-keyguide > summary::before { align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .try-opts > summary::before { transition: none; }

@@ -29,6 +29,24 @@
   var NARROW_Q = window.matchMedia('(max-width: 52rem)');
   function isNarrow() { return NARROW_Q.matches; }
 
+  /* 「打字設定」與「按鍵指南」只有**手機**才是摺疊的（Wilson 2026-09-03：
+     「the collapsable setting and keyboard key legend ... has also made it to
+     the computer view site, which isn't the intention」）。
+     兩邊共用同一份 HTML：桌面一律強制展開，摘要那一行由 CSS 藏起來（按鍵指南
+     只藏箭頭，<h2> 本身還是章節標題），看起來就跟加摺疊之前一模一樣。
+     ⚠️ 用 JS 而不是 CSS 的 ::details-content —— 那個偽元素各家支援度差太多，
+     Safari 要 18.4 以後才有，攤不開的話桌面版會直接少掉一整塊內容。 */
+  var FOLDABLES = ['try-settings', 'try-keyguide'];
+  function syncFoldables() {
+    FOLDABLES.forEach(function (id) {
+      var d = document.getElementById(id);
+      if (d) d.open = !NARROW_Q.matches;
+    });
+  }
+  syncFoldables();
+  if (NARROW_Q.addEventListener) NARROW_Q.addEventListener('change', syncFoldables);
+  else if (NARROW_Q.addListener) NARROW_Q.addListener(syncFoldables);
+
   // 字母鍵全給字根用了，標點落在原本的標點鍵上（跟 rime/README.md 那張表一致）
   var PUNCT = {
     ',': '，', '.': '。', '?': '？', '!': '！', ';': '；', ':': '：',
@@ -406,10 +424,13 @@
       return;
     }
     if (!state.buf) {
-      // 一句就好（Wilson 2026-09-03）：候選列在手機上只有半欄寬、兩行半高，
-      // 原本那兩句（連「按 = 取得提示」一起）在裡面直接被裁掉，看到的是半截話。
-      // 「=」怎麼用寫在〈按鍵指南〉裡，手機上還有一顆「= 提示」的觸控鍵。
-      rail.appendChild(el('span', 'empty', '在上框中輸入英文字母打字'));
+      /* 手機版一句就好（Wilson 2026-09-03）：候選列在手機上只有半欄寬、一行高，
+         原本那兩句在裡面直接被裁掉，看到的是半截話。「=」怎麼用寫在〈按鍵指南〉
+         裡，手機上還有一顆「提示」觸控鍵。桌面版整條寬，照舊講完整兩句。 */
+      rail.appendChild(el('span', 'empty', isNarrow()
+        ? '在上框中輸入英文字母打字'
+        : '在上框中輸入英文字母，即可用愛發筆輸入法打字！'
+          + (P.on ? '如果不知如何拆碼，可以按「=」鍵取得提示。' : '')));
       return;
     }
 
@@ -1117,13 +1138,19 @@
         }
         P.next.appendChild(el('span', 'word-badge', '詞組'));
         P.next.appendChild(wb);
-      } else {
+      } else if (!isNarrow()) {
         P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
       }
       // 約定字：不是照筆畫拆的，整字背下來——標出來，不然學的人會以為
       // 自己看不出字根，其實這個字本來就不歸那套推理管（Wilson）。
       if (P.conv && P.conv.has(now)) P.next.appendChild(el('span', 'conv-badge', '約定字'));
-      P.next.appendChild(el('span', null, '下一個'));
+      /* ⚠️ 手機版**只留標籤**（Wilson 2026-09-03：「idk what 下一個 does or
+         mean，the only useful info here is like saying it is a phrase or an
+         exception character」）：那個字就在正上方的田字格裡，寫第二遍沒有加任何
+         資訊，「下一個」更是在描述畫面本來就講清楚的事。留下的都是**看不出來、
+         必須被告知**的：有簡碼、這一格其實是一個詞、這是約定字。
+         桌面版一字不動 —— 他要的是手機版的改動，不是整站的。 */
+      if (!isNarrow()) P.next.appendChild(el('span', null, '下一個'));
     }
     renderHint(now);
     paintFlow();
@@ -1408,6 +1435,9 @@
     var host = document.getElementById('tryarea');
     if (!host || !pd || !pd.texts || !pd.texts.length) return;
     P.host = host;
+    /* ⚠️ 這裡要再標一次：模組載入時 flowBoxes 那段就呼叫過 markFlowMode()，
+       但那時 practice.json 還在路上、P.host 還是 null，記住的模式標不上去。 */
+    markFlowMode();
     P.glyphs = pd.glyphs || null;
     P.segs = pd.segs || null;
     P.conv = new Set(pd.conv || []);
@@ -2021,10 +2051,21 @@
      （Wilson）。該說的話留給田字格底下那一行，那裡答得出這一次會怎樣（paintFlow）。 */
   function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
 
+  /* 田字格底下那一行（paintFlow 寫的「需要按空白」）**只有單字上屏用得到**。
+     它本來一直佔著 1.2em 的位子（免得出現／消失時底下跳一下），但其他兩種模式
+     底下那個位子永遠是空的 —— 手機上就變成田字格與底下說明之間一段沒有理由的
+     空白（Wilson 2026-09-03：「a lot of wasted space between the bottom of the
+     田字格 to the caption」）。改成掛在模式上：開著單字上屏才留位子，那時候它
+     真的會用到，也就不會跳。 */
+  function markFlowMode() {
+    if (P.host) P.host.classList.toggle('has-flowline', AUTO_ON);
+  }
+
   function setFlow(mode) {
     clearFlow();          // 換模式時把還在等的那一拍收掉，不然它會在新模式底下開火
     PHRASE_ON = mode === 'phrase';
     AUTO_ON = mode === 'auto';
+    markFlowMode();
     saveFlag(PHRASE_KEY, PHRASE_ON);
     saveFlag(AUTO_KEY, AUTO_ON);
     if (PHRASE_ON) loadPhraseDict();
@@ -2044,6 +2085,7 @@
                 (mode === 'none' && !PHRASE_ON && !AUTO_ON);
     b.addEventListener('change', function () { if (b.checked) setFlow(mode); });
   });
+  markFlowMode();       // 上次選的模式也要算一次，不是只有按下去的時候
   // 上次選的是詞組就先抓詞庫 —— 使用者已經表達過要用它了，不必再等他選一次
   if (PHRASE_ON) loadPhraseDict();
   paintPhraseNote();
