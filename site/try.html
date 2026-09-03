@@ -107,6 +107,11 @@
          看懂，不用先猜「顏色深的是開還是關」（Wilson）。兩種模式（試打文本／
          自由試打）共用同一套查詢邏輯，所以這兩排跟模式切換一樣橫跨兩欄、
          不放進 tryarea-main。 -->
+    <!-- 兩排設定收進可收合的區塊，**預設收起來**（Wilson 2026-09-02）：
+         這一頁的主戲是「看著文本打字」，設定是進來調一次就不再動的東西，
+         攤開來卻要吃掉手機上小半個螢幕，把試打框跟提示一路推到摺線底下。 -->
+    <details class="try-opts">
+      <summary>設定<span class="try-opts-sum" id="try-opts-sum"></span></summary>
     <div class="short-toggle">
       <span>套用簡碼</span>
       <label class="chk-toggle">
@@ -143,6 +148,7 @@
       <a class="short-toggle-link" href="dingping.html">怎麼運作？</a>
       <span class="short-toggle-note" id="phrase-note"></span>
     </div>
+    </details>
 
     <div class="tryarea-main">
       <div class="practice-head" data-practice hidden>
@@ -150,7 +156,6 @@
         <p class="practice-src" id="practice-src"></p>
         <span class="practice-pick" id="practice-pick" role="group" aria-label="換一篇"></span>
       </div>
-      <div class="practice-text" id="practice-text" aria-live="off" data-practice hidden></div>
       <div class="practice-bar" data-practice hidden>
         <span class="practice-prog" id="practice-prog"></span>
         <span class="practice-tip">點擊任意一字可跳至該處開始</span>
@@ -160,6 +165,7 @@
       <div class="practice-progbar" data-practice hidden>
         <div class="practice-progbar-fill" id="practice-progbar-fill"></div>
       </div>
+      <div class="practice-text" id="practice-text" aria-live="off" data-practice hidden></div>
 
       <div class="typebox">
         <label class="sr-only" for="out">試打區</label>
@@ -267,7 +273,8 @@
     </div>
   </div>
 
-  <h2>按鍵指南</h2>
+  <details class="try-opts try-keyguide">
+    <summary><h2>按鍵指南</h2></summary>
 
   <!-- 兩欄並排（Wilson）：左右各一組，配對照用途分 —— 輸入／選字／刪除／輔助。
        用 grid 而不是表格，窄螢幕會自己收成一欄，不必橫向捲。 -->
@@ -284,6 +291,7 @@
     <div><dt><kbd data-keep>=</kbd></dt><dd>試打練習時顯示提示</dd></div>
     <div><dt><kbd data-keep>`</kbd></dt><dd>萬用鍵，代替任何字母。一鍵可代替一個或多個字母；兩、三、四鍵則只代替兩、三、四個字母。</dd></div>
   </dl>
+  </details>
 
 </main>
 

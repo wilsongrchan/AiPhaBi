@@ -319,8 +319,38 @@
 
     var mnQuery = window.matchMedia('(max-width: 52rem)');
 
+    /* 選單底部那條小橫桿。⚠️ 做成真的按鈕、不是純裝飾的 ::after —— 它長得像
+       「可以往上收」的把手，那就該真的按得動；看起來能按卻按不動比沒有更糟。
+       aria-hidden 是因為它跟漢堡鈕做同一件事，讀螢幕的人已經有那一顆了。 */
+    var mnGrab = document.createElement('button');
+    mnGrab.type = 'button';
+    mnGrab.className = 'navtoggle-grab';
+    mnGrab.setAttribute('aria-hidden', 'true');
+    mnGrab.tabIndex = -1;
+    mnGrab.addEventListener('click', function () { mnSet(false); });
+    mnNav.appendChild(mnGrab);
+
+    /* 收起來要**演完再消失**：display 從 flex 變 none 是不能過渡的，所以關閉時
+       先掛 nav-closing（版面還在、播反向動畫），動畫跑完才真的收掉。
+       ⚠️ 一定要接 animationend 之外的保險：動畫被 prefers-reduced-motion 關掉時
+       animationend 不會發，選單就永遠卡在「正在關」的狀態。所以那種情況直接收。 */
+    var mnReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
     function mnSet(open) {
-      mnBar.classList.toggle('nav-open', open);
+      if (open) {
+        mnBar.classList.remove('nav-closing');
+        mnBar.classList.add('nav-open');
+      } else if (mnBar.classList.contains('nav-open')) {
+        mnBar.classList.remove('nav-open');
+        if (!mnReduced.matches) {
+          mnBar.classList.add('nav-closing');
+          var done = function () {
+            mnBar.classList.remove('nav-closing');
+            mnNav.removeEventListener('animationend', done);
+          };
+          mnNav.addEventListener('animationend', done);
+        }
+      }
       mnBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       mnBtn.setAttribute('aria-label', open ? '關閉選單' : '選單');
     }
@@ -369,6 +399,9 @@
       } else if (mnSize.parentNode !== mnSizeHome) {
         mnSizeHome.insertBefore(mnSize, mnSizeNext);
       }
+      /* 把手永遠是最後一個 —— 字級那一組是後搬進來的，不重新 append 的話
+         把手會夾在連結跟字級中間，看起來像分隔線而不是底部的把手。 */
+      if (mnGrab.parentNode === mnNav) mnNav.appendChild(mnGrab);
     }
     mnPlaceSize();
 

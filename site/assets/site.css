@@ -4286,10 +4286,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   /* ⚠️ 用 order 讓試打框跟田字格**相鄰**，自動排版才會把它們放進同一列。
      只指定 grid-column 是不夠的：田字格在原始碼裡排在拼音查字後面，
      自動排版會把它丟到再下一列去。 */
+  /* ⚠️ 順序要跟改過的 DOM 一致：標題 → 進度那一排 → 進度條 → 文本。
+     進度／跳過／從頭開始搬到文本**上面**（Wilson 2026-09-02），文本才貼著
+     底下的試打框與提示 —— 眼睛從「要打什麼」移到「打了什麼」不必跨過一排按鈕。 */
   .practice-head    { order: 1; }
-  .practice-text    { order: 2; }
-  .practice-bar     { order: 3; }
-  .practice-progbar { order: 4; }
+  .practice-bar     { order: 2; }
+  .practice-progbar { order: 3; }
+  .practice-text    { order: 4; }
   .typebox          { order: 5; grid-column: 1; margin-top: .6rem; min-width: 0; }
   .practice-cell    { order: 6; grid-column: 2; }
   .pyq-row          { order: 7; grid-column: 1 / -1; }
@@ -4349,4 +4352,188 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .pyq-row { flex-wrap: wrap; }
   .pyq-input { flex: 1 1 auto; width: auto; min-width: 0; }
   .pyq-cands-box { flex: 1 0 100%; margin-top: .4rem; }
+}
+
+/* ---------- 12. 〈拆碼查詢〉導言裡的方位詞跟著版面走（Wilson 2026-09-02）----------
+   「貼進右邊的框」在手機上是錯的 —— 那個框在**下面**。
+   ⚠️ 這兩個框是靠 flex-wrap 自己折行的（.cm-field 是 flex: 1 1 12rem、
+   .cm-field-wide 是 2.4 1 22rem），沒有對應的 media query，所以斷點是量出來的：
+   逐 px 掃出來的：**652px 還併排、651px 開始上下疊**，所以取 40.7rem
+   （651.2px）。用 rem 不用 px：那兩個 flex-basis 本來就是 rem，使用者把字級
+   調大時折行點會跟著移，寫死 px 就對不上了。
+   （840–850px 之間還有一個十來 px 的窄帶也會疊 —— 那是側邊欄收掉前正文最擠的
+   那一瞬間，一個媒體查詢蓋不到兩段，而那一段沒有人會停在那裡。） */
+.cm-where-narrow { display: none; }
+@media (max-width: 40.7rem) {
+  .cm-where-wide { display: none; }
+  .cm-where-narrow { display: inline; }
+}
+
+/* ---------- 13. 漢堡選單的開合動畫與底部把手（Wilson 2026-09-02）----------
+   原本是 display 直接切換，開跟關都是「啪」一下。改成滑下來／滑上去，
+   並在選單底部放一條小橫桿當把手 —— 讓人看得出這一片是可以收起來的。
+
+   ⚠️ 「寬螢幕不顯示把手」這條要寫在 @media **前面**：寫在後面的話同權重、
+   排在後面就贏，把手在手機上也會被藏掉（css_order_test 當場抓到，跟
+   .navtoggle 是一模一樣的坑，我在同一支檔案裡連犯兩次）。 */
+.navtoggle-grab { display: none; }
+
+@media (max-width: 52rem) {
+  @keyframes mn-slide-in {
+    from { opacity: 0; transform: translateY(-.5rem); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes mn-slide-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-.5rem); }
+  }
+
+  .topbar.has-navtoggle.nav-open nav.site {
+    animation: mn-slide-in .24s cubic-bezier(.22, .61, .36, 1);
+  }
+  /* 收起來的那一段：JS 先掛 nav-closing 讓版面留著把動畫播完，再真的收掉
+     （見 site.js 的 mnSet）。這裡要把 .nav-open 那一整組版面規則再寫一次 ——
+     class 已經拿掉了，只靠動畫是撐不住版面的。 */
+  .topbar.has-navtoggle.nav-closing nav.site {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    order: 9;
+    gap: .1rem;
+    margin: .5rem -1.1rem 0;
+    padding: .6rem 1.1rem 1rem;
+    border-top: 1px solid var(--line);
+    max-height: calc(100dvh - 4.5rem);
+    overflow-y: hidden;
+    animation: mn-slide-out .18s ease forwards;
+    pointer-events: none;
+  }
+  .topbar.has-navtoggle.nav-closing .wrap { flex-wrap: wrap; align-items: center; }
+
+  /* 底部的小橫桿 */
+  .navtoggle-grab {
+    display: block;
+    flex: none;
+    align-self: center;
+    width: 100%;            /* 整條寬，中間那道橫桿才置中；看得見的只有橫桿 */
+    max-width: none;
+    height: 1.6rem;         /* 手指按得到的高度 */
+    margin: .35rem 0 0;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
+    /* ⚠️ 黏在捲動容器的底邊：選單放不下時（〈取碼原則〉的章節清單一展開就
+       超過一個螢幕）把手會被推到捲動內容的最後面，要一路捲到底才看得到 ——
+       那就完全失去「這一片可以收起來」的提示作用了。sticky 讓它永遠貼在
+       選單的下緣。底色要不透明，不然底下的連結會透出來穿過橫桿。 */
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: linear-gradient(to bottom, transparent, var(--surface) 45%);
+  }
+  .navtoggle-grab::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2.6rem;
+    margin: -1.5px 0 0 -1.3rem;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--line);
+    transition: background .15s ease;
+  }
+  .navtoggle-grab:active::before { background: var(--ink-faint); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar.has-navtoggle.nav-open nav.site,
+  .topbar.has-navtoggle.nav-closing nav.site { animation: none; }
+}
+
+/* ---------- 14. 〈約定字表〉與〈簡碼〉：單欄時的表頭處理（Wilson 2026-09-02）----------
+   兩頁的結構一樣：一個 <h2>（組名／節名）底下一個 .jm-cols，裡面兩三張**各自帶
+   表頭**的表。寬螢幕併排時每張表都要有自己的表頭；收成單欄之後那些表頭就變成
+   「捲到一半又冒出一次欄位名」，是雜訊不是資訊。
+
+   同時把組名釘在頁首底下，捲到下一組才換 —— 這幾頁捲起來很長，捲到一半常常
+   不知道現在看的是哪一類（Wilson）。 */
+@media (max-width: 52rem) {
+  /* 單欄之後，第二張以後的表頭收掉 */
+  .cv-page .jm-cols > table:not(:first-of-type) thead,
+  .jm-page .jm-cols > table:not(:first-of-type) thead { display: none; }
+
+  /* ⚠️ .jm-cols 帶著 overflow-x: auto，只要有這個屬性，裡面的 sticky 就會黏在
+     **它**身上而不是視窗上（跟字根表表頭同一個坑）。單欄時本來就不需要橫捲，
+     關掉它 sticky 才有意義。表格自己有 max-width: 100%，不會撐爆版面。 */
+  .cv-page .jm-cols, .jm-page .jm-cols { overflow-x: visible; }
+
+  /* 組名／節名黏在頁首底下。3.7rem 是收起來的頁首那一列。
+     ⚠️ 底色要不透明，不然捲過去的內容會透出來疊在字上。 */
+  .cv-page #cv-groups > div > h2,
+  .jm-page > h2 {
+    position: sticky;
+    top: 3.7rem;
+    z-index: 3;
+    margin-inline: -.2rem;
+    padding: .35rem .2rem .3rem;
+    background: var(--bg);
+  }
+
+  /* 留下來的那一張表頭再黏在組名底下 */
+  .cv-page .jm-tbl thead th,
+  .jm-page .jm-tbl thead th {
+    position: sticky;
+    top: 6.3rem;
+    z-index: 2;
+    background: var(--code-bg);
+  }
+}
+
+/* ---------- 15. 〈線上試打〉：設定與按鍵指南預設收起來（Wilson 2026-09-02）----------
+   用原生的 <details>，不是自己做的開關 —— 沒有 JS 也展得開，鍵盤與讀螢幕本來就
+   認得，而且「預設收起來」只要不寫 open 就好。
+   Wilson 的理由（他提了 Duolingo）：這一頁真正在做的事只有三件 —— 看文本、打字、
+   看提示。三件事要在同一個畫面上，中間不能夾著一頁設定，眼睛不該為了打一個字
+   上下捲。 */
+.try-opts {
+  grid-column: 1 / -1;
+  margin: 0 0 .7rem;
+}
+.try-opts > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  padding: .3rem 0;
+}
+.try-opts > summary::-webkit-details-marker { display: none; }
+/* 自己畫箭頭：原生的三角形在不同系統上大小、位置差很多 */
+.try-opts > summary::before {
+  content: '';
+  width: .42rem;
+  height: .42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  margin-inline-end: .15rem;
+  transition: transform .18s ease;
+}
+.try-opts[open] > summary::before { transform: rotate(45deg); }
+.try-opts > summary:hover { color: var(--ink); }
+.try-opts > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 展開之後第一排選項貼著標題，不要再多一層間距 */
+.try-opts[open] > .short-toggle:first-of-type { margin-top: .3rem; }
+
+/* 按鍵指南：summary 裡包的是原本那顆 <h2>，讓它照原樣顯示、只是可以收合 */
+.try-keyguide { margin-top: 2rem; }
+.try-keyguide > summary { font-size: inherit; color: inherit; padding: 0; }
+.try-keyguide > summary h2 { display: inline; margin: 0; }
+.try-keyguide > summary::before { align-self: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .try-opts > summary::before { transition: none; }
 }
