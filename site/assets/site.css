@@ -5097,3 +5097,86 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .crumbs > .crumb-tail::before { color: var(--ink-faint); font-weight: 400; }
   .crumbs > :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
+
+/* ---------- 21. 〈簡介〉九大特點：手機上是一疊可以左右滑的卡片（Wilson 2026-09-03）----------
+   「maybe show like first point in like a floating panel, with the title of the
+   point in green, and then you can swipe right to the 2nd point… like a card
+   deck almost」。桌面版那一長串維持原樣 —— 那個寬度一次讀完一點很自然，手機上
+   同樣的九點要捲過大半個螢幕才看得完一點。
+
+   ⚠️ 圓點那一列的預設值要寫在 @media **前面**（同權重、後來者贏）。這個檔案
+   為了同一件事被咬過五次了，見第 13、19、20 節。 */
+.points-dots { display: none; }
+
+@media (max-width: 52rem) {
+  .points {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: .8rem;
+    /* 滿版出血：卡片要能滑到貼著螢幕邊，才看得出「右邊還有一張」 */
+    max-width: none;
+    margin: 1.3rem -1.6rem 0;
+    padding: .35rem 1.6rem .5rem;
+    overflow-x: auto;
+    /* ⚠️ 明寫 hidden。只寫 overflow-x 的話另一軸的 visible 會被算成 auto
+       （這個檔案第三次踩，見第 10 節的候選列、第 20 節的麵包屑）。 */
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1.6rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .points::-webkit-scrollbar { display: none; }
+
+  .points > li {
+    /* 84%：右邊固定露出一小截下一張，這是「還可以滑」唯一的視覺線索 */
+    flex: 0 0 84%;
+    scroll-snap-align: center;
+    margin-bottom: 0;
+    padding: 1rem 1.1rem 1.1rem;
+    padding-inline-start: 1.1rem;
+    /* 九張卡的長度差很多（第 8 點是第 9 點的十倍），高度不寫死的話整疊會跟著
+       最長的那張走，短的下面空一大片。固定高度＋卡片內部自己捲：一疊卡就該
+       一樣大，而且滑到哪一張都不會讓底下的東西上下跳。 */
+    height: min(62vh, 27rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 20px rgba(0, 0, 0, .06);
+  }
+  /* 編號改成排在標題上面的一顆徽章。⚠️ 不能留 absolute：卡片內部會捲，
+     絕對定位的編號會跟著內容捲出畫面。 */
+  .points > li::before {
+    position: static;
+    display: inline-flex;
+    margin-bottom: .5rem;
+  }
+  .points > li > h3 { color: var(--accent); font-size: 1.02rem; }
+  /* 一句一分一段（Wilson）—— 斷句在 assets/jieshao.js，這裡只管段距 */
+  .points > li > p + p { margin-top: .5rem; }
+
+  .points-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .35rem;
+    margin-top: .8rem;
+  }
+  .points-dots button {
+    width: .45rem;
+    height: .45rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: var(--line);
+    cursor: pointer;
+    transition: width .18s ease, background .18s ease;
+  }
+  .points-dots button[aria-current="true"] { width: 1.3rem; background: var(--accent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .points-dots button { transition: none; }
+}
