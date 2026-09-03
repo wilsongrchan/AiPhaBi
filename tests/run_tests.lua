@@ -663,4 +663,41 @@ do
     "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
 end
 
+print()
+print("== 不打表外字：候選只留甲表 4808 ∪ GB 一級 3755，表外字（含 GB 二級）濾掉 ==")
+do
+  h.check("表內名單有載到（甲表常見字 的／我／學 都在）",
+    data.biaonei["的"] and data.biaonei["我"] and data.biaonei["學"],
+    "expected biaonei 的/我/學 = true")
+  h.check("表外字（淼／焱）不在名單裡",
+    not data.biaonei["淼"] and not data.biaonei["焱"],
+    "expected biaonei 淼/焱 = nil")
+  h.check("GB 二級漢字（噜）算表外，不在名單裡",
+    not data.biaonei["噜"], "expected biaonei 噜 = nil")
+
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    -- 模擬：某段碼同時吐出一個表內字（森）跟一個表外字（淼）。
+    local cands = { { text = "森" }, { text = "淼" } }
+    local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
+    h.checkPresent(schema .. " · 不打表外字關 → 淼 照常在", off, "淼", true)
+
+    local on_opts = { aiphabi_no_ext = true }
+    local on = h.run{ schema = schema, code = "wwwd", options = on_opts, cands = cands }
+    h.checkPresent(schema .. " · 不打表外字開 → 淼 被濾掉", on, "淼", false)
+    h.checkPresent(schema .. " · 不打表外字開 → 森 還在", on, "森", true)
+
+    -- 多字候選：一個字落在表外，整條濾掉
+    local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_no_ext = true },
+      cands = { { text = "森林" }, { text = "淼淼" } } }
+    h.checkPresent(schema .. " · 不打表外字開 → 表內詞（森林）留著", ph, "森林", true)
+    h.checkPresent(schema .. " · 不打表外字開 → 含表外字的詞（淼淼）濾掉", ph, "淼淼", false)
+
+    -- 標點／英數不是漢字，開關開著也不能誤濾
+    local pn = h.run{ schema = schema, code = "z", options = { aiphabi_no_ext = true },
+      cands = { { text = "，" }, { text = "A" } } }
+    h.checkPresent(schema .. " · 不打表外字開 → 標點（，）不受影響", pn, "，", true)
+    h.checkPresent(schema .. " · 不打表外字開 → 英數（A）不受影響", pn, "A", true)
+  end
+end
+
 os.exit(h.report() == 0 and 0 or 1)

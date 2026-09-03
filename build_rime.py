@@ -56,9 +56,9 @@ def seed_default_options(path):
     「新加、從沒進過 user.yaml」的開關：選單開了，切一次英文再回來就變回關。種一條
     false 進去，往後 Rime 每次重建都會照著還原，選單再切也是改一條現成的 key。"""
     on_by_default = ["aiphabi_family", "aiphabi_comp", "aiphabi_fuzzy", "aiphabi_short100"]
-    off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_autocommit",
-                      "aiphabi_short3", "aiphabi_left_short", "aiphabi_phrase",
-                      "full_shape", "ascii_punct", "prediction"]
+    off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_no_ext",
+                      "aiphabi_autocommit", "aiphabi_short3", "aiphabi_left_short",
+                      "aiphabi_phrase", "full_shape", "ascii_punct", "prediction"]
     seeds = [(k, "true") for k in on_by_default] + [(k, "false") for k in off_by_default]
     lines = path.read_text("utf-8").splitlines() if path.exists() else []
     var_i = next((i for i, l in enumerate(lines) if l == "var:"), None)
@@ -333,6 +333,29 @@ def main():
         json.loads((DATA / "dual_use_merged.json").read_text("utf-8"))["chars"]
     )
     simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED)
+
+    # 不打表外字（aiphabi_no_ext 開關）：候選只留「表內字」——教育部《常用國字標準
+    # 字體表》甲表 4808 字 ∪ GB 2312 一級漢字 3755 字。GB 2312 二級漢字算表外。
+    # 名單放 data/standards/（進 git，見檔頭）；缺檔時 biaonei 為空、Lua 端開關自動失效。
+    def _load_standard(fname):
+        p = DATA / "standards" / fname
+        if not p.exists():
+            return []
+        out, seen = [], set()
+        for line in p.read_text("utf-8").splitlines():
+            if line.startswith("#"):
+                continue
+            for ch in line.strip():
+                if ch not in seen and ("㐀" <= ch <= "鿿"
+                                       or 0x20000 <= ord(ch) < 0xF0000):
+                    seen.add(ch)
+                    out.append(ch)
+        return out
+
+    _tw_common = _load_standard("tw_common_4808.txt")
+    _gb_level1 = _load_standard("gb2312.txt")[:3755]      # 一級 = 前 3755（拼音序）
+    biaonei = set(_tw_common) | set(_gb_level1)
+
     by_len = defaultdict(list)
     for code in code2chars:
         by_len[len(code)].append(code)
@@ -664,6 +687,9 @@ def main():
     dl += ["}", "M.simp_phrase = {"]    # 不打簡體要濾掉的詞（精選詞庫逐字簡化的寫法，見上）
     for w in sorted(simp_phrases):
         dl.append(f'  [{lua_str(w)}]=true,')
+    dl += ["}", "M.biaonei = {"]        # 表內字（甲表 4808 ∪ GB 一級 3755）；aiphabi_no_ext 開關控制
+    for c in sorted(biaonei):
+        dl.append(f'  [{lua_str(c)}]=true,')
     dl += ["}", "M.altcode = {"]        # 字 → {碼: true} 集合（candidate 用 [碼] 標示；查表用，不是陣列）
     for c, acs in sorted(altcode.items()):
         inner = "".join(f'[{lua_str(a)}]=true,' for a in sorted(acs))
@@ -779,6 +805,8 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字＋精選詞庫的簡體詞
     states: [ 不打簡體關, 不打簡體開 ]
+  - name: aiphabi_no_ext           # 不打表外字：候選只留教育部甲表 4808 ∪ GB 2312 一級 3755；表外字（含 GB 二級）濾掉
+    states: [ 不打表外字關, 不打表外字開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
 {short_switch}{short3_switch}{left_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
@@ -810,6 +838,7 @@ engine:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
+    - lua_filter@aiphabi_charset        # 不打表外字開關：關掉表外字（含 GB 二級）；擺最後才擋得到容錯生的候選
     - uniquifier
 
 speller:
@@ -1016,6 +1045,12 @@ Weasel／fcitx5-rime 多半內建）：
     for comp, ch, full in leftshort_skipped:
         # 名單跟碼表對不上：Side A 改了這個字的碼，左簡碼家族名單要跟著更新。
         print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
+    if biaonei:
+        _ext = sum(1 for c in codes if c not in biaonei)
+        print(f"表內字 {len(biaonei)}（甲表 {len(_tw_common)} ∪ GB 一級 {len(_gb_level1)}）"
+              f"；不打表外字開關會濾掉碼表裡的 {_ext} 個表外字")
+    else:
+        print("  ⚠ data/standards/ 缺檔 —— M.biaonei 為空，不打表外字開關會自動失效")
     print(f"字 {char_count}　碼 {len(entries)}　重碼組 {len(dups)}")
     print(f"寫出：{OUT}/aiphabi.schema.yaml、aiphabi.dict.yaml、README.md")
 

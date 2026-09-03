@@ -764,7 +764,7 @@ gotcha under Weights).
 
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
-`aiphabi_order[_plus]`.
+`aiphabi_order[_plus]` → `aiphabi_charset`.
 
 - **`aiphabi_order.lua`** (pure) and **`aiphabi_order_plus.lua`** (plus) — the reorder filters.
   **They are two separate files with different structure and MUST be kept in sync** — any ordering
@@ -829,6 +829,14 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   off, hides multi-char candidates.
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
+- **`aiphabi_charset.lua`** — 不打表外字 gate (`aiphabi_no_ext`, default off). Keeps only chars in
+  MOE 甲表 (4808) ∪ GB 2312 level 1 (3755) = 6,173 chars; drops the ~1,488 coded chars outside
+  that union, **GB 2312 level 2 included** (Wilson's spec: 二級算表外). Multi-char candidate is
+  dropped if *any* of its chars is 表外. Runs **last** (after `aiphabi_fuzzy`, which generates
+  candidates of its own) so nothing slips past; non-Han candidates (punctuation, latin) are never
+  touched. Whitelist is `M.biaonei` in `aiphabi_data.lua`, built from `data/standards/` — on a
+  non-local build missing those files `M.biaonei` is empty and the toggle self-disables rather
+  than filtering everything. Same three homes as any switch (schema, plus-schema, save_options).
 
 ### Candidate comment convention (what the bar writes next to a candidate)
 

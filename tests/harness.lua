@@ -85,6 +85,7 @@ function M.run(opts)
 
   local hint = require("aiphabi_hint")
   local order = require(schema == "aiphabi_plus" and "aiphabi_order_plus" or "aiphabi_order")
+  local charset = require("aiphabi_charset")
   local env = makeEnv(schema, code, options)
 
   sink = {}
@@ -94,9 +95,14 @@ function M.run(opts)
   sink = {}
   order.func(makeInput(afterHint), env)
   local afterOrder = sink
+
+  -- schema 的 filter 鏈：order 之後、uniquifier 之前掛 aiphabi_charset（不打表外字）
+  sink = {}
+  charset(makeInput(afterOrder), env)
+  local afterCharset = sink
   sink = nil
 
-  return M.uniquify(afterOrder), afterHint
+  return M.uniquify(afterCharset), afterHint
 end
 
 -- schema 的 filter 鏈最後掛了 Rime 內建的 uniquifier，同一個字只會留排最前面的那個。
