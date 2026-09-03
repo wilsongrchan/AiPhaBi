@@ -4136,25 +4136,6 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     padding: .3rem .6rem;
   }
   .topbar-controls { order: 2; gap: .55rem; flex: none; }
-
-  /* 「字級」被 JS 搬進選單裡了（見 site.js mnPlaceSize：留在頁首那一列會把
-     整頁撐寬 19px）。在選單裡它自己是一列，跟連結之間拉一條線分開。 */
-  .topbar.has-navtoggle.nav-open nav.site > .zg-size {
-    flex-direction: row;
-    align-items: center;
-    gap: .6rem;
-    margin-top: .7rem;
-    padding: .7rem .6rem 0;
-    border-top: 1px solid var(--line);
-  }
-  .topbar.has-navtoggle.nav-open nav.site > .zg-size > span {
-    display: block;
-    font-size: .7rem;
-    letter-spacing: .12em;
-    color: var(--ink-faint);
-  }
-  /* 收起來的時候整組不佔位（它人在 nav 裡，而 nav 收起來是 display:none，
-     所以這條只是講清楚，不是必要的） */
 }
 
 /* ---------- 4. 首頁動畫收尾時導覽的進場方向 ----------
@@ -4261,6 +4242,31 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   #cv-groups .cv-grouppair { grid-template-columns: 1fr; column-gap: 0; row-gap: 1.4rem; }
 }
 
+/* ---------- 19. 〈線上試打〉為了手機版多包的那幾層，在桌面要當作不存在 ----------
+   Wilson 2026-09-03：「these should all be mobile only, keep original for
+   website」。手機版把篇目收進 <details>、把進度數字挪到長條旁邊、把兩顆按鈕
+   縮成圖示 —— 這些都需要 HTML 多一層包裝或多一顆元素。桌面版靠這一節把多的
+   那幾層攤平／藏掉，畫出來跟改之前一模一樣。
+
+   `display: contents` 是關鍵：包裝層自己不生盒子，裡面的東西直接變成原本那個
+   父層（.practice-head 的 flex／.tryarea 的格線）的項目 —— 跟以前的結構完全
+   等價，不是「看起來很像」。 */
+.practice-pickwrap { display: contents; }
+/* ⚠️ 篇目那幾顆本來靠自己的 `margin-inline-start: auto` 貼到右緣。包進 <details>
+   之後那招失效了 —— 即使外層是 display: contents，瀏覽器仍然在中間插一層自己的
+   ::details-content，auto 外距吃不到那條 flex 線上的剩餘空間（量到的：右緣從
+   881 掉到 812）。改成讓**出處**那個直接的 flex 項目把剩餘空間吃掉，篇目自然
+   被推到右緣，不必依賴任何 ::details-content 的行為。 */
+.practice-head .practice-src { margin-inline-end: auto; }
+/* ⚠️ 選擇器要寫到 .practice-head 這一層。這顆 <summary> 同時被
+   `.try-opts > summary { display: inline-flex }` 命中（篇目摺疊沿用「設定」那套
+   長相），而那條在這個檔案**後面**、權重又一樣（一個 class ＋一個元素），
+   後來者贏 —— 桌面版就會多冒出一顆「⌄ 換一篇」。多帶一層父選擇器把權重拉高。 */
+.practice-head > .practice-pickwrap > summary { display: none; }
+.practice-progrow { display: contents; }
+.practice-prog-narrow { display: none; }
+.practice-btn-i { display: none; }
+
 /* ---------- 10. 〈線上試打〉的手機版（Wilson 2026-09-02）---------- */
 
 /* 兩顆觸控鍵（萬用鍵 ` 與提示 =）由 try.js 建出來，只有手機看得到。
@@ -4292,7 +4298,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .tryarea-main { display: contents; }
 
   /* 參考文章那一整組維持整條寬度 —— 半欄只剩九個字一行，讀不成句子。 */
-  .practice-head, .practice-text, .practice-bar, .practice-progbar, .pyq-bpmf {
+  .practice-head, .practice-text, .practice-bar, .practice-progrow, .pyq-bpmf {
     grid-column: 1 / -1;
   }
   /* ⚠️ 用 order 讓試打框跟田字格**相鄰**，自動排版才會把它們放進同一列。
@@ -4303,7 +4309,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      底下的試打框與提示 —— 眼睛從「要打什麼」移到「打了什麼」不必跨過一排按鈕。 */
   .practice-head    { order: 1; }
   .practice-bar     { order: 2; }
-  .practice-progbar { order: 3; }
+  .practice-progrow { order: 3; }
   .practice-text    { order: 4; }
   .typebox          { order: 5; grid-column: 1; margin-top: .6rem; min-width: 0; }
   /* margin-top 跟 .typebox 一樣：兩欄是各自獨立的 grid 項目，上緣要對齊只能
@@ -4327,7 +4333,18 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
   /* 試打框在半欄裡不需要那麼高，字級維持大的（那是「你打了什麼」） */
   .typebox textarea { min-height: 5.2rem; padding: .6rem; }
-  .rail { height: 2.6rem; margin-top: .5rem; padding: .3rem .4rem; }
+  /* ⚠️ 上下內距歸零（左右留著）。候選字整顆高 39.5px，而這一格的內距框只有
+     39.6px —— 只要上下再留 .3rem，內容就比內容框高，於是憑空多出 4px 可捲的
+     高度。歸零之後 scrollHeight 正好等於 clientHeight，一點溢出都沒有。
+     外觀不變：.rail 是 align-items: center 的固定高度框，內容一律置中。 */
+  .rail { height: 2.6rem; margin-top: .5rem; padding: 0 .4rem; }
+  /* ⚠️ overflow-y 一定要寫出來（Wilson 2026-09-03：「idk why it allows vertical
+     scrolling」）。CSS 的規則是：兩軸只要有一軸不是 visible，另一軸的 visible
+     就會被算成 auto —— 只寫 overflow-x: auto，直向也跟著變成可捲的。候選字高
+     39.5px，比內距框（30.4px）高，這一格於是憑空多出 4px 的直向捲動。
+     那 4px 在邊框內放得下（內距框 39.6px），hidden 不會裁到任何東西。
+     （桌面版量到同一件事，但 Wilson 交代網頁版維持原樣，只改手機。） */
+  .rail { overflow-y: hidden; }
   /* 候選列固定 2.6rem 高（一行），空的時候那句提示在半欄裡塞不下一行就會
      斷成兩行、被裁掉下半截。字級收到 .7rem，十二個字剛好一行走完。 */
   .rail .empty { font-size: .7rem; }
@@ -4373,6 +4390,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   /* ── 開關那幾排收緊 ──────────────────────────────────
      模式／套用簡碼／流暢模式三排在手機上各佔一行，加上原本的行距，光是設定
      就吃掉小半個螢幕。列距與下外距一起收（Wilson：更緊湊一點）。 */
+  /* 〈按鍵指南〉裡只有實體鍵盤按得到的那兩條（1–9 選候選字、= 看提示）在手機
+     上藏起來（Wilson 2026-09-03）：候選字用手指點就選了，提示有觸控鍵。 */
+  .keyguide .kg-nomobile { display: none; }
+
   .try-mode { margin-bottom: .45rem; }
   .short-toggle { gap: .3rem .7rem; margin-bottom: .45rem; font-size: .78rem; }
   .chk-toggle { gap: .3rem; }
@@ -4383,19 +4404,80 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .try-mode > span,
   .short-toggle > span { min-width: 4rem; }
 
-  /* ── 進度那一排排成固定的兩列 ──────────────────────────
-     原本是四個項目一起 flex-wrap，寬度差一點點就換行換在不同的地方：
-     .practice-prog 帶著 margin-inline-end: auto 把說明推到最右邊，中間留一個
-     大洞，兩顆按鈕再看情況落在第一行尾或第二行（Wilson 的 iPhone 上「從頭
-     開始」自己孤零零一行）。明確排成「進度＋兩顆按鈕」「說明自己一行」。 */
-  /* 篇目那幾顆本來靠 margin-inline-start: auto 貼右緣，換行之後變成一整排
-     縮排 37px 的懸空按鈕，左緣跟上下都對不齊。窄螢幕本來就一定換行（標題
-     ＋出處＋四顆篇目遠超過一欄寬），索性讓它自己佔滿一整行、切齊左緣。 */
-  .practice-pick { flex: 1 0 100%; margin-inline-start: 0; }
+  /* ── 篇目摺疊起來（Wilson 2026-09-03）──────────────────────
+     四顆篇目在窄螢幕一定換行（標題＋出處＋四顆遠超過一欄寬），本來變成一整排
+     縮排 37px 的懸空按鈕。改成跟「設定」一樣的 <details>，預設收起來，
+     展開的時候自己佔滿一整行、切齊左緣。 */
+  .practice-pickwrap { display: block; flex: 1 0 100%; margin: .2rem 0 0; }
+  /* 權重要跟上面桌面那條一樣（見那裡的說明），而且排在它後面才蓋得掉 */
+  .practice-head > .practice-pickwrap > summary { display: inline-flex; }
+  .practice-pick { display: flex; flex-wrap: wrap; margin: .25rem 0 0; }
 
-  .practice-prog { margin-inline-end: 0; }
-  .practice-bar .practice-btn:first-of-type { margin-inline-start: auto; }
-  .practice-tip { order: 3; flex: 1 0 100%; }
+  /* ── 進度那一區收成兩列（Wilson 2026-09-03）──────────────────
+       第一列：說明句 ＋ 跳過／從頭開始兩顆**只有圖示**的小鈕，貼在右邊。
+       第二列：進度長條 ＋「x / y　z%」接在長條右邊（長條縮短讓出位子）。
+     原本四個項目一起 flex-wrap，寬度差一點點換行位置就不一樣（他的 iPhone
+     上「從頭開始」自己孤零零一行）。現在兩列各自寫死，不再靠 wrap 決定。 */
+  .practice-bar { gap: .4rem; margin-top: .6rem; }
+  /* 桌面那顆進度數字在手機上收掉 —— 手機用的是長條旁邊那顆 */
+  .practice-bar > .practice-prog { display: none; }
+  .practice-tip { flex: 1 1 auto; min-width: 0; }
+
+  .practice-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+  }
+  .practice-btn-t { display: none; }          /* 只留圖示 */
+  .practice-btn-i { display: block; width: 1.15rem; height: 1.15rem; }
+
+  .practice-progrow {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .5rem;
+  }
+  .practice-progbar { flex: 1 1 auto; margin-top: 0; }
+  .practice-prog-narrow {
+    display: block;
+    flex: none;
+    font-size: .72rem;
+    margin-inline-end: 0;
+  }
+
+  /* ── 右欄的高度固定下來（Wilson 2026-09-03）──────────────────
+       「提示一出現就把底下的東西往下推，整段看起來一直在跳。」
+     提示格改成**固定高度**（不是 min-height）—— 空的時候一樣佔位，內容多寡
+     都不會動到卡片高度。為了不讓固定的那一塊把整張卡片撐高，田字格與提示的
+     字級一起收（Wilson 明講可以縮字）。
+
+     ⚠️ 高度是量出來的，不是估的：走過四篇文本共 112 個字、每個字按滿四次提示，
+     最高的一筆是 104px（「上下皆橫，有些時候上橫寫成一撇，一邊有豎劃，豎劃上下
+     皆不穿頭」30 字，在 8.6rem 的欄寬排成三行）。留 7rem＝112px，多一行的餘裕。
+
+     ⚠️ 縮字級救不了多少：真正決定高度的是**行數**，而行數由欄寬決定 ——
+     .72rem→.62rem 只差 4px，因為兩種字級下那句話都是三行。所以這裡的餘裕靠
+     多留一行，不是靠再縮小。
+
+     ⚠️ overflow 用 auto 不用 hidden：萬一以後加了更長的取形意圖（碼表裡最長的
+     一條 39 字，這四篇剛好沒收到），至少捲得到，不會有一段字永遠讀不到。 */
+  /* ⚠️ 選擇器一律用 id，不要用 .tz-hint／.tz-chip／.tz-intent 這些 class：
+     同一組 class 也在〈拆碼查詢〉（chaima.js）與〈字根練習〉（lianxi.js）用，
+     而且自由試打的拆碼圖（#pyq-hint／#pyq-tianzi）就住在同一個 .practice-cell
+     裡面 —— 寫成 class 或 `.practice-cell .tz-hint`，會一路改到三個沒人要求
+     改的地方。這一節只管〈試打文本〉右欄那一格。 */
+  #tianzi { max-width: 6rem; }
+  #practice-hint { height: 7rem; min-height: 0; overflow-y: auto; margin-top: .45rem; }
+  #practice-hint .tz-intent { font-size: .68rem; line-height: 1.45; }
+  #practice-hint .tz-short { font-size: .68rem; line-height: 1.45; }
+  #practice-hint .tz-more { font-size: .66rem; }
+  #practice-hint .tz-chip { font-size: .74rem; min-width: 1.3rem; }
+  .practice-next { margin-top: .45rem; font-size: .8rem; }
+  .practice-next b { font-size: 1.05rem; }
 }
 
 /* ---------- 11. 自由試打的拼音查字：候選換到下一行（Wilson 2026-09-02）----------
@@ -4477,7 +4559,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     margin: .35rem 0 0;
     padding: 0;
     border: 0;
-    cursor: pointer;
+    cursor: grab;
+    /* ⚠️ 這一顆要能「往上撥就收起來」（見 site.js 的 mnGrab 拖曳）。選單本身是
+       overflow-y: auto 的捲動容器，不寫 touch-action: none 的話 iOS 會把手指
+       往上的動作直接當成捲選單、pointermove 收不到，拖曳等於不存在。 */
+    touch-action: none;
     /* ⚠️ 黏在捲動容器的底邊：選單放不下時（〈取碼原則〉的章節清單一展開就
        超過一個螢幕）把手會被推到捲動內容的最後面，要一路捲到底才看得到 ——
        那就完全失去「這一片可以收起來」的提示作用了。sticky 讓它永遠貼在
@@ -4499,6 +4585,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     background: var(--line);
     transition: background .15s ease;
   }
+  .navtoggle-grab:active { cursor: grabbing; }
   .navtoggle-grab:active::before { background: var(--ink-faint); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4594,4 +4681,57 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
 @media (prefers-reduced-motion: reduce) {
   .try-opts > summary::before { transition: none; }
+}
+
+/* ---------- 16. iOS 點進輸入框不要自己放大（Wilson 2026-09-03）----------
+   iOS Safari 只要看到聚焦的表單元件字級**小於 16px**，就會自己把整頁放大湊到
+   16px —— 而且打完不會縮回去，得自己雙指縮小（Wilson：「very disruptive」）。
+   全站量過只有兩個框中招：〈線上試打〉的拼音查字框（.95rem＝15.2px）與首頁
+   猜猜看的輸入框（.84rem＝13.44px）；其餘（試打框 19.2px、字根表查字 17.6px、
+   拆碼查詢兩個框 16.8px）本來就過線。
+
+   ⚠️ 唯一可靠的解法就是把字級提到 16px。另一條路是在 viewport 加
+   `maximum-scale=1` 把縮放整個關掉 —— 那會連需要放大來看的人也一起擋掉，
+   不做。
+
+   提示字（placeholder）另外壓小：**觸發放大的是輸入框自己的字級，不是提示字
+   的**，所以整句中文提示可以維持原本的大小，不必跟著變大撐破框。 */
+@media (max-width: 52rem) {
+  .pyq-input { font-size: 16px; }
+  .pyq-input::placeholder { font-size: .78rem; }
+  .guess-input { font-size: 16px; }
+  .guess-input::placeholder { font-size: .84rem; letter-spacing: .02em; }
+}
+
+/* ---------- 17. 「怎麼運作？」貼太緊（Wilson 2026-09-03）----------
+   .short-toggle-link 帶 margin-inline-start: -.75rem（12px），刻意把說明連結
+   拉近「單字上屏」，讓它讀起來是那一個選項的附註、不是整排的第四項。桌面那排
+   的 gap 是 1.1rem（17.6px），扣掉還剩 5.6px；但手機版把 gap 收成 .7rem
+   （11.2px），扣掉變成 **-0.8px** —— 兩段字直接黏在一起。
+   手機上改用小一點的負值：留 7.2px，比整排的 11.2px 近，但不會黏住。 */
+@media (max-width: 52rem) {
+  .short-toggle-link { margin-inline-start: -.25rem; }
+}
+
+/* ---------- 18. 字級那一組留在頁首那一列（Wilson 2026-09-03）----------
+   它本來被 JS 搬進漢堡選單裡（見 site.js 的 mnPlaceSize），理由是量到的寬度：
+   品牌 143 ＋ 兩組切換 181 ＋ 漢堡 44 ＋ 內距與間隔 59 ＝ 427px，視窗只有 390。
+   Wilson 要它跟繁簡一樣露在外面，那就得把那 84px 從別處省出來：
+
+   - 品牌的英文字樣「AiPhaBi」收掉（量到 53.1px）。中文「愛發筆」與標誌都留著，
+     品牌還認得出來；桌面版原樣不動。
+   - 「字級」兩個字的標籤收掉。旁邊就是小／中／大三顆，不會看不懂。
+   - 兩組切換之間的間隔從 .55rem 收到 .4rem，頁首整列的 gap 從 .75rem 收到 .45rem。
+
+   ⚠️ 同時把頁首那一列改成**可以換行**。省下來的寬度在 390px 上夠用，但更窄的
+   機器、或使用者把系統字級調大時還是可能擠不下 —— 寧可讓控制項整組掉到第二列，
+   也不要重演上次「整頁被撐寬 19px、十二頁一起可以左右滑」。 */
+@media (max-width: 52rem) {
+  .topbar.has-navtoggle .wrap { flex-wrap: wrap; row-gap: .4rem; gap: .45rem; }
+  .topbar.has-navtoggle .brand-text .en { display: none; }
+  .topbar.has-navtoggle .zg-size > span { display: none; }
+  .topbar.has-navtoggle .topbar-controls { gap: .4rem; }
+  /* 品牌吃掉剩下的寬度，控制項與漢堡靠右；擠不下時整組控制項自己掉到第二列。 */
+  .topbar.has-navtoggle .brand { flex: 1 1 auto; min-width: 0; }
+  .topbar.has-navtoggle .navtoggle { flex: none; }
 }

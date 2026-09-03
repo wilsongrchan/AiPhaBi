@@ -327,8 +327,69 @@
     mnGrab.className = 'navtoggle-grab';
     mnGrab.setAttribute('aria-hidden', 'true');
     mnGrab.tabIndex = -1;
-    mnGrab.addEventListener('click', function () { mnSet(false); });
+    mnGrab.addEventListener('click', function () {
+      /* 剛剛是拖上去關的話，收尾的那個 click 不要再關一次；拖到一半又放回來的
+         也不算數 —— 手指動過就不是「點」。 */
+      if (mnGrabDragged) { mnGrabDragged = false; return; }
+      mnSet(false);
+    });
     mnNav.appendChild(mnGrab);
+
+    /* 把手往上一推就收（Wilson 2026-09-03）：它長得像可以往上撥的把手，那就該
+       真的撥得動 —— 這是「按 ✕」之外的第二條路，手指本來就在螢幕下半。
+       ⚠️ 用 Pointer Events 一次收掉滑鼠與觸控；.navtoggle-grab 那邊配了
+       `touch-action: none`，不然 iOS 會先把這個手勢當成捲選單、pointermove
+       根本收不到。
+       ⚠️ 跟著手指走的位移直接寫 inline style（不是加 class）：拖到一半放手要能
+       原地彈回去，class 做不到「停在任意位置」。放手時一律清掉，交還給 CSS。 */
+    var mnGrabDrag = null;      // 正在拖：{ id, y0 }
+    var mnGrabDragged = false;  // 這一輪拖動過（給 click 判斷用）
+    var MN_GRAB_CLOSE = 36;     // 往上超過這麼多 px 就當作要收起來
+
+    function mnGrabPaint(dy) {
+      /* 往下拉沒有意義（選單上緣就貼著頁首），給阻力擋住，只讓它往上走。 */
+      var d = dy < 0 ? dy : dy / 5;
+      mnNav.style.transition = 'none';
+      mnNav.style.transform = 'translateY(' + d.toFixed(1) + 'px)';
+      mnNav.style.opacity = String(Math.max(.25, 1 + Math.min(0, d) / 220));
+    }
+
+    function mnGrabReset() {
+      mnNav.style.transition = '';
+      mnNav.style.transform = '';
+      mnNav.style.opacity = '';
+    }
+
+    mnGrab.addEventListener('pointerdown', function (e) {
+      if (!mnBar.classList.contains('nav-open')) return;
+      mnGrabDrag = { id: e.pointerId, y0: e.clientY };
+      mnGrabDragged = false;
+      try { mnGrab.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    mnGrab.addEventListener('pointermove', function (e) {
+      if (!mnGrabDrag || e.pointerId !== mnGrabDrag.id) return;
+      var dy = e.clientY - mnGrabDrag.y0;
+      if (Math.abs(dy) > 4) mnGrabDragged = true;
+      if (mnGrabDragged) { mnGrabPaint(dy); e.preventDefault(); }
+    });
+
+    function mnGrabEnd(e) {
+      if (!mnGrabDrag || e.pointerId !== mnGrabDrag.id) return;
+      var dy = e.clientY - mnGrabDrag.y0;
+      mnGrabDrag = null;
+      mnGrabReset();
+      /* 推得夠遠就收。差一點就放手的，樣式清掉自己就彈回去了。 */
+      if (dy < -MN_GRAB_CLOSE) mnSet(false);
+    }
+    mnGrab.addEventListener('pointerup', mnGrabEnd);
+    /* 手指被系統搶走（來電、滑出邊界）也要收乾淨，不然選單會卡在半路。 */
+    mnGrab.addEventListener('pointercancel', function (e) {
+      if (!mnGrabDrag || e.pointerId !== mnGrabDrag.id) return;
+      mnGrabDrag = null;
+      mnGrabDragged = false;
+      mnGrabReset();
+    });
 
     /* 收起來要**演完再消失**：display 從 flex 變 none 是不能過渡的，所以關閉時
        先掛 nav-closing（版面還在、播反向動畫），動畫跑完才真的收掉。
@@ -381,26 +442,19 @@
       if (!mnBar.contains(e.target)) mnSet(false);
     });
 
-    /* 「字級」那一組窄螢幕時搬進選單裡 ----------------------------------
-       量出來：品牌 143px ＋ 兩組切換 181px ＋ 漢堡 44px ＋ 內距與間隔 59px
-       ＝ 427px，而視窗只有 390px —— 頁首那一列 flex-wrap: nowrap，擠不下就
-       整頁被撐寬 19px，十二頁一起可以左右滑。
-       ⚠️ 不用 display:none 把它藏掉：那是一個真的控制項，藏起來等於在手機上
-       沒有字級可調。搬進選單是「次要控制項放在選單裡」的常規做法。
-       繁簡留在外面 —— 那是最常按的一顆，藏進選單等於多一次點擊。 */
-    var mnSize = mnBar.querySelector('.zg-size');
-    var mnSizeHome = mnSize && mnSize.parentNode;
-    var mnSizeNext = mnSize && mnSize.nextSibling;
-
+    /* 「字級」那一組**留在頁首那一列**，不搬進選單（Wilson 2026-09-03：
+       「the font size S/M/L toggle should be outside the burger menu, just like
+       the trad/simp toggle」）。
+       它本來是搬進去的，理由是量到的寬度：品牌 143px ＋ 兩組切換 181px ＋
+       漢堡 44px ＋ 內距與間隔 59px ＝ 427px，而視窗只有 390px。現在改成把那
+       84px 從別的地方省出來（見 site.css 第 18 節）：手機上收掉品牌的英文
+       字樣與「字級」兩個字的標籤，間隔從 .75rem 收到 .45rem。
+       ⚠️ 頁首那一列在手機上同時改成可以換行 —— 省下來的寬度在 390px 上綽綽
+       有餘，但更窄的機器（或使用者把系統字級調大）擠不下時，寧可讓控制項
+       整組掉到第二列，也不要像上次那樣把整頁撐寬 19px。 */
     function mnPlaceSize() {
-      if (!mnSize) return;
-      if (mnQuery.matches) {
-        if (mnSize.parentNode !== mnNav) mnNav.appendChild(mnSize);
-      } else if (mnSize.parentNode !== mnSizeHome) {
-        mnSizeHome.insertBefore(mnSize, mnSizeNext);
-      }
-      /* 把手永遠是最後一個 —— 字級那一組是後搬進來的，不重新 append 的話
-         把手會夾在連結跟字級中間，看起來像分隔線而不是底部的把手。 */
+      /* 把手永遠是選單的最後一個子元素 —— 它是「這一片可以往上收」的提示，
+         夾在連結中間會被讀成分隔線。 */
       if (mnGrab.parentNode === mnNav) mnNav.appendChild(mnGrab);
     }
     mnPlaceSize();

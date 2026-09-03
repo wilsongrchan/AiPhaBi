@@ -154,16 +154,40 @@
       <div class="practice-head" data-practice hidden>
         <h2>試打文本</h2>
         <p class="practice-src" id="practice-src"></p>
-        <span class="practice-pick" id="practice-pick" role="group" aria-label="換一篇"></span>
+        <!-- 篇目那幾顆包在 <details> 裡，**手機才收起來**（Wilson 2026-09-03：
+             「參考設定 drop down，default collapsed」）。桌面版維持原樣攤開：
+             `open` 寫死在 HTML 裡，加上 CSS 的 `display: contents` 把這一層
+             攤平掉，桌面畫出來跟以前一模一樣（<summary> 在桌面 display:none）。
+             收合只由 try.js 的 syncPickWrap() 依螢幕寬度切換 —— 不靠 CSS 去蓋
+             ::details-content，那個偽元素各家瀏覽器支援度差太多。
+             ⚠️ JS 沒跑到的話它就是開著的，跟以前一樣，不會變成「一個打不開的
+             摺疊」。 -->
+        <details class="try-opts practice-pickwrap" id="practice-pickwrap" open>
+          <summary>換一篇</summary>
+          <span class="practice-pick" id="practice-pick" role="group" aria-label="換一篇"></span>
+        </details>
       </div>
+      <!-- 手機上這一排是「說明句 ＋ 兩顆圖示鈕」（Wilson 2026-09-03）：
+           跳過／從頭開始縮成只有圖示，貼在說明句右邊。桌面版照舊是
+           「進度　說明　跳過這個字　從頭開始」一整排文字鈕。 -->
       <div class="practice-bar" data-practice hidden>
         <span class="practice-prog" id="practice-prog"></span>
         <span class="practice-tip">點擊任意一字可跳至該處開始</span>
-        <button type="button" class="practice-btn" id="practice-skip">跳過這個字</button>
-        <button type="button" class="practice-btn" id="practice-reset">從頭開始</button>
+        <button type="button" class="practice-btn" id="practice-skip" title="跳過這個字" aria-label="跳過這個字">
+          <svg class="practice-btn-i" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.6 4.4 12 10l-8.4 5.6z" fill="currentColor"/><rect x="13.6" y="4.4" width="2.6" height="11.2" rx="1.1" fill="currentColor"/></svg><span class="practice-btn-t">跳過這個字</span></button>
+        <button type="button" class="practice-btn" id="practice-reset" title="從頭開始" aria-label="從頭開始">
+          <svg class="practice-btn-i" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4.4a5.6 5.6 0 1 1-5.4 7.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M10 1.3v6.2L5.6 4.4z" fill="currentColor"/></svg><span class="practice-btn-t">從頭開始</span></button>
       </div>
-      <div class="practice-progbar" data-practice hidden>
-        <div class="practice-progbar-fill" id="practice-progbar-fill"></div>
+      <!-- 進度條與「x / y　z%」：手機上併成一列（Wilson 2026-09-03，長條縮短，
+           數字接在右邊）。桌面版靠 `.practice-progrow { display: contents }`
+           把這一層攤平，.practice-progbar 照舊自己是一整列的格線項目，
+           數字則留在上面那一排的最左邊 —— 兩邊各用各的那一顆，
+           #practice-prog-n 在桌面 display:none。 -->
+      <div class="practice-progrow" data-practice hidden>
+        <div class="practice-progbar">
+          <div class="practice-progbar-fill" id="practice-progbar-fill"></div>
+        </div>
+        <span class="practice-prog practice-prog-narrow" id="practice-prog-n" aria-hidden="true"></span>
       </div>
       <div class="practice-text" id="practice-text" aria-live="off" data-practice hidden></div>
 
@@ -282,13 +306,16 @@
     <div><dt><kbd data-keep>A</kbd>–<kbd data-keep>Z</kbd></dt><dd>輸入字根</dd></div>
     <div><dt><kbd data-keep>,</kbd> <kbd data-keep>.</kbd> <kbd data-keep>?</kbd></dt><dd>正體全形標點</dd></div>
 
-    <div><dt><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></dt><dd>選擇候選字</dd></div>
+    <!-- 手機上藏起來（.kg-nomobile，Wilson 2026-09-03）：這兩條講的都是實體
+         鍵盤才按得到、而且手機上根本用不到的路 —— 候選字直接用手指點就選了，
+         提示有一顆「提示」觸控鍵。留著只是把指南拉長。 -->
+    <div class="kg-nomobile"><dt><kbd data-keep>1</kbd>–<kbd data-keep>9</kbd></dt><dd>選擇候選字</dd></div>
     <div><dt><kbd>空白</kbd> 或 <kbd data-keep>Enter</kbd></dt><dd>選擇首選字</dd></div>
 
     <div><dt><kbd data-keep>Backspace</kbd></dt><dd>刪除上一碼</dd></div>
     <div><dt><kbd data-keep>Esc</kbd></dt><dd>刪除所有碼</dd></div>
 
-    <div><dt><kbd data-keep>=</kbd></dt><dd>試打練習時顯示提示</dd></div>
+    <div class="kg-nomobile"><dt><kbd data-keep>=</kbd></dt><dd>試打練習時顯示提示</dd></div>
     <div><dt><kbd data-keep>`</kbd></dt><dd>萬用鍵，代替任何字母。一鍵可代替一個或多個字母；兩、三、四鍵則只代替兩、三、四個字母。</dd></div>
   </dl>
   </details>

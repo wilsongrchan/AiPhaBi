@@ -23,6 +23,12 @@
   var rail  = document.getElementById('rail');
   var state = { buf: '', cands: [], data: null };
 
+  /* 窄螢幕（＝手機版那一套版面的斷點，跟 site.css 的 52rem 對齊）。
+     只有**文案**在用它：手機上沒有實體鍵盤，講「按 =」等於講一個按不到的鍵。
+     版面本身一律交給 CSS 媒體查詢，不在 JS 裡依寬度搬 DOM。 */
+  var NARROW_Q = window.matchMedia('(max-width: 52rem)');
+  function isNarrow() { return NARROW_Q.matches; }
+
   // 字母鍵全給字根用了，標點落在原本的標點鍵上（跟 rime/README.md 那張表一致）
   var PUNCT = {
     ',': '，', '.': '。', '?': '？', '!': '！', ';': '；', ':': '：',
@@ -1163,7 +1169,12 @@
     // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
     var done = P.typedBefore[P.pos] || 0, total = P.total;
     var pct = Math.round(done * 100 / total);
-    P.prog.textContent = done + ' / ' + total + '　' + pct + '%';
+    var progTxt = done + ' / ' + total + '　' + pct + '%';
+    /* 兩顆進度數字：桌面那顆在按鈕列最左邊，手機那顆接在進度長條右邊
+       （Wilson 2026-09-03）。兩顆各自由 CSS 決定哪一顆看得見 —— 用 JS 依寬度
+       搬家的話，轉螢幕、鍵盤彈出來都要重算一次，交給媒體查詢最穩。 */
+    P.prog.textContent = progTxt;
+    if (P.progN) P.progN.textContent = progTxt;
     if (P.progbar) P.progbar.style.width = pct + '%';
 
     // 目前這個字捲進視野：只捲文章那個框，不要動整頁
@@ -1282,7 +1293,10 @@
       box.appendChild(el('span', 'tz-more', '打字成功！'));
     } else {
       var more = mo.pos < order.length - 1 || P.hstep < 3;
-      box.appendChild(el('span', 'tz-more', more ? '再按 = 給更多提示' : '已顯示全部編碼'));
+      /* 手機上沒有 =（要翻到第二層符號鍵盤才找得到），提示是右下角那顆
+         「提示」觸控鍵 —— 講一個按不到的鍵等於沒講（Wilson 2026-09-03）。 */
+      box.appendChild(el('span', 'tz-more',
+        more ? (isNarrow() ? '再按一次提示' : '再按 = 給更多提示') : '已顯示全部編碼'));
     }
   }
 
@@ -1404,11 +1418,23 @@
     P.next = document.getElementById('practice-next');
     P.flow = document.getElementById('practice-flow');
     P.prog = document.getElementById('practice-prog');
+    P.progN = document.getElementById('practice-prog-n');
     P.progbar = document.getElementById('practice-progbar-fill');
     P.hintbox = document.getElementById('practice-hint');
 
     // 篇目選單：一篇一顆。只有一篇的時候整排不出現（按了也沒事發生的按鈕是雜訊）
     P.pick = document.getElementById('practice-pick');
+    /* 手機上把篇目收進 <details>（Wilson 2026-09-03）。桌面維持攤開 ——
+       HTML 裡寫死 open，這裡只有在窄螢幕才把它關上，所以 JS 沒跑到＝跟以前一樣。
+       ⚠️ 只在「螢幕寬度跨過斷點」時同步，不是每次重畫都同步：否則使用者在手機上
+       自己展開來挑篇目，下一次重畫就被關掉了。 */
+    var pickWrap = document.getElementById('practice-pickwrap');
+    var pickQ = window.matchMedia('(max-width: 52rem)');
+    function syncPickWrap() { if (pickWrap) pickWrap.open = !pickQ.matches; }
+    syncPickWrap();
+    if (pickQ.addEventListener) pickQ.addEventListener('change', syncPickWrap);
+    else if (pickQ.addListener) pickQ.addListener(syncPickWrap);
+
     if (P.texts.length > 1) {
       P.texts.forEach(function (t, i) {
         var b = document.createElement('button');
@@ -1416,9 +1442,18 @@
         b.className = 'practice-pickbtn';
         b.textContent = t.title;
         b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
-        b.addEventListener('click', function () { setText(i); out.focus(); });
+        b.addEventListener('click', function () {
+          setText(i);
+          /* 挑完就收起來 —— 選單選完還開著擋在文本上面，等於多按一次才看得到
+             自己剛選的東西。桌面版沒有這個摺疊，pickQ 不成立就不動它。 */
+          if (pickWrap && pickQ.matches) pickWrap.open = false;
+          out.focus();
+        });
         P.pick.appendChild(b);
       });
+    } else if (pickWrap) {
+      /* 只有一篇：整個摺疊都不要出現（按了也沒事發生的東西是雜訊）。 */
+      pickWrap.hidden = true;
     }
 
     /* 點參考文章裡任何一個字就從那裡開始。沒有這個的話，想試某個字只能一路按
@@ -1935,11 +1970,16 @@
      手機鍵盤跟著收起來，按一顆鍵畫面跳一大下。 */
   var padWrap = document.createElement('div');
   padWrap.className = 'try-touchkeys';
-  [[WILD, '萬用鍵', WILD], [HINT_KEY, '提示', HINT_KEY]].forEach(function (spec) {
+  /* 第三欄是鍵帽上要印的字，空字串＝不印。萬用鍵印「`」是因為它真的是一個
+     打得出來的字元，看過一次下次用實體鍵盤就知道按哪裡；提示不印「=」——
+     在手機上沒有人會為了看提示去翻符號鍵盤，一定是按這顆鈕，印一個按不到的
+     鍵位只是把鈕擠窄（Wilson 2026-09-03）。「=」怎麼用寫在〈按鍵指南〉裡。 */
+  [[WILD, '萬用鍵', WILD], [HINT_KEY, '提示', '']].forEach(function (spec) {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'try-touchkey';
-    b.innerHTML = '<kbd data-keep>' + spec[2] + '</kbd><span>' + spec[1] + '</span>';
+    b.innerHTML = (spec[2] ? '<kbd data-keep>' + spec[2] + '</kbd>' : '')
+      + '<span>' + spec[1] + '</span>';
     b.addEventListener('pointerdown', function (e) { e.preventDefault(); });
     b.addEventListener('click', function () {
       typeKey(spec[0]);
@@ -1947,7 +1987,12 @@
     });
     padWrap.appendChild(b);
   });
-  if (out.parentNode) out.parentNode.insertBefore(padWrap, out.nextSibling);
+  /* 擺在候選列**下面**（Wilson 2026-09-03）：手機鍵盤在畫面下半，由下往上是
+     鍵盤→這兩顆鈕→候選字→試打框，按了鈕之後眼睛只要往上抬一格就看到候選，
+     不必跨過一排按鈕。夾在試打框與候選列中間會把兩個本來該連著看的東西拆開。
+     rail 一定在（try.html 的 .typebox 裡），拿不到才退回原本的位置。 */
+  var padAfter = rail || out;
+  if (padAfter.parentNode) padAfter.parentNode.insertBefore(padWrap, padAfter.nextSibling);
 
   /* 詞組選項旁邊那句話：**只講還沒好的狀態**。這是唯一一個「選了之後要等」的
      模式 —— 沒有回饋的話，選了卻還沒有詞候選，看起來就像壞掉。
