@@ -328,7 +328,10 @@ nav.site a[aria-current="page"] {
   padding: .1rem .6rem .15rem;
   font-size: .72rem;
   font-weight: 700;
-  color: var(--ink-dim);
+  /* 分組小標用主色（Wilson 2026-09-03：「maybe for both desktop and mobile, the
+     menubar category title can be green」）。⚠️ 這一條是今天唯一**兩邊都改**的
+     —— 手機版那條同名規則要一起改，不然桌面綠、手機灰。 */
+  color: var(--accent);
   letter-spacing: .1em;
 }
 
@@ -4096,22 +4099,39 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  /* 同一組裡的連結靠緊、組與組之間拉開並畫一條線（Wilson 2026-09-03：
+     「the line spacing between different headings within the same category can
+     be smaller, but the spacing from one category to the next should be larger,
+     or have a line to signify there is a change in category」）。
+     ⚠️ 「後記」不在任何一組裡（跟簡介一樣是頂層），所以緊接在最後一組後面的
+     那條連結也要自己畫一條 —— 只寫 .nav-sec 的話「體驗工具 → 後記」之間會是
+     整個選單裡唯一沒有分隔的地方。 */
   .topbar.has-navtoggle.nav-open .nav-sec {
     display: flex;
     flex-direction: column;
-    gap: .1rem;
-    margin-top: .5rem;
+    gap: 0;
+    margin-top: .85rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--line);
+  }
+  .topbar.has-navtoggle.nav-open nav.site .nav-sec + a {
+    margin-top: .85rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--line);
   }
   .topbar.has-navtoggle.nav-open .nav-sec-t {
     display: block;
     font-size: .7rem;
     letter-spacing: .12em;
-    color: var(--ink-faint);
+    color: var(--accent);
     padding: .2rem .6rem;
   }
-  /* 選單裡的每一條都是一個手指目標，不是一行字：左右滿版、上下 .55rem ≈ 44px */
+  /* 選單裡的每一條都是一個手指目標，不是一行字：左右滿版、上下 .45rem。
+     ⚠️ .45rem 是量出來的下限：整條高 41.6px，比 Apple 建議的 44pt 少 2.4px，
+     但連結之間**沒有間隙**（gap 歸零），實際按不到的空隙是零 —— 而 .55rem 那一
+     版同一組裡的字距看起來像段落而不是清單（Wilson）。再小就真的按不準了。 */
   .topbar.has-navtoggle.nav-open nav.site a {
-    padding: .55rem .6rem;
+    padding: .45rem .6rem;
     border-radius: 6px;
     border-bottom: 0;
     border-inline-start: 0;
@@ -4132,10 +4152,35 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     color: var(--ink-dim);
     font-weight: 400;
   }
-  .topbar.has-navtoggle.nav-open .nav-sec > a,
-  .topbar.has-navtoggle.nav-open .nav-sec > .pr-navhead > a { padding-inline-start: 1.35rem; }
+  /* 組員縮排一階，看得出是掛在「基礎學習／流暢模式／體驗工具」底下的
+     （Wilson 2026-09-03：「if the heading titles are slightly indented from
+     their category, then do the same for the two experience tools shida and
+     chaima」）。
+     ⚠️ 第一條要多帶一層 `nav.site`。上面那條
+     `.topbar.has-navtoggle.nav-open nav.site a { padding: .55rem .6rem }`
+     是**簡寫**（會把 padding-inline-start 設回 .6rem），權重是四個 class ＋
+     兩個元素；只寫 `.nav-sec > a` 是四個 class ＋一個元素，**輸**給它，縮排整個
+     沒有生效 —— 字根練習／線上試打／拆碼查詢跟「簡介」切齊在同一條線上。
+     而 `.nav-sec > .pr-navhead > a`（有章節的那幾條）是五個 class，剛好贏，
+     所以畫面上是「有箭頭的縮排、沒箭頭的不縮排」，看起來像亂排的。
+     加一層 nav.site 之後兩條都是五個 class。
+     ⚠️ 這是同一個檔案第四次踩「權重」而不是「順序」的坑 —— css_order_test 只比
+     先後，比不出這一種。 */
+  .topbar.has-navtoggle.nav-open nav.site .nav-sec > a,
+  .topbar.has-navtoggle.nav-open nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 1.35rem; }
   .topbar.has-navtoggle.nav-open nav.site .pr-sidenav { padding-inline-start: 1.85rem; }
-  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav a { padding: .45rem .6rem; }
+  /* 章節那幾條：字放大到跟上一層差不多、上下收緊（Wilson 2026-09-03：「the
+     subheading text are a bit small, as long as they are indented, they can
+     probably be roughly the same size as the heading itself, and similarly,
+     the spacing between subheadings are a bit too big」）。
+     桌面側邊欄的 .68rem 是配那個窄欄訂的，手機選單整條 390px 寬，縮那麼小只是
+     難讀 —— 縮排已經講清楚它們是下一層了，不必再靠字級講第二次。
+     ⚠️ 用 em 不用 rem：跟著上一層的字級走，使用者把「字級」調大時兩層一起變。 */
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav a {
+    padding: .28rem .6rem;
+    font-size: .92em;
+  }
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav { gap: 0; }
 
   /* 收起來之後頁首只剩一列，底下那幾層黏頂的 top 要跟著改（原本是照
      三行導覽的 3.4rem／5.9rem 算的）。 */
@@ -4557,22 +4602,52 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      starts」），上方的空白也是它的 padding-top 來的。 */
   .practice-head h2 { padding-top: 0; border-top: 0; }
 
-  /* 流暢模式的三顆單選鈕改成直排、切齊左緣（Wilson 2026-09-03：「so the 上屏
-     one doesn't oddly shift to the next line alone」）。橫排時「無／詞組連打／
-     單字上屏」加起來剛好比一行多一點，最後一顆永遠自己掉一行，看起來像排錯了
-     而不是排不下。直排就沒有這個問題，三個選項也一眼看得出是同一組互斥的。
-     ⚠️ 只挑 role="radiogroup" 那一排：套用簡碼那排只有兩顆、擠得下，直排反而
-     多吃兩行。 */
-  .short-toggle[role="radiogroup"] {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: .3rem;
+  /* ── 設定裡的每一排開關都直排、選項縮排一階（Wilson 2026-09-03）──────
+       套用簡碼
+         ☑ 約定簡碼
+         ☐ 三簡碼
+       流暢模式
+         ○ 無
+         ○ 詞組連打（包括四碼快打）
+         ○ 單字上屏  怎麼運作？
+     「if the 3 options for fluent mode are vertically stacked, then the two
+     options for using quickcodes should also be vertically stacked. but the
+     options should be indented compared to the setting name」。橫排時「無／
+     詞組連打／單字上屏」加起來剛好比一行多一點，最後一顆永遠自己掉一行，
+     看起來像排錯了而不是排不下；兩排一個直排一個橫排更像沒排好。
+
+     ⚠️ 選擇器一定要鎖在 #try-settings 裡面。.short-toggle 是共用的長相，
+     〈拆碼查詢〉的三排開關也用它，其中「拆碼圖大小」那排同樣帶
+     role="radiogroup" —— 上一輪只寫 `.short-toggle[role="radiogroup"]`，
+     把那邊的「大／中／小」也拆成了三行（那三顆短得很，橫排本來就放得下）。
+     這一版把它還原成橫排。
+
+     ⚠️ 用 flex-wrap ＋ flex-basis: 100%，不是 flex-direction: column。直排的
+     flex 一個項目就佔一行，「怎麼運作？」只能掉到「單字上屏」下面 —— 而它要
+     接在右邊（Wilson：「怎麼運作 should just follow 單字上屏 on its right」）。
+     換行交給 flex-basis：要獨佔一行的給 100%，要跟人共用一行的給 auto。 */
+  #try-settings .short-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .3rem .5rem;
   }
-  /* 「怎麼運作？」是「單字上屏」的附註，直排之後接在它下面，縮排對齊選項的
-     文字（勾選框 1rem ＋ .3rem 間隔），讀起來還是掛在那一顆上。 */
-  .short-toggle[role="radiogroup"] .short-toggle-link {
-    margin-inline-start: 1.3rem;
-    margin-top: -.1rem;
+  #try-settings .short-toggle > span { flex: 0 0 100%; }
+  #try-settings .short-toggle > .chk-toggle {
+    /* 0 1 100%：允許縮 —— 100% 再加上縮排會比一行寬，讓它縮回去剛好填滿。
+       裡面的字本來就比一行短，縮不到內容。 */
+    flex: 0 1 100%;
+    margin-inline-start: 1.1rem;
+  }
+  /* 最後一顆不佔滿整行，後面的「怎麼運作？」才接得上來。
+     ⚠️ :last-of-type 比的是「同類元素裡的最後一個」＝最後一個 <label>，
+     後面還跟著 <a> 與 <span> 不影響。 */
+  #try-settings .short-toggle > .chk-toggle:last-of-type { flex: 0 0 auto; }
+  #try-settings .short-toggle > .short-toggle-link { flex: 0 0 auto; margin: 0; }
+  /* 載入狀態那句（收了幾個詞／載入中）自己一行，跟著選項縮排 */
+  #try-settings .short-toggle > .short-toggle-note {
+    flex: 0 0 100%;
+    margin-inline-start: 1.1rem;
   }
 
   /* 田字格底下那一行只有「單字上屏」用得到（見 try.js 的 markFlowMode）。
@@ -4984,6 +5059,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     border-bottom: 1px solid var(--line);
     margin: -1.5rem -1.6rem 1.4rem;
     padding-inline: 1.6rem;
+    /* ⚠️ 高度寫死（Wilson 2026-09-03：「i don't really like how the mobile
+       breadcrumb would expand in height when i scroll all the way up, i think
+       that can just be fixed height」）。第四格是捲到哪一節才出現的，出現、
+       消失、換成更長的節名都不該讓這一條忽高忽低 —— 它就在頁首底下，抖一下
+       整頁的內容都跟著移。box-sizing 已經是全域 border-box。 */
+    height: 2.1rem;
+    box-sizing: border-box;
     overflow-x: auto;
     /* ⚠️ overflow-x 一旦不是 visible，另一軸的 visible 就被算成 auto（CSS 規則，
        這個檔案第二次踩，見第 10 節的候選列）。這裡的內容只有一行高，直向不該
@@ -5011,7 +5093,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     margin-inline-end: .4rem;
     color: var(--ink-faint);
   }
-  .crumbs > :last-child { color: var(--accent); font-weight: 600; }
-  .crumbs > :last-child::before { color: var(--ink-faint); font-weight: 400; }
+  .crumbs > .crumb-tail { color: var(--accent); font-weight: 600; }
+  .crumbs > .crumb-tail::before { color: var(--ink-faint); font-weight: 400; }
   .crumbs > :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }

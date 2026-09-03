@@ -664,6 +664,9 @@
         e.preventDefault();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
+      /* 「你在這裡」那一格用 class 標，不用 :last-child —— 第四格只是 hidden，
+         它仍然是最後一個子元素，靠 :last-child 的話捲到頁頂時整條都沒有重點色。 */
+      bcSelf.className = 'crumb-tail';
       bc.appendChild(bcSelf);
 
       /* 第四格：目前捲到哪一節。只有本來就有章節清單的那六頁才有。 */
@@ -696,8 +699,12 @@
             var t = hit.a.textContent.trim();
             if (bcNow.textContent !== t) bcNow.textContent = t;
             bcNow.hidden = false;
+            bcNow.classList.add('crumb-tail');
+            bcSelf.classList.remove('crumb-tail');
           } else {
             bcNow.hidden = true;
+            bcNow.classList.remove('crumb-tail');
+            bcSelf.classList.add('crumb-tail');
           }
         };
         var bcQueue = function () { if (!bcRaf) bcRaf = requestAnimationFrame(bcPaint); };
