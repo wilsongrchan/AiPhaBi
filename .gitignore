@@ -85,6 +85,10 @@ site/assets/practice.json
 site/.cache/
 site/assets/glyphs.json
 
+# 手機版選單要用的章節索引（site/tools/build_nav.py 從十二頁的 HTML 現掃出來，
+# 建置時產生，跟其他資料檔一樣不進版控）
+site/assets/nav.json
+
 # 內部審查用的對照頁（site/tools/review_sources.py 產生），不進版控也不發佈
 site/_review/
 
