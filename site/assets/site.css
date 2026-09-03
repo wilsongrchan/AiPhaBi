@@ -2288,7 +2288,12 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .tryarea-main { display: flex; flex-direction: column; min-height: 0; }
 
 .practice-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; flex: none; }
-.practice-head h2 { margin: 0; color: var(--accent); }
+/* ⚠️ padding-top／border-top 要一起歸零，不是只歸零 margin：全域的 h2 帶著
+   `padding-top: 1.1rem; border-top: 1px solid var(--line)`，那條線本來是章節
+   分隔線、橫跨整個欄寬。這顆 h2 是 flex 項目，寬度縮到文字那麼寬，於是那條線
+   變成標題左上角一截 75px 的短橫槓，看起來像畫壞了（Wilson 2026-09-03：
+   「weird line starts」）。上方的空白也是它來的。 */
+.practice-head h2 { margin: 0; padding-top: 0; border-top: 0; color: var(--accent); }
 .practice-src { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 
 .practice-text {
@@ -4275,6 +4280,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .tryarea {
     grid-template-columns: minmax(0, 1fr) minmax(0, 8.6rem);
     column-gap: .7rem;
+    /* ⚠️ row-gap 一定要歸零（Wilson 2026-09-03：「the spacing is wide and
+       jagged」）。.tryarea 的 gap 是 1.4rem，上面只覆寫了 column-gap，於是每
+       一列之間**又**多出 22.4px 的列距，疊在每一塊自己的 margin 上面 —— 這
+       裡每一塊的間距都是逐項調過的（.45rem／.7rem／.8rem），被一個一律
+       22.4px 的列距蓋過去之後，看起來就是「處處都很空、而且鬆得不一樣」。
+       間距全部交還給各自的 margin。 */
+    row-gap: 0;
     padding: .7rem .8rem 1rem;
   }
   .tryarea-main { display: contents; }
@@ -4294,17 +4306,31 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .practice-progbar { order: 3; }
   .practice-text    { order: 4; }
   .typebox          { order: 5; grid-column: 1; margin-top: .6rem; min-width: 0; }
-  .practice-cell    { order: 6; grid-column: 2; }
+  /* margin-top 跟 .typebox 一樣：兩欄是各自獨立的 grid 項目，上緣要對齊只能
+     自己對，不然田字格會比試打框高出 9.6px（Wilson：「misaligned」）。 */
+  .practice-cell    { order: 6; grid-column: 2; margin-top: .6rem; }
+  /* 自由試打時右欄裡的是 .pyq（拆碼圖），它自己還帶著 .9rem 的上外距 —— 疊在
+     .practice-cell 的 .6rem 上面，拆碼圖就比左邊的試打框低 14px。這一欄的上緣
+     已經由 .practice-cell 對齊了，裡面不要再推一次。 */
+  .pyq { margin-top: 0; }
   .pyq-row          { order: 7; grid-column: 1 / -1; }
   .pyq-bpmf         { order: 8; }
 
   /* 右欄只有 8.6rem，田字格與提示跟著收 */
   .practice-cell .tianzi { max-width: 100%; }
+  /* 自由試打的拆碼圖寫死 height: 13rem（208px），那是照桌面 13rem 寬的欄位訂的。
+     手機這一欄只有 138px 寬，裡面的 svg 是 width:100%／height:auto，畫出來就是
+     138px 高 —— 底下憑空多出 70px 的空白，右欄看起來像破了一個洞。改成 auto：
+     svg 是 1:1 的，高度仍然永遠等於欄寬，不會因為選到不同的字而跳動。 */
+  .pyq .tianzi { height: auto; }
   .tz-hint { min-height: 0; }
 
   /* 試打框在半欄裡不需要那麼高，字級維持大的（那是「你打了什麼」） */
   .typebox textarea { min-height: 5.2rem; padding: .6rem; }
   .rail { height: 2.6rem; margin-top: .5rem; padding: .3rem .4rem; }
+  /* 候選列固定 2.6rem 高（一行），空的時候那句提示在半欄裡塞不下一行就會
+     斷成兩行、被裁掉下半截。字級收到 .7rem，十二個字剛好一行走完。 */
+  .rail .empty { font-size: .7rem; }
 
   /* ── 兩顆觸控鍵 ── */
   .try-touchkeys {
@@ -4328,10 +4354,19 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
     border-radius: 8px;
     cursor: pointer;
   }
+  /* ⚠️ nowrap：這一排只有半欄（約 162px）寬，兩顆各分到 78px，「萬用鍵」
+     三個字會斷成「萬用／鍵」兩行，把整顆鈕撐成兩倍高。 */
+  .try-touchkey {
+    white-space: nowrap;
+    gap: .25rem;
+    padding: .35rem .3rem;
+    font-size: .74rem;
+  }
   .try-touchkey kbd {
     font-family: ui-monospace, Menlo, monospace;
-    font-size: .82rem;
+    font-size: .78rem;
     color: var(--ink);
+    padding: .05rem .3rem;
   }
   .try-touchkey:active { background: var(--code-bg); }
 
@@ -4341,6 +4376,26 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   .try-mode { margin-bottom: .45rem; }
   .short-toggle { gap: .3rem .7rem; margin-bottom: .45rem; font-size: .78rem; }
   .chk-toggle { gap: .3rem; }
+
+  /* 三排的標籤（模式／套用簡碼／流暢模式）字數不一樣，控制項因此各自從不同的
+     x 起跳，一眼看過去是三條參差的左緣（Wilson：「misaligned」）。給標籤一個
+     共同的最小寬度，控制項就對在同一條線上。 */
+  .try-mode > span,
+  .short-toggle > span { min-width: 4rem; }
+
+  /* ── 進度那一排排成固定的兩列 ──────────────────────────
+     原本是四個項目一起 flex-wrap，寬度差一點點就換行換在不同的地方：
+     .practice-prog 帶著 margin-inline-end: auto 把說明推到最右邊，中間留一個
+     大洞，兩顆按鈕再看情況落在第一行尾或第二行（Wilson 的 iPhone 上「從頭
+     開始」自己孤零零一行）。明確排成「進度＋兩顆按鈕」「說明自己一行」。 */
+  /* 篇目那幾顆本來靠 margin-inline-start: auto 貼右緣，換行之後變成一整排
+     縮排 37px 的懸空按鈕，左緣跟上下都對不齊。窄螢幕本來就一定換行（標題
+     ＋出處＋四顆篇目遠超過一欄寬），索性讓它自己佔滿一整行、切齊左緣。 */
+  .practice-pick { flex: 1 0 100%; margin-inline-start: 0; }
+
+  .practice-prog { margin-inline-end: 0; }
+  .practice-bar .practice-btn:first-of-type { margin-inline-start: auto; }
+  .practice-tip { order: 3; flex: 1 0 100%; }
 }
 
 /* ---------- 11. 自由試打的拼音查字：候選換到下一行（Wilson 2026-09-02）----------
@@ -4528,10 +4583,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* 展開之後第一排選項貼著標題，不要再多一層間距 */
 .try-opts[open] > .short-toggle:first-of-type { margin-top: .3rem; }
 
-/* 按鍵指南：summary 裡包的是原本那顆 <h2>，讓它照原樣顯示、只是可以收合 */
-.try-keyguide { margin-top: 2rem; }
+/* 按鍵指南：summary 裡包的是原本那顆 <h2>，讓它照原樣顯示、只是可以收合。
+   ⚠️ 分隔線改掛在 <details> 身上，不能留在 h2：h2 現在是 display:inline，
+   border-top 只會沿著文字畫出一截短橫槓（跟 .practice-head h2 同一個坑）。
+   掛在區塊層的 .try-keyguide 才畫得出原本那條橫跨整欄的線。 */
+.try-keyguide { margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
 .try-keyguide > summary { font-size: inherit; color: inherit; padding: 0; }
-.try-keyguide > summary h2 { display: inline; margin: 0; }
+.try-keyguide > summary h2 { display: inline; margin: 0; padding-top: 0; border-top: 0; }
 .try-keyguide > summary::before { align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
