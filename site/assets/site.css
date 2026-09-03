@@ -1343,7 +1343,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 /* 九條原則的錨點連結，掛在側邊導覽「取碼原則」那個連結底下、縮排一階——
    跟 shurufa.app 那類文件站的側邊欄同一個做法（章節底下掛小節），
-   不是另外開一條跳轉列。只有 principles.html 自己的 nav.site 裡有這段 <ul>，
+   不是另外開一條跳轉列。只有 yuanze.html 自己的 nav.site 裡有這段 <ul>，
    其他三頁的側邊欄不需要看到這九條連結。 */
 .pr-sidenav {
   list-style: none;
@@ -1633,7 +1633,7 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   color: var(--ink-dim);
 }
 
-/* ---------- 約定字表頁（conventional.html） ---------- *
+/* ---------- 約定字表頁（yueding.html） ---------- *
  * 字形圖示欄跟「單獨成字」碼的逐字上色是同一個開關：#cv-groups 有沒有 .cv-color
  * 這個 class，由 conventional.js 的顏色開關按鈕控制（見該檔開頭註解）。 */
 
@@ -2204,7 +2204,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    （見 try.js setupPractice；載入之後兩個模式都是兩欄，不會再收回單欄）。 */
 .tryarea.is-plain { grid-template-columns: minmax(0, 1fr); }
 
-/* 模式切換那排橫跨兩欄、自己佔一整列（見 try.html 裡它是 .tryarea 的第一個
+/* 模式切換那排橫跨兩欄、自己佔一整列（見 shida.html 裡它是 .tryarea 的第一個
    子元素，不在 .tryarea-main 裡）——這樣試打文本／自由試打切換時，左欄的
    試打框跟右欄的內容（田字格或拼音查字）永遠從同一條線開始，不會因為模式
    不同而跳來跳去（Wilson：拼音查字框的上緣要跟試打框切齊）。 */
@@ -2681,7 +2681,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .pyq .tz-hint { margin-top: .6rem; height: 3.3rem; min-height: 0; }
 
 /* 姓名常用字：故意擺在 #tryarea 這個 grid 外面，不跟著拆碼圖那欄的固定
-   高度被拖出一段空白——詳見 try.html 裡這一塊的說明。上外距換成跟
+   高度被拖出一段空白——詳見 shida.html 裡這一塊的說明。上外距換成跟
    .tryarea 自己的下外距一樣（1.4rem）：這一塊現在是接在卡片後面的新
    段落，不是卡片裡的最後一列，用卡片本來的外距當作跟卡片的距離，
    比另外量一個數字更不容易兜不起來。 */
@@ -2689,7 +2689,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .namechars-tag { margin: 0 0 .7rem; font-size: .82rem; color: var(--accent); }
 
 /* 姓氏／男女名左右並排兩欄，各欄自己是「標籤在左、內容在右」——見
-   try.html 裡的說明：並排之後兩邊各自維持自己原本的捲動方向（姓氏橫向、
+   shida.html 裡的說明：並排之後兩邊各自維持自己原本的捲動方向（姓氏橫向、
    男女名直向），只是排成兩個平行的小面板。 */
 /* 40 / 60 分——男女名的字卡牆字比姓氏多（45 對 40，但姓氏字卡本身也窄），
    實際佔用的欄寬用視覺抓：字卡牆要有比姓氏更寬的欄位才不會被擠成一直捲

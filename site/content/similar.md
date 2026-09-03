@@ -80,7 +80,7 @@ python3 site/tools/preview.py
   ...按原則[略過](rules.html#lone)。
   ```
 
-  取碼原則頁現在是 `principles.html`，孤筆略過原則在那一頁；要接就接那裡。
+  取碼原則頁現在是 `yuanze.html`，孤筆略過原則在那一頁；要接就接那裡。
 
 ---
 

@@ -1420,7 +1420,7 @@
     P.on = !free;
     [].forEach.call(P.host.querySelectorAll('[data-practice]'), function (n) { n.hidden = free; });
     [].forEach.call(P.host.querySelectorAll('[data-mode-panel="practice"]'), function (n) { n.hidden = free; });
-    // 姓名常用字（.namechars）故意擺在 #tryarea 外面（見 try.html 裡的
+    // 姓名常用字（.namechars）故意擺在 #tryarea 外面（見 shida.html 裡的
     // 說明），這裡查 document 而不是 P.host，不然它永遠切不出來。
     [].forEach.call(document.querySelectorAll('[data-mode-panel="free"]'), function (n) { n.hidden = !free; });
     [].forEach.call(P.host.querySelectorAll('[data-mode]'), function (b) {
@@ -2020,7 +2020,7 @@
   /* 擺在候選列**下面**（Wilson 2026-09-03）：手機鍵盤在畫面下半，由下往上是
      鍵盤→這兩顆鈕→候選字→試打框，按了鈕之後眼睛只要往上抬一格就看到候選，
      不必跨過一排按鈕。夾在試打框與候選列中間會把兩個本來該連著看的東西拆開。
-     rail 一定在（try.html 的 .typebox 裡），拿不到才退回原本的位置。 */
+     rail 一定在（shida.html 的 .typebox 裡），拿不到才退回原本的位置。 */
   var padAfter = rail || out;
   if (padAfter.parentNode) padAfter.parentNode.insertBefore(padWrap, padAfter.nextSibling);
 
@@ -2039,7 +2039,7 @@
     phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
   }
 
-  /* 流暢模式：詞組連打與單字上屏擇一，畫面上就是一組單選鈕（try.html）。
+  /* 流暢模式：詞組連打與單字上屏擇一，畫面上就是一組單選鈕（shida.html）。
      互斥不是「勾一個另一個自己跳掉」的附帶行為，而是這個設定本來的形狀 ——
      IME 那邊也是互斥的（rime/lua/aiphabi_autocommit.lua 的 enforce_mutex），
      理由一樣：詞組開著時幾乎每個字後面都還接得出詞，候選永遠不只一個，

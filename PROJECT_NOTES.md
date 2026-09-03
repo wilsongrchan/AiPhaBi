@@ -937,12 +937,28 @@ or the demo starts lying. It emits:
 `stats` exists so **no number is ever hand-typed into the HTML**. The pages carry a stale fallback
 value inline (so they read correctly without JS) and `site.js` overwrites it from `dict.json`.
 
+### Page URLs are all pinyin — never mix
+
+Every subpage is named after its Chinese title in pinyin. `principles.html`, `conventional.html`
+and `try.html` were renamed to `yuanze.html`, `yueding.html` and `shida.html` on 2026-09-03
+(Wilson: "I'm okay with using either all English or all pinyin, but don't use a mix of both").
+A new page follows the same rule. `index.html` is the one exception — that filename is a server
+convention, not a page name.
+
+The three old paths still exist as **redirect stubs** (`<meta refresh>` + `noindex` + a
+`location.replace` that carries the `#hash` through), because the canonical URLs had already
+been published. Vercel additionally serves real 301s for them via `vercel.json`'s `redirects`;
+GitHub Pages is pure static and has no redirect config, so the stub files are what make it work
+there. ⚠️ Anything scanning `site/*.html` now sees **fifteen** files, twelve real pages plus
+three stubs — `build_nav.py` is safe (it keys off `pr-sidenav`, which stubs don't have), but a
+new tool that assumes "every .html is a page" will be wrong.
+
 ### What is built and what is not
 
 Built and verified — **twelve pages** as of 2026-09-03: `index.html` (landing + animation),
-`jieshao.html` 簡介, `zigen.html` 字根表, `lianxi.html` 字根練習, `principles.html` 取碼原則,
-`conventional.html` 約定字表, `jianma.html` 簡碼, `cizu.html` 詞組連打, `dingping.html` 自動上屏,
-`try.html` 線上試打, `chaima.html` 拆碼查詢, `houji.html` 後記 — plus the shared shell (side nav
+`jieshao.html` 簡介, `zigen.html` 字根表, `lianxi.html` 字根練習, `yuanze.html` 取碼原則,
+`yueding.html` 約定字表, `jianma.html` 簡碼, `cizu.html` 詞組連打, `dingping.html` 自動上屏,
+`shida.html` 線上試打, `chaima.html` 拆碼查詢, `houji.html` 後記 — plus the shared shell (side nav
 on desktop / hamburger on mobile, 繁簡 toggle, 字級 small/normal/large — all site-wide via
 `site.js`, not per-page), the deploy workflow, the generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion,
 frequency ordering, 約定簡碼 with the reverse hint, digit/space selection, 正體 punctuation.
@@ -959,24 +975,24 @@ their real 主碼; 三簡碼 has no fixed list (it's a blanket rule over any 主
 plainly that 左簡碼 is design-only, not shipped — see below.
 
 `zigen.html` also carries a 相近字形辨析 section (from `content/similar.md`, hand-written) and
-`principles.html` is new (2026-08-21): the nine 取碼原則 with worked examples. Both pages can
+`yuanze.html` is new (2026-08-21): the nine 取碼原則 with worked examples. Both pages can
 render a "正確 vs 錯誤拆法" colour diagram per example — each stroke-group gets one of six
 rainbow colours (`--rb-0`…`--rb-5`, deliberately skipping orange: red/orange/yellow read as one
 blur at small icon sizes) plus a background-coloured stroke outline so adjacent same-colour
 strokes still separate. The "correct" side is always derived from `data/codes.json` at build time
 (never hand-typed); the "wrong" side is authored by hand in `build_site_data.py`
-(`WRONG_BREAKDOWN` for `zigen.html`, `PRINCIPLE_WRONG` for `principles.html`) **only** when there's
+(`WRONG_BREAKDOWN` for `zigen.html`, `PRINCIPLE_WRONG` for `yuanze.html`) **only** when there's
 a real basis for the stroke split — either Wilson states it directly, or it's the unique remainder
 once the known groups are subtracted, or it matches an actual shape already catalogued under that
 letter in `zigen.json`. Where none of those held, the page shows the wrong code as plain text with
 no diagram rather than guessing a stroke split.
 
 **Not usable in the 試打 demo** (it must keep saying so there): 三簡碼, 左簡碼, 詞組連打, 四碼快打,
-輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞 — typing those codes in `try.html` still won't
+輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞 — typing those codes in `shida.html` still won't
 resolve. 三簡碼 and 左簡碼 now have *reference tables* on `jianma.html` (rules + real data), which is
 a different claim from "usable here" — 三簡碼 actually ships in `rime/` behind a default-off switch
 (`aiphabi_short3`), 左簡碼 does not ship anywhere yet (`rules.json`'s own note says so; it's a
-Side B build task). Neither is wired into the `try.html` lookup regardless. Also not built: the
+Side B build task). Neither is wired into the `shida.html` lookup regardless. Also not built: the
 下載安裝 page (Wilson deferred it — the site currently points at GitHub instead).
 
 ### 手機版 — the rules that keep getting broken
@@ -1060,7 +1076,7 @@ the inward-facing one. Two things it records that matter:
 
 Its 取碼原則 section was left unfinished in the source doc (stroke-order references were still
 `XXX`) — Wilson gave the complete nine-principle text directly in chat instead on 2026-08-21,
-now built into `principles.html`. `blurb.md` points at that page rather than re-quoting it.
+now built into `yuanze.html`. `blurb.md` points at that page rather than re-quoting it.
 
 ### Reference sites (content, not visual)
 

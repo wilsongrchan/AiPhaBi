@@ -10,7 +10,7 @@ heading directly, it should navigate」）。可是十二頁的 <nav> 裡各自�
 （同樣會走味）、或是建置時掃一遍現成的 HTML。這裡走第三條 —— 資料只有一份，
 就是各頁自己那份 pr-sidenav，抽出來給選單用，不可能對不上。
 
-輸出：{"principles.html": [["#pr-1", "1. 筆順"], ...], ...}
+輸出：{"yuanze.html": [["#pr-1", "1. 筆順"], ...], ...}
 """
 import html
 import json

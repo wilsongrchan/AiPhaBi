@@ -5,5 +5,22 @@
   "installCommand": "echo '沒有 npm 依賴，跳過'",
   "framework": null,
   "cleanUrls": false,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/principles.html",
+      "destination": "/yuanze.html",
+      "permanent": true
+    },
+    {
+      "source": "/conventional.html",
+      "destination": "/yueding.html",
+      "permanent": true
+    },
+    {
+      "source": "/try.html",
+      "destination": "/shida.html",
+      "permanent": true
+    }
+  ]
 }

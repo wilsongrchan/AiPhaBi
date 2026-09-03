@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>取碼原則 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法取碼時遵循的八條原則：筆順、能合不分、孤筆略過、優次等字根、先取外框、先取主幹、主碼碼長上限、約定，以及原則套用順序。">
+<!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
+     16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
+     仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
+<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
+     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
+     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
+     抓預覽的機器人不會幫你補上網域。 -->
+<link rel="canonical" href="https://www.aiphabi.com/yuanze.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/yuanze.html">
+<meta property="og:title" content="取碼原則 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="愛發筆輸入法取碼時遵循的八條原則：筆順、能合不分、孤筆略過、優次等字根、先取外框、先取主幹、主碼碼長上限、約定，以及原則套用順序。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+<!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
+<link rel="apple-touch-icon" href="assets/img/logo-180.png">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="jieshao.html">簡介</a>
+      <div class="nav-sec">
+        <span class="nav-sec-t">基礎學習</span>
+        <a href="zigen.html">字根表</a>
+        <a href="lianxi.html">字根練習</a>
+        <a href="yuanze.html">取碼原則</a>
+        <ul class="pr-sidenav">
+          <li><a href="#pr-1">1. 筆順</a></li>
+          <li><a href="#pr-2">2. 能合不分</a></li>
+          <li><a href="#pr-3">3. 孤筆略過</a></li>
+          <li><a href="#pr-4">4. 字根等級</a></li>
+          <li><a href="#pr-5">5. 先取外框</a></li>
+          <li><a href="#pr-6">6. 先取主幹</a></li>
+          <li><a href="#pr-7">7. 主碼碼長上限</a></li>
+          <li><a href="#pr-8">8. 約定</a></li>
+          <li><a href="#pr-order">原則套用順序</a></li>
+          <li><a href="#pr-walk">完整示範：「川」</a></li>
+        </ul>
+        <a href="yueding.html">約定字表</a>
+        <a href="jianma.html">簡碼</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">流暢模式</span>
+        <a href="cizu.html">詞組連打</a>
+        <a href="dingping.html">自動上屏</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">體驗工具</span>
+        <a href="shida.html">線上試打</a>
+        <a href="chaima.html">拆碼查詢</a>
+      </div>
+      <a href="houji.html">後記</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap pr-page">
+
+<p class="eyebrow">愛發筆輸入法</p>
+<h1>取碼原則</h1>
+
+<p class="lede">愛發筆輸入法在取碼時遵循以下原則：</p>
+
+<p class="pr-legend">
+  <span>下面例字圖示的顏色代表拆碼順序：</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-0"></span>第一組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-1"></span>第二組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-2"></span>第三組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-3"></span>第四組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-4"></span>第五組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot rb-5"></span>第六組</span>
+  <span class="pr-legend-item"><span class="pr-legend-dot off"></span>略過</span>
+</p>
+
+<h2 id="pr-1"><span class="pr-num">1.</span> 筆順原則</h2>
+<div class="pr-body">
+<p>取碼時按照筆順先後取碼。</p>
+<p>筆順資料參考以下網站：</p>
+<ul>
+  <li>繁體：台灣教育部《常用國字標準字體筆順學習網》
+    <a href="https://stroke-order.learningweb.moe.edu.tw" data-keep>stroke-order.learningweb.moe.edu.tw</a></li>
+  <li>簡體：漢典 <a href="https://www.zdic.net" data-keep>zdic.net</a></li>
+</ul>
+
+<div class="pr-example" data-char="火">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「火」按照筆順取 <code>VY</code>，不取 <code>YK</code> 或 <code>QYJ</code>。</p>
+</div>
+</div>
+
+<h2 id="pr-2"><span class="pr-num">2.</span> 能合不分原則</h2>
+<div class="pr-body">
+<p>可以用一個字根取盡的字形，不拆成兩個字根。</p>
+
+<div class="pr-example" data-char="雨">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「雨」取 <code>MII</code>，不取 <code>MQQQQ</code>，因<span class="pr-inline" data-char="雨" data-st="5,6">上下連續兩點</span>是屬於 <code>I</code> 的字根，不應分拆成兩個點劃。</p>
+</div>
+</div>
+
+<h2 id="pr-3"><span class="pr-num">3.</span> 孤筆略過原則</h2>
+<div class="pr-body">
+<p>
+  取碼中途如有一橫（包括一提）或一豎無法與其他筆畫組成字根時，則略過不取碼。除非該孤立橫劃或豎劃是第一筆或最後一筆，則不略過。孤立一橫取 <code>I</code>；孤立一豎取 <code>J</code>。
+</p>
+<p>
+  但在認定該橫劃或豎劃為孤立之前，應首先嘗試將該筆劃和其他筆劃組成為可取字根，如「文」字不應取 <code>QX</code>（點劃、略過橫劃、兩劃交叉），而是應該優先將點劃和橫劃組成為屬於 <code>I</code> 的字根<strong><span class="pr-inline" data-char="言" data-st="1,2">第 1、2 筆</span></strong>，取 <code>IX</code>。有些三等字根正是優等字根上或下附帶橫劃，讓該橫劃免被略過。
+</p>
+
+<div class="pr-example" data-char="文">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「文」取 <code>IX</code>，不取 <code>QX</code>。</p>
+</div>
+
+<div class="pr-example" data-char="更">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「更」取 <code>IBX</code>，因這一橫是全字第一筆，不略過。</p>
+</div>
+
+<div class="pr-example" data-char="便">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「便」取 <code>YBX</code>，不取 <code>YIBX</code>，因「更」的這一橫不再是全字的第一筆，應略過。</p>
+</div>
+
+<div class="pr-example" data-char="石">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「石」取 <code>JO</code>，不取 <code>IJO</code>，因<span class="pr-inline" data-char="石" data-st="1,2">一橫和一撇的組合</span>正是屬於 <code>J</code> 的字根，應優先取 <code>J</code>，而非認定該第一筆為孤立的橫劃。</p>
+</div>
+</div>
+
+<h2 id="pr-4"><span class="pr-num">4.</span> 字根等級原則</h2>
+<div class="pr-body">
+<p>
+  取碼時，可取優等字根不取二等字根，可取二等字根不取三等字根。大部分二等字根為橫劃和豎劃之外孤立的筆劃，如單獨一撇取 <code>J</code>；而大部分的三等字根為優等字根上或下附帶橫劃，讓該橫劃免被略過。
+</p>
+
+<div class="pr-example" data-char="美">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「美」取 <code>VEK</code>，不取 <code>VFK</code>，因取 <code>VEK</code> 時，<span class="pr-inline" data-char="美" data-st="1,2">第 1、2 筆</span>（<code>V</code>）和 <span class="pr-inline" data-char="美" data-st="3,4,5,6">第 3–6 筆</span>（<code>E</code>）都是優等字根；相反，取 <code>VFK</code> 時，<span class="pr-inline" data-char="美" data-st="1,2,3">第 1–3 筆</span>（<code>V</code>）是三等字根，<span class="pr-inline" data-char="美" data-st="4,5,6">第 4–6 筆</span>（<code>F</code>）是優等字根，所以對比字根等級之後，應取 <code>VEK</code>。</p>
+</div>
+</div>
+
+<h2 id="pr-5"><span class="pr-num">5.</span> 先取外框原則</h2>
+<div class="pr-body">
+<p>
+  為有「囗」或「匚」字形的字取碼時，應凌駕筆順先取「囗」或「匚」，再按筆順取內部字型。內部筆劃必須被外框完整包圍。
+</p>
+
+<div class="pr-example" data-char="區">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「區」取 <code>COOO</code>，不取 <code>IOOOL</code>。</p>
+</div>
+
+<div class="pr-example" data-char="樞">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「樞」取 <code>TCOOO</code>，不取 <code>COOOT</code>，因木字旁並非被「匚」包圍，所以應該先按筆順為其取碼，之後才為餘下的「區」按此原則取碼。</p>
+</div>
+</div>
+
+<h2 id="pr-6"><span class="pr-num">6.</span> 先取主幹原則</h2>
+<div class="pr-body">
+<p>
+  為有長主幹形的「木」或「大」字形的字取碼時，應凌駕筆順先取「木」或「大」，再按筆順取疊在主幹之上的字型。但不疊在主幹之外的字形，應照樣按照筆順取碼。
+</p>
+
+<div class="pr-example" data-char="東">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「東」取 <code>TB</code>，不取 <code>IBM</code>。</p>
+</div>
+
+<div class="pr-example" data-char="陳">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「陳」取 <code>PTB</code>，不取 <code>TBP</code> 或 <code>TPB</code>，因左耳旁並非疊在「木」字之上，所以應該先按筆順為其取碼，之後才為餘下的「東」按此原則取碼。</p>
+</div>
+</div>
+
+<h2 id="pr-7"><span class="pr-num">7.</span> 主碼碼長上限</h2>
+<div class="pr-body">
+<p>
+  一個字最多為其取 5 碼作為主碼。如果拆碼後發現超過 5 碼，則只取其前 4 碼和尾碼作為主碼。但其完整碼亦作為兼容碼予以收容。
+</p>
+
+<div class="pr-example" data-char="藍">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「藍」取 <code>HCKAI</code> 為主碼，兼容完整碼 <code>HCKAMI</code>。輸入兩者皆出此字。</p>
+</div>
+</div>
+
+<h2 id="pr-8"><span class="pr-num">8.</span> 約定原則</h2>
+<div class="pr-body">
+<p>
+  特定字不套用以上原則，以約定俗成方式取碼，詳見<a href="yueding.html">約定字表</a>。大多數約定表內字都是筆劃少，字形簡單，但又有多個相近字形的獨體字，唯用約定表解決重碼問題。
+</p>
+
+<div class="pr-example" data-char="天">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「天」按約定表取 <code>IXR</code>，不取 <code>IK</code> 或 <code>IY</code>。</p>
+</div>
+
+<div class="pr-example" data-char="昊">
+  <div class="pr-cards"></div>
+  <p class="pr-text">但「天」作為偏旁時，按約定表取 <code>IY</code>，所以「昊」取 <code>BIY</code>，不取 <code>BIXR</code>。</p>
+</div>
+</div>
+
+<h2 id="pr-order">原則套用順序</h2>
+<div class="pr-body">
+<p>取碼不明確時，應按以下順序用逐項原則檢驗比對。</p>
+<ol class="pr-order">
+  <li><b class="pr-rule">約定原則</b>該字是否約定表內字？如果是，則直接依表取碼，不需自行拆碼。</li>
+  <li><b class="pr-rule">先取外框／主幹原則</b>通常外框和主幹不會同時出現在一個字裏，所以此處將兩個原則並列。如果該字是含有外框或主幹字形，則應該先為外框或主幹以外的偏旁按筆順取碼，再取外框或主幹，最後取被包圍的筆劃。</li>
+  <li><b class="pr-rule">筆順原則</b>如果以上原則不適用，則按照筆劃為該字取碼。</li>
+  <li><b class="pr-rule">字根意圖</b>拆碼時，應首先確認拆法有否違反字根意圖的說明。譬如有些字根要求字形中的某一劃不能觸碰其他筆劃、或者不能被其他筆劃相交、或者某劃應該較長等等。如果其中一種拆法違反字根意圖，則應捨棄並轉用另一種拆法。</li>
+  <li><b class="pr-rule">能合不分原則</b>如果依然有多於一種拆碼方法，應用最少的字根和碼數拆碼，避免分成零碎的小字根和孤立筆劃。</li>
+  <li><b class="pr-rule">字根等級原則</b>如果依然有多於一種拆碼方法可拆出相同碼數，則應對比各種拆法所用的字根等級，儘量不用低等字根。</li>
+  <li><b class="pr-rule">兼容</b>如果比對到此項原則，依然有多於一種拆碼方法，不分勝負，則通常這些拆法所拆出的編碼都予以收容，任選其一輸入都能打出該字。候選列會提示何者為主碼，何者為兼容碼。</li>
+</ol>
+</div>
+
+<h2 id="pr-walk">完整示範：「川」字</h2>
+<div class="pr-body">
+
+<!-- 逐步示範：三張卡片一開始都不帶勾叉，只有走到「淘汰它的那一條原則」時才打叉
+     （Wilson：先掛好勾叉等於先把答案講了，就不像一步一步推）。
+     dt 上的 data-out／data-in 說明那一步淘汰誰、判定誰為正解；步進器見 principles.js。 -->
+<div class="pr-walkbox">
+  <div class="pr-sticky">
+    <div class="pr-example" data-char="川" data-order="JJJ,NJ,JN" data-labels="A,B,C" data-stepped="1">
+      <div class="pr-cards"></div>
+    </div>
+  </div>
+
+<dl class="pr-walk" data-stepper="1">
+  <dt>約定原則</dt>
+  <dd>並非約定表內字。</dd>
+
+  <dt>先取外框／主幹原則</dt>
+  <dd>並非外框或主幹形字。</dd>
+
+  <dt data-show="A,B,C">筆順原則</dt>
+  <dd>按筆順從左至右取碼，取得上面三種拆碼方法：A 取 <code>JJJ</code>、B 取 <code>NJ</code>、C 取 <code>JN</code>。</dd>
+
+  <dt data-out="B">字根意圖</dt>
+  <dd>注意拆法 B，將第一筆的撇劃和第二筆的豎劃組成 <code>N</code>，即「一撇和一豎並立」，但該字根意圖指出，「通常豎劃不比撇劃短」。而在「川」字中，絕大多數的寫法和電腦字體都將第二筆的豎劃寫得比第一筆的撇劃短（對比「弗」字中，豎劃通常不比撇劃短），所以將「川」字的第一、二筆組成 <code>N</code>，違反字根意圖，應該捨棄。</dd>
+
+  <dt data-out="A" data-in="C">能合不分原則</dt>
+  <dd>餘下的 A、C 拆法中，A 拆法將每一劃單獨取碼，最後取 3 碼；而 C 拆法將第二、三筆的兩個豎劃組成 <code>N</code>，即「兩豎並立」，而且字形亦符合字根意圖「通常右豎比左豎長」。所以應優先使用較少的碼數拆碼，捨棄 A 拆法，使用 C 拆法。</dd>
+</dl>
+
+<p class="pr-aside">
+  有人可能會指出，根據「孤筆略過原則」，A 拆法應當略過第二筆的豎，而只取 <code>JJ</code>，這樣就和 <code>JN</code> 同樣碼數。但注意，這樣會違背「孤筆略過原則」中「在認定該橫劃或豎劃為孤立之前，應首先嘗試將該筆劃和其他筆劃組成為可取字根」的要求。而且，如果取 <code>JJ</code>，即是將最後一筆的豎取形為「首劃或末劃的豎劃」，是三等字根，但 <code>N</code> 的「兩豎並立」是優等字根，應該優先取 <code>N</code> 不取 <code>J</code>。
+</p>
+</div><!-- /.pr-walkbox -->
+</div>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/principles.js"></script>
+</body>
+</html>
