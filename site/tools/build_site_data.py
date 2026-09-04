@@ -2932,6 +2932,39 @@ def build_pyphrase(phrase_dict):
     return idx
 
 
+def build_charset():
+    """〈自動上屏〉頁要用的兩份字集：常用字白名單與簡體專屬字。
+
+    ⚠️ 來源是 Side B 產生的 rime/lua/aiphabi_data.lua，**不是**在這裡重新從
+    data/standards/ 推一次。「常用字」是六路聯集（甲表 ∪ GB 2312 一級 ∪ 常見異體
+    ∪ 精選詞庫用字 ∪ 姓名用字 ∪《百家姓》∪ 常用粵語字 ∪ 手動白名單），那份定義
+    住在 build_rime.py 裡；照抄一份到這裡，兩邊遲早會走偏，而走偏的那一邊會是
+    網站——網站會用一個輸入法其實沒在用的定義，向讀者報一個數字。寧可依賴人家的
+    產出，也不要養第二個定義。
+
+    ⚠️ 欄位名 2026-09-04 從 M.biaonei 改成 M.common（Side B 的用語清理）。兩個都
+    認：部署時抓到的可能是改名還沒進 main 的那一刻。
+
+    抓不到檔或抓不到欄位就回 None —— 那一段數字整段不出現，不是印 0%。
+    """
+    lua = ROOT / "rime" / "lua" / "aiphabi_data.lua"
+    if not lua.is_file():
+        return None
+    text = lua.read_text("utf-8")
+
+    def grab(field):
+        m = re.search(r"\nM\.%s = \{(.*?)\n\}" % field, text, re.S)
+        if not m:
+            return None
+        return sorted(set(re.findall(r'\["(.+?)"\]', m.group(1))))
+
+    common = grab("common") or grab("biaonei")
+    simp = grab("simp")
+    if not common or not simp:
+        return None
+    return {"common": "".join(common), "simp": "".join(simp)}
+
+
 def main():
     codes = load("codes.json")
     rules = load("rules.json")
@@ -3284,6 +3317,10 @@ def main():
         json.dumps(dict_out, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "t2s.json").write_text(
         json.dumps(t2s, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    charset = build_charset()
+    if charset:
+        (OUT / "charset.json").write_text(
+            json.dumps(charset, ensure_ascii=False, separators=(",", ":")), "utf-8")
     if practice:
         (OUT / "practice.json").write_text(
             json.dumps(practice, ensure_ascii=False, separators=(",", ":")), "utf-8")
@@ -3315,6 +3352,12 @@ def main():
             json.dumps(pyphrase, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
+    if charset:
+        print(f"charset.json 常用字 {len(charset['common'])} / 簡體專屬 {len(charset['simp'])}"
+              f"（抄自 rime/lua/aiphabi_data.lua，〈自動上屏〉頁算常用字自動上屏率用）")
+    else:
+        print("::warning::charset.json 沒產出來（rime/lua/aiphabi_data.lua 缺檔或欄位改名），"
+              "〈自動上屏〉頁的常用字自動上屏率那一句會整段不出現")
     if practice:
         print(f"practice.json 參考文章 {len(practice['texts'])} 篇 / "
               f"{len(practice['glyphs'])} 字有字形")

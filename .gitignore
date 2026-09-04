@@ -85,6 +85,10 @@ site/assets/practice.json
 site/.cache/
 site/assets/glyphs.json
 
+# 〈自動上屏〉頁算常用字自動上屏率用的兩份字集（build_site_data.py 的
+# build_charset() 從 rime/lua/aiphabi_data.lua 抄出來，建置時產生）
+site/assets/charset.json
+
 # 手機版選單要用的章節索引（site/tools/build_nav.py 從十二頁的 HTML 現掃出來，
 # 建置時產生，跟其他資料檔一樣不進版控）
 site/assets/nav.json
