@@ -5,7 +5,7 @@
 schema:
   schema_id: aiphabi
   name: 愛發筆
-  version: "2026.09.03"
+  version: "2026.09.04"
   author:
     - wilsongrchan
   description: |
@@ -32,6 +32,8 @@ switches:
     states: [ 不打簡體關, 不打簡體開 ]
   - name: aiphabi_no_ext           # 不打表外字：濾掉生僻字（GB 2312 二級為主）；姓名／粵語／異體／詞庫用字不算表外
     states: [ 不打表外字關, 不打表外字開 ]
+  - name: aiphabi_common_only      # 只打常用字：候選只留常用字（甲表∪GB一級∪姓名／粵語／異體／詞庫回填），比不打表外字更嚴格
+    states: [ 只打常用字關, 只打常用字開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
   - name: aiphabi_short100          # 約定簡碼：手動挑的常用字，首尾兩碼
@@ -71,7 +73,7 @@ engine:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
-    - lua_filter@aiphabi_charset        # 不打表外字開關：濾掉黑名單（M.biaowai）的字；擺最後才擋得到容錯生的候選
+    - lua_filter@aiphabi_charset        # 不打表外字／只打常用字開關；擺最後才擋得到容錯生的候選
     - uniquifier
 
 speller:

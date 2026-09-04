@@ -7,8 +7,8 @@ patch:
   # 不縮成圖示，每個開關獨立一行、字打全，滑鼠點得準。
   switcher/fold_options: false
   switcher/abbreviate_options: false
-  # 一頁放得下所有項目（方案 + 開關），不用翻頁。
-  menu/page_size: 13
+  # 一頁放得下所有項目（方案 + 開關），不用翻頁。加開關要記得往上調。
+  menu/page_size: 14
   # 記住你關/開過的開關，重開鼠鬚管不會回到預設值。
   switcher/save_options:
     - full_shape
@@ -20,6 +20,7 @@ patch:
     - aiphabi_fuzzy
     - aiphabi_no_simp
     - aiphabi_no_ext
+    - aiphabi_common_only
     - aiphabi_short100
     - aiphabi_short3
     - aiphabi_left_short

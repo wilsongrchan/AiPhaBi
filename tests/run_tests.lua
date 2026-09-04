@@ -714,4 +714,43 @@ do
   end
 end
 
+print()
+print("== 只打常用字：白名單只留回填集合本身，比不打表外字更嚴格 ==")
+do
+  h.check("亶 兩張表都沒收、沒被任何回填救到：不打表外字放行，只打常用字才擋",
+    not data.biaowai["亶"] and not data.biaonei["亶"],
+    "expected biaowai 亶 = nil, biaonei 亶 = nil")
+  h.check("常用字在白名單裡（的／我／學）",
+    data.biaonei["的"] and data.biaonei["我"] and data.biaonei["學"],
+    "expected biaonei 的/我/學 = true")
+  h.check("回填的字也在白名單裡（裏 異體／睇 粵語／郗 百家姓）",
+    data.biaonei["裏"] and data.biaonei["睇"] and data.biaonei["郗"],
+    "expected biaonei 裏/睇/郗 = true")
+
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    -- 亶：不在黑名單（GB 二級沒收）、也不在白名單（沒被任何回填救到）
+    local cands = { { text = "森" }, { text = "亶" } }
+    local ext_only = h.run{ schema = schema, code = "wwwd",
+      options = { aiphabi_no_ext = true }, cands = cands }
+    h.checkPresent(schema .. " · 只打常用字關、不打表外字開 → 亶 沒被擋（比對組）",
+      ext_only, "亶", true)
+
+    local common = h.run{ schema = schema, code = "wwwd",
+      options = { aiphabi_common_only = true }, cands = cands }
+    h.checkPresent(schema .. " · 只打常用字開 → 亶 被擋", common, "亶", false)
+    h.checkPresent(schema .. " · 只打常用字開 → 森 還在", common, "森", true)
+
+    -- 兩個開關同時開：只打常用字這邊本來就更嚴，不會互相打架
+    local both = h.run{ schema = schema, code = "wwwd",
+      options = { aiphabi_no_ext = true, aiphabi_common_only = true }, cands = cands }
+    h.checkPresent(schema .. " · 兩個開關都開 → 亶 一樣被擋", both, "亶", false)
+
+    -- 標點／英數不受影響
+    local pn = h.run{ schema = schema, code = "z", options = { aiphabi_common_only = true },
+      cands = { { text = "，" }, { text = "A" } } }
+    h.checkPresent(schema .. " · 只打常用字開 → 標點（，）不受影響", pn, "，", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 英數（A）不受影響", pn, "A", true)
+  end
+end
+
 os.exit(h.report() == 0 and 0 or 1)
