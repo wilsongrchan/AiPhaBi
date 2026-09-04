@@ -829,19 +829,27 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   off, hides multi-char candidates.
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
-- **`aiphabi_charset.lua`** — 不打表外字 gate (`aiphabi_no_ext`, default off). Keeps only chars in
-  MOE 甲表 (4808) ∪ GB 2312 level 1 (3755) **∪ 傳承變體回填 (~78)** ≈ 6,250 chars; drops the
-  ~1,430 coded chars outside that, **GB 2312 level 2 included** (Wilson's spec: 二級算表外).
-  The back-fill (`build_rime.py`, `_biao_backfill`): a coded char that isn't itself in 甲表/GB but
-  whose *simplified form* is the simplified form of some char that is — i.e. a 傳承字/異體字 of a
-  standard char (裏←→裡, 啓←→啟, 歎←→嘆, 綫←→線, 鷄←→雞, 陞←→升…). Purely 簡繁一致 chars
-  that aren't in the core lists stay 表外 (that's how 粵語俗字 咩咁睇, name chars 鑫昊, and true
-  GB-2 like 孬夼 stay dropped). Add more by editing the core `.txt` lists — the back-fill follows.
-  Multi-char candidate dropped if *any* char is 表外. Runs **last** (after `aiphabi_fuzzy`, which
-  makes its own candidates) so nothing slips past; non-Han candidates (punctuation, latin) untouched.
-  Whitelist is `M.biaonei` in `aiphabi_data.lua`; on a non-local build missing `data/standards/`
-  it's empty and the toggle self-disables rather than filtering everything. Same three homes as
-  any switch (schema, plus-schema, save_options).
+- **`aiphabi_charset.lua`** — 不打表外字 gate (`aiphabi_no_ext`, default off). **Blocklist model**
+  (Wilson's refined spec, 2026-09-03): only *positively-identified* 生僻字 are dropped, everything
+  else is 表內 by default. `M.biaowai` in `aiphabi_data.lua`, built by `build_rime.py`:
+
+  > 表外 = (**GB 2312 level 2** ∪ `data/standards/biaowai_extra.txt`) − 表內回填
+
+  表內回填 = 甲表 ∪ GB 一級 ∪ 常見異體 (t2s same-simplified: 裏 啓 歎 綫 鷄…) ∪ every char in a
+  curated `data/phrases_*.txt` entry ∪ 〈試打〉頁 name chars (regex-read from `site/assets/try.js`
+  `NAME_*` consts — a Side-B build reading a Side-C file; warns if the regex misses) ∪ 《百家姓》
+  (`data/standards/baijiaxing.txt`) ∪ 常用粵語字 (`data/standards/canton_common.txt`) ∪
+  `data/standards/biaonei_extra.txt` (manual force-keep, for GB-2 chars that aren't really rare —
+  佼 亵 兖 幺…). Net: ~2,240 blocklist chars, ~961 of them coded.
+
+  **Taiwan 乙/丙/丁 deliberately NOT used as block sources** — they'd only reclassify the ~455 coded
+  chars in no GB table, most already rescued or 表內-by-default; not worth sourcing ~28k chars.
+  Leaks (obscure non-GB chars like 亶 丏) go in `biaowai_extra.txt` one at a time.
+
+  Multi-char candidate dropped if *any* char is on the blocklist. Runs **last** (after
+  `aiphabi_fuzzy`, which makes its own candidates). Non-Han candidates never match the blocklist.
+  Missing `gb2312.txt` → `M.biaowai` empty → toggle self-disables. Same three switch homes
+  (schema, plus-schema, save_options).
 
 ### Candidate comment convention (what the bar writes next to a candidate)
 

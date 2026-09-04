@@ -30,7 +30,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字＋精選詞庫的簡體詞
     states: [ 不打簡體關, 不打簡體開 ]
-  - name: aiphabi_no_ext           # 不打表外字：候選只留教育部甲表 4808 ∪ GB 2312 一級 3755；表外字（含 GB 二級）濾掉
+  - name: aiphabi_no_ext           # 不打表外字：濾掉生僻字（GB 2312 二級為主）；姓名／粵語／異體／詞庫用字不算表外
     states: [ 不打表外字關, 不打表外字開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
@@ -71,7 +71,7 @@ engine:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
-    - lua_filter@aiphabi_charset        # 不打表外字開關：關掉表外字（含 GB 二級）；擺最後才擋得到容錯生的候選
+    - lua_filter@aiphabi_charset        # 不打表外字開關：濾掉黑名單（M.biaowai）的字；擺最後才擋得到容錯生的候選
     - uniquifier
 
 speller:
