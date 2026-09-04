@@ -86,12 +86,31 @@
   var spyAt;                    // undefined ＝還沒算過，所以第一次一定會發出通知
   var spyRaf = 0;
 
-  if (sub) {
+  /* ⚠️ 這一份清單有兩件事會在載入之後才變，兩件都會讓高亮**完全不會出現**，
+     而且兩件都不報錯 —— 〈約定字表〉一頁同時中了兩個：
+
+     一、標題不一定在載入時就存在：那八個章節標題是 conventional.js 抓完 JSON
+         才畫上去的，載入當下 getElementById 全部落空。所以只記 id，元素等用得到
+         時才找，找不到下一輪再找。判斷「要不要掛捲動監聽」也只能看**連結**幾條，
+         不能看解析出幾個元素 —— 後者在那一頁載入當下是 0，監聽根本不會掛上，
+         之後就永遠不會恢復。
+     二、側邊欄那串連結本身會被整批換掉：conventional.js 的 renderSideNav() 用
+         `ul.textContent = ''` 清空再重建（它有它的道理：清單要從資料長出來，
+         手寫的那版就漏過一組）。快取住的 <a> 因此變成**已經離開文件的節點**，
+         classList 照樣加得上去，畫面上卻什麼都不會發生。所以掛一個
+         MutationObserver 盯著它，被換掉就重建這份清單。 */
+  function spyBuild() {
+    if (!sub) return;
+    var was = {};
+    spyItems.forEach(function (o) { if (o.el) was[o.id] = o.el; });
+    spyItems = [];
     [].forEach.call(sub.querySelectorAll('a[href^="#"]'), function (a) {
-      var el = document.getElementById(a.getAttribute('href').slice(1));
-      if (el) spyItems.push({ el: el, a: a });
+      var id = a.getAttribute('href').slice(1);
+      spyItems.push({ id: id, el: was[id] || null, a: a });
     });
+    spyAt = undefined;          // 清單換了，重新判一次並通知訂閱者
   }
+  spyBuild();
 
   /* 側邊欄自己也會捲（〈取碼原則〉展開章節後內容 1,065px、視窗只有 900px）。
      亮起來的那一條如果剛好在捲動範圍外，等於沒亮 —— 把側邊欄自己的 scrollTop
@@ -109,7 +128,8 @@
     spyRaf = 0;
     var hit = null;
     spyItems.forEach(function (o) {
-      if (o.el.getBoundingClientRect().top <= 90) hit = o;
+      if (!o.el) o.el = document.getElementById(o.id);
+      if (o.el && o.el.getBoundingClientRect().top <= 90) hit = o;
     });
     if (hit === spyAt) return;
     spyAt = hit;
@@ -127,6 +147,10 @@
 
   if (spyItems.length) {
     var spyQueue = function () { if (!spyRaf) spyRaf = requestAnimationFrame(spyPaint); };
+    if (window.MutationObserver) {
+      new MutationObserver(function () { spyBuild(); spyQueue(); })
+        .observe(sub, { childList: true });
+    }
     window.addEventListener('scroll', spyQueue, { passive: true });
     /* ⚠️ 版面長高時要重算：字根表那幾頁的表格是抓完 JSON 才畫的，剛載入時整頁
        還很短，錨點全擠在視窗頂端 —— 只算一次的話會亮在一個還沒讀到的章節上。 */
