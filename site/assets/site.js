@@ -71,6 +71,70 @@
     }
   }
 
+  /* ---------- 「現在讀到哪一節」：一份捲動偵測，兩個地方用（Wilson 2026-09-04）----------
+     桌面側邊欄把目前這一頁的十條章節全部列出來，卻不會告訴你人在哪一節
+     （量過：捲到 0／2500／5000，十條的樣式一模一樣）。〈取碼原則〉4,456px、
+     〈詞組連打〉6,786px、〈字根表〉15,420px —— 清單愈長，愈需要它。
+
+     ⚠️ 只有一份偵測，兩個消費者：側邊欄的高亮，與手機麵包屑的第四格。手機那一格
+     本來自己跑一輪一模一樣的迴圈；兩份「哪一節是現在」的判斷遲早會各說各的，
+     所以合成一份，其餘的用訂閱。
+     ⚠️ 判斷線是視窗頂端往下 90px：剛好在頁首底下一點，跟麵包屑原本用的同一個值，
+     換掉的話兩邊會在不同的時機跳。 */
+  var spyItems = [];
+  var spySubs = [];
+  var spyAt;                    // undefined ＝還沒算過，所以第一次一定會發出通知
+  var spyRaf = 0;
+
+  if (sub) {
+    [].forEach.call(sub.querySelectorAll('a[href^="#"]'), function (a) {
+      var el = document.getElementById(a.getAttribute('href').slice(1));
+      if (el) spyItems.push({ el: el, a: a });
+    });
+  }
+
+  /* 側邊欄自己也會捲（〈取碼原則〉展開章節後內容 1,065px、視窗只有 900px）。
+     亮起來的那一條如果剛好在捲動範圍外，等於沒亮 —— 把側邊欄自己的 scrollTop
+     推一下就好，不要用 scrollIntoView：那會連帶把**整頁**捲走。 */
+  function spyReveal(a) {
+    if (window.matchMedia('(max-width: 52rem)').matches) return;   // 手機沒有側邊欄
+    var bar = document.querySelector('.topbar');
+    if (!bar || bar.scrollHeight <= bar.clientHeight) return;
+    var r = a.getBoundingClientRect(), br = bar.getBoundingClientRect();
+    if (r.top < br.top + 8) bar.scrollTop -= (br.top + 8 - r.top);
+    else if (r.bottom > br.bottom - 8) bar.scrollTop += (r.bottom - (br.bottom - 8));
+  }
+
+  function spyPaint() {
+    spyRaf = 0;
+    var hit = null;
+    spyItems.forEach(function (o) {
+      if (o.el.getBoundingClientRect().top <= 90) hit = o;
+    });
+    if (hit === spyAt) return;
+    spyAt = hit;
+    spyItems.forEach(function (o) { o.a.classList.toggle('is-here', o === hit); });
+    if (hit) spyReveal(hit.a);
+    spySubs.forEach(function (fn) { fn(hit); });
+  }
+
+  /* 新的訂閱者要立刻拿到現況：spyPaint 只在「換了一節」時才通知，掛得晚的
+     訂閱者等不到那一次。 */
+  function spyWatch(fn) {
+    spySubs.push(fn);
+    fn(spyAt || null);
+  }
+
+  if (spyItems.length) {
+    var spyQueue = function () { if (!spyRaf) spyRaf = requestAnimationFrame(spyPaint); };
+    window.addEventListener('scroll', spyQueue, { passive: true });
+    /* ⚠️ 版面長高時要重算：字根表那幾頁的表格是抓完 JSON 才畫的，剛載入時整頁
+       還很短，錨點全擠在視窗頂端 —— 只算一次的話會亮在一個還沒讀到的章節上。 */
+    window.addEventListener('resize', spyQueue, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(spyQueue).observe(document.body);
+    spyPaint();
+  }
+
   /* ---------- 繁簡切換 ---------- */
   var KEY = 'aiphabi-site-lang';
   var SKIP = { SCRIPT: 1, STYLE: 1, CODE: 1, PRE: 1, KBD: 1, TEXTAREA: 1 };
@@ -769,19 +833,10 @@
 
       bcMain.insertBefore(bc, bcMain.firstChild);
 
+      /* 第四格跟側邊欄的高亮共用同一份捲動偵測（見上面的 spyWatch），
+         不再自己跑一輪一樣的迴圈。 */
       if (bcNow) {
-        var bcAnchors = [];
-        [].forEach.call(sub.querySelectorAll('a[href^="#"]'), function (a) {
-          var el = document.getElementById(a.getAttribute('href').slice(1));
-          if (el) bcAnchors.push({ el: el, a: a });
-        });
-        var bcRaf = 0;
-        var bcPaint = function () {
-          bcRaf = 0;
-          var hit = null;
-          bcAnchors.forEach(function (o) {
-            if (o.el.getBoundingClientRect().top <= 90) hit = o;
-          });
+        spyWatch(function (hit) {
           if (hit) {
             var t = hit.a.textContent.trim();
             if (bcNow.textContent !== t) bcNow.textContent = t;
@@ -793,15 +848,7 @@
             bcNow.classList.remove('crumb-tail');
             bcSelf.classList.add('crumb-tail');
           }
-        };
-        var bcQueue = function () { if (!bcRaf) bcRaf = requestAnimationFrame(bcPaint); };
-        window.addEventListener('scroll', bcQueue, { passive: true });
-        /* ⚠️ 也要在版面長高時重算。字根表那幾頁的表格是抓完 JSON 才畫的，剛載入
-           時整頁還很短，錨點全都在視窗頂端附近 —— 只在載入時算一次的話，捲動
-           之前那一格會顯示一個根本還沒讀到的章節。 */
-        window.addEventListener('resize', bcQueue, { passive: true });
-        if (window.ResizeObserver) new ResizeObserver(bcQueue).observe(document.body);
-        bcPaint();
+        });
       }
     }
   }

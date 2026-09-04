@@ -5286,3 +5286,15 @@ body { transition: padding-inline-start .24s cubic-bezier(.22, .61, .36, 1); }
 @media (prefers-reduced-motion: reduce) {
   .topbar, body, .navmin, .navmin-arrow { transition: none; }
 }
+
+/* ---------- 23. 側邊欄的章節清單：標出「現在讀到哪一節」（Wilson 2026-09-04）----------
+   ⚠️ 這一條必須排在檔案上半部那條
+   `nav.site .pr-sidenav a[aria-current="page"] { font-weight: 400; … }` **後面**。
+   兩者權重一模一樣（三個 class ＋兩個元素），同權重時純看先後 —— 寫在前面的話
+   十條錨點全部被那條「取消高亮」壓掉，亮不起來。那條存在的理由見它自己的說明：
+   章節錨點跟頁面共用網址路徑，會被一起標成 aria-current，那不是「你在哪一頁」。 */
+nav.site .pr-sidenav a.is-here {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--accent-soft);
+}
