@@ -203,12 +203,15 @@
   var CS = null;
 
   /* ── 常用字自動上屏率（Wilson 2026-09-04）──────────────────────────────
-     「當詞庫中 7000+ 字都在候選池中，但我心中只想打當中的常見繁體字時，自動上屏
-     率是多少，vs 把簡體字和生僻字從候選池去掉之後是多少」。
+     打開〈只打常用字〉與〈不打簡體〉之後，**已取碼的常用繁體字**裡有多少可以自動
+     上屏。分母與分子都只算這一批字：生僻字自己上屏不算分，也不佔分母。
 
-     ⚠️ 兩邊的**分母是同一批字**（已取碼的常用繁體字）。這是整個算法的重點：
-     生僻字自己上屏不算分，所以「把生僻字踢出去」不會因為分母變小而虛胖 ——
-     多出來的每一個字，都是真的因為不再被自己不會打的字擋著才自己出來的。
+     ⚠️ 分母（5,118）跟上一句的分母（7,682 個已取碼的字）**不是同一批**。兩個
+     百分比因此不能直接相減 —— 同一批字上的差距是 75% → 78%，不是 74% → 78%。
+     那個 75% 曾經寫在這一句裡，Wilson 2026-09-04 定稿時拿掉了；句子本身有講明
+     「那 5,118 個已取碼的常用繁體字裡」，所以說的仍然是真的。
+     ⚠️ 要是哪天想把差距寫回去，基準是 mainMap(null) 在同一批 pool 上的結果
+     （3,820／75%），不是上一句的 5,676。
 
      ⚠️ 用「只剩主碼」的碼表算，跟上一句同一個模型。上一句講的就是三簡碼／左簡碼／
      偏旁碼／容錯碼都關掉之後的樣子；一句用全開的碼表、一句用關掉的，兩個百分比
@@ -254,10 +257,10 @@
         return true;
       };
     }
-    var wide = soleIn(mainMap(null)), tight = soleIn(mainMap(pool));
-    var a = 0, b = 0;
-    for (ch in pool) { if (wide(ch)) a++; if (tight(ch)) b++; }
-    return { denom: denom, wide: a, tight: b };
+    var tight = soleIn(mainMap(pool));
+    var b = 0;
+    for (ch in pool) { if (tight(ch)) b++; }
+    return { denom: denom, tight: b };
   }
 
   function paint(d) {
@@ -304,19 +307,16 @@
       if (lone) off++;
     }
     put('ac-off-line', '關掉之後，全部 ' + nf(all) + ' 個已取碼的字裡，有 ' + nf(off) +
-        ' 個（' + Math.round(off * 100 / all) + '%）打完主碼就自己出字（上面那個 ' +
-        Math.round(solo * 100 / all) + '% 是連兼容碼一起算的）。');
+        ' 個（' + Math.round(off * 100 / all) + '%）可以在打完主碼後自動上屏。');
 
     var cr = commonRate(CS);
     var crNode = document.getElementById('ac-common-line');
     if (crNode) {
       if (cr) {
-        crNode.textContent = '如果再打開〈只打常用字〉與〈不打簡體〉，把生僻字與簡體專屬字'
-          + '整批移出候選池，那 ' + nf(cr.denom) + ' 個已取碼的常用繁體字裡，打完主碼就'
-          + '自己出字的會從 ' + nf(cr.wide) + ' 個（'
-          + Math.round(cr.wide * 100 / cr.denom) + '%）增加到 ' + nf(cr.tight) + ' 個（'
-          + Math.round(cr.tight * 100 / cr.denom) + '%）——兩邊數的都是同一批字，'
-          + '多出來的 ' + nf(cr.tight - cr.wide) + ' 個，是本來被自己根本不會打的字擋著的。';
+        crNode.textContent = '在日常使用中還能打開〈只打常用字〉與〈不打簡體〉，'
+          + '把生僻字與簡體字移出候選池，那 ' + nf(cr.denom) + ' 個已取碼的常用繁體字裡，'
+          + nf(cr.tight) + ' 個（' + Math.round(cr.tight * 100 / cr.denom)
+          + '%）可以自動上屏。';
       } else {
         // 沒有字集資料就整句不出現，不要印一個算不出來的百分比
         crNode.parentNode.removeChild(crNode);
