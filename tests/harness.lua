@@ -96,7 +96,7 @@ function M.run(opts)
   order.func(makeInput(afterHint), env)
   local afterOrder = sink
 
-  -- schema 的 filter 鏈：order 之後、uniquifier 之前掛 aiphabi_charset（不打表外字）
+  -- schema 的 filter 鏈：order 之後、uniquifier 之前掛 aiphabi_charset（只打常用字）
   sink = {}
   charset(makeInput(afterOrder), env)
   local afterCharset = sink

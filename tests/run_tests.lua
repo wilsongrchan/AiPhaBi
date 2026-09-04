@@ -664,88 +664,52 @@ do
 end
 
 print()
-print("== 不打表外字：黑名單濾掉生僻字（GB 二級為主），姓名／粵語／異體／詞庫用字回填 ==")
+print("== 只打常用字：白名單只留甲表∪GB一級∪回填（異體／詞庫／姓名／百家姓／粵語／手動）==")
 do
-  h.check("黑名單有載到（Wilson 舉例的生僻字 苤／哿／陧 都在）",
-    data.biaowai["苤"] and data.biaowai["哿"] and data.biaowai["陧"],
-    "expected biaowai 苤/哿/陧 = true")
-  h.check("常見字不在黑名單（的／我／學）",
-    not data.biaowai["的"] and not data.biaowai["我"] and not data.biaowai["學"],
-    "expected biaowai 的/我/學 = nil")
-  h.check("常見異體不在黑名單（裏／啓／歎／綫／鷄）",
-    not data.biaowai["裏"] and not data.biaowai["啓"] and not data.biaowai["歎"]
-      and not data.biaowai["綫"] and not data.biaowai["鷄"],
-    "expected biaowai 裏/啓/歎/綫/鷄 = nil")
-  h.check("粵語字回填：睇 雖是 GB 二級，但收在 canton_common.txt → 不在黑名單",
-    not data.biaowai["睇"] and not data.biaowai["咁"] and not data.biaowai["啲"],
-    "expected biaowai 睇/咁/啲 = nil")
-  h.check("百家姓罕見姓氏用字不在黑名單（郗／璩／逄）",
-    not data.biaowai["郗"] and not data.biaowai["璩"] and not data.biaowai["逄"],
-    "expected biaowai 郗/璩/逄 = nil")
-
-  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
-    -- 模擬：某段碼同時吐出一個常見字（森）跟一個生僻字（苤，GB 二級）。
-    local cands = { { text = "森" }, { text = "苤" } }
-    local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
-    h.checkPresent(schema .. " · 不打表外字關 → 苤 照常在", off, "苤", true)
-
-    local on = h.run{ schema = schema, code = "wwwd",
-      options = { aiphabi_no_ext = true }, cands = cands }
-    h.checkPresent(schema .. " · 不打表外字開 → 苤 被濾掉", on, "苤", false)
-    h.checkPresent(schema .. " · 不打表外字開 → 森 還在", on, "森", true)
-
-    -- 回填的字（睇 粵語、裏 異體）開關開著也留下來
-    local kept = h.run{ schema = schema, code = "buhn", options = { aiphabi_no_ext = true },
-      cands = { { text = "睇" }, { text = "裏" } } }
-    h.checkPresent(schema .. " · 不打表外字開 → 粵語字 睇 留著", kept, "睇", true)
-    h.checkPresent(schema .. " · 不打表外字開 → 異體 裏 留著", kept, "裏", true)
-
-    -- 多字候選：一個字在黑名單，整條濾掉
-    local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_no_ext = true },
-      cands = { { text = "森林" }, { text = "苤苤" } } }
-    h.checkPresent(schema .. " · 不打表外字開 → 乾淨的詞（森林）留著", ph, "森林", true)
-    h.checkPresent(schema .. " · 不打表外字開 → 含生僻字的詞（苤苤）濾掉", ph, "苤苤", false)
-
-    -- 標點／英數不進黑名單，開關開著也不能誤濾
-    local pn = h.run{ schema = schema, code = "z", options = { aiphabi_no_ext = true },
-      cands = { { text = "，" }, { text = "A" } } }
-    h.checkPresent(schema .. " · 不打表外字開 → 標點（，）不受影響", pn, "，", true)
-    h.checkPresent(schema .. " · 不打表外字開 → 英數（A）不受影響", pn, "A", true)
-  end
-end
-
-print()
-print("== 只打常用字：白名單只留回填集合本身，比不打表外字更嚴格 ==")
-do
-  h.check("亶 兩張表都沒收、沒被任何回填救到：不打表外字放行，只打常用字才擋",
-    not data.biaowai["亶"] and not data.biaonei["亶"],
-    "expected biaowai 亶 = nil, biaonei 亶 = nil")
   h.check("常用字在白名單裡（的／我／學）",
     data.biaonei["的"] and data.biaonei["我"] and data.biaonei["學"],
     "expected biaonei 的/我/學 = true")
-  h.check("回填的字也在白名單裡（裏 異體／睇 粵語／郗 百家姓）",
-    data.biaonei["裏"] and data.biaonei["睇"] and data.biaonei["郗"],
-    "expected biaonei 裏/睇/郗 = true")
+  h.check("常見異體在白名單裡（裏／啓／歎／綫／鷄）",
+    data.biaonei["裏"] and data.biaonei["啓"] and data.biaonei["歎"]
+      and data.biaonei["綫"] and data.biaonei["鷄"],
+    "expected biaonei 裏/啓/歎/綫/鷄 = true")
+  h.check("粵語字回填：睇／咁／啲 在白名單裡（canton_common.txt）",
+    data.biaonei["睇"] and data.biaonei["咁"] and data.biaonei["啲"],
+    "expected biaonei 睇/咁/啲 = true")
+  h.check("百家姓罕見姓氏用字在白名單裡（郗／璩／逄）",
+    data.biaonei["郗"] and data.biaonei["璩"] and data.biaonei["逄"],
+    "expected biaonei 郗/璩/逄 = true")
+  h.check("真正的生僻字不在白名單裡（苤／哿／陧，GB 二級也沒被任何回填救到）",
+    not data.biaonei["苤"] and not data.biaonei["哿"] and not data.biaonei["陧"],
+    "expected biaonei 苤/哿/陧 = nil")
+  h.check("兩張表都沒收、也沒被任何回填救到的字一樣濾掉（亶／丏／㐬）",
+    not data.biaonei["亶"] and not data.biaonei["丏"] and not data.biaonei["㐬"],
+    "expected biaonei 亶/丏/㐬 = nil")
 
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
-    -- 亶：不在黑名單（GB 二級沒收）、也不在白名單（沒被任何回填救到）
-    local cands = { { text = "森" }, { text = "亶" } }
-    local ext_only = h.run{ schema = schema, code = "wwwd",
-      options = { aiphabi_no_ext = true }, cands = cands }
-    h.checkPresent(schema .. " · 只打常用字關、不打表外字開 → 亶 沒被擋（比對組）",
-      ext_only, "亶", true)
+    -- 模擬：某段碼同時吐出一個常見字（森）跟一個生僻字（苤，GB 二級，沒被回填救到）。
+    local cands = { { text = "森" }, { text = "苤" } }
+    local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
+    h.checkPresent(schema .. " · 只打常用字關 → 苤 照常在", off, "苤", true)
 
-    local common = h.run{ schema = schema, code = "wwwd",
+    local on = h.run{ schema = schema, code = "wwwd",
       options = { aiphabi_common_only = true }, cands = cands }
-    h.checkPresent(schema .. " · 只打常用字開 → 亶 被擋", common, "亶", false)
-    h.checkPresent(schema .. " · 只打常用字開 → 森 還在", common, "森", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 苤 被濾掉", on, "苤", false)
+    h.checkPresent(schema .. " · 只打常用字開 → 森 還在", on, "森", true)
 
-    -- 兩個開關同時開：只打常用字這邊本來就更嚴，不會互相打架
-    local both = h.run{ schema = schema, code = "wwwd",
-      options = { aiphabi_no_ext = true, aiphabi_common_only = true }, cands = cands }
-    h.checkPresent(schema .. " · 兩個開關都開 → 亶 一樣被擋", both, "亶", false)
+    -- 回填的字（睇 粵語、裏 異體）開關開著也留下來
+    local kept = h.run{ schema = schema, code = "buhn", options = { aiphabi_common_only = true },
+      cands = { { text = "睇" }, { text = "裏" } } }
+    h.checkPresent(schema .. " · 只打常用字開 → 粵語字 睇 留著", kept, "睇", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 異體 裏 留著", kept, "裏", true)
 
-    -- 標點／英數不受影響
+    -- 多字候選：一個字不在白名單，整條濾掉
+    local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_common_only = true },
+      cands = { { text = "森林" }, { text = "苤苤" } } }
+    h.checkPresent(schema .. " · 只打常用字開 → 乾淨的詞（森林）留著", ph, "森林", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 含生僻字的詞（苤苤）濾掉", ph, "苤苤", false)
+
+    -- 標點／英數不是漢字，開關開著也不能誤濾
     local pn = h.run{ schema = schema, code = "z", options = { aiphabi_common_only = true },
       cands = { { text = "，" }, { text = "A" } } }
     h.checkPresent(schema .. " · 只打常用字開 → 標點（，）不受影響", pn, "，", true)

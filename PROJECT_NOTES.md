@@ -829,35 +829,36 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   off, hides multi-char candidates.
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
-- **`aiphabi_charset.lua`** — two related gates, one shared 回填 set (Wilson's refined spec,
-  2026-09-03/04), computed once in `build_rime.py` as `_keep`:
+- **`aiphabi_charset.lua`** — 只打常用字 gate (`aiphabi_common_only`, default off). **Whitelist
+  model** (Wilson's spec, settled 2026-09-04 after a false start — see history below): `M.biaonei`
+  in `aiphabi_data.lua`, built by `build_rime.py` as `_keep`:
 
-  回填 = 甲表 ∪ GB 一級 ∪ 常見異體 (t2s same-simplified: 裏 啓 歎 綫 鷄…) ∪ every char in a
+  常用字 = 甲表 ∪ GB 一級 ∪ 常見異體 (t2s same-simplified: 裏 啓 歎 綫 鷄…) ∪ every char in a
   curated `data/phrases_*.txt` entry ∪ 〈試打〉頁 name chars (regex-read from `site/assets/try.js`
   `NAME_*` consts — a Side-B build reading a Side-C file; warns if the regex misses) ∪ 《百家姓》
   (`data/standards/baijiaxing.txt`) ∪ 常用粵語字 (`data/standards/canton_common.txt`) ∪
-  `data/standards/biaonei_extra.txt` (manual force-keep, for GB-2 chars that aren't really rare —
-  佼 亵 兖 幺…). ~6,450 chars, ~6,410 of them coded.
+  `data/standards/biaonei_extra.txt` (manual force-keep, for chars that aren't really rare but
+  fell through every other net — 佼 亵 兖 幺…). ~6,450 chars, ~6,410 of them coded; everything
+  outside that whitelist is dropped — **including the ~455 coded chars in no GB table at all**
+  (亶 丏 㐬…), not just GB-2312-level-2 ones (苤 陧 哿…). ~1,272 coded chars blocked total.
 
-  - **`aiphabi_no_ext`** (不打表外字, default off) — **blocklist**, `M.biaowai`:
-    表外 = (GB 2312 level 2 ∪ `biaowai_extra.txt`) − 回填. Only *positively-identified* 生僻字
-    are dropped, everything else 表內 by default. ~2,240 blocklist chars, ~961 coded.
-  - **`aiphabi_common_only`** (只打常用字, default off, added 2026-09-04) — **whitelist**,
-    `M.biaonei` = 回填 itself. Only the ~6,450-char 回填 set passes; everything outside it is
-    blocked, **including the ~455 coded chars in no GB table at all** that 不打表外字 leaves
-    alone (亶 丏 㐬…) — strictly stricter. ~1,272 coded chars blocked. Both switches can be on
-    at once without conflict (只打常用字 is already the tighter constraint).
+  **Taiwan 乙/丙/丁 deliberately not used as a data source** — see the 乙/丙/丁 discussion in the
+  git log (`8019f26`) for the reasoning; it still holds under the whitelist model. Leaks (a common
+  char the whitelist missed) go in `biaonei_extra.txt` one at a time.
 
-  **Taiwan 乙/丙/丁 deliberately NOT used as a data source for either** — they'd only reclassify
-  the ~455 no-GB-table chars, most already rescued or (for 不打表外字) 表內-by-default; not worth
-  sourcing ~28k chars. Leaks go in `biaowai_extra.txt` (force-block) or `biaonei_extra.txt`
-  (force-keep) one at a time.
-
-  Multi-char candidate dropped if *any* char fails either active check. Runs **last** (after
+  Multi-char candidate dropped if *any* char isn't on the whitelist. Runs **last** (after
   `aiphabi_fuzzy`, which makes its own candidates). Non-Han candidates (punctuation, latin) never
-  match either list. Missing `gb2312.txt` → both tables empty → both toggles self-disable.
-  **Two switches, same three homes each** (schema, plus-schema, save_options; `menu/page_size`
-  bumped 13→14 in `default.custom.yaml` to keep the whole switcher on one page).
+  checked. Missing `data/standards/` → `M.biaonei` empty → toggle self-disables. Same three switch
+  homes (schema, plus-schema, save_options).
+
+  **History**: shipped 2026-09-03 as `aiphabi_no_ext` (不打表外字, a *blocklist* — only GB-2312
+  level 2 dropped, everything else 表內 by default). Wilson asked for the stricter whitelist form
+  next (`aiphabi_common_only`, 只打常用字) — briefly shipped **both** switches side by side sharing
+  the same 回填, then Wilson pointed out two toggles serving the same purpose is just confusing UX
+  and asked to replace, not add. `aiphabi_no_ext` is fully removed (schema, plus-schema,
+  save_options in both `default.custom.yaml` copies, `M.biaowai`, `biaowai_extra.txt` deleted);
+  `menu/page_size` in `default.custom.yaml` is back to 13 (was bumped to 14 for the two-switch
+  version). Net: repo ends up with **one** switch, `aiphabi_common_only`.
 
 ### Candidate comment convention (what the bar writes next to a candidate)
 

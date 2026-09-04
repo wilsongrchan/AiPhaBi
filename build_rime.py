@@ -56,10 +56,9 @@ def seed_default_options(path):
     「新加、從沒進過 user.yaml」的開關：選單開了，切一次英文再回來就變回關。種一條
     false 進去，往後 Rime 每次重建都會照著還原，選單再切也是改一條現成的 key。"""
     on_by_default = ["aiphabi_family", "aiphabi_comp", "aiphabi_fuzzy", "aiphabi_short100"]
-    off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_no_ext",
-                      "aiphabi_common_only", "aiphabi_autocommit", "aiphabi_short3",
-                      "aiphabi_left_short", "aiphabi_phrase", "full_shape", "ascii_punct",
-                      "prediction"]
+    off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_common_only",
+                      "aiphabi_autocommit", "aiphabi_short3", "aiphabi_left_short",
+                      "aiphabi_phrase", "full_shape", "ascii_punct", "prediction"]
     seeds = [(k, "true") for k in on_by_default] + [(k, "false") for k in off_by_default]
     lines = path.read_text("utf-8").splitlines() if path.exists() else []
     var_i = next((i for i, l in enumerate(lines) if l == "var:"), None)
@@ -335,24 +334,24 @@ def main():
     )
     simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED)
 
-    # 不打表外字（aiphabi_no_ext 開關）：開了之後候選只留「表內字」。定義是「黑名單」
-    # ——正面指認為生僻的才擋，其餘一律當表內：
+    # 只打常用字（aiphabi_common_only 開關）：開了之後候選只留「常用字」。白名單模型
+    # ——只有下面這個回填集合裡的字放行，其餘一律擋掉（含「兩張表都沒收」的生僻字，
+    # 如 亶 丏 㐬）：
     #
-    #   表外字 = （GB 2312 二級漢字  ∪  data/standards/biaowai_extra.txt 手動補的）
-    #            −  表內回填（下列全部）
+    #   常用字 = 甲表 4808  ∪  GB 2312 一級 3755
+    #          ∪ 常見異體（裏 啓 歎 綫 鷄…：跟某個常用字對到同一個簡體）
+    #          ∪ 精選詞庫（data/phrases_*.txt）裡出現的字
+    #          ∪ 〈試打〉頁的常用姓氏／男名／女名用字（從 site/assets/try.js 現讀）
+    #          ∪ 《百家姓》姓氏用字（data/standards/baijiaxing.txt）
+    #          ∪ 常用粵語字（data/standards/canton_common.txt）
+    #          ∪ data/standards/biaonei_extra.txt（手動補的，甲表／GB 一級沒收又漏了
+    #            回填、但其實很常見的字，如 佼 亵 兖 幺）
     #
-    #   表內回填 = 甲表 4808  ∪  GB 2312 一級 3755
-    #            ∪ 常見異體（裏 啓 歎 綫 鷄…：跟某個表內字對到同一個簡體）
-    #            ∪ 精選詞庫（data/phrases_*.txt）裡出現的字
-    #            ∪ 〈試打〉頁的常用姓氏／男名／女名用字（從 site/assets/try.js 現讀）
-    #            ∪ 《百家姓》姓氏用字（data/standards/baijiaxing.txt）
-    #            ∪ 常用粵語字（data/standards/canton_common.txt）
+    # 台灣乙／丙／丁表刻意不當額外資料來源：拿它們去反過來「證明某字真的罕見」，
+    # 頂多再篩掉一批本來就不在上面任何一份清單裡的字，為此另外抓 ~28000 字的三張表
+    # 來維護不值得——不在清單裡就已經打不出來了，判斷結果沒有實質差異。
     #
-    # 台灣乙／丙／丁表刻意不當黑名單來源：它們只能影響「GB 完全沒收」的那批字，而那批
-    # 大多已被上面的回填救回、或依定義本就算表內，真正多擋到的生僻字沒幾個，不值得
-    # 為此另外抓 ~28000 字的三張表來維護。漏網的用 biaowai_extra.txt 一個一個補。
-    #
-    # 產出 M.biaowai（字→true 的黑名單）給 Lua filter；缺 gb2312.txt 時為空、開關自動失效。
+    # 產出 M.biaonei（字→true 的白名單）給 Lua filter；缺 gb2312.txt 時為空、開關自動失效。
     def _load_standard(fname):
         p = DATA / "standards" / fname
         if not p.exists():
@@ -385,9 +384,7 @@ def main():
         return {c for c in out if "㐀" <= c <= "鿿"}
 
     _tw_common = _load_standard("tw_common_4808.txt")
-    _gb_all = _load_standard("gb2312.txt")
-    _gb_level1 = _gb_all[:3755]                           # 一級 = 前 3755（拼音序）
-    _gb_level2 = set(_gb_all[3755:])                      # 二級（黑名單主來源）
+    _gb_level1 = _load_standard("gb2312.txt")[:3755]      # 一級 = 前 3755（拼音序）
     _biao_core = set(_tw_common) | set(_gb_level1)
 
     # 表內回填
@@ -416,14 +413,7 @@ def main():
     _keep_manual = set(_load_standard("biaonei_extra.txt"))   # 手動強制留（GB 二級擋過頭時補這裡）
     _keep |= (_keep_variant | _keep_phrase | _keep_name | _keep_surname
               | _keep_canton | _keep_manual)
-
-    # 兩個開關共用同一份回填（_keep），方向相反：
-    #   不打表外字（aiphabi_no_ext）　　＝黑名單，只擋 GB 二級／手動補，其餘預設表內
-    #   只打常用字（aiphabi_common_only）＝白名單，只留 _keep 本身，其餘（含「兩張表都
-    #     沒收」的那批生僻字，如 亶 丏 㐬）一律擋掉——比不打表外字更嚴格。
-    _biaowai_extra = set(_load_standard("biaowai_extra.txt"))
-    biaowai = (_gb_level2 | _biaowai_extra) - _keep     # 黑名單：正面指認為生僻的，扣掉回填
-    biaonei = set(_keep)                                # 白名單：常用字 = 回填集合本身
+    biaonei = set(_keep)                                # 白名單：常用字＝回填集合本身
 
     by_len = defaultdict(list)
     for code in code2chars:
@@ -756,9 +746,6 @@ def main():
     dl += ["}", "M.simp_phrase = {"]    # 不打簡體要濾掉的詞（精選詞庫逐字簡化的寫法，見上）
     for w in sorted(simp_phrases):
         dl.append(f'  [{lua_str(w)}]=true,')
-    dl += ["}", "M.biaowai = {"]        # 表外字黑名單（GB 二級 + 手動補，扣掉回填）；aiphabi_no_ext 開關控制
-    for c in sorted(biaowai):
-        dl.append(f'  [{lua_str(c)}]=true,')
     dl += ["}", "M.biaonei = {"]        # 常用字白名單（回填集合本身）；aiphabi_common_only 開關控制
     for c in sorted(biaonei):
         dl.append(f'  [{lua_str(c)}]=true,')
@@ -877,9 +864,7 @@ switches:
     states: [ 容錯關, 容錯開 ]
   - name: aiphabi_no_simp          # 不打簡體：候選只留繁體字／傳承字，濾掉簡體專屬字＋精選詞庫的簡體詞
     states: [ 不打簡體關, 不打簡體開 ]
-  - name: aiphabi_no_ext           # 不打表外字：濾掉生僻字（GB 2312 二級為主）；姓名／粵語／異體／詞庫用字不算表外
-    states: [ 不打表外字關, 不打表外字開 ]
-  - name: aiphabi_common_only      # 只打常用字：候選只留常用字（甲表∪GB一級∪姓名／粵語／異體／詞庫回填），比不打表外字更嚴格
+  - name: aiphabi_common_only      # 只打常用字：候選只留常用字（甲表∪GB一級∪姓名／粵語／異體／詞庫回填），其餘生僻字整個濾掉
     states: [ 只打常用字關, 只打常用字開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
@@ -912,7 +897,7 @@ engine:
     - lua_filter@aiphabi_hint           # 同類字 + 偏旁碼 + 打繁出簡 + 打簡出繁 提示
     - lua_filter@aiphabi_fuzzy          # 輸入容錯（漏碼/多碼/隔壁鍵/打反）
     - lua_filter@aiphabi_order          # 候選重排：簡碼 → 主碼exact → 其餘照 選過/常用度
-    - lua_filter@aiphabi_charset        # 不打表外字／只打常用字開關；擺最後才擋得到容錯生的候選
+    - lua_filter@aiphabi_charset        # 只打常用字開關；擺最後才擋得到容錯生的候選
     - uniquifier
 
 speller:
@@ -1119,19 +1104,16 @@ Weasel／fcitx5-rime 多半內建）：
     for comp, ch, full in leftshort_skipped:
         # 名單跟碼表對不上：Side A 改了這個字的碼，左簡碼家族名單要跟著更新。
         print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
-    if _gb_level2:
-        _ext_coded = sum(1 for c in codes if c in biaowai)
+    if _biao_core:
         _common_coded = sum(1 for c in codes if c in biaonei)
-        print(f"回填（兩個開關共用）：異體 {len(_keep_variant)}／"
+        print(f"只打常用字：白名單 {len(biaonei)} 字（甲表 {len(_tw_common)} ∪ GB 一級 "
+              f"{len(_gb_level1)} ∪ 回填：異體 {len(_keep_variant)}／"
               f"詞庫 {len(_keep_phrase & set(codes))}／名字 {len(_keep_name & set(codes))}／"
               f"百家姓 {len(_keep_surname & set(codes))}／粵語 {len(_keep_canton & set(codes))}／"
-              f"手動 {len(_keep_manual & set(codes))}")
-        print(f"不打表外字：黑名單 {len(biaowai)} 字（GB 二級 {len(_gb_level2)}"
-              f" + 手動補 {len(_biaowai_extra)}，扣掉回填）；碼表裡會被濾掉的 {_ext_coded} 字")
-        print(f"只打常用字：白名單 {len(biaonei)} 字（回填集合本身）；"
+              f"手動 {len(_keep_manual & set(codes))}）；"
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
-        print("  ⚠ data/standards/gb2312.txt 缺檔 —— M.biaowai／M.biaonei 為空，兩個開關都會自動失效")
+        print("  ⚠ data/standards/ 缺檔 —— M.biaonei 為空，只打常用字開關會自動失效")
     print(f"字 {char_count}　碼 {len(entries)}　重碼組 {len(dups)}")
     print(f"寫出：{OUT}/aiphabi.schema.yaml、aiphabi.dict.yaml、README.md")
 
