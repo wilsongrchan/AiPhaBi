@@ -967,6 +967,23 @@ or the demo starts lying. It emits:
 `stats` exists so **no number is ever hand-typed into the HTML**. The pages carry a stale fallback
 value inline (so they read correctly without JS) and `site.js` overwrites it from `dict.json`.
 
+Two more generated files, both added 2026-09-04, both gitignored, both produced by a build step
+that had to be added to **`vercel-build.sh` and `pages.yml` together**:
+
+| file | tool | why it is generated rather than written |
+|---|---|---|
+| `nav.json` | `site/tools/build_nav.py` | every page's mobile menu can expand **any** page's section list. The lists live in six `*.html` files as `<ul class="pr-sidenav">`; copying them into twelve navs, or hardcoding a table in `site.js`, would both go stale. The tool scans the HTML. |
+| `charset.json` | `build_charset()` inside `build_site_data.py` | 〈自動上屏〉's 常用字自動上屏率 needs the 常用字 whitelist and the 簡體專屬 set. Both are copied out of **Side B's** `rime/lua/aiphabi_data.lua` (`M.common`, `M.simp`). |
+
+⚠️ `charset.json` is the first time a Side C build artifact depends on a Side B **generated** file.
+Do not re-derive 常用字 from `data/standards/` here — it is a six-way union (甲表 4,808 ∪ GB 2312
+一級 3,755 ∪ 常見異體 ∪ 精選詞庫用字 ∪ 姓名用字 ∪《百家姓》∪ 常用粵語字 ∪ 手動白名單, total
+**6,446**) whose definition lives in `build_rime.py`. A second implementation drifts, and the one
+that drifts is the website — which would then report a number for a rule the IME does not apply.
+`build_charset()` accepts `M.common` **or** the older `M.biaonei` (Side B renamed it on 2026-09-04),
+and returns `None` if it finds neither, which makes the sentence disappear rather than print an
+uncomputable percentage.
+
 ### Page URLs are all pinyin — never mix
 
 Every subpage is named after its Chinese title in pinyin. `principles.html`, `conventional.html`
@@ -1029,6 +1046,54 @@ a different claim from "usable here" — 三簡碼 actually ships in `rime/` beh
 Side B build task). Neither is wired into the `shida.html` lookup regardless. Also not built: the
 下載安裝 page (Wilson deferred it — the site currently points at GitHub instead).
 
+### 桌面版的版面模型（2026-09-04 改過，動版面前先讀）
+
+The whole layout is driven by four custom properties on `:root`:
+
+```css
+--nav-w:    12.5rem                                   /* 側邊欄寬；收起來時 0 */
+--nav-gap:  3rem                                      /* 側邊欄與正文之間；收起來時 0 */
+--page-w:   calc(var(--nav-w) + var(--nav-gap) + 58rem)
+--page-pad: max(0px, calc((100% - var(--page-w)) / 2))
+```
+
+`.topbar` starts at `--page-pad`, `body` pads by `--page-pad + --nav-w + --nav-gap`, and
+`main.wrap` / `footer.wrap` are **left-aligned** (`margin-inline-start: 0`). Collapsing the sidebar
+只改 `--nav-w`／`--nav-gap`，其餘自己跟上。
+
+- ⚠️ **`100%`, never `100vw`.** `100vw` includes the scrollbar (~15px); computing the padding from
+  it makes the page 15px wider than the viewport and every page grows a horizontal scrollbar.
+  Custom properties are substituted textually, so the same `100%` resolves against the viewport
+  inside `.topbar` (fixed) and against `<html>` inside `body`, and the two agree.
+- ⚠️ `main.wrap` must not keep `margin: 0 auto`. Before this change the sidebar was pinned to the
+  window edge while the text column centred itself in the remainder, so a dead band opened between
+  them that **grew with the screen**: 76px at 1280, 309px at 1745, 396px at 1920, 716px at 2560.
+  Auto margins would hand half of that back.
+- Collapsing the sidebar **does not widen the text.** `main.wrap` is capped at 58rem, so it measures
+  928px at 1280 and at 2560 alike. The collapse tab is a clear-the-screen control; do not sell it
+  as a reading-width one.
+- The collapse tab (`.navmin`) is `position: fixed` on `<body>`, **not** inside `.topbar` — the
+  collapsed sidebar is `width: 0; overflow: hidden`, which would clip it into an unclickable button.
+  On the landing page it needs the *same* transform and easing as `.topbar`, or it floats detached
+  over the content for the 0.55s the nav takes to slide in.
+
+### 讓晚生的 DOM 咬過兩次（同一天，同一頁）
+
+〈約定字表〉的章節標題與側邊欄清單都是 `conventional.js` 抓完 JSON 才畫的。任何「載入時抓一份
+元素、之後一直用」的功能，在那一頁都會**安靜地失效**：
+
+1. `getElementById` 在載入當下全部落空 → 快取到 `null`；
+2. `renderSideNav()` 用 `ul.textContent = ''` 清空重建 → 快取到的 `<a>` 變成**離開文件的節點**，
+   `classList.add()` 照樣成功，畫面上什麼都不會發生。
+
+The scrollspy shipped broken on that one page because of exactly this. Anything that decorates or
+watches headings/section links must resolve lazily **and** watch for the list being replaced
+(`MutationObserver`). 〈試打〉頁沒有章節清單，所以不掛觀察者 —— 那一頁的 `main` 每打一個字就變動
+一次。
+
+⚠️ And test **all six** section pages (`zigen` `yuanze` `yueding` `jianma` `cizu` `shangping`),
+not two. I called that feature verified after checking two.
+
 ### 手機版 — the rules that keep getting broken
 
 The site got a full mobile pass over 2026-09-01…03 (six rounds, all driven by Wilson testing on his
@@ -1083,6 +1148,7 @@ and never zooms back out. Every `<input>`/`<textarea>` on a mobile breakpoint mu
 | `lianxi_test.js` | 〈字根練習〉question generation |
 | `pair_cells_test.js` / `si4_cells_test.js` | 田字格 two-char and four-code cell rendering |
 | `autocommit_test.js` | 自動上屏 logic mirrored from the IME |
+| `theme_test.js` | the dark palette exists **twice** in `site.css` (`@media (prefers-color-scheme: dark)` for following the system, `[data-theme="dark"]` for a manual choice). CSS cannot share declarations between a media query and an attribute selector, and the media block must stay because it is the only dark mode without JS. This compares them variable by variable. |
 | `review_examples.js` / `.py` | example lists on the public pages: every example must demonstrate its own rule, checked both ways |
 
 There is no browser test runner. Visual checks are done with a hand-rolled CDP driver (Node 24 has
