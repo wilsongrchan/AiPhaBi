@@ -286,6 +286,93 @@
   }
 
 
+  /* ---------- 桌面：側邊欄可以收起來（Wilson 2026-09-04）----------
+     「maybe add a little arrow tab or something that allows collapsing or
+     minimizing the side bar」。
+
+     ⚠️ 收起來**不會讓正文變寬**：正文欄有 58rem 的上限，1280 也好 1920 也好都是
+     928px。這一顆的用處是把畫面清乾淨、讓那一欄置中，不是爭寬度 —— 別把它當成
+     版面優化在賣。
+     ⚠️ 整件事只靠一個 CSS 變數：--nav-w 只被兩條規則用到（側邊欄的 width、body
+     的 padding-inline-start），把它改成 0 兩邊自然跟著走，不必各改各的。
+     ⚠️ 那顆把手要掛在 <body> 上、不能放進 .topbar：收起來的側邊欄是
+     width:0 ＋ overflow:hidden，放進去會跟著被裁掉，變成一顆按不到的按鈕。
+     ⚠️ 手機沒有側邊欄（頁首是一條橫的），這一顆在窄螢幕整個不出現，見 site.css。 */
+  var NAVMIN_KEY = 'aiphabi-site-navmin';
+  var nmBar = document.querySelector('.topbar');
+  if (nmBar) {
+    var nmBtn = document.createElement('button');
+    nmBtn.type = 'button';
+    nmBtn.className = 'navmin';
+    nmBtn.innerHTML = '<span class="navmin-arrow" aria-hidden="true"></span>';
+
+    var nmOff = false;
+    try { nmOff = localStorage.getItem(NAVMIN_KEY) === '1'; } catch (e) {}
+
+    var nmPaint = function () {
+      document.documentElement.classList.toggle('nav-min', nmOff);
+      nmBtn.setAttribute('aria-expanded', String(!nmOff));
+      // 名字講「按下去會怎樣」，不是「現在是什麼狀態」
+      nmBtn.setAttribute('aria-label', nmOff ? '展開側邊導覽' : '收合側邊導覽');
+      nmBtn.title = nmBtn.getAttribute('aria-label');
+    };
+    nmPaint();
+    document.body.appendChild(nmBtn);
+
+    nmBtn.addEventListener('click', function () {
+      nmOff = !nmOff;
+      nmPaint();
+      try { localStorage.setItem(NAVMIN_KEY, nmOff ? '1' : '0'); } catch (e) {}
+    });
+  }
+
+  /* ---------- 每一頁底部的上一頁／下一頁（Wilson 2026-09-04）----------
+     「at the bottom of each subpage, it should have an arrow to navigate to the
+     next page so when someone is done reading all of a page, they can just click
+     that to go to the next page」。
+
+     ⚠️ 順序**從導覽自己讀出來**，不在這裡再寫一張表：導覽的 DOM 順序就是閱讀
+     順序，而它已經在每一頁的 HTML 裡了。寫死第二份順序表的話，哪天加一頁、或
+     把某頁換組，兩邊就會各說各的 —— 而錯的那一份會是這裡。
+     ⚠️ 章節錨點（.pr-sidenav 裡那些 #pr-1）要濾掉，它們不是「下一頁」。
+     ⚠️ 首頁不在 nav.site 裡（它是品牌那顆連結），所以在首頁找不到目前頁，
+     整塊就不出現 —— 首頁不是「一篇讀完要接下一篇」的頁。 */
+  var pnMain = document.querySelector('main');
+  var pnNav = document.querySelector('nav.site');
+  if (pnMain && pnNav) {
+    var pnLinks = [].filter.call(pnNav.querySelectorAll('a'), function (a) {
+      return !a.closest('.pr-sidenav');
+    });
+    var pnAt = -1;
+    pnLinks.forEach(function (a, i) {
+      if (a.getAttribute('aria-current') === 'page') pnAt = i;
+    });
+    if (pnAt >= 0 && pnLinks.length > 1) {
+      var pnBox = document.createElement('nav');
+      pnBox.className = 'pagenav';
+      pnBox.setAttribute('aria-label', '上一頁與下一頁');
+
+      var pnMake = function (src, dir, label) {
+        var a = document.createElement('a');
+        a.className = 'pagenav-' + dir;
+        a.href = src.getAttribute('href');
+        a.rel = dir;
+        var k = document.createElement('span');
+        k.className = 'pagenav-k';
+        k.textContent = label;
+        var t = document.createElement('span');
+        t.className = 'pagenav-t';
+        t.textContent = src.textContent.trim();
+        a.appendChild(k);
+        a.appendChild(t);
+        return a;
+      };
+      if (pnAt > 0) pnBox.appendChild(pnMake(pnLinks[pnAt - 1], 'prev', '上一頁'));
+      if (pnAt < pnLinks.length - 1) pnBox.appendChild(pnMake(pnLinks[pnAt + 1], 'next', '下一頁'));
+      if (pnBox.children.length) pnMain.appendChild(pnBox);
+    }
+  }
+
   /* ---------- 窄螢幕：導覽收成漢堡選單 ----------
      手機上十二條連結橫排會折成三行，加上底下那排切換共 225px —— 視窗才 844px，
      等於每一頁一打開有 27% 是導覽。掛了章節清單的頁面更誇張：〈取碼原則〉542px

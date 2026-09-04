@@ -5180,3 +5180,109 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   .points-dots button { transition: none; }
 }
+
+/* ---------- 22. 桌面：側邊欄的收合把手，與每頁底部的上一頁／下一頁（Wilson 2026-09-04）----------
+
+   ⚠️ 兩塊的「桌面預設值」都寫在對應的 @media 前面。@media 不加權重，同權重時純
+   看先後 —— 這個檔案為了同一件事被咬過六次了（見第 13、19、20、21 節）。 */
+
+/* ── 側邊欄收起來 ──────────────────────────────────────────────
+   --nav-w 只被兩條規則用到（.topbar 的 width、body 的 padding-inline-start），
+   所以整個收合就是改這一個變數，其餘自己跟上。
+   ⚠️ 收起來要 overflow: hidden：寬度 0 的捲動容器裡還塞著十二條連結，不裁掉會
+   長出捲軸、也可能吃掉滑鼠事件。 */
+:root.nav-min { --nav-w: 0rem; }
+.nav-min .topbar { overflow: hidden; border-inline-end: 0; }
+
+/* ⚠️ transition 是簡寫，會把同一元素上先前的 transition 整條蓋掉。上面第
+   〈首頁〉那一節給 .topbar 下過 `transition: transform .55s`（導覽滑進來的動畫），
+   這裡必須把它一起寫回去，不然首頁的進場動畫會變成瞬移。 */
+.topbar {
+  transition: transform .55s cubic-bezier(.22, .61, .36, 1),
+              width .24s cubic-bezier(.22, .61, .36, 1);
+}
+/* 首頁那條 .lg-body 的 .55s 權重比這條高（一個 class 對一個元素），
+   所以首頁維持它自己的節奏，其餘頁面用這條。 */
+body { transition: padding-inline-start .24s cubic-bezier(.22, .61, .36, 1); }
+
+.navmin {
+  position: fixed;
+  inset-inline-start: var(--nav-w);
+  top: 50%;
+  z-index: 11;                 /* .topbar 是 10，把手要在它前面 */
+  width: 1.15rem;
+  height: 3.4rem;
+  margin-top: -1.7rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-inline-start: 0;
+  border-start-end-radius: 6px;
+  border-end-end-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: inset-inline-start .24s cubic-bezier(.22, .61, .36, 1),
+              color .15s ease, background .15s ease;
+}
+.navmin:hover { color: var(--ink); background: var(--code-bg); }
+.navmin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 箭頭用 border 畫的三角形，跟章節收合鈕同一招 —— 展開時指向左（收起來），
+   收起來之後指向右（拉出來）。 */
+.navmin-arrow {
+  width: 0; height: 0;
+  border-block: .3rem solid transparent;
+  border-inline-end: .34rem solid currentColor;
+  transition: transform .2s ease;
+}
+.nav-min .navmin-arrow { transform: rotate(180deg); }
+/* 首頁的側邊欄要等動畫播完才滑出來，把手不能比它早到 */
+.lg-body.lg-navhide .navmin { opacity: 0; pointer-events: none; }
+
+/* ── 每頁底部的上一頁／下一頁 ────────────────────────────────── */
+.pagenav {
+  display: flex;
+  gap: 1rem;
+  margin-top: 3.5rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+}
+.pagenav-prev, .pagenav-next {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  padding: .8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
+}
+/* 只有一邊的時候（〈簡介〉沒有上一頁、〈後記〉沒有下一頁），那一顆要留在自己
+   該在的邊，不要跑到中間去佔滿整排。 */
+.pagenav-next:only-child { margin-inline-start: auto; }
+.pagenav-prev:only-child { margin-inline-end: auto; }
+.pagenav-next { text-align: end; }
+.pagenav:hover .pagenav-prev:hover,
+.pagenav:hover .pagenav-next:hover { border-color: var(--accent); background: var(--code-bg); }
+.pagenav-k { font-size: .78rem; color: var(--ink-faint); }
+.pagenav-t { font-weight: 600; }
+.pagenav-prev .pagenav-k::before { content: '← '; }
+.pagenav-next .pagenav-k::after  { content: ' →'; }
+
+@media (max-width: 52rem) {
+  /* 手機的頁首是一條橫的，沒有側邊欄可收 —— 這一顆整個不出現 */
+  .navmin { display: none; }
+  /* 兩顆並排在 390px 上一顆只剩 160px，頁名會斷成兩三行；改成上下疊。 */
+  .pagenav { flex-direction: column; gap: .6rem; margin-top: 2.4rem; }
+  .pagenav-next:only-child, .pagenav-prev:only-child { margin: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar, body, .navmin, .navmin-arrow { transition: none; }
+}
