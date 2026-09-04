@@ -971,23 +971,27 @@ value inline (so they read correctly without JS) and `site.js` overwrites it fro
 
 Every subpage is named after its Chinese title in pinyin. `principles.html`, `conventional.html`
 and `try.html` were renamed to `yuanze.html`, `yueding.html` and `shida.html` on 2026-09-03
-(Wilson: "I'm okay with using either all English or all pinyin, but don't use a mix of both").
+(Wilson: "I'm okay with using either all English or all pinyin, but don't use a mix of both"), and
+`dingping.html` → `shangping.html` on 2026-09-04 (Wilson picked the name; 自動上**屏**, not 頂屏).
 A new page follows the same rule. `index.html` is the one exception — that filename is a server
-convention, not a page name.
+convention, not a page name. ⚠️ The JS/JSON asset names were deliberately **not** renamed
+(`assets/dingping.js`, `assets/principles.js`, `assets/conventional.js`, `assets/try.js`): those are
+not URLs anybody reads or shares, and renaming them would churn `build_site_data.py`'s outputs for
+no reader-visible gain. So the page and its script do not share a stem — that is on purpose.
 
 The three old paths still exist as **redirect stubs** (`<meta refresh>` + `noindex` + a
 `location.replace` that carries the `#hash` through), because the canonical URLs had already
 been published. Vercel additionally serves real 301s for them via `vercel.json`'s `redirects`;
 GitHub Pages is pure static and has no redirect config, so the stub files are what make it work
-there. ⚠️ Anything scanning `site/*.html` now sees **fifteen** files, twelve real pages plus
-three stubs — `build_nav.py` is safe (it keys off `pr-sidenav`, which stubs don't have), but a
+there. ⚠️ Anything scanning `site/*.html` now sees **sixteen** files, twelve real pages plus
+four stubs — `build_nav.py` is safe (it keys off `pr-sidenav`, which stubs don't have), but a
 new tool that assumes "every .html is a page" will be wrong.
 
 ### What is built and what is not
 
 Built and verified — **twelve pages** as of 2026-09-03: `index.html` (landing + animation),
 `jieshao.html` 簡介, `zigen.html` 字根表, `lianxi.html` 字根練習, `yuanze.html` 取碼原則,
-`yueding.html` 約定字表, `jianma.html` 簡碼, `cizu.html` 詞組連打, `dingping.html` 自動上屏,
+`yueding.html` 約定字表, `jianma.html` 簡碼, `cizu.html` 詞組連打, `shangping.html` 自動上屏,
 `shida.html` 線上試打, `chaima.html` 拆碼查詢, `houji.html` 後記 — plus the shared shell (side nav
 on desktop / hamburger on mobile, 繁簡 toggle, 字級 small/normal/large — all site-wide via
 `site.js`, not per-page), the deploy workflow, the generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion,
