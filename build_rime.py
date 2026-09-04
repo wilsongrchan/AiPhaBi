@@ -335,7 +335,9 @@ def main():
     simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED)
 
     # 不打表外字（aiphabi_no_ext 開關）：候選只留「表內字」——教育部《常用國字標準
-    # 字體表》甲表 4808 字 ∪ GB 2312 一級漢字 3755 字。GB 2312 二級漢字算表外。
+    # 字體表》甲表 4808 字 ∪ GB 2312 一級漢字 3755 字，再加「傳承變體回填」：
+    # 甲表／GB 收了 A、但常見的異體 A' 沒收（裏←→裡、啓←→啟、歎←→嘆、綫←→線、
+    # 鷄←→雞…）——A' 跟 A 對到同一個簡體，就一起算表內。GB 2312 二級漢字仍算表外。
     # 名單放 data/standards/（進 git，見檔頭）；缺檔時 biaonei 為空、Lua 端開關自動失效。
     def _load_standard(fname):
         p = DATA / "standards" / fname
@@ -354,7 +356,25 @@ def main():
 
     _tw_common = _load_standard("tw_common_4808.txt")
     _gb_level1 = _load_standard("gb2312.txt")[:3755]      # 一級 = 前 3755（拼音序）
-    biaonei = set(_tw_common) | set(_gb_level1)
+    _biao_core = set(_tw_common) | set(_gb_level1)
+    biaonei = set(_biao_core)
+    _biao_backfill = set()
+    if _biao_core:
+        # 表內字對到的簡體集合（簡繁一致的字，本身就算一個）
+        _simp_of_core = set()
+        for c in _biao_core:
+            forms = t2s_map.get(c)
+            _simp_of_core.update(forms if forms else [c])
+        # 碼表裡的字：本身不在表內，但「有簡化、且簡體落在上面那個集合」→ 傳承變體，回填
+        for c in codes:
+            if c in _biao_core:
+                continue
+            forms = t2s_map.get(c)
+            if not forms or forms == [c]:
+                continue                      # 簡繁一致又不在表內 → 真的表外，不收
+            if any(f in _simp_of_core for f in forms):
+                _biao_backfill.add(c)
+        biaonei |= _biao_backfill
 
     by_len = defaultdict(list)
     for code in code2chars:
@@ -1047,7 +1067,8 @@ Weasel／fcitx5-rime 多半內建）：
         print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
     if biaonei:
         _ext = sum(1 for c in codes if c not in biaonei)
-        print(f"表內字 {len(biaonei)}（甲表 {len(_tw_common)} ∪ GB 一級 {len(_gb_level1)}）"
+        print(f"表內字 {len(biaonei)}（甲表 {len(_tw_common)} ∪ GB 一級 {len(_gb_level1)}"
+              f" ＋ 傳承變體回填 {len(_biao_backfill)}）"
               f"；不打表外字開關會濾掉碼表裡的 {_ext} 個表外字")
     else:
         print("  ⚠ data/standards/ 缺檔 —— M.biaonei 為空，不打表外字開關會自動失效")

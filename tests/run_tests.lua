@@ -669,28 +669,40 @@ do
   h.check("表內名單有載到（甲表常見字 的／我／學 都在）",
     data.biaonei["的"] and data.biaonei["我"] and data.biaonei["學"],
     "expected biaonei 的/我/學 = true")
-  h.check("表外字（淼／焱）不在名單裡",
-    not data.biaonei["淼"] and not data.biaonei["焱"],
-    "expected biaonei 淼/焱 = nil")
-  h.check("GB 二級漢字（噜）算表外，不在名單裡",
-    not data.biaonei["噜"], "expected biaonei 噜 = nil")
+  h.check("傳承變體回填：裏／啓／歎／綫／鷄／陞 都算表內",
+    data.biaonei["裏"] and data.biaonei["啓"] and data.biaonei["歎"]
+      and data.biaonei["綫"] and data.biaonei["鷄"] and data.biaonei["陞"],
+    "expected biaonei 裏/啓/歎/綫/鷄/陞 = true")
+  h.check("焱 不在名單裡（簡繁一致、非標準、非變體）",
+    not data.biaonei["焱"], "expected biaonei 焱 = nil")
+  h.check("GB 二級漢字（噜／孬／夼）算表外，不在名單裡",
+    not data.biaonei["噜"] and not data.biaonei["孬"] and not data.biaonei["夼"],
+    "expected biaonei 噜/孬/夼 = nil")
+  h.check("粵語俗字（咩／咁／睇）算表外",
+    not data.biaonei["咩"] and not data.biaonei["咁"] and not data.biaonei["睇"],
+    "expected biaonei 咩/咁/睇 = nil")
 
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
-    -- 模擬：某段碼同時吐出一個表內字（森）跟一個表外字（淼）。
-    local cands = { { text = "森" }, { text = "淼" } }
+    -- 模擬：某段碼同時吐出一個表內字（森）跟一個表外字（焱，簡繁一致、非標準）。
+    local cands = { { text = "森" }, { text = "焱" } }
     local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
-    h.checkPresent(schema .. " · 不打表外字關 → 淼 照常在", off, "淼", true)
+    h.checkPresent(schema .. " · 不打表外字關 → 焱 照常在", off, "焱", true)
 
     local on_opts = { aiphabi_no_ext = true }
     local on = h.run{ schema = schema, code = "wwwd", options = on_opts, cands = cands }
-    h.checkPresent(schema .. " · 不打表外字開 → 淼 被濾掉", on, "淼", false)
+    h.checkPresent(schema .. " · 不打表外字開 → 焱 被濾掉", on, "焱", false)
     h.checkPresent(schema .. " · 不打表外字開 → 森 還在", on, "森", true)
+
+    -- 傳承變體（裏）：開關開著也留下來
+    local vr = h.run{ schema = schema, code = "ibfjk", options = { aiphabi_no_ext = true },
+      cands = { { text = "裏" } } }
+    h.checkPresent(schema .. " · 不打表外字開 → 傳承變體 裏 留著", vr, "裏", true)
 
     -- 多字候選：一個字落在表外，整條濾掉
     local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_no_ext = true },
-      cands = { { text = "森林" }, { text = "淼淼" } } }
+      cands = { { text = "森林" }, { text = "焱焱" } } }
     h.checkPresent(schema .. " · 不打表外字開 → 表內詞（森林）留著", ph, "森林", true)
-    h.checkPresent(schema .. " · 不打表外字開 → 含表外字的詞（淼淼）濾掉", ph, "淼淼", false)
+    h.checkPresent(schema .. " · 不打表外字開 → 含表外字的詞（焱焱）濾掉", ph, "焱焱", false)
 
     -- 標點／英數不是漢字，開關開著也不能誤濾
     local pn = h.run{ schema = schema, code = "z", options = { aiphabi_no_ext = true },
