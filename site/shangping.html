@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自動上屏 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法兩種流暢打字模式之一：單字自動上屏，包括唯一上屏與頂功上屏。">
+<!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
+     16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
+     仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
+<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
+     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
+     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
+     抓預覽的機器人不會幫你補上網域。 -->
+<link rel="canonical" href="https://www.aiphabi.com/shangping.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/shangping.html">
+<meta property="og:title" content="自動上屏 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="愛發筆輸入法兩種流暢打字模式之一：單字自動上屏，包括唯一上屏與頂功上屏。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+<!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
+<link rel="apple-touch-icon" href="assets/img/logo-180.png">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="jieshao.html">簡介</a>
+      <div class="nav-sec">
+        <span class="nav-sec-t">基礎學習</span>
+        <a href="zigen.html">字根表</a>
+        <a href="lianxi.html">字根練習</a>
+        <a href="yuanze.html">取碼原則</a>
+        <a href="yueding.html">約定字表</a>
+        <a href="jianma.html">簡碼</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">流暢模式</span>
+        <a href="cizu.html">詞組連打</a>
+        <a href="shangping.html">自動上屏</a>
+        <ul class="pr-sidenav">
+          <li><a href="#ac-1">1. 自動上屏</a></li>
+          <li class="is-sub"><a href="#ac-2">唯一上屏</a></li>
+          <li class="is-sub"><a href="#ac-3">頂功上屏</a></li>
+          <li><a href="#ac-4">2. 流暢模式</a></li>
+        </ul>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">體驗工具</span>
+        <a href="shida.html">線上試打</a>
+        <a href="chaima.html">拆碼查詢</a>
+      </div>
+      <a href="houji.html">後記</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap ac-page doc-prose">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>自動上屏</h1>
+
+  <p class="lede">
+    單字自動上屏是愛發筆支持的兩種流暢打字模式之一，另一種為<a href="cizu.html">詞組連打</a>。自動上屏讓打單字的時候，減少需要看選字列按空白鍵選字的次數，讓打字更加流暢快捷。
+  </p>
+
+  <div class="stats">
+    <div class="stat"><b id="ac-n-solo">…</b><span>個字打完碼就自己出字</span></div>
+    <div class="stat"><b id="ac-n-pct">…</b><span>佔全部已取碼的字</span></div>
+    <div class="stat"><b id="ac-n-blocked">…</b><span>最常用 1000 字裡要靠頂功上屏</span></div>
+  </div>
+
+  <h2 id="ac-1">1. 自動上屏</h2>
+
+  <p>
+    「上屏」即將候選字裡的字，透過按空白鍵或數字鍵，選擇一個字打上打字框——這就是和「自動上屏」相對的「選擇上屏」。而自動上屏又分為以下兩種：
+  </p>
+
+  <h3 id="ac-2">唯一上屏</h3>
+
+  <p>
+    自動上屏開啟時，如果選字列只有一個可選的字（通常是四碼或五碼的無重碼長碼字），則選字列會自動選擇該字上屏，無需另按空白鍵選擇。
+  </p>
+
+  <p>
+    一個字的碼打完之後，只要沒有別的字撞同一串碼、也沒有更長但仍在 5 碼以內的碼以它開頭，答案就只有一個。（超過 5 碼的完整碼不算——那是另一個字自己未截斷的拆法，不代表這個字還沒打完；完整碼本身照樣打得出來，只是不會讓這個字多等一拍。）<span id="ac-solo-line">…</span>
+  </p>
+
+  <div class="ac-demo" id="ac-demo-solo">
+    <p class="ac-demo-cap">打完最後一個字母，字就出去了：</p>
+    <div class="ac-tape" data-tape="solo"></div>
+  </div>
+
+  <p class="ac-caveat">
+    <strong>「打完」是嚴格的。</strong>候選只剩一個、但那個碼還沒打完（例如<span id="ac-partial">…</span>），不算數——那時候上屏，接下來要按的那幾個字母會被當成下一個字的開頭。同理，容錯猜測（怕你按錯鍵而多提的那一個）也不算「還有第二個在排隊」，它講的是別的碼，不是這個碼還沒完。
+  </p>
+
+  <h3 id="ac-3">頂功上屏</h3>
+
+  <p>
+    自動上屏開啟時，如果碼串並沒能將選字列篩選至唯一一個字——通常是因為碼串之後如果再加特定的碼，可能組成另外的字——但後續輸入的碼並非這些特定的碼，所以不能和之前的碼串組成任何字，則選字列會將前面的碼串中的第一候選自動上屏（頂屏），並將後續輸入的碼視作新一段碼串，和詞組連打的「<a href="cizu.html#cz-5">智能分詞</a>」功能類似。
+  </p>
+
+  <p>
+    只有唯一上屏是不夠的。<span id="ac-block-line">…</span>
+  </p>
+
+  <div class="ac-demo" id="ac-demo-block">
+    <p class="ac-demo-cap">問題長這樣——碼打完了，卻還不能算「唯一」：</p>
+    <div class="ac-pair" data-pair="block"></div>
+  </div>
+
+  <p>
+    這種等待沒有盡頭：你不會為了打一個常用字，先去確認世上有沒有一個罕見字比它多一碼。頂功上屏換一個問法——不問「現在是不是只剩一個」，問<strong>「下一鍵按下去，這串碼還有沒有救」</strong>：
+  </p>
+
+  <div class="ac-demo" id="ac-demo-tape">
+    <p class="ac-demo-cap">一路按下去，兩種上屏各出手一次：</p>
+    <div class="ac-tape" data-tape="mix"></div>
+  </div>
+
+  <p class="ac-caveat">
+    <strong>頂之前要有東西可頂。</strong>被頂上屏的那一個必須是「碼本身已經打完」的候選；整段從頭到尾只是補全或猜測（沒真正打中過什麼）就不頂，讓那一鍵照舊留在碼欄裡，跟沒開這個功能時一樣，由你自己按退格處理。
+  </p>
+
+  <h2 id="ac-4">2. 流暢模式</h2>
+
+  <p>
+    兩種流暢模式適合不同打字習慣的用戶，但兩個模式設定只能二擇其一。否則所有常用字都基本可以後續接字組成詞組，大大減低可自動上屏字的數量，違背單字上屏模式的設計初衷。
+  </p>
+
+  <dl class="ac-kinds">
+    <dt><a href="cizu.html">詞組連打</a></dt>
+    <dd>
+      基本沒有任何額外要求，而且可以和<a href="jianma.html#jm-1">約定簡碼</a>、<a href="jianma.html#jm-2">三簡碼</a>、<a href="jianma.html#jm-3">左簡碼</a>等一同使用，對新手和日常用戶十分友好。唯一需要熟悉的是收錄詞庫：雖然詞庫收錄近五萬個詞組，但如果經常為詞庫外的詞組連打，而智能分詞又不能準確分割詞組的時候，則可能會需要刪除重來，影響節奏流暢。
+    </dd>
+
+    <dt>單字上屏</dt>
+    <dd>
+      使用單字上屏需要用戶對拆碼較為熟悉；特別是為了最大化可自動上屏字的數量，建議關閉三簡碼、左簡碼，甚至偏旁碼、容錯碼等設定——<span id="ac-off-line">…</span>但此模式可減少按空白選字的次數，也減少看選字列選字的次數，特別適合習慣輸入單字或者追求盲打的用戶；還有輸入古文、專業文章等，很多詞組未必收錄於詞庫的文本的時候，也能透過開啟單字自動上屏加快打字速度。
+    </dd>
+  </dl>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/dingping.js"></script>
+</body>
+</html>
