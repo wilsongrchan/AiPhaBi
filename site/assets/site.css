@@ -248,12 +248,29 @@ kbd {
 /* ---------- 側邊導覽（寬螢幕）／頂部導覽（窄螢幕） ----------
  * 導覽固定在左側，內容往右讓開。窄螢幕會在檔案後面的 media query 改回頂部橫列，
  * 因為手機上左側欄會吃掉一半的可用寬度。 */
-:root { --nav-w: 12.5rem; }
+/* 版面總寬（側邊欄 ＋ 一段間距 ＋ 正文）。超過這個寬度的螢幕，多出來的空間平均
+   分到左右兩側 —— 側邊欄跟著往內移，不再釘死在視窗左緣。
+   Wilson 2026-09-04：「the side bar/page width doesn't have to be as wide as the
+   window width, to minimize the distance between the side bar and the main body」。
+   量到的問題：側邊欄靠左、正文卻在剩下的空間裡置中，兩者之間空出一條會隨螢幕
+   長大的死帶 —— 1280 是 76px，1745 是 309px，1920 是 396px，2560 是 716px。
+   ⚠️ 用 `100%` 不用 `100vw`：100vw **含**捲軸寬（約 15px），拿它算出來的內距會讓
+   整頁比可視寬度多 15px，於是每一頁都多一條橫向捲軸。自訂屬性是照文字代入的，
+   所以 `100%` 會各自對到用它的那個元素的容器 —— .topbar 是固定定位（對到視窗）、
+   body 對到 <html>，兩邊算出來一樣。
+   ⚠️ 收起側邊欄時 --nav-w 變 0，總寬跟著縮，正文自己就重新置中。 */
+:root {
+  --nav-w: 12.5rem;
+  --nav-gap: 3rem;                                  /* 側邊欄與正文之間留的距離 */
+  --page-w: calc(var(--nav-w) + var(--nav-gap) + 58rem);
+  --page-pad: max(0px, calc((100% - var(--page-w)) / 2));
+}
+:root.nav-min { --nav-gap: 0rem; }
 
 .topbar {
   position: fixed;
   inset-block: 0;
-  inset-inline-start: 0;
+  inset-inline-start: var(--page-pad);
   width: var(--nav-w);
   border-inline-end: 1px solid var(--line);
   background: var(--surface);
@@ -293,7 +310,7 @@ kbd {
 /* 用 body 的 padding 讓開側邊欄，而不是給 main 加 margin-inline-start ——
    後者會破壞 .wrap 的 margin: 0 auto，內容會貼著側邊欄、右邊空一大片。
    讓開之後 main 仍然是在「剩下的空間」裡置中。 */
-body { padding-inline-start: var(--nav-w); }
+body { padding-inline-start: calc(var(--page-pad) + var(--nav-w) + var(--nav-gap)); }
 
 .brand {
   /* 圖示在左、字在右（Wilson）。圖示本身已經帶圓角與透明背景，不用再加
@@ -428,6 +445,11 @@ nav.site .pr-sidenav a[aria-current="page"] {
    padding: 0 1.4rem。類別選擇器的權重高過元素選擇器，所以單寫 main { padding }
    會被 .wrap 的 0 蓋掉，怎麼調都沒反應 —— 這個坑踩過一次。 */
 main.wrap { padding-block: 3rem 1.25rem; }
+
+/* ⚠️ 正文與頁尾**靠左**、不要在剩下的空間裡置中：置中的話 body 那條內距讓開的
+   位置又會被 `margin: 0 auto` 還回去一半，死帶原封不動。整組的置中已經由
+   --page-pad 做掉了。`.topbar .wrap` 不能跟著改，那是側邊欄自己的內容容器。 */
+main.wrap, body > footer.wrap { margin-inline-start: 0; margin-inline-end: auto; }
 
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
@@ -5259,7 +5281,7 @@ body { transition: padding-inline-start .24s cubic-bezier(.22, .61, .36, 1); }
 
 .navmin {
   position: fixed;
-  inset-inline-start: var(--nav-w);
+  inset-inline-start: calc(var(--page-pad) + var(--nav-w));
   top: 50%;
   z-index: 11;                 /* .topbar 是 10，把手要在它前面 */
   width: 1.15rem;
@@ -5277,6 +5299,11 @@ body { transition: padding-inline-start .24s cubic-bezier(.22, .61, .36, 1); }
   color: var(--ink-faint);
   cursor: pointer;
   transition: inset-inline-start .24s cubic-bezier(.22, .61, .36, 1),
+              /* 首頁的側邊欄是用 transform 滑進來的（.55s），把手要用**同一個
+                 位移量、同一條曲線**跟著走，不然那 .55s 裡它會單獨浮在正文上，
+                 看起來就是「把手跟側邊欄分家了」（Wilson 2026-09-04 看到的）。 */
+              transform .55s cubic-bezier(.22, .61, .36, 1),
+              opacity .3s ease,
               color .15s ease, background .15s ease;
 }
 .navmin:hover { color: var(--ink); background: var(--code-bg); }
@@ -5290,19 +5317,29 @@ body { transition: padding-inline-start .24s cubic-bezier(.22, .61, .36, 1); }
   transition: transform .2s ease;
 }
 .nav-min .navmin-arrow { transform: rotate(180deg); }
-/* 首頁的側邊欄要等動畫播完才滑出來，把手不能比它早到 */
-.lg-body.lg-navhide .navmin { opacity: 0; pointer-events: none; }
+/* 首頁的側邊欄要等動畫播完才滑出來，把手不能比它早到。位移量剛好是側邊欄的寬度
+   （側邊欄自己是 translateX(-100%)，等值），兩者因此整段動畫都貼在一起。 */
+.lg-body.lg-navhide .navmin {
+  transform: translateX(calc(-1 * var(--nav-w)));
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* ── 每頁底部的上一頁／下一頁 ────────────────────────────────── */
 .pagenav {
   display: flex;
+  justify-content: space-between;
   gap: 1rem;
   margin-top: 3.5rem;
   padding-top: 1.4rem;
   border-top: 1px solid var(--line);
 }
+/* ⚠️ 不要 `flex: 1 1 0`：那會把兩顆撐成各佔半條正文（464px），一個四個字的頁名
+   配一顆這麼大的框（Wilson 2026-09-04：「a bit wide」）。收成內容寬、各自靠邊，
+   中間空著 —— 那條空白正好讀成「這是兩個相反的方向」。 */
 .pagenav-prev, .pagenav-next {
-  flex: 1 1 0;
+  flex: 0 1 auto;
+  max-width: 46%;
   min-width: 0;
   display: flex;
   flex-direction: column;
