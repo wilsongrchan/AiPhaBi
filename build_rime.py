@@ -344,14 +344,14 @@ def main():
     #          ∪ 〈試打〉頁的常用姓氏／男名／女名用字（從 site/assets/try.js 現讀）
     #          ∪ 《百家姓》姓氏用字（data/standards/baijiaxing.txt）
     #          ∪ 常用粵語字（data/standards/canton_common.txt）
-    #          ∪ data/standards/biaonei_extra.txt（手動補的，甲表／GB 一級沒收又漏了
+    #          ∪ data/standards/common_extra.txt（手動補的，甲表／GB 一級沒收又漏了
     #            回填、但其實很常見的字，如 佼 亵 兖 幺）
     #
     # 台灣乙／丙／丁表刻意不當額外資料來源：拿它們去反過來「證明某字真的罕見」，
     # 頂多再篩掉一批本來就不在上面任何一份清單裡的字，為此另外抓 ~28000 字的三張表
     # 來維護不值得——不在清單裡就已經打不出來了，判斷結果沒有實質差異。
     #
-    # 產出 M.biaonei（字→true 的白名單）給 Lua filter；缺 gb2312.txt 時為空、開關自動失效。
+    # 產出 M.common（字→true 的白名單）給 Lua filter；缺 gb2312.txt 時為空、開關自動失效。
     def _load_standard(fname):
         p = DATA / "standards" / fname
         if not p.exists():
@@ -380,23 +380,23 @@ def main():
             if m:
                 out.update(m.group(1))
             else:
-                print(f"  ⚠ site/assets/try.js 找不到 {name} —— 名字用字沒補進表內")
+                print(f"  ⚠ site/assets/try.js 找不到 {name} —— 名字用字沒補進常用字")
         return {c for c in out if "㐀" <= c <= "鿿"}
 
     _tw_common = _load_standard("tw_common_4808.txt")
     _gb_level1 = _load_standard("gb2312.txt")[:3755]      # 一級 = 前 3755（拼音序）
-    _biao_core = set(_tw_common) | set(_gb_level1)
+    _common_core = set(_tw_common) | set(_gb_level1)
 
-    # 表內回填
-    _keep = set(_biao_core)
+    # 常用字回填
+    _keep = set(_common_core)
     _keep_variant = set()
-    if _biao_core:
+    if _common_core:
         _simp_of_core = set()
-        for c in _biao_core:
+        for c in _common_core:
             forms = t2s_map.get(c)
             _simp_of_core.update(forms if forms else [c])
         for c in codes:                                  # 常見異體：對到同一個簡體
-            if c in _biao_core:
+            if c in _common_core:
                 continue
             forms = t2s_map.get(c)
             if forms and forms != [c] and any(f in _simp_of_core for f in forms):
@@ -410,10 +410,10 @@ def main():
     _keep_name = _try_name_chars()
     _keep_surname = set(_load_standard("baijiaxing.txt"))
     _keep_canton = set(_load_standard("canton_common.txt"))
-    _keep_manual = set(_load_standard("biaonei_extra.txt"))   # 手動強制留（GB 二級擋過頭時補這裡）
+    _keep_manual = set(_load_standard("common_extra.txt"))   # 手動強制留（GB 二級擋過頭時補這裡）
     _keep |= (_keep_variant | _keep_phrase | _keep_name | _keep_surname
               | _keep_canton | _keep_manual)
-    biaonei = set(_keep)                                # 白名單：常用字＝回填集合本身
+    common = set(_keep)                                # 白名單：常用字＝回填集合本身
 
     by_len = defaultdict(list)
     for code in code2chars:
@@ -746,8 +746,8 @@ def main():
     dl += ["}", "M.simp_phrase = {"]    # 不打簡體要濾掉的詞（精選詞庫逐字簡化的寫法，見上）
     for w in sorted(simp_phrases):
         dl.append(f'  [{lua_str(w)}]=true,')
-    dl += ["}", "M.biaonei = {"]        # 常用字白名單（回填集合本身）；aiphabi_common_only 開關控制
-    for c in sorted(biaonei):
+    dl += ["}", "M.common = {"]        # 常用字白名單（回填集合本身）；aiphabi_common_only 開關控制
+    for c in sorted(common):
         dl.append(f'  [{lua_str(c)}]=true,')
     dl += ["}", "M.altcode = {"]        # 字 → {碼: true} 集合（candidate 用 [碼] 標示；查表用，不是陣列）
     for c, acs in sorted(altcode.items()):
@@ -1104,16 +1104,16 @@ Weasel／fcitx5-rime 多半內建）：
     for comp, ch, full in leftshort_skipped:
         # 名單跟碼表對不上：Side A 改了這個字的碼，左簡碼家族名單要跟著更新。
         print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
-    if _biao_core:
-        _common_coded = sum(1 for c in codes if c in biaonei)
-        print(f"只打常用字：白名單 {len(biaonei)} 字（甲表 {len(_tw_common)} ∪ GB 一級 "
+    if _common_core:
+        _common_coded = sum(1 for c in codes if c in common)
+        print(f"只打常用字：白名單 {len(common)} 字（甲表 {len(_tw_common)} ∪ GB 一級 "
               f"{len(_gb_level1)} ∪ 回填：異體 {len(_keep_variant)}／"
               f"詞庫 {len(_keep_phrase & set(codes))}／名字 {len(_keep_name & set(codes))}／"
               f"百家姓 {len(_keep_surname & set(codes))}／粵語 {len(_keep_canton & set(codes))}／"
               f"手動 {len(_keep_manual & set(codes))}）；"
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
-        print("  ⚠ data/standards/ 缺檔 —— M.biaonei 為空，只打常用字開關會自動失效")
+        print("  ⚠ data/standards/ 缺檔 —— M.common 為空，只打常用字開關會自動失效")
     print(f"字 {char_count}　碼 {len(entries)}　重碼組 {len(dups)}")
     print(f"寫出：{OUT}/aiphabi.schema.yaml、aiphabi.dict.yaml、README.md")
 

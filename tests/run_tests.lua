@@ -667,24 +667,24 @@ print()
 print("== 只打常用字：白名單只留甲表∪GB一級∪回填（異體／詞庫／姓名／百家姓／粵語／手動）==")
 do
   h.check("常用字在白名單裡（的／我／學）",
-    data.biaonei["的"] and data.biaonei["我"] and data.biaonei["學"],
-    "expected biaonei 的/我/學 = true")
+    data.common["的"] and data.common["我"] and data.common["學"],
+    "expected common 的/我/學 = true")
   h.check("常見異體在白名單裡（裏／啓／歎／綫／鷄）",
-    data.biaonei["裏"] and data.biaonei["啓"] and data.biaonei["歎"]
-      and data.biaonei["綫"] and data.biaonei["鷄"],
-    "expected biaonei 裏/啓/歎/綫/鷄 = true")
+    data.common["裏"] and data.common["啓"] and data.common["歎"]
+      and data.common["綫"] and data.common["鷄"],
+    "expected common 裏/啓/歎/綫/鷄 = true")
   h.check("粵語字回填：睇／咁／啲 在白名單裡（canton_common.txt）",
-    data.biaonei["睇"] and data.biaonei["咁"] and data.biaonei["啲"],
-    "expected biaonei 睇/咁/啲 = true")
+    data.common["睇"] and data.common["咁"] and data.common["啲"],
+    "expected common 睇/咁/啲 = true")
   h.check("百家姓罕見姓氏用字在白名單裡（郗／璩／逄）",
-    data.biaonei["郗"] and data.biaonei["璩"] and data.biaonei["逄"],
-    "expected biaonei 郗/璩/逄 = true")
+    data.common["郗"] and data.common["璩"] and data.common["逄"],
+    "expected common 郗/璩/逄 = true")
   h.check("真正的生僻字不在白名單裡（苤／哿／陧，GB 二級也沒被任何回填救到）",
-    not data.biaonei["苤"] and not data.biaonei["哿"] and not data.biaonei["陧"],
-    "expected biaonei 苤/哿/陧 = nil")
+    not data.common["苤"] and not data.common["哿"] and not data.common["陧"],
+    "expected common 苤/哿/陧 = nil")
   h.check("兩張表都沒收、也沒被任何回填救到的字一樣濾掉（亶／丏／㐬）",
-    not data.biaonei["亶"] and not data.biaonei["丏"] and not data.biaonei["㐬"],
-    "expected biaonei 亶/丏/㐬 = nil")
+    not data.common["亶"] and not data.common["丏"] and not data.common["㐬"],
+    "expected common 亶/丏/㐬 = nil")
 
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     -- 模擬：某段碼同時吐出一個常見字（森）跟一個生僻字（苤，GB 二級，沒被回填救到）。

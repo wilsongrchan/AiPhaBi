@@ -13,11 +13,11 @@
 -- 掛在 filter 鏈最後（aiphabi_order 之後）：容錯（aiphabi_fuzzy）會在它後面另外生
 -- 候選，擺最後才擋得乾淨。
 --
--- 白名單（data.biaonei，字→true）由 build_rime.py 從 data/standards/ 產生；非本機
+-- 白名單（data.common，字→true）由 build_rime.py 從 data/standards/ 產生；非本機
 -- 建置缺 data/standards/ 時名單為空，這時本開關自動失效（不會把候選全部濾光）。
 local data = require("aiphabi_data")
 
-local HAVE_LIST = type(data.biaonei) == "table" and next(data.biaonei) ~= nil
+local HAVE_LIST = type(data.common) == "table" and next(data.common) ~= nil
 
 -- UTF-8 逐字（不靠 utf8 函式庫，5.1+ 都能跑）
 local function each_char(s)
@@ -47,7 +47,7 @@ end
 
 local function all_common(text)
   for ch in each_char(text) do
-    if is_han(codepoint(ch)) and not data.biaonei[ch] then
+    if is_han(codepoint(ch)) and not data.common[ch] then
       return false
     end
   end

@@ -32456,7 +32456,7 @@ M.simp_phrase = {
   ["龟梨和也"]=true,
   ["龟苓膏"]=true,
 }
-M.biaonei = {
+M.common = {
   ["㗎"]=true,
   ["一"]=true,
   ["丁"]=true,

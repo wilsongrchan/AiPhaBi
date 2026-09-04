@@ -830,25 +830,25 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
 - **`aiphabi_charset.lua`** — 只打常用字 gate (`aiphabi_common_only`, default off). **Whitelist
-  model** (Wilson's spec, settled 2026-09-04 after a false start — see history below): `M.biaonei`
+  model** (Wilson's spec, settled 2026-09-04 after a false start — see history below): `M.common`
   in `aiphabi_data.lua`, built by `build_rime.py` as `_keep`:
 
   常用字 = 甲表 ∪ GB 一級 ∪ 常見異體 (t2s same-simplified: 裏 啓 歎 綫 鷄…) ∪ every char in a
   curated `data/phrases_*.txt` entry ∪ 〈試打〉頁 name chars (regex-read from `site/assets/try.js`
   `NAME_*` consts — a Side-B build reading a Side-C file; warns if the regex misses) ∪ 《百家姓》
   (`data/standards/baijiaxing.txt`) ∪ 常用粵語字 (`data/standards/canton_common.txt`) ∪
-  `data/standards/biaonei_extra.txt` (manual force-keep, for chars that aren't really rare but
+  `data/standards/common_extra.txt` (manual force-keep, for chars that aren't really rare but
   fell through every other net — 佼 亵 兖 幺…). ~6,450 chars, ~6,410 of them coded; everything
   outside that whitelist is dropped — **including the ~455 coded chars in no GB table at all**
   (亶 丏 㐬…), not just GB-2312-level-2 ones (苤 陧 哿…). ~1,272 coded chars blocked total.
 
   **Taiwan 乙/丙/丁 deliberately not used as a data source** — see the 乙/丙/丁 discussion in the
   git log (`8019f26`) for the reasoning; it still holds under the whitelist model. Leaks (a common
-  char the whitelist missed) go in `biaonei_extra.txt` one at a time.
+  char the whitelist missed) go in `common_extra.txt` one at a time.
 
   Multi-char candidate dropped if *any* char isn't on the whitelist. Runs **last** (after
   `aiphabi_fuzzy`, which makes its own candidates). Non-Han candidates (punctuation, latin) never
-  checked. Missing `data/standards/` → `M.biaonei` empty → toggle self-disables. Same three switch
+  checked. Missing `data/standards/` → `M.common` empty → toggle self-disables. Same three switch
   homes (schema, plus-schema, save_options).
 
   **History**: shipped 2026-09-03 as `aiphabi_no_ext` (不打表外字, a *blocklist* — only GB-2312
