@@ -94,8 +94,15 @@
   --warn-soft: #fdeeee;
 }
 
+/* ⚠️ 深色的色票寫兩份，是刻意的，別想合成一份：
+     · @media 這一份給「跟著系統」用 —— 它必須在**沒有 JS** 的時候也生效，
+       所以不能改成只認 data-theme。
+     · [data-theme="dark"] 那一份給「使用者自己選深色」用。
+   CSS 沒有辦法讓一個媒體查詢跟一個屬性選擇器共用同一組宣告，所以只能重複。
+   兩份走偏的話畫面會在「跟著系統」與「手動深色」之間長得不一樣 ——
+   site/tools/theme_test.js 會逐項比對這兩份，不一致就擋下來。 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg:      #141717;
     --surface: #1b2020;
     --line:    #2d3534;
@@ -127,6 +134,38 @@
     --warn-soft: #3a1f22;
   }
 }
+:root[data-theme="dark"] {
+    --bg:      #141717;
+    --surface: #1b2020;
+    --line:    #2d3534;
+    --ink:     #e1eceb;
+    --ink-dim: #8ea2a0;
+    --ink-faint: #708381;   /* 深色主題往背景靠，一樣是「更不搶眼」 */
+    --accent:  #3fc0b0;
+    /* 深色主題往亮的方向拉開，往暗拉會跟背景糊在一起 */
+    --accent-2: #319689;
+    --accent-3: #26736a;
+    --accent-soft: #1d2f2b;
+    --code-bg: #1f2625;
+    --zg-on:   #2fd6c4;
+    --zg-on-2: #22aa9b;
+    --zg-on-3: #197e74;
+    --zg-off:  #6f6f6f;
+
+    /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
+    --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
+    --rb-1: #ffb732;
+    --rb-2: #8bc34a;   /* 深淺主題共用，這個綠在兩種背景上都夠亮 */
+    --rb-3: #0096ff;   /* 本來就夠亮，深淺主題共用 */
+    --rb-4: #c084fc;
+    --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
+    /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
+       （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
+       只剩 4.47，低於 4.5 就不收。 */
+    --warn: #ee4653;
+    --warn-soft: #3a1f22;
+}
+
 
 :root[data-zg-size="small"] { --zg-scale: .86; }
 :root[data-zg-size="large"] { --zg-scale: 1.2; }
@@ -3146,13 +3185,26 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   --hero-glow-2: rgba(255, 183, 50, .16);
   --hero-glow-3: rgba(9, 77, 71, .26);
 }
+/* ⚠️ 深色的色票寫兩份，是刻意的，別想合成一份：
+     · @media 這一份給「跟著系統」用 —— 它必須在**沒有 JS** 的時候也生效，
+       所以不能改成只認 data-theme。
+     · [data-theme="dark"] 那一份給「使用者自己選深色」用。
+   CSS 沒有辦法讓一個媒體查詢跟一個屬性選擇器共用同一組宣告，所以只能重複。
+   兩份走偏的話畫面會在「跟著系統」與「手動深色」之間長得不一樣 ——
+   site/tools/theme_test.js 會逐項比對這兩份，不一致就擋下來。 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --hero-glow-1: rgba(63, 192, 176, .32);
     --hero-glow-2: rgba(255, 183, 50, .14);
     --hero-glow-3: rgba(49, 150, 137, .28);
   }
 }
+:root[data-theme="dark"] {
+    --hero-glow-1: rgba(63, 192, 176, .32);
+    --hero-glow-2: rgba(255, 183, 50, .14);
+    --hero-glow-3: rgba(49, 150, 137, .28);
+}
+
 
 .hero--landing {
   position: relative;
@@ -5297,4 +5349,96 @@ nav.site .pr-sidenav a.is-here {
   color: var(--accent);
   font-weight: 600;
   background: var(--accent-soft);
+}
+
+/* ---------- 24. 主題切換、回到頁首、標題錨點（Wilson 2026-09-04）----------
+   ⚠️ 三塊的桌面預設值都排在對應的 @media 前面（第七次提醒，見第 13、19–23 節）。 */
+
+/* ── 主題（跟系統／淺／深）：長相跟繁簡切換同一套，它們是同一種東西 ── */
+.themetoggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: .66rem;
+}
+.themetoggle button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  padding: .12rem .45rem;
+  cursor: pointer;
+  font: inherit;
+}
+.themetoggle button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.themetoggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ── 回到頁首 ──────────────────────────────────────────────
+   ⚠️ 平常要**完全按不到**（visibility + pointer-events），不能只把 opacity 調成 0：
+   透明但還在的按鈕會擋住它底下的東西，而它就浮在正文右下角。 */
+.totop {
+  position: fixed;
+  inset-inline-end: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 9;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-dim);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(.4rem);
+  transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 6px 16px rgba(0, 0, 0, .08);
+}
+.totop.is-on { opacity: 1; visibility: visible; transform: none; }
+.totop:hover { color: var(--accent); border-color: var(--accent); }
+.totop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 箭頭用 border 畫的三角形，跟章節收合鈕、把手同一招 */
+.totop-arrow {
+  width: 0; height: 0;
+  border-inline: .34rem solid transparent;
+  border-bottom: .4rem solid currentColor;
+  margin-top: -.1rem;
+}
+
+/* ── 標題旁邊的「連到這一節」 ──────────────────────────────
+   平常看不見，滑到標題上才淡入。⚠️ 用 opacity 不用 display：display 從 none 變回來
+   會讓標題的寬度跳一下，滑過去的瞬間整行字往左挪。 */
+.hlink {
+  margin-inline-start: .45rem;
+  font-weight: 400;
+  color: var(--ink-faint);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity .15s ease, color .15s ease;
+}
+h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
+.hlink:hover { color: var(--accent); }
+.hlink:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 52rem) {
+  /* 手機沒有滑鼠，錨點連結不會有「移上去」這件事，留著只是每個標題後面多一個
+     看不出用途的井字號。 */
+  .hlink { display: none; }
+  /* ⚠️ 主題切換在手機上收起來，是量出來的取捨：頁首那一列本來是 59px 一整列，
+     加了這一組（87px）之後控制項擠不下、整組掉到第二列，頁首變成 92px ——
+     十二頁每一頁的第一個畫面都少掉 33px，320px 的機器上更是 135px。
+     手機的深色本來就跟著系統走（iOS／Android 的深色開關都在兩三下之內），
+     為了一個系統已經提供的選擇，不值得每一頁都付這 33px。
+     （Wilson 2026-09-04 是在**桌面**的脈絡下要這一顆的。） */
+  .themetoggle { display: none; }
+  /* 手機的右下角是拇指最順的位置，但也最容易蓋到內容 —— 收小一點、貼邊一點。 */
+  .totop { inset-inline-end: .9rem; bottom: .9rem; width: 2.4rem; height: 2.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .totop, .hlink { transition: none; }
 }

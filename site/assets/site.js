@@ -286,6 +286,119 @@
   try { applySize(localStorage.getItem(SIZE_KEY) || 'normal'); }
   catch (e) { applySize('normal'); }
 
+  /* ---------- 主題：跟著系統／淺色／深色（Wilson 2026-09-04）----------
+     網站本來就有深色（@media prefers-color-scheme），但只能跟著系統走。有人中午
+     想看深的、有人在深色系統上想看淺的 —— 給一個手動的第三種選擇。
+
+     ⚠️ 按鈕在這裡長出來、不寫進十二份 HTML：沒有 JS 的時候，主題本來就會跟著
+     系統走（那是 CSS 的事），這時候擺一顆按不動的切換鈕只會騙人。跟漢堡鈕、
+     章節收合鈕同一個道理。
+     ⚠️ 「畫面之前就定案」那一段不在這裡，在每一頁 <head> 的內嵌小腳本裡 ——
+     等到這支檔案執行才套的話，選了跟系統相反的人每開一頁都會看到閃一下。
+     這裡只負責畫按鈕、記選擇。 */
+  var THEME_KEY = 'aiphabi-site-theme';
+  var THEMES = [['auto', '自動'], ['light', '淺'], ['dark', '深']];
+  var tmHost = document.querySelector('.topbar-controls');
+  if (tmHost) {
+    var tmBox = document.createElement('div');
+    tmBox.className = 'themetoggle';
+    tmBox.setAttribute('role', 'group');
+    tmBox.setAttribute('aria-label', '主題');
+
+    var applyTheme = function (name) {
+      var ok = false;
+      THEMES.forEach(function (t) { if (t[0] === name) ok = true; });
+      if (!ok) name = 'auto';
+      if (name === 'auto') delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = name;
+      [].forEach.call(tmBox.children, function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.theme === name));
+      });
+      try { localStorage.setItem(THEME_KEY, name); } catch (e) { /* 無痕模式 */ }
+    };
+
+    THEMES.forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.theme = t[0];
+      b.textContent = t[1];
+      b.setAttribute('aria-label', t[0] === 'auto' ? '主題跟著系統' : '主題固定' + t[1] + '色');
+      b.title = b.getAttribute('aria-label');
+      b.addEventListener('click', function () { applyTheme(t[0]); });
+      tmBox.appendChild(b);
+    });
+    tmHost.appendChild(tmBox);
+
+    var tmSaved = 'auto';
+    try { tmSaved = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
+    applyTheme(tmSaved);
+  }
+
+  /* ---------- 回到頁首（Wilson 2026-09-04）----------
+     〈字根表〉15,420px（十七個畫面）、〈詞組連打〉6,786px、〈取碼原則〉4,456px。
+     捲到底之後回頭只能一路刷上去。捲過一個半畫面才出現 —— 短頁面上不該有一顆
+     擋著內容的浮鈕。 */
+  var ttReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var ttBtn = document.createElement('button');
+  ttBtn.type = 'button';
+  ttBtn.className = 'totop';
+  ttBtn.setAttribute('aria-label', '回到頁首');
+  ttBtn.title = '回到頁首';
+  ttBtn.innerHTML = '<span class="totop-arrow" aria-hidden="true"></span>';
+  document.body.appendChild(ttBtn);
+
+  var ttOn = false, ttRaf = 0;
+  function ttPaint() {
+    ttRaf = 0;
+    var want = window.scrollY > window.innerHeight * 1.5;
+    if (want === ttOn) return;
+    ttOn = want;
+    ttBtn.classList.toggle('is-on', want);
+  }
+  window.addEventListener('scroll', function () {
+    if (!ttRaf) ttRaf = requestAnimationFrame(ttPaint);
+  }, { passive: true });
+  ttPaint();
+  ttBtn.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: ttReduced.matches ? 'auto' : 'smooth' });
+  });
+
+  /* ---------- 標題旁邊的「連到這一節」（Wilson 2026-09-04）----------
+     這是一份會被引用的參考資料，讀者要能把某一節的網址傳給別人。滑鼠移到標題上
+     才顯示，平常不佔視覺。
+
+     ⚠️ 只裝在**本來就有 id** 的標題上（那 23 個，加上〈約定字表〉現畫的八個）。
+     沒有 id 的標題要現編一個中文轉出來的錨點，那種錨點改一個字就換一個網址，
+     比沒有更糟。
+     ⚠️〈約定字表〉的標題是抓完 JSON 才畫的（同一個坑見上面 spyBuild 的說明），
+     所以有章節清單的頁面要盯著 main 看。試打頁沒有章節清單，也就不會掛這個
+     觀察者 —— 那一頁的 main 每打一個字就變動一次。 */
+  var haMain = document.querySelector('main');
+  if (haMain) {
+    var haPaint = function () {
+      /* 兩種來源：標題自己帶 id（23 個），以及 id 掛在外層 <section> 上、標題自己
+         沒有 id 的（〈字根表〉的「相近字形辨析」就是這一種）。第二種要跟著抓，
+         不然六頁裡就有一頁的錨點是缺的 —— 而缺的那一頁不會有任何症狀。 */
+      [].forEach.call(haMain.querySelectorAll('h2[id], h3[id], section[id] > h2, section[id] > h3'),
+        function (h) {
+        if (h.querySelector('.hlink')) return;
+        var id = h.id || (h.parentNode && h.parentNode.id);
+        if (!id) return;
+        var a = document.createElement('a');
+        a.className = 'hlink';
+        a.href = '#' + id;
+        a.textContent = '#';
+        a.setAttribute('aria-label', '連到「' + h.textContent.trim() + '」這一節');
+        a.title = a.getAttribute('aria-label');
+        h.appendChild(a);
+      });
+    };
+    haPaint();
+    if (sub && window.MutationObserver) {
+      new MutationObserver(haPaint).observe(haMain, { childList: true, subtree: true });
+    }
+  }
+
   /* ---------- 進度數字：從 dict.json 填，HTML 裡寫的是離線後備值 ----------
    * 頁面在沒有 JS／抓不到檔案時仍然顯示得出數字，只是可能舊一點；有 JS 時一律以
    * 產生當下的 codes.json 為準。手抄的數字撐不過幾天取碼。 */
