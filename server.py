@@ -196,6 +196,29 @@ def _load_textfreq():
         return {}
 
 
+def _padding_suspect_values(textfreq, min_repeat=5):
+    """textfreq（librime essay 語料）中低頻那段有明顯的灌水痕跡：同一個出現次數會被
+    十幾、幾十個完全不相干的生僻字共用（例如剛好都是 251 次的有 69 個字、278 次的
+    有 65 個），這在真實文本計次裡機率趨近於零——比較像是某個參考字集裡每個字都
+    補了一個介於一兩百到幾百之間的底重，讓候選永遠不是零機率，不是真的被寫過那
+    麼多次。5 個互不相干的生僻字巧合落在同一個三位數整數上，organically 幾乎不可
+    能，抓出這些次數值（兩邊都排除，不當 0 也不當真實次數，因為真的不知道），
+    見 2026-09-02 對話。"""
+    freq_of_counts = collections.Counter(textfreq.values())
+    return {v for v, n in freq_of_counts.items() if n >= min_repeat}
+
+
+def _everyday_coverage(coded, textfreq, suspect_values):
+    """扣掉灌水痕跡後的覆蓋率——`coverage`（91%）講的是全量 textfreq，含灌水字；
+    這個講「日常文本」（廣告、公告、文章、報章）該有的覆蓋率，見 _padding_suspect_values。"""
+    clean_total = sum(n for n in textfreq.values() if n not in suspect_values)
+    if not clean_total:
+        return None
+    clean_covered = sum(n for c, n in textfreq.items()
+                         if n not in suspect_values and c in coded)
+    return round(clean_covered / clean_total * 100, 2)
+
+
 # 取碼目標：官方字表。「取到哪裡算完成」用這個講，不要用 makemeahanzi 的 9574 字
 # ——那是字形資料的涵蓋範圍，不是任何國家的標準。清單本身在 data/standards/，
 # 每個檔頭都寫了出處。
@@ -240,7 +263,7 @@ def _standards_coverage(coded):
     return out
 
 
-def _cat_counts(text, simp_only, t2s, jp_kanji, textfreq=None, textfreq_total=0):
+def _cat_counts(text, simp_only, t2s, jp_kanji, textfreq=None, textfreq_total=0, suspect_values=None):
     """逐日／現在狀態共用：把一份 codes.json 內容拆成 繁體／簡體／傳承／日本漢字
     四類的字數，外加 trad∩simp 的重疊數（「坏」這種同時是簡體「壞」跟獨立繁體
     「坏」的極少數個案——精確算聯集要扣這個）。
@@ -249,7 +272,8 @@ def _cat_counts(text, simp_only, t2s, jp_kanji, textfreq=None, textfreq_total=0)
     coverage：拿 textfreq（見 TEXTFREQ，librime essay 語料的單字計次，比新聞字頻
     廣得多的樣本）當「真實中文文本」的抽樣，算「這批取碼字」佔全部出現次數的比
     例——不是字數覆蓋率，是「打得出多少實際文字」的覆蓋率，罕用字取再多也不太
-    會動這個數字。"""
+    會動這個數字。這是全量數字，含 _padding_suspect_values 抓到的灌水字；對外要
+    講「日常文本」覆蓋率用 coverageEveryday（_everyday_coverage），不要用這個。"""
     try:
         d = json.loads(text)
     except (json.JSONDecodeError, TypeError):
@@ -264,6 +288,8 @@ def _cat_counts(text, simp_only, t2s, jp_kanji, textfreq=None, textfreq_total=0)
     if textfreq_total:
         covered = sum(textfreq.get(c, 0) for c in coded)
         out["coverage"] = round(covered / textfreq_total * 100, 2)
+        if suspect_values is not None:
+            out["coverageEveryday"] = _everyday_coverage(coded, textfreq, suspect_values)
     return out
 
 
@@ -274,6 +300,7 @@ def progress_data():
     jp_kanji = _load_jp_kanji()
     textfreq = _load_textfreq()
     textfreq_total = sum(textfreq.values())
+    suspect_values = _padding_suspect_values(textfreq) if textfreq else set()
     try:
         head = _git("rev-parse", "HEAD")
         if head.returncode != 0:
@@ -295,7 +322,7 @@ def progress_data():
                 continue
             h, date = parts[0], parts[1]
             c = _cat_counts(_git("show", f"{h}:data/codes.json").stdout, simp_only, t2s, jp_kanji,
-                             textfreq, textfreq_total)
+                             textfreq, textfreq_total, suspect_values)
             if c is None:
                 continue
             if date not in day_last:
@@ -312,6 +339,7 @@ def progress_data():
     standards = []
     raw = uniq = 0
     coverage = 0.0
+    coverage_everyday = 0.0
     if CODES.exists():
         try:
             coded_map = json.loads(CODES.read_text("utf-8"))
@@ -327,16 +355,19 @@ def progress_data():
             if textfreq_total:
                 covered = sum(textfreq.get(c, 0) for c in coded_chars)
                 coverage = round(covered / textfreq_total * 100, 2)
+                coverage_everyday = _everyday_coverage(coded_chars, textfreq, suspect_values) or 0.0
         except json.JSONDecodeError:
             pass
     elif days:
         last = days[-1]
         raw, uniq = last["total"], last["total"] - last["simp"]
         coverage = last.get("coverage", 0.0)
+        coverage_everyday = last.get("coverageEveryday", 0.0)
 
     return {"days": days, "total": raw, "totalUniq": uniq,
             "totalSimp": len(simp_chars), "totalTrad": len(trad_chars),
             "totalJp": len(jp_chars), "coverage": coverage,
+            "coverageEveryday": coverage_everyday,
             "simpChars": simp_chars, "tradChars": trad_chars,
             "inheritedChars": inherited_chars, "jpChars": jp_chars,
             "standards": standards}

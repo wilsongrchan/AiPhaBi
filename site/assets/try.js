@@ -23,6 +23,30 @@
   var rail  = document.getElementById('rail');
   var state = { buf: '', cands: [], data: null };
 
+  /* 窄螢幕（＝手機版那一套版面的斷點，跟 site.css 的 52rem 對齊）。
+     只有**文案**在用它：手機上沒有實體鍵盤，講「按 =」等於講一個按不到的鍵。
+     版面本身一律交給 CSS 媒體查詢，不在 JS 裡依寬度搬 DOM。 */
+  var NARROW_Q = window.matchMedia('(max-width: 52rem)');
+  function isNarrow() { return NARROW_Q.matches; }
+
+  /* 「打字設定」與「按鍵指南」只有**手機**才是摺疊的（Wilson 2026-09-03：
+     「the collapsable setting and keyboard key legend ... has also made it to
+     the computer view site, which isn't the intention」）。
+     兩邊共用同一份 HTML：桌面一律強制展開，摘要那一行由 CSS 藏起來（按鍵指南
+     只藏箭頭，<h2> 本身還是章節標題），看起來就跟加摺疊之前一模一樣。
+     ⚠️ 用 JS 而不是 CSS 的 ::details-content —— 那個偽元素各家支援度差太多，
+     Safari 要 18.4 以後才有，攤不開的話桌面版會直接少掉一整塊內容。 */
+  var FOLDABLES = ['try-settings', 'try-keyguide'];
+  function syncFoldables() {
+    FOLDABLES.forEach(function (id) {
+      var d = document.getElementById(id);
+      if (d) d.open = !NARROW_Q.matches;
+    });
+  }
+  syncFoldables();
+  if (NARROW_Q.addEventListener) NARROW_Q.addEventListener('change', syncFoldables);
+  else if (NARROW_Q.addListener) NARROW_Q.addListener(syncFoldables);
+
   // 字母鍵全給字根用了，標點落在原本的標點鍵上（跟 rime/README.md 那張表一致）
   var PUNCT = {
     ',': '，', '.': '。', '?': '？', '!': '！', ';': '；', ':': '：',
@@ -400,9 +424,13 @@
       return;
     }
     if (!state.buf) {
-      rail.appendChild(el('span', 'empty',
-        '在上框中輸入英文字母，即可用愛發筆輸入法打字！'
-        + (P.on ? '如果不知如何拆碼，可以按「=」鍵取得提示。' : '')));
+      /* 手機版一句就好（Wilson 2026-09-03）：候選列在手機上只有半欄寬、一行高，
+         原本那兩句在裡面直接被裁掉，看到的是半截話。「=」怎麼用寫在〈按鍵指南〉
+         裡，手機上還有一顆「提示」觸控鍵。桌面版整條寬，照舊講完整兩句。 */
+      rail.appendChild(el('span', 'empty', isNarrow()
+        ? '在上框中輸入英文字母打字'
+        : '在上框中輸入英文字母，即可用愛發筆輸入法打字！'
+          + (P.on ? '如果不知如何拆碼，可以按「=」鍵取得提示。' : '')));
       return;
     }
 
@@ -1110,13 +1138,19 @@
         }
         P.next.appendChild(el('span', 'word-badge', '詞組'));
         P.next.appendChild(wb);
-      } else {
+      } else if (!isNarrow()) {
         P.next.appendChild(el('b', null, now === '\n' ? '↵' : now));
       }
       // 約定字：不是照筆畫拆的，整字背下來——標出來，不然學的人會以為
       // 自己看不出字根，其實這個字本來就不歸那套推理管（Wilson）。
       if (P.conv && P.conv.has(now)) P.next.appendChild(el('span', 'conv-badge', '約定字'));
-      P.next.appendChild(el('span', null, '下一個'));
+      /* ⚠️ 手機版**只留標籤**（Wilson 2026-09-03：「idk what 下一個 does or
+         mean，the only useful info here is like saying it is a phrase or an
+         exception character」）：那個字就在正上方的田字格裡，寫第二遍沒有加任何
+         資訊，「下一個」更是在描述畫面本來就講清楚的事。留下的都是**看不出來、
+         必須被告知**的：有簡碼、這一格其實是一個詞、這是約定字。
+         桌面版一字不動 —— 他要的是手機版的改動，不是整站的。 */
+      if (!isNarrow()) P.next.appendChild(el('span', null, '下一個'));
     }
     renderHint(now);
     paintFlow();
@@ -1162,7 +1196,12 @@
     // 換行不用打，所以不算進進度裡 —— 算進去的話永遠打不到 100%
     var done = P.typedBefore[P.pos] || 0, total = P.total;
     var pct = Math.round(done * 100 / total);
-    P.prog.textContent = done + ' / ' + total + '　' + pct + '%';
+    var progTxt = done + ' / ' + total + '　' + pct + '%';
+    /* 兩顆進度數字：桌面那顆在按鈕列最左邊，手機那顆接在進度長條右邊
+       （Wilson 2026-09-03）。兩顆各自由 CSS 決定哪一顆看得見 —— 用 JS 依寬度
+       搬家的話，轉螢幕、鍵盤彈出來都要重算一次，交給媒體查詢最穩。 */
+    P.prog.textContent = progTxt;
+    if (P.progN) P.progN.textContent = progTxt;
     if (P.progbar) P.progbar.style.width = pct + '%';
 
     // 目前這個字捲進視野：只捲文章那個框，不要動整頁
@@ -1281,7 +1320,10 @@
       box.appendChild(el('span', 'tz-more', '打字成功！'));
     } else {
       var more = mo.pos < order.length - 1 || P.hstep < 3;
-      box.appendChild(el('span', 'tz-more', more ? '再按 = 給更多提示' : '已顯示全部編碼'));
+      /* 手機上沒有 =（要翻到第二層符號鍵盤才找得到），提示是右下角那顆
+         「提示」觸控鍵 —— 講一個按不到的鍵等於沒講（Wilson 2026-09-03）。 */
+      box.appendChild(el('span', 'tz-more',
+        more ? (isNarrow() ? '再按一次提示' : '再按 = 給更多提示') : '已顯示全部編碼'));
     }
   }
 
@@ -1378,7 +1420,7 @@
     P.on = !free;
     [].forEach.call(P.host.querySelectorAll('[data-practice]'), function (n) { n.hidden = free; });
     [].forEach.call(P.host.querySelectorAll('[data-mode-panel="practice"]'), function (n) { n.hidden = free; });
-    // 姓名常用字（.namechars）故意擺在 #tryarea 外面（見 try.html 裡的
+    // 姓名常用字（.namechars）故意擺在 #tryarea 外面（見 shida.html 裡的
     // 說明），這裡查 document 而不是 P.host，不然它永遠切不出來。
     [].forEach.call(document.querySelectorAll('[data-mode-panel="free"]'), function (n) { n.hidden = !free; });
     [].forEach.call(P.host.querySelectorAll('[data-mode]'), function (b) {
@@ -1393,6 +1435,9 @@
     var host = document.getElementById('tryarea');
     if (!host || !pd || !pd.texts || !pd.texts.length) return;
     P.host = host;
+    /* ⚠️ 這裡要再標一次：模組載入時 flowBoxes 那段就呼叫過 markFlowMode()，
+       但那時 practice.json 還在路上、P.host 還是 null，記住的模式標不上去。 */
+    markFlowMode();
     P.glyphs = pd.glyphs || null;
     P.segs = pd.segs || null;
     P.conv = new Set(pd.conv || []);
@@ -1403,11 +1448,23 @@
     P.next = document.getElementById('practice-next');
     P.flow = document.getElementById('practice-flow');
     P.prog = document.getElementById('practice-prog');
+    P.progN = document.getElementById('practice-prog-n');
     P.progbar = document.getElementById('practice-progbar-fill');
     P.hintbox = document.getElementById('practice-hint');
 
     // 篇目選單：一篇一顆。只有一篇的時候整排不出現（按了也沒事發生的按鈕是雜訊）
     P.pick = document.getElementById('practice-pick');
+    /* 手機上把篇目收進 <details>（Wilson 2026-09-03）。桌面維持攤開 ——
+       HTML 裡寫死 open，這裡只有在窄螢幕才把它關上，所以 JS 沒跑到＝跟以前一樣。
+       ⚠️ 只在「螢幕寬度跨過斷點」時同步，不是每次重畫都同步：否則使用者在手機上
+       自己展開來挑篇目，下一次重畫就被關掉了。 */
+    var pickWrap = document.getElementById('practice-pickwrap');
+    var pickQ = window.matchMedia('(max-width: 52rem)');
+    function syncPickWrap() { if (pickWrap) pickWrap.open = !pickQ.matches; }
+    syncPickWrap();
+    if (pickQ.addEventListener) pickQ.addEventListener('change', syncPickWrap);
+    else if (pickQ.addListener) pickQ.addListener(syncPickWrap);
+
     if (P.texts.length > 1) {
       P.texts.forEach(function (t, i) {
         var b = document.createElement('button');
@@ -1415,9 +1472,18 @@
         b.className = 'practice-pickbtn';
         b.textContent = t.title;
         b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
-        b.addEventListener('click', function () { setText(i); out.focus(); });
+        b.addEventListener('click', function () {
+          setText(i);
+          /* 挑完就收起來 —— 選單選完還開著擋在文本上面，等於多按一次才看得到
+             自己剛選的東西。桌面版沒有這個摺疊，pickQ 不成立就不動它。 */
+          if (pickWrap && pickQ.matches) pickWrap.open = false;
+          out.focus();
+        });
         P.pick.appendChild(b);
       });
+    } else if (pickWrap) {
+      /* 只有一篇：整個摺疊都不要出現（按了也沒事發生的東西是雜訊）。 */
+      pickWrap.hidden = true;
     }
 
     /* 點參考文章裡任何一個字就從那裡開始。沒有這個的話，想試某個字只能一路按
@@ -1829,41 +1895,40 @@
     return true;
   }
 
-  out.addEventListener('keydown', function (e) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    var k = e.key;
+  /* 一個「鍵」走到這裡。回傳 true = 輸入法收走了這一鍵，呼叫端要自己
+     preventDefault；回傳 false = 沒收，讓瀏覽器照原本的方式處理。
+     ⚠️ 拆成獨立函式是為了讓**軟鍵盤**那條路（下面的 beforeinput）能走同一套
+     判斷。以前這整段直接寫在 keydown 裡，手機上完全打不動 —— 見下面的說明。 */
+  function typeKey(k) {
 
     if (state.buf) {
-      if (k === 'Backspace') { e.preventDefault(); setBuf(state.buf.slice(0, -1)); return; }
-      if (k === 'Escape')    { e.preventDefault(); setBuf(''); return; }
+      if (k === 'Backspace') { setBuf(state.buf.slice(0, -1)); return true; }
+      if (k === 'Escape')    { setBuf(''); return true; }
       if (k === ' ' || k === 'Enter') {
-        e.preventDefault();
         if (state.cands.length) commit(state.cands[0].ch);
-        return;
+        return true;
       }
       if (k >= '1' && k <= '9') {
         var i = +k - 1;
-        if (i < state.cands.length) { e.preventDefault(); commit(state.cands[i].ch); return; }
+        if (i < state.cands.length) { commit(state.cands[i].ch); return true; }
       }
     }
 
     if (/^[a-zA-Z]$/.test(k)) {
-      e.preventDefault();
       var lk = k.toLowerCase();
       if (!autoType(lk)) setBuf(state.buf + lk);
-      return;
+      return true;
     }
 
     // 提示鍵。放在標點之前判斷 —— 將來要是 = 也收進 PUNCT，提示還是要贏，
     // 否則這顆鍵就按不出提示了。
-    if (k === HINT_KEY) { e.preventDefault(); hintStep(); return; }
+    if (k === HINT_KEY) { hintStep(); return true; }
 
     // 萬用鍵。放在標點之前判斷 —— ` 在 PUNCT 裡沒有對應，但將來要是加了，
     // 萬用鍵也必須贏，否則這一顆鍵就打不進碼裡了。
-    if (k === WILD) { e.preventDefault(); setBuf(state.buf + WILD); return; }
+    if (k === WILD) { setBuf(state.buf + WILD); return true; }
 
     if (PUNCT[k]) {
-      e.preventDefault();
       /* 碼還在 → 標點先把候選欄第一個頂上屏，再放標點（Wilson：打完 DI 接一個
          逗號，那個逗號就該把 目 頂出去，不必先按空白）。以前這裡是 setBuf('')，
          等於把打好的碼直接丟掉 —— 打完 WIGNL 再打句號，流 就這樣沒了，連錯誤都
@@ -1882,9 +1947,82 @@
       }
       insert(PUNCT[k]);
       advance(PUNCT[k]);        // 標點也是文章的一部分，打對了一樣往前一格
+      return true;
+    }
+    return false;
+  }
+
+  out.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typeKey(e.key)) e.preventDefault();
+  });
+
+  /* ---------- 手機的軟鍵盤走這一條 ----------
+     ⚠️ 手機上鍵盤送出來的 keydown **沒有可用的 e.key**：Android 的 Gboard 一律
+     報 keyCode 229 / key "Unidentified"（它在做組字，鍵是什麼要等組完才知道），
+     iOS 在有預測字的情形下也一樣。上面那條 keydown 於是一個字母都認不得，結果是
+     整個〈線上試打〉在手機上**完全打不動** —— 打 di 只會看到「di」兩個英文字母
+     留在框裡，碼是空的、候選一個都沒有（2026-09-02 用 CDP 的 Input.insertText
+     實測，那正是軟鍵盤走的路徑；同一頁用實體鍵盤打 di 會得到碼 di、9 個候選）。
+
+     beforeinput 沒有這個問題：它報的是「即將被插入的字」，組字結束才發，而且
+     可以取消。所以這裡把插進來的字**一個一個**餵回上面那套 typeKey。
+
+     ⚠️ 只認 insertText 與 deleteContentBackward：
+       · insertCompositionText 是組字中途的狀態，收下去會把人家還沒選完的拼音
+         當成字母打進碼裡。
+       · insertFromPaste 不收 —— 貼上一段中文本來就該原樣進框（試打文本要對照）。
+     ⚠️ keydown 收走的鍵（實體鍵盤）已經 preventDefault 了，beforeinput 根本
+     不會發，所以兩條路不會重複處理同一鍵。 */
+  out.addEventListener('beforeinput', function (e) {
+    if (e.inputType === 'insertText' && e.data) {
+      var took = false;
+      for (var i = 0; i < e.data.length; i++) {
+        if (typeKey(e.data.charAt(i))) took = true;
+      }
+      /* 只要有一個字母被收走就整段取消 —— 讓「一半進碼、一半留在框裡」這種
+         夾生狀態不可能出現。中文、emoji 這些 typeKey 一律不收，照樣插得進去。 */
+      if (took) e.preventDefault();
       return;
     }
+    /* 碼還在的時候，退格是退碼、不是刪已經上屏的字 */
+    if (e.inputType === 'deleteContentBackward' && state.buf) {
+      e.preventDefault();
+      typeKey('Backspace');
+    }
   });
+
+  /* ---------- 手機用的兩顆鍵：萬用鍵 ` 與提示 = ----------
+     這兩顆在實體鍵盤上順手，在手機上卻要切到符號鍵盤才找得到 —— 而它們正是
+     「不會拆就按一下」跟「卡住了看提示」的出口，藏在第二層等於沒有（Wilson）。
+     ⚠️ 桌面版用 CSS 藏起來，不是不建 —— 轉個方向就該出現，建一次就好。
+     ⚠️ pointerdown 要 preventDefault：不擋的話按鈕會把焦點從試打框搶走，
+     手機鍵盤跟著收起來，按一顆鍵畫面跳一大下。 */
+  var padWrap = document.createElement('div');
+  padWrap.className = 'try-touchkeys';
+  /* 第三欄是鍵帽上要印的字，空字串＝不印。萬用鍵印「`」是因為它真的是一個
+     打得出來的字元，看過一次下次用實體鍵盤就知道按哪裡；提示不印「=」——
+     在手機上沒有人會為了看提示去翻符號鍵盤，一定是按這顆鈕，印一個按不到的
+     鍵位只是把鈕擠窄（Wilson 2026-09-03）。「=」怎麼用寫在〈按鍵指南〉裡。 */
+  [[WILD, '萬用鍵', WILD], [HINT_KEY, '提示', '']].forEach(function (spec) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'try-touchkey';
+    b.innerHTML = (spec[2] ? '<kbd data-keep>' + spec[2] + '</kbd>' : '')
+      + '<span>' + spec[1] + '</span>';
+    b.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () {
+      typeKey(spec[0]);
+      out.focus({ preventScroll: true });
+    });
+    padWrap.appendChild(b);
+  });
+  /* 擺在候選列**下面**（Wilson 2026-09-03）：手機鍵盤在畫面下半，由下往上是
+     鍵盤→這兩顆鈕→候選字→試打框，按了鈕之後眼睛只要往上抬一格就看到候選，
+     不必跨過一排按鈕。夾在試打框與候選列中間會把兩個本來該連著看的東西拆開。
+     rail 一定在（shida.html 的 .typebox 裡），拿不到才退回原本的位置。 */
+  var padAfter = rail || out;
+  if (padAfter.parentNode) padAfter.parentNode.insertBefore(padWrap, padAfter.nextSibling);
 
   /* 詞組選項旁邊那句話：**只講還沒好的狀態**。這是唯一一個「選了之後要等」的
      模式 —— 沒有回饋的話，選了卻還沒有詞候選，看起來就像壞掉。
@@ -1901,7 +2039,7 @@
     phraseNote.classList.toggle('is-bad', PD_STATE === 'fail' && PHRASE_ON);
   }
 
-  /* 流暢模式：詞組連打與單字上屏擇一，畫面上就是一組單選鈕（try.html）。
+  /* 流暢模式：詞組連打與單字上屏擇一，畫面上就是一組單選鈕（shida.html）。
      互斥不是「勾一個另一個自己跳掉」的附帶行為，而是這個設定本來的形狀 ——
      IME 那邊也是互斥的（rime/lua/aiphabi_autocommit.lua 的 enforce_mutex），
      理由一樣：詞組開著時幾乎每個字後面都還接得出詞，候選永遠不只一個，
@@ -1913,10 +2051,21 @@
      （Wilson）。該說的話留給田字格底下那一行，那裡答得出這一次會怎樣（paintFlow）。 */
   function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
 
+  /* 田字格底下那一行（paintFlow 寫的「需要按空白」）**只有單字上屏用得到**。
+     它本來一直佔著 1.2em 的位子（免得出現／消失時底下跳一下），但其他兩種模式
+     底下那個位子永遠是空的 —— 手機上就變成田字格與底下說明之間一段沒有理由的
+     空白（Wilson 2026-09-03：「a lot of wasted space between the bottom of the
+     田字格 to the caption」）。改成掛在模式上：開著單字上屏才留位子，那時候它
+     真的會用到，也就不會跳。 */
+  function markFlowMode() {
+    if (P.host) P.host.classList.toggle('has-flowline', AUTO_ON);
+  }
+
   function setFlow(mode) {
     clearFlow();          // 換模式時把還在等的那一拍收掉，不然它會在新模式底下開火
     PHRASE_ON = mode === 'phrase';
     AUTO_ON = mode === 'auto';
+    markFlowMode();
     saveFlag(PHRASE_KEY, PHRASE_ON);
     saveFlag(AUTO_KEY, AUTO_ON);
     if (PHRASE_ON) loadPhraseDict();
@@ -1936,6 +2085,7 @@
                 (mode === 'none' && !PHRASE_ON && !AUTO_ON);
     b.addEventListener('change', function () { if (b.checked) setFlow(mode); });
   });
+  markFlowMode();       // 上次選的模式也要算一次，不是只有按下去的時候
   // 上次選的是詞組就先抓詞庫 —— 使用者已經表達過要用它了，不必再等他選一次
   if (PHRASE_ON) loadPhraseDict();
   paintPhraseNote();

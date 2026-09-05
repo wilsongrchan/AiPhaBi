@@ -94,8 +94,15 @@
   --warn-soft: #fdeeee;
 }
 
+/* ⚠️ 深色的色票寫兩份，是刻意的，別想合成一份：
+     · @media 這一份給「跟著系統」用 —— 它必須在**沒有 JS** 的時候也生效，
+       所以不能改成只認 data-theme。
+     · [data-theme="dark"] 那一份給「使用者自己選深色」用。
+   CSS 沒有辦法讓一個媒體查詢跟一個屬性選擇器共用同一組宣告，所以只能重複。
+   兩份走偏的話畫面會在「跟著系統」與「手動深色」之間長得不一樣 ——
+   site/tools/theme_test.js 會逐項比對這兩份，不一致就擋下來。 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg:      #141717;
     --surface: #1b2020;
     --line:    #2d3534;
@@ -127,6 +134,38 @@
     --warn-soft: #3a1f22;
   }
 }
+:root[data-theme="dark"] {
+    --bg:      #141717;
+    --surface: #1b2020;
+    --line:    #2d3534;
+    --ink:     #e1eceb;
+    --ink-dim: #8ea2a0;
+    --ink-faint: #708381;   /* 深色主題往背景靠，一樣是「更不搶眼」 */
+    --accent:  #3fc0b0;
+    /* 深色主題往亮的方向拉開，往暗拉會跟背景糊在一起 */
+    --accent-2: #319689;
+    --accent-3: #26736a;
+    --accent-soft: #1d2f2b;
+    --code-bg: #1f2625;
+    --zg-on:   #2fd6c4;
+    --zg-on-2: #22aa9b;
+    --zg-on-3: #197e74;
+    --zg-off:  #6f6f6f;
+
+    /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
+    --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
+    --rb-1: #ffb732;
+    --rb-2: #8bc34a;   /* 深淺主題共用，這個綠在兩種背景上都夠亮 */
+    --rb-3: #0096ff;   /* 本來就夠亮，深淺主題共用 */
+    --rb-4: #c084fc;
+    --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
+    /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
+       （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
+       只剩 4.47，低於 4.5 就不收。 */
+    --warn: #ee4653;
+    --warn-soft: #3a1f22;
+}
+
 
 :root[data-zg-size="small"] { --zg-scale: .86; }
 :root[data-zg-size="large"] { --zg-scale: 1.2; }
@@ -209,12 +248,29 @@ kbd {
 /* ---------- 側邊導覽（寬螢幕）／頂部導覽（窄螢幕） ----------
  * 導覽固定在左側，內容往右讓開。窄螢幕會在檔案後面的 media query 改回頂部橫列，
  * 因為手機上左側欄會吃掉一半的可用寬度。 */
-:root { --nav-w: 12.5rem; }
+/* 版面總寬（側邊欄 ＋ 一段間距 ＋ 正文）。超過這個寬度的螢幕，多出來的空間平均
+   分到左右兩側 —— 側邊欄跟著往內移，不再釘死在視窗左緣。
+   Wilson 2026-09-04：「the side bar/page width doesn't have to be as wide as the
+   window width, to minimize the distance between the side bar and the main body」。
+   量到的問題：側邊欄靠左、正文卻在剩下的空間裡置中，兩者之間空出一條會隨螢幕
+   長大的死帶 —— 1280 是 76px，1745 是 309px，1920 是 396px，2560 是 716px。
+   ⚠️ 用 `100%` 不用 `100vw`：100vw **含**捲軸寬（約 15px），拿它算出來的內距會讓
+   整頁比可視寬度多 15px，於是每一頁都多一條橫向捲軸。自訂屬性是照文字代入的，
+   所以 `100%` 會各自對到用它的那個元素的容器 —— .topbar 是固定定位（對到視窗）、
+   body 對到 <html>，兩邊算出來一樣。
+   ⚠️ 收起側邊欄時 --nav-w 變 0，總寬跟著縮，正文自己就重新置中。 */
+:root {
+  --nav-w: 12.5rem;
+  --nav-gap: 3rem;                                  /* 側邊欄與正文之間留的距離 */
+  --page-w: calc(var(--nav-w) + var(--nav-gap) + 58rem);
+  --page-pad: max(0px, calc((100% - var(--page-w)) / 2));
+}
+:root.nav-min { --nav-gap: 0rem; }
 
 .topbar {
   position: fixed;
   inset-block: 0;
-  inset-inline-start: 0;
+  inset-inline-start: var(--page-pad);
   width: var(--nav-w);
   border-inline-end: 1px solid var(--line);
   background: var(--surface);
@@ -254,7 +310,7 @@ kbd {
 /* 用 body 的 padding 讓開側邊欄，而不是給 main 加 margin-inline-start ——
    後者會破壞 .wrap 的 margin: 0 auto，內容會貼著側邊欄、右邊空一大片。
    讓開之後 main 仍然是在「剩下的空間」裡置中。 */
-body { padding-inline-start: var(--nav-w); }
+body { padding-inline-start: calc(var(--page-pad) + var(--nav-w) + var(--nav-gap)); }
 
 .brand {
   /* 圖示在左、字在右（Wilson）。圖示本身已經帶圓角與透明背景，不用再加
@@ -328,7 +384,10 @@ nav.site a[aria-current="page"] {
   padding: .1rem .6rem .15rem;
   font-size: .72rem;
   font-weight: 700;
-  color: var(--ink-dim);
+  /* 分組小標用主色（Wilson 2026-09-03：「maybe for both desktop and mobile, the
+     menubar category title can be green」）。⚠️ 這一條是今天唯一**兩邊都改**的
+     —— 手機版那條同名規則要一起改，不然桌面綠、手機灰。 */
+  color: var(--accent);
   letter-spacing: .1em;
 }
 
@@ -387,6 +446,11 @@ nav.site .pr-sidenav a[aria-current="page"] {
    會被 .wrap 的 0 蓋掉，怎麼調都沒反應 —— 這個坑踩過一次。 */
 main.wrap { padding-block: 3rem 1.25rem; }
 
+/* ⚠️ 正文與頁尾**靠左**、不要在剩下的空間裡置中：置中的話 body 那條內距讓開的
+   位置又會被 `margin: 0 auto` 還回去一半，死帶原封不動。整組的置中已經由
+   --page-pad 做掉了。`.topbar .wrap` 不能跟著改，那是側邊欄自己的內容容器。 */
+main.wrap, body > footer.wrap { margin-inline-start: 0; margin-inline-end: auto; }
+
 /* 標題上方的小字（愛發筆輸入法）—— 頁面標題是「簡介」，品牌名放在它上面當眉標 */
 .eyebrow {
   font-size: .88rem;
@@ -424,6 +488,11 @@ p { margin: 0 0 1.1rem; max-width: var(--measure); }
   font-size: .88rem;
   color: var(--ink-dim);
   margin: -.4rem 0 1.6rem;
+}
+/* 連續兩行字表（台灣甲表／GB 2312）要**貼在一起**讀，它們是同一組事實
+   （Wilson 2026-09-02）—— 只有最後一行跟底下的內文拉開距離。 */
+.jieshao-stat + .jieshao-stat {
+  margin-top: -1.25rem;
 }
 
 /* 導語（每頁標題底下那一段）—— ⚠️ 大小以〈字根表〉那一段為準（Wilson 2026-08-28）：
@@ -598,7 +667,11 @@ blockquote p:last-child { margin-bottom: 0; }
 
 @media (max-width: 40rem) {
   .zg-table .tablewrap { overflow-x: auto; }
-  .zg-tbl thead th { position: static; }
+  /* ⚠️ 「表頭改成不黏」那條**不在這裡** —— 底下第 856 行無條件寫了
+     `.zg-tbl thead th { position: sticky }`，同權重、排在後面，寫在這裡會被它
+     蓋掉（原本就是這樣，手機上表頭一直是 sticky，飄到表格中間蓋住內容）。
+     修正放在檔尾那一區，排在 856 行後面才有效。site/tools/css_order_test.js
+     會盯著這一類「@media 被後面無條件規則蓋掉」的情形。 */
 }
 
 table {
@@ -1162,7 +1235,11 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    的 textarea」內建的行為，不是這裡哪個屬性算錯。跟 .rail 之間留的 .7rem
    margin-top 因此變成視覺上比其他地方的 .7rem 多一截，這裡扣掉那 8px，
    跟下面拼音那排（rail→.pyq-row）的間距才看起來一樣（Wilson）。 */
-.typebox textarea + .rail { margin-top: .2rem; }
+/* ⚠️ 這條只在**手機**生效（見第 10 節）。桌面版兩顆觸控鍵雖然 display:none，
+   但它們一直在 DOM 裡；本來夾在 textarea 與 .rail 中間，相鄰選擇器根本配不到，
+   所以這條在桌面從來沒起過作用（量到的桌面間距一直是 .rail 自己的 .7rem）。
+   2026-09-03 把觸控鍵搬到候選列後面之後它突然配到了，桌面間距少了 8px ——
+   那不是修好，是把一個沒人要求的改動帶進桌面版。改成只在手機下這條。 */
 
 .rail {
   display: flex;
@@ -1330,7 +1407,7 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 
 /* 九條原則的錨點連結，掛在側邊導覽「取碼原則」那個連結底下、縮排一階——
    跟 shurufa.app 那類文件站的側邊欄同一個做法（章節底下掛小節），
-   不是另外開一條跳轉列。只有 principles.html 自己的 nav.site 裡有這段 <ul>，
+   不是另外開一條跳轉列。只有 yuanze.html 自己的 nav.site 裡有這段 <ul>，
    其他三頁的側邊欄不需要看到這九條連結。 */
 .pr-sidenav {
   list-style: none;
@@ -1620,7 +1697,7 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   color: var(--ink-dim);
 }
 
-/* ---------- 約定字表頁（conventional.html） ---------- *
+/* ---------- 約定字表頁（yueding.html） ---------- *
  * 字形圖示欄跟「單獨成字」碼的逐字上色是同一個開關：#cv-groups 有沒有 .cv-color
  * 這個 class，由 conventional.js 的顏色開關按鈕控制（見該檔開頭註解）。 */
 
@@ -2191,7 +2268,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    （見 try.js setupPractice；載入之後兩個模式都是兩欄，不會再收回單欄）。 */
 .tryarea.is-plain { grid-template-columns: minmax(0, 1fr); }
 
-/* 模式切換那排橫跨兩欄、自己佔一整列（見 try.html 裡它是 .tryarea 的第一個
+/* 模式切換那排橫跨兩欄、自己佔一整列（見 shida.html 裡它是 .tryarea 的第一個
    子元素，不在 .tryarea-main 裡）——這樣試打文本／自由試打切換時，左欄的
    試打框跟右欄的內容（田字格或拼音查字）永遠從同一條線開始，不會因為模式
    不同而跳來跳去（Wilson：拼音查字框的上緣要跟試打框切齊）。 */
@@ -2668,7 +2745,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .pyq .tz-hint { margin-top: .6rem; height: 3.3rem; min-height: 0; }
 
 /* 姓名常用字：故意擺在 #tryarea 這個 grid 外面，不跟著拆碼圖那欄的固定
-   高度被拖出一段空白——詳見 try.html 裡這一塊的說明。上外距換成跟
+   高度被拖出一段空白——詳見 shida.html 裡這一塊的說明。上外距換成跟
    .tryarea 自己的下外距一樣（1.4rem）：這一塊現在是接在卡片後面的新
    段落，不是卡片裡的最後一列，用卡片本來的外距當作跟卡片的距離，
    比另外量一個數字更不容易兜不起來。 */
@@ -2676,7 +2753,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .namechars-tag { margin: 0 0 .7rem; font-size: .82rem; color: var(--accent); }
 
 /* 姓氏／男女名左右並排兩欄，各欄自己是「標籤在左、內容在右」——見
-   try.html 裡的說明：並排之後兩邊各自維持自己原本的捲動方向（姓氏橫向、
+   shida.html 裡的說明：並排之後兩邊各自維持自己原本的捲動方向（姓氏橫向、
    男女名直向），只是排成兩個平行的小面板。 */
 /* 40 / 60 分——男女名的字卡牆字比姓氏多（45 對 40，但姓氏字卡本身也窄），
    實際佔用的欄寬用視覺抓：字卡牆要有比姓氏更寬的欄位才不會被擠成一直捲
@@ -3008,7 +3085,7 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 
 /* ── 〈自動上屏〉頁 ─────────────────────────────────────────────────────
- * 唯一上屏／即時頂的說明頁（dingping.html）。內容全部由 dingping.js 從碼表現算，
+ * 唯一上屏／即時頂的說明頁（shangping.html）。內容全部由 dingping.js 從碼表現算，
  * 這裡只管排版。顏色一律走既有的 token，不另立一組。 */
 
 /* 三種上屏方式、什麼時候不該開：兩處都是「名詞＋一段解釋」，用 dl 而不是清單，
@@ -3130,13 +3207,26 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   --hero-glow-2: rgba(255, 183, 50, .16);
   --hero-glow-3: rgba(9, 77, 71, .26);
 }
+/* ⚠️ 深色的色票寫兩份，是刻意的，別想合成一份：
+     · @media 這一份給「跟著系統」用 —— 它必須在**沒有 JS** 的時候也生效，
+       所以不能改成只認 data-theme。
+     · [data-theme="dark"] 那一份給「使用者自己選深色」用。
+   CSS 沒有辦法讓一個媒體查詢跟一個屬性選擇器共用同一組宣告，所以只能重複。
+   兩份走偏的話畫面會在「跟著系統」與「手動深色」之間長得不一樣 ——
+   site/tools/theme_test.js 會逐項比對這兩份，不一致就擋下來。 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --hero-glow-1: rgba(63, 192, 176, .32);
     --hero-glow-2: rgba(255, 183, 50, .14);
     --hero-glow-3: rgba(49, 150, 137, .28);
   }
 }
+:root[data-theme="dark"] {
+    --hero-glow-1: rgba(63, 192, 176, .32);
+    --hero-glow-2: rgba(255, 183, 50, .14);
+    --hero-glow-3: rgba(49, 150, 137, .28);
+}
+
 
 .hero--landing {
   position: relative;
@@ -3188,7 +3278,16 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    ⚠️ body 的 padding-inline-start 不跟著變：側邊欄只是移出畫面，版面不重排，
    所以滑進來的時候正文不會跳。那條空出來的直帶由滿版漸層補上。 */
 .topbar { transition: transform .55s cubic-bezier(.22, .61, .36, 1); }
-.lg-body.lg-navhide .topbar { transform: translateX(-100%); }
+/* ⚠️ 不能用 translateX(-100%)：那只移動側邊欄自己的寬度（--nav-w），寬螢幕上
+   --page-pad（置中留白）比 --nav-w 還寬時，側邊欄只會被推進留白裡，還在視窗內、
+   露出一截（1576px 起就會，1920px 螢幕露出 172px）——這裡把留白的寬度也一起
+   推掉。不能直接重用 var(--page-pad)：它自己的公式裡有個 %，那個 % 是相對它
+   平常出現的 padding／inset-inline-start 算的，塞進 transform 的 calc 裡會被
+   當成「相對側邊欄自己的寬度」重新解讀，所以在這裡用 100vw 重算一次同樣的量。
+   視窗不夠寬、留白是 0 的時候，這條就退化回原本的 -100%，動畫不變。 */
+.lg-body.lg-navhide .topbar {
+  transform: translateX(calc(-1 * (max(0px, (100vw - var(--page-w)) / 2) + var(--nav-w))));
+}
 
 /* 導覽還沒進場時，正文要**置中在整個視窗**，不要先把側邊欄那條寬度空在那裡
    —— 空著會讓整頁看起來偏右（Wilson）。body 的 padding-inline-start 平常是
@@ -3950,4 +4049,1448 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 }
 @media (prefers-reduced-motion: reduce) {
   .zg-tbl tbody tr.is-flash > td { animation: none; background: var(--accent-soft); }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   手機版修正（2026-09-02）
+
+   ⚠️ 整塊放在檔案**最後面**是故意的，跟 .xz-* 那一塊同一個理由：這裡有好幾條
+   規則要蓋掉前面同權重的宣告，同權重時排後面的才贏。往前搬會靜靜失效。
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ---------- 1. 字根表的表頭：窄螢幕要**真的**變成不黏 ----------
+   第 606 行那條 `position: static` 寫在 @media 裡，但第 856 行的 `position: sticky`
+   沒有條件、而且排在後面 —— 同權重、後面贏，所以手機上表頭一直是 sticky 的。
+   .tablewrap 在 ≤40rem 會開 overflow-x: auto 變成捲動容器，sticky 於是黏在
+   「那個容器」而不是視窗上，表頭就飄到表格中間、蓋住字母欄和例字
+   （實測 390px 下 position:sticky top:94.4px，表頭卡在第一組資料中間）。
+   第 601 行的註解早就寫明會這樣，只是那條修正被排序吃掉了。 */
+@media (max-width: 40rem) {
+  .zg-table .zg-tbl thead th { position: static; }
+}
+
+/* ---------- 2. 窄螢幕的導覽收成漢堡選單 ----------
+   一律掛在 .has-navtoggle（JS 加的）底下：沒有 JS 就維持原本的橫排全展開，
+   不會變成一個打不開的空選單。
+   ⚠️ 按鈕預設藏起來，到 52rem 底下才打開。它的樣式整組寫在那個 media 裡面，
+   少了這一條的話寬螢幕會看到一顆沒上妝的預設按鈕貼在側邊欄上（實測有）。 */
+.navtoggle { display: none; }
+
+@media (max-width: 52rem) {
+
+  .topbar.has-navtoggle .wrap {
+    /* 收起來的時候不換行 —— 品牌／繁簡／漢堡就是一列，擠不下也不要折成兩行。 */
+    flex-wrap: nowrap;
+    gap: .75rem;
+    min-height: 3.5rem;
+    padding: .45rem 1.1rem;
+  }
+  /* ⚠️ 打開的時候一定要**允許換行**：選單是 .wrap 這個 flex 列的第四個項目，
+     nowrap 會把它硬塞在同一列的剩餘寬度裡 —— 實測會變成一條擠在右邊、
+     一半在畫面外、字被切掉的窄柱，而頁首那一列被撐高之後垂直置中飄到畫面中間。
+     ⚠️ 這個壞法**量不出來**：選單高度、連結數、分組標題可見度全部正常，
+     是截圖才看出來的。改版面的驗證不能只讀數字。 */
+  .topbar.has-navtoggle.nav-open .wrap {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* 收起來的時候整條導覽不佔位（不是隱形，是真的不排版） */
+  .topbar.has-navtoggle nav.site { display: none; }
+
+  .navtoggle {
+    display: flex;
+    order: 3;
+    flex: none;
+    margin-inline-start: auto;
+    /* 44×44 是 Apple 的最小可點面積；外框只有 2.2rem 看起來才不笨重，
+       靠 padding 把可點範圍撐到 44。 */
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .navtoggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .navtoggle-bars {
+    /* 兩個尺寸拉出來當變數：底下那個 ✕ 的位移是**算出來的**，不是湊出來的。 */
+    --bar-w: 1.15rem;
+    --bar-h: 2px;
+    --box-h: .8rem;
+    position: relative; width: var(--bar-w); height: var(--box-h); display: block;
+  }
+  .navtoggle-bars i {
+    position: absolute;
+    left: 0; right: 0;
+    height: var(--bar-h);
+    background: currentColor;
+    border-radius: 2px;
+    transition: transform .22s ease, opacity .15s ease;
+  }
+  .navtoggle-bars i:nth-child(1) { top: 0; }
+  .navtoggle-bars i:nth-child(2) { top: 50%; margin-top: calc(var(--bar-h) / -2); }
+  .navtoggle-bars i:nth-child(3) { bottom: 0; }
+
+  /* 打開時上下兩條交叉成 ✕，中間那條淡出。
+     ⚠️ 位移量必須剛好是 (盒高 − 線粗) ÷ 2，兩條才會**在正中央交會**：
+     第一條的中心在 1px、第三條在 11.8px，盒子中心是 6.4px，所以各走 5.4px。
+     原本寫死 .39rem（6.24px），兩條的中心因此差了 1.7px，✕ 是歪的
+     （Wilson 2026-09-02 一眼看出來）。改成 calc 之後不管盒子或線粗怎麼調
+     都還是對稱的。 */
+  .nav-open .navtoggle-bars i:nth-child(1) {
+    transform: translateY(calc((var(--box-h) - var(--bar-h)) / 2)) rotate(45deg);
+  }
+  .nav-open .navtoggle-bars i:nth-child(2) { opacity: 0; }
+  .nav-open .navtoggle-bars i:nth-child(3) {
+    transform: translateY(calc((var(--box-h) - var(--bar-h)) / -2)) rotate(-45deg);
+  }
+
+  /* 打開後：回到桌面版那種「分組直排」的樣子。上面 52rem 那一段把 nav 改成了
+     橫排、又用 display:contents 把 .nav-sec 拆掉，這裡要一條一條收回來。 */
+  /* ⚠️ 滿版的那 -1.1rem 挪到 .navpanel 上：panel 在拖曳時會 overflow:hidden，
+     外距留在 nav 身上的話兩側各有 1.1rem 會被切掉，一開始拖就縮一下。 */
+  .topbar.has-navtoggle.nav-open .navpanel,
+  .topbar.has-navtoggle.nav-closing .navpanel {
+    display: block;
+    order: 9;
+    width: calc(100% + 2.2rem);
+    margin-inline: -1.1rem;
+  }
+  .topbar.has-navtoggle.nav-open nav.site {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    order: 9;
+    gap: .1rem;
+    margin: .5rem 0 0;
+    padding: .6rem 1.1rem 1rem;
+    border-top: 1px solid var(--line);
+    /* 選單比螢幕長的時候自己捲（〈取碼原則〉展開章節清單有十條） */
+    /* 扣的是「頁首那一列 ＋ 選單自己的上外距」，不是只有頁首 ——
+       只扣 3.5rem 的話 360×740 上量到選單底部比視窗低 11px。 */
+    max-height: calc(100vh - 4.5rem);
+    max-height: calc(100dvh - 4.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* 同一組裡的連結靠緊、組與組之間拉開並畫一條線（Wilson 2026-09-03：
+     「the line spacing between different headings within the same category can
+     be smaller, but the spacing from one category to the next should be larger,
+     or have a line to signify there is a change in category」）。
+     ⚠️ 「後記」不在任何一組裡（跟簡介一樣是頂層），所以緊接在最後一組後面的
+     那條連結也要自己畫一條 —— 只寫 .nav-sec 的話「體驗工具 → 後記」之間會是
+     整個選單裡唯一沒有分隔的地方。 */
+  .topbar.has-navtoggle.nav-open .nav-sec {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: .85rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--line);
+  }
+  .topbar.has-navtoggle.nav-open nav.site .nav-sec + a {
+    margin-top: .85rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--line);
+  }
+  .topbar.has-navtoggle.nav-open .nav-sec-t {
+    display: block;
+    font-size: .7rem;
+    letter-spacing: .12em;
+    color: var(--accent);
+    padding: .2rem .6rem;
+  }
+  /* 選單裡的每一條都是一個手指目標，不是一行字：左右滿版、上下 .45rem。
+     ⚠️ .45rem 是量出來的下限：整條高 41.6px，比 Apple 建議的 44pt 少 2.4px，
+     但連結之間**沒有間隙**（gap 歸零），實際按不到的空隙是零 —— 而 .55rem 那一
+     版同一組裡的字距看起來像段落而不是清單（Wilson）。再小就真的按不準了。 */
+  .topbar.has-navtoggle.nav-open nav.site a {
+    padding: .45rem .6rem;
+    border-radius: 6px;
+    border-bottom: 0;
+    border-inline-start: 0;
+  }
+  /* 目前這一頁要一眼看得出來（Wilson 2026-09-03：「the page we are currently on
+     should be highlighted green」）。原本只有一塊灰底，跟 hover 長得一樣。
+     字改成主色、底色改成主色的淡版，跟桌面側邊欄同一套顏色。 */
+  .topbar.has-navtoggle.nav-open nav.site a[aria-current="page"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    border-bottom: 0;
+  }
+  /* 章節錨點跟主連結共用路徑，會被一起標成 aria-current —— 那一串不是「你在
+     哪一頁」，別跟著變綠（桌面版同一條處理，見檔案上半部）。 */
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav a[aria-current="page"] {
+    background: none;
+    color: var(--ink-dim);
+    font-weight: 400;
+  }
+  /* 組員縮排一階，看得出是掛在「基礎學習／流暢模式／體驗工具」底下的
+     （Wilson 2026-09-03：「if the heading titles are slightly indented from
+     their category, then do the same for the two experience tools shida and
+     chaima」）。
+     ⚠️ 第一條要多帶一層 `nav.site`。上面那條
+     `.topbar.has-navtoggle.nav-open nav.site a { padding: .55rem .6rem }`
+     是**簡寫**（會把 padding-inline-start 設回 .6rem），權重是四個 class ＋
+     兩個元素；只寫 `.nav-sec > a` 是四個 class ＋一個元素，**輸**給它，縮排整個
+     沒有生效 —— 字根練習／線上試打／拆碼查詢跟「簡介」切齊在同一條線上。
+     而 `.nav-sec > .pr-navhead > a`（有章節的那幾條）是五個 class，剛好贏，
+     所以畫面上是「有箭頭的縮排、沒箭頭的不縮排」，看起來像亂排的。
+     加一層 nav.site 之後兩條都是五個 class。
+     ⚠️ 這是同一個檔案第四次踩「權重」而不是「順序」的坑 —— css_order_test 只比
+     先後，比不出這一種。 */
+  .topbar.has-navtoggle.nav-open nav.site .nav-sec > a,
+  .topbar.has-navtoggle.nav-open nav.site .nav-sec > .pr-navhead > a { padding-inline-start: 1.35rem; }
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav { padding-inline-start: 1.85rem; }
+  /* 章節那幾條：字放大到跟上一層差不多、上下收緊（Wilson 2026-09-03：「the
+     subheading text are a bit small, as long as they are indented, they can
+     probably be roughly the same size as the heading itself, and similarly,
+     the spacing between subheadings are a bit too big」）。
+     桌面側邊欄的 .68rem 是配那個窄欄訂的，手機選單整條 390px 寬，縮那麼小只是
+     難讀 —— 縮排已經講清楚它們是下一層了，不必再靠字級講第二次。
+     ⚠️ 用 em 不用 rem：跟著上一層的字級走，使用者把「字級」調大時兩層一起變。 */
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav a {
+    padding: .28rem .6rem;
+    font-size: .92em;
+  }
+  .topbar.has-navtoggle.nav-open nav.site .pr-sidenav { gap: 0; }
+
+  /* 收起來之後頁首只剩一列，底下那幾層黏頂的 top 要跟著改（原本是照
+     三行導覽的 3.4rem／5.9rem 算的）。 */
+  .has-navtoggle .zg-jump { top: 3.5rem; }
+  .has-navtoggle .zg-tbl thead th { top: 6rem; }
+}
+
+/* ---------- 3. 頁首的兩組切換：放大到手指按得到 ----------
+   原本 .66rem（10.6px）字、上下 padding .12rem，量出來每顆只有 23×20px。
+   Apple 的建議是 44pt、Google 是 48dp，這連一半都不到，而且 10.6px 的
+   「繁 / 简」在手機上根本讀不出差別。只在手機放大，桌面維持原樣。 */
+@media (max-width: 52rem) {
+  .langtoggle, .zg-size { font-size: .82rem; }
+  .langtoggle button, .zg-size-btns button {
+    min-width: 2.1rem;
+    min-height: 2.1rem;
+    padding: .3rem .6rem;
+  }
+  .topbar-controls { order: 2; gap: .55rem; flex: none; }
+}
+
+/* ---------- 4. 首頁動畫收尾時導覽的進場方向 ----------
+   桌面版側邊欄在左邊，所以是從左邊滑進來。窄螢幕的頁首是**頂上那一條**，
+   往左滑進來看起來像飄過去的，改成從上面落下。 */
+@media (max-width: 52rem) {
+  /* ⚠️ 窄螢幕的 .topbar 平常是 position: sticky（見第 2 節，捲動時黏頂）。
+     跟這裡的 translateY 疊在一起時，捲動會讓瀏覽器重新計算「該不該黏住」，
+     這個計算跟 transform 的位移互相打架，結果是捲一下導覽就露出一截。
+     動畫播完、拿掉 lg-navhide 之前先固定成 position: fixed：反正這段時間
+     整條導覽本來就該完全離開視窗，跟捲動一點關係都不該有。播完拿掉 class，
+     自然變回 sticky，跟平常頁面的行為銜接。 */
+  .lg-body.lg-navhide .topbar { position: fixed; transform: translateY(-100%); }
+}
+
+/* ---------- 5. 首頁的拆件動畫：窄螢幕改成直的 ----------
+   字母改排在字形**上面**、往下飛（landing.js 的 isNarrow／VIEWBOX_TALL）。
+   ⚠️ aspect-ratio 一定要跟 landing.js 的 viewBox 對上（1024 : 1584），
+   對不上的話 SVG 會在框裡自己置中，上下或左右留出一條空白，字形看起來歪掉。
+   高度換算：24rem 高 → 13.8rem 寬（220px），最窄的手機也站得下。
+   ⚠️ 舞台高度是照「字形要多大」挑的，不是照隊伍 —— 隊伍放不放得下由 viewBox
+   決定，跟舞台縮放無關（比例不變，縮放是等比的）。字形在畫面上的高度
+   ＝ 774 ÷ 1783 × 舞台高，24rem 時約 167px。 */
+@media (max-width: 52rem) {
+  .lg-stage {
+    height: min(24rem, 45dvh);
+    aspect-ratio: 1024 / 1783;
+  }
+  /* ⚠️ 一定要跟著把 overflow 關掉。.lg-svg 平常是 overflow: visible ——
+     寬螢幕靠它讓隊尾那個字母露在 viewBox 左邊外面（「後面還有人在排」）。
+     直排的時候那個「外面」是**正上方**，於是隊伍會直接畫到標語
+     「發掘中文打字的樂趣」上面去。切掉之後隊尾在舞台上緣自然斷開，
+     要的效果一模一樣，而且不會壓到字。 */
+  .lg-svg { overflow: hidden; }
+}
+
+/* ---------- 6. 窄螢幕的首頁：整片就是一個螢幕 ----------
+   動畫播放的時候導覽是收起來的（index.html 的 lg-navhide，2026-09-02 起窄螢幕
+   也適用），所以這一片可以剛好等於「一個螢幕減掉頁首那一列」。
+   量到的內容高度：標語群 105px ＋ 舞台 328px ＋ 碼與關鍵字 85px ＋ 兩顆按鈕
+   48px ＝ 762px，844px 的機子放得下，740px 的放不下 —— 所以舞台改成跟著螢幕
+   高度縮（40dvh），矮的機子讓動畫小一點，而不是把按鈕擠到摺線下面。
+   ⚠️ 用 dvh 不用 vh：手機瀏覽器的網址列會收合，vh 取的是**收合前**的高度，
+   捲一下就多出一條空白。 */
+@media (max-width: 52rem) {
+  .hero--landing {
+    min-height: calc(100dvh - 3.7rem);   /* 3.7rem ≈ 收起來的頁首那一列 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 1.6rem 2rem;
+    margin-bottom: 1.6rem;
+  }
+  /* 舞台高度連同矮螢幕的讓步都寫在上面那一條 min() 裡了，這裡不再重複 ——
+     重複寫一次的話排在後面的會贏，改上面那條會沒有反應。 */
+}
+
+/* ---------- 7. 「播放完整動畫」（只有開了「減少動態效果」的人看得到）----------
+   由 landing.js 長出來，見那裡的說明。做成低調的線框按鈕：它是一個補充選項，
+   不該跟底下「自己發掘／我想學習更多字根」那兩顆主要行動搶。 */
+.lg-motion {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .2rem auto 0;
+  padding: .45rem .9rem;
+  font: inherit;
+  font-size: .85rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.lg-motion:hover { color: var(--ink); border-color: var(--ink-faint); }
+.lg-motion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lg-motion svg { width: 1rem; height: 1rem; fill: currentColor; flex: none; }
+/* 手機上放大到手指按得到 */
+@media (max-width: 52rem) {
+  .lg-motion { min-height: 2.4rem; padding: .5rem 1rem; }
+}
+
+/* ---------- 8. 字根表在手機上的兩處收窄（Wilson 2026-09-02）----------
+   只動主表（.zg-tbl），〈相近字形辨析〉那張表不受影響。 */
+@media (max-width: 52rem) {
+  /* 「字根」欄：字形自己一行，來源字＋第幾筆一律排到第二行。
+     .zg-shape 本來就是 flex-wrap，把字形那一格的 flex-basis 撐到滿版，
+     後面兩段就被擠到下一行 —— 不用改 HTML 結構。
+     ⚠️ 原本是 `flex: 0 0 1.55rem`，一行放得下就放得下、放不下才折，
+     於是同一欄裡有的一行有的兩行，讀起來參差（「夕 夕 整個字」一行，
+     「⼓ 万 第 3–4 筆」兩行）。 */
+  .zg-tbl .zg-shape > .zg-icon { flex: 0 0 100%; }
+  .zg-tbl .zg-shape { row-gap: .15rem; }
+
+  /* 「字例」欄：四個字縮成三個（取前三個）。第四個在窄螢幕上把整欄撐寬，
+     而那一欄是最後一欄 —— 撐寬就等於整張表要橫捲更多。
+     ⚠️ 用 :nth-child 藏起來、不動資料：換個螢幕寬度就該全部回來。 */
+  .zg-tbl .zg-ex .zg-exg:nth-child(n+4) { display: none; }
+}
+
+/* ---------- 9. 〈約定字表〉在手機上一律單欄（Wilson 2026-09-02）----------
+   ⚠️ 這是**權重**造成的，不是排序：第 1580 行的 `#cv-groups .jm-cols` 用了 ID
+   選擇器（0,1,1,0），比第 1606 行 @media 裡的 `.jm-cols`（0,0,1,0）高一級 ——
+   @media 不會提高權重，所以窄螢幕那條收成單欄的規則**從來沒有生效過**，
+   〈約定字表〉的四塊表在 390px 上一直是兩欄（實測，其中 .cv-grouppair 因為沒被
+   ID 規則蓋到，反而是對的，所以同一頁上兩種區塊行為不一致）。
+   這裡也用 ID，權重才追得上。 */
+@media (max-width: 52rem) {
+  #cv-groups .jm-cols { grid-template-columns: 1fr; column-gap: 0; row-gap: 0; }
+  #cv-groups .cv-grouppair { grid-template-columns: 1fr; column-gap: 0; row-gap: 1.4rem; }
+}
+
+/* ---------- 19. 〈線上試打〉為了手機版多包的那幾層，在桌面要當作不存在 ----------
+   Wilson 2026-09-03：「these should all be mobile only, keep original for
+   website」。手機版把篇目收進 <details>、把進度數字挪到長條旁邊、把兩顆按鈕
+   縮成圖示 —— 這些都需要 HTML 多一層包裝或多一顆元素。桌面版靠這一節把多的
+   那幾層攤平／藏掉，畫出來跟改之前一模一樣。
+
+   `display: contents` 是關鍵：包裝層自己不生盒子，裡面的東西直接變成原本那個
+   父層（.practice-head 的 flex／.tryarea 的格線）的項目 —— 跟以前的結構完全
+   等價，不是「看起來很像」。 */
+/* 按鍵指南：summary 裡包的是原本那顆 <h2>。
+   **桌面版完全照原樣**（Wilson 2026-09-03：「everything i said today should only
+   be for the mobile site」）—— summary 當成區塊、箭頭藏起來、<h2> 保留它自己的
+   外距與那條章節分隔線，加上 try.js 的 syncFoldables() 強制展開，畫出來就是
+   加摺疊之前的樣子。手機版才變成真的可以收合（見第 10 節）。 */
+#try-keyguide > summary { display: block; font-size: inherit; color: inherit; padding: 0; cursor: default; }
+#try-keyguide > summary::before { display: none; }
+
+/* 兩排開關本來是 .tryarea 的**格線項目**，中間隔著格線自己的 row-gap（1.4rem
+   ＝22.4px），加上各自的 margin，量到的間距是 29.6px。包進 <details> 之後它們
+   變成一般流內的兄弟：row-gap 沒了，上下 margin 還會**合併**（取大的那個，不是
+   相加），兩排一下子貼在一起。1.85rem＝29.6px 是合併後要的那個值，不是差額。
+   手機版本來就要收緊，見第 10 節。 */
+.try-opts > .short-toggle + .short-toggle { margin-top: 1.85rem; }
+
+/* ⚠️ <details> 會擋掉 margin 合併（它自己是一個新的區塊格式化脈絡），所以
+   .try-opts 的 margin-bottom（.7rem）**加**在最後一排開關自己的 .8rem 後面，
+   而不是取大的那個 —— 桌面版整塊因此比原本低 11.2px，底下每一樣東西跟著掉。
+   桌面版這一層不需要自己的下外距，格線的 row-gap 已經在管間距了。 */
+#try-settings { margin-bottom: 0; }
+
+/* 按鍵指南的間距也要還原：<details> 這一層擋掉了 margin 合併。
+   外距挪到 details 身上（它跟上面的 .tryarea 是兄弟，會正常合併成 2rem），
+   <h2> 自己的外距歸零，底下 <dl> 的 1.2rem 上外距就直接決定那段距離 ——
+   跟原本「h2 的 .8rem 與 dl 的 1.2rem 合併成 1.2rem」的結果一樣。
+   h2 的 padding-top 與 border-top 留著，那是章節分隔線。 */
+/* ⚠️ 一律用 id。`.try-keyguide > summary` 跟 `.try-opts > summary` 權重一樣
+   （一個 class ＋一個元素），而 .try-opts 那組排在這個檔案後面，後來者贏 ——
+   量到的 summary 仍然是 inline-flex、上下還帶著 .3rem 內距，章節分隔線因此
+   高了 5px。`.try-keyguide { margin-top }` 同理會被 `.try-opts { margin: 0 0 .7rem }`
+   這個**簡寫**整條蓋掉（簡寫會把沒寫的那幾邊設回 0）。
+   這是這個檔案第三次踩「權重相同、選擇器字串不同」——css_order_test 比對不出來。 */
+#try-keyguide { margin: 2rem 0 0; }
+#try-keyguide > summary h2 { display: block; margin: 0; }
+
+/* 「打字設定」在桌面**不是摺疊**：摘要那一行整個藏掉，內容由 try.js 的
+   syncFoldables() 強制展開 —— 畫出來就是原本那兩排開關，沒有多一行標題。
+   ⚠️ 權重要壓過後面的 `.try-opts > summary { display: inline-flex }`（同權重、
+   排在後面就贏），所以用 id。 */
+#try-settings > summary { display: none; }
+
+.practice-pickwrap { display: contents; }
+/* ⚠️ 篇目那幾顆本來靠自己的 `margin-inline-start: auto` 貼到右緣。包進 <details>
+   之後那招失效了 —— 即使外層是 display: contents，瀏覽器仍然在中間插一層自己的
+   ::details-content，auto 外距吃不到那條 flex 線上的剩餘空間（量到的：右緣從
+   881 掉到 812）。改成讓**出處**那個直接的 flex 項目把剩餘空間吃掉，篇目自然
+   被推到右緣，不必依賴任何 ::details-content 的行為。 */
+.practice-head .practice-src { margin-inline-end: auto; }
+/* ⚠️ 選擇器要寫到 .practice-head 這一層。這顆 <summary> 同時被
+   `.try-opts > summary { display: inline-flex }` 命中（篇目摺疊沿用「設定」那套
+   長相），而那條在這個檔案**後面**、權重又一樣（一個 class ＋一個元素），
+   後來者贏 —— 桌面版就會多冒出一顆「⌄ 換一篇」。多帶一層父選擇器把權重拉高。 */
+.practice-head > .practice-pickwrap > summary { display: none; }
+.practice-progrow { display: contents; }
+/* ⚠️ 桌面版的直排順序要**明講**。進度那一排（.practice-bar）與進度長條在原始碼
+   裡被搬到參考文章**前面**了 —— 那是手機版要的（Wilson 2026-09-02：眼睛從
+   「要打什麼」移到「打了什麼」不要跨過一排按鈕），桌面版原本是
+   「文章 → 進度那排 → 長條」。.tryarea-main 在桌面是直排 flex，用 order 排回去。
+   ⚠️ .practice-progrow 是 display: contents，order 對它沒有作用（它自己不生盒子），
+   要下在真正變成 flex 項目的 .practice-progbar 上。 */
+.tryarea-main > .practice-head { order: 1; }
+.practice-text  { order: 2; }
+.practice-bar   { order: 3; }
+.practice-progbar { order: 4; }
+.typebox        { order: 5; }
+.pyq-row        { order: 6; }
+.pyq-bpmf       { order: 7; }
+.practice-prog-narrow { display: none; }
+.practice-btn-i { display: none; }
+
+/* ---------- 10. 〈線上試打〉的手機版（Wilson 2026-09-02）---------- */
+
+/* 兩顆觸控鍵（萬用鍵 ` 與提示 =）由 try.js 建出來，只有手機看得到。
+   桌面有實體鍵盤，多兩顆按鈕只是佔位子。 */
+.try-touchkeys { display: none; }
+
+@media (max-width: 52rem) {
+  /* ── 試打框左半、田字格與提示右半 ──────────────────────────
+     原本窄螢幕是單欄、田字格用 order:-1 排到最上面。手機鍵盤一彈出來會吃掉
+     下半個螢幕，於是「打字的地方」跟「提示」永遠不在同一個畫面上，要看提示
+     就得把鍵盤收起來捲上去（Wilson）。改成左右並排，兩邊同時看得見。
+
+     ⚠️ 關鍵是 `.tryarea-main { display: contents }`：試打框跟田字格分屬兩個
+     父層（.tryarea-main 與 aside.practice-cell），不把中間那層拿掉就不可能
+     排在同一列。.tryarea-main 本身只有 flex 排版、沒有背景或邊框，拿掉它的
+     盒子不會少任何視覺。 */
+  .tryarea {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 8.6rem);
+    column-gap: .7rem;
+    /* ⚠️ row-gap 一定要歸零（Wilson 2026-09-03：「the spacing is wide and
+       jagged」）。.tryarea 的 gap 是 1.4rem，上面只覆寫了 column-gap，於是每
+       一列之間**又**多出 22.4px 的列距，疊在每一塊自己的 margin 上面 —— 這
+       裡每一塊的間距都是逐項調過的（.45rem／.7rem／.8rem），被一個一律
+       22.4px 的列距蓋過去之後，看起來就是「處處都很空、而且鬆得不一樣」。
+       間距全部交還給各自的 margin。 */
+    row-gap: 0;
+    padding: .7rem .8rem 1rem;
+  }
+  .tryarea-main { display: contents; }
+
+  /* 參考文章那一整組維持整條寬度 —— 半欄只剩九個字一行，讀不成句子。 */
+  .practice-head, .practice-text, .practice-bar, .practice-progrow, .pyq-bpmf {
+    grid-column: 1 / -1;
+  }
+  /* ⚠️ 用 order 讓試打框跟田字格**相鄰**，自動排版才會把它們放進同一列。
+     只指定 grid-column 是不夠的：田字格在原始碼裡排在拼音查字後面，
+     自動排版會把它丟到再下一列去。 */
+  /* ⚠️ 順序要跟改過的 DOM 一致：標題 → 進度那一排 → 進度條 → 文本。
+     進度／跳過／從頭開始搬到文本**上面**（Wilson 2026-09-02），文本才貼著
+     底下的試打框與提示 —— 眼睛從「要打什麼」移到「打了什麼」不必跨過一排按鈕。 */
+  /* ── 標題那一組：出處貼著標題，兩顆摺疊各自一整列（Wilson 2026-09-03）──
+       試打文本  《登鸛雀樓》王之渙
+       ⌄ 更換文本
+       ⌄ 打字設定
+     前一版把 .practice-head 攤平成 display: contents，讓標題／出處／更換文本
+     變成格線項目，兩顆摺疊因此排得成左右並排。代價有兩個，Wilson 當天就看出來
+     了：出處被釘在第二欄的左緣，跟標題之間空著一百多 px（「should be closer to
+     the 試打文本 heading」）；而且摺疊一展開就要換成整列寬，另一顆會從右邊
+     「跳」到下一列去（「things are shifting a lot as they expand and collapse」）。
+
+     改回讓 .practice-head 保持它原本的 flex（display/gap/wrap 都跟桌面同一套，
+     這裡什麼都不用寫）：標題與出處自然相鄰，更換文本用 flex-basis 100% 自己
+     佔滿第二行。設定那顆本來就在外面、本來就是整列寬。三者都是整列，展開時
+     只會把底下的東西往下推，沒有任何東西會左右換位。
+     ⚠️ .practice-head 帶 data-practice，自由試打時整塊 hidden，只剩設定那顆。 */
+  .practice-head { order: 1; }
+  /* 出處保留桌面那條 `margin-inline-end: auto`（把它後面的東西推到右緣）——
+     在這裡它吃掉第一行的剩餘空間，等於把出處緊貼在標題後面。 */
+  .practice-head > .practice-pickwrap { flex: 0 0 100%; margin: 0; }
+  #try-settings { order: 2; grid-column: 1 / -1; margin: .35rem 0 .5rem; }
+
+  .practice-bar     { order: 3; }
+  .practice-progrow { order: 4; }
+  .practice-text    { order: 5; }
+  /* ⚠️ 直排 flex（Wilson 2026-09-03：「the typing box should be taller so there
+     isn't some weird white space underneath the two ` and hint buttons」）。
+     左欄是「試打框＋候選列＋兩顆觸控鍵」，右欄是「田字格＋提示格」，兩欄同屬
+     一列，列高由**高的那一欄**決定 —— 提示格是固定 7rem，右欄因此永遠比左欄
+     高 38px，那 38px 就攤在觸控鍵底下變成一塊白的。
+     .typebox 本來就被格線拉滿整列高（align stretch），只是裡面的 textarea 用
+     min-height 站著、不會長。改成直排 flex 再讓 textarea `flex: 1`，多出來的
+     高度就全部給了試打框。**不寫死數字**：自由試打時右欄換成拆碼圖、提示格
+     的高度也可能再調，flex 會自己跟上。 */
+  .typebox {
+    order: 6;
+    grid-column: 1;
+    margin-top: .8rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .typebox textarea { flex: 1 1 auto; }
+  /* margin-top 跟 .typebox 一樣：兩欄是各自獨立的 grid 項目，上緣要對齊只能
+     自己對，不然田字格會比試打框高出 9.6px（Wilson：「misaligned」）。
+     .8rem 不是 .6rem：兩字詞的小格排是絕對定位、往上凸出主格子一截，留窄了
+     會蓋到上面的參考文章（見下面 .tz-prow）。 */
+  .practice-cell    { order: 7; grid-column: 2; margin-top: .8rem; }
+  /* 自由試打時右欄裡的是 .pyq（拆碼圖），它自己還帶著 .9rem 的上外距 —— 疊在
+     .practice-cell 的 .6rem 上面，拆碼圖就比左邊的試打框低 14px。這一欄的上緣
+     已經由 .practice-cell 對齊了，裡面不要再推一次。 */
+  .pyq { margin-top: 0; }
+  .pyq-row          { order: 8; grid-column: 1 / -1; }
+  .pyq-bpmf         { order: 9; }
+
+  /* ── 兩字詞：小格改成疊在主格子的上緣（Wilson 2026-09-03）──────────
+     原本 .tz-prow 是主格子**上面**獨立的一排，兩顆小格各佔 27% 寬，中間一大片
+     空的，整排連下外距吃掉約 33px —— 手機的右欄本來就只有 138px，這一排等於
+     白白墊高一截。改成絕對定位掛在主格子的兩個上角、壓在框線上：小格本來就是
+     「剛打完的」跟「等一下要打的」，不是主角，疊在角落反而更清楚誰是主格。
+     ⚠️ .tianzi 本身已經是 position: relative，這裡直接對它定位。
+     ⚠️ 空的那一側照舊用 visibility:hidden 佔位（見 drawPair 的說明），絕對定位
+     之後它本來就不影響版面，留著是為了不動到那邊的邏輯。 */
+  #tianzi .tz-prow {
+    position: absolute;
+    /* ⚠️ 往上凸出的量要小於上面那道 .8rem（12.8px）的欄距，不然小格會壓到
+       參考文章的框（Wilson 2026-09-03：「the top right small tianzige is
+       covering part of the sample text box」）。-6% × 96px ＝ 5.8px，離
+       文章框還有 7px。仍然是「疊在主格子的上緣」，只是不再越界。 */
+    top: -6%;
+    left: -7%;
+    right: -7%;
+    margin: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+  /* 疊上去要有自己的底色，不然主格子的筆畫會從小格底下透出來 */
+  #tianzi .tz-mini { width: 30%; background: var(--surface); border-radius: 3px; }
+
+  /* 右欄只有 8.6rem，田字格與提示跟著收 */
+  .practice-cell .tianzi { max-width: 100%; }
+  /* 自由試打的拆碼圖寫死 height: 13rem（208px），那是照桌面 13rem 寬的欄位訂的。
+     手機這一欄只有 138px 寬，裡面的 svg 是 width:100%／height:auto，畫出來就是
+     138px 高 —— 底下憑空多出 70px 的空白，右欄看起來像破了一個洞。改成 auto：
+     svg 是 1:1 的，高度仍然永遠等於欄寬，不會因為選到不同的字而跳動。 */
+  .pyq .tianzi { height: auto; }
+  .tz-hint { min-height: 0; }
+
+  /* 試打框在半欄裡不需要那麼高，字級也跟著收 —— 1.2rem（19.2px）是配整條寬的
+     桌面框訂的，塞進 162px 的半欄一行只放得下七個字（Wilson 2026-09-03：
+     「a bit big given how small the box is」）。
+     ⚠️ 收到 16px 就停，不能再小：低於 16px 的話 iOS 一點進去就會把整頁放大
+     （見第 16 節）。16px 一行剛好九個字。 */
+  .typebox textarea { min-height: 5.2rem; padding: .6rem; font-size: 16px; line-height: 1.6; }
+  /* ⚠️ 上下內距歸零（左右留著）。候選字整顆高 39.5px，而這一格的內距框只有
+     39.6px —— 只要上下再留 .3rem，內容就比內容框高，於是憑空多出 4px 可捲的
+     高度。歸零之後 scrollHeight 正好等於 clientHeight，一點溢出都沒有。
+     外觀不變：.rail 是 align-items: center 的固定高度框，內容一律置中。 */
+  .rail { height: 2.6rem; margin-top: .5rem; padding: 0 .4rem; }
+  /* ⚠️ 這裡不用扣那 8px。Chromium 在 resize:vertical 的 textarea 後面會多出
+     約 8px 說不出從哪來的間距（量過盒模型都對不上，換一個空 div 照樣多 8px）
+     —— 那是**行內排版**才有的東西；上面把 .typebox 改成直排 flex 之後它就
+     不見了，再扣一次候選列會貼到框上。 */
+  .typebox textarea + .rail { margin-top: .5rem; }
+  /* ⚠️ overflow-y 一定要寫出來（Wilson 2026-09-03：「idk why it allows vertical
+     scrolling」）。CSS 的規則是：兩軸只要有一軸不是 visible，另一軸的 visible
+     就會被算成 auto —— 只寫 overflow-x: auto，直向也跟著變成可捲的。候選字高
+     39.5px，比內距框（30.4px）高，這一格於是憑空多出 4px 的直向捲動。
+     那 4px 在邊框內放得下（內距框 39.6px），hidden 不會裁到任何東西。
+     （桌面版量到同一件事，但 Wilson 交代網頁版維持原樣，只改手機。） */
+  .rail { overflow-y: hidden; }
+  /* 候選列固定 2.6rem 高（一行），空的時候那句提示在半欄裡塞不下一行就會
+     斷成兩行、被裁掉下半截。字級收到 .7rem，十二個字剛好一行走完。 */
+  .rail .empty { font-size: .7rem; }
+
+  /* ── 兩顆觸控鍵 ── */
+  .try-touchkeys {
+    display: flex;
+    gap: .4rem;
+    margin-top: .5rem;
+  }
+  .try-touchkey {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 2.4rem;
+    padding: .35rem .5rem;
+    font: inherit;
+    font-size: .78rem;
+    color: var(--ink-dim);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  /* ⚠️ nowrap：這一排只有半欄（約 162px）寬，兩顆各分到 78px，「萬用鍵」
+     三個字會斷成「萬用／鍵」兩行，把整顆鈕撐成兩倍高。 */
+  .try-touchkey {
+    white-space: nowrap;
+    gap: .25rem;
+    padding: .35rem .3rem;
+    font-size: .74rem;
+  }
+  .try-touchkey kbd {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .78rem;
+    color: var(--ink);
+    padding: .05rem .3rem;
+  }
+  .try-touchkey:active { background: var(--code-bg); }
+
+  /* ── 開關那幾排收緊 ──────────────────────────────────
+     模式／套用簡碼／流暢模式三排在手機上各佔一行，加上原本的行距，光是設定
+     就吃掉小半個螢幕。列距與下外距一起收（Wilson：更緊湊一點）。 */
+  /* 〈按鍵指南〉裡只有實體鍵盤按得到的那兩條（1–9 選候選字、= 看提示）在手機
+     上藏起來（Wilson 2026-09-03）：候選字用手指點就選了，提示有觸控鍵。 */
+  .keyguide .kg-nomobile { display: none; }
+
+  /* 手機版才把「打字設定」與「按鍵指南」變成真的摺疊（桌面見上面第 19 節）。
+     ⚠️ 這幾條要排在第 19 節那組桌面預設值**後面**才蓋得掉，權重也要一樣。 */
+  #try-settings > summary { display: inline-flex; }
+  /* 手機版兩排開關要貼緊（桌面補回來的那 22.4px 是為了維持原樣，見上面），
+     展開之後第一排也貼著標題走。 */
+  .try-opts > .short-toggle + .short-toggle { margin-top: -.35rem; }
+  .try-opts[open] > .short-toggle:first-of-type { margin-top: .3rem; }
+  #try-keyguide { margin: 2rem 0 0; padding-top: 1.1rem; border-top: 1px solid var(--line); }
+  #try-keyguide > summary { display: inline-flex; padding: .3rem 0; cursor: pointer; }
+  #try-keyguide > summary::before { display: block; align-self: center; }
+  /* 分隔線改由 <details> 畫（h2 是 inline-flex 的項目，border-top 只會沿著
+     文字畫出一小截）。 */
+  #try-keyguide > summary h2 { display: inline; margin: 0; padding-top: 0; border-top: 0; }
+  /* 〈試打文本〉那顆 h2 同理：它是格線項目，寬度縮到文字那麼寬，全域 h2 的
+     border-top 就變成標題左上角一截 75px 的短橫槓（Wilson：「weird line
+     starts」），上方的空白也是它的 padding-top 來的。 */
+  .practice-head h2 { padding-top: 0; border-top: 0; }
+
+  /* ── 設定裡的每一排開關都直排、選項縮排一階（Wilson 2026-09-03）──────
+       套用簡碼
+         ☑ 約定簡碼
+         ☐ 三簡碼
+       流暢模式
+         ○ 無
+         ○ 詞組連打（包括四碼快打）
+         ○ 單字上屏  怎麼運作？
+     「if the 3 options for fluent mode are vertically stacked, then the two
+     options for using quickcodes should also be vertically stacked. but the
+     options should be indented compared to the setting name」。橫排時「無／
+     詞組連打／單字上屏」加起來剛好比一行多一點，最後一顆永遠自己掉一行，
+     看起來像排錯了而不是排不下；兩排一個直排一個橫排更像沒排好。
+
+     ⚠️ 選擇器一定要鎖在 #try-settings 裡面。.short-toggle 是共用的長相，
+     〈拆碼查詢〉的三排開關也用它，其中「拆碼圖大小」那排同樣帶
+     role="radiogroup" —— 上一輪只寫 `.short-toggle[role="radiogroup"]`，
+     把那邊的「大／中／小」也拆成了三行（那三顆短得很，橫排本來就放得下）。
+     這一版把它還原成橫排。
+
+     ⚠️ 用 flex-wrap ＋ flex-basis: 100%，不是 flex-direction: column。直排的
+     flex 一個項目就佔一行，「怎麼運作？」只能掉到「單字上屏」下面 —— 而它要
+     接在右邊（Wilson：「怎麼運作 should just follow 單字上屏 on its right」）。
+     換行交給 flex-basis：要獨佔一行的給 100%，要跟人共用一行的給 auto。 */
+  #try-settings .short-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .3rem .5rem;
+  }
+  #try-settings .short-toggle > span { flex: 0 0 100%; }
+  #try-settings .short-toggle > .chk-toggle {
+    /* 0 1 100%：允許縮 —— 100% 再加上縮排會比一行寬，讓它縮回去剛好填滿。
+       裡面的字本來就比一行短，縮不到內容。 */
+    flex: 0 1 100%;
+    margin-inline-start: 1.1rem;
+  }
+  /* 最後一顆不佔滿整行，後面的「怎麼運作？」才接得上來。
+     ⚠️ :last-of-type 比的是「同類元素裡的最後一個」＝最後一個 <label>，
+     後面還跟著 <a> 與 <span> 不影響。 */
+  #try-settings .short-toggle > .chk-toggle:last-of-type { flex: 0 0 auto; }
+  #try-settings .short-toggle > .short-toggle-link { flex: 0 0 auto; margin: 0; }
+  /* 載入狀態那句（收了幾個詞／載入中）自己一行，跟著選項縮排 */
+  #try-settings .short-toggle > .short-toggle-note {
+    flex: 0 0 100%;
+    margin-inline-start: 1.1rem;
+  }
+
+  /* 田字格底下那一行只有「單字上屏」用得到（見 try.js 的 markFlowMode）。
+     其他模式不留位子 —— 不然田字格與底下那行說明之間永遠空著一截。 */
+  .practice-flow { min-height: 0; margin-top: 0; }
+  .has-flowline .practice-flow { min-height: 1.2em; margin-top: .35rem; }
+
+  .try-mode { margin-bottom: .45rem; }
+  .short-toggle { gap: .3rem .7rem; margin-bottom: .45rem; font-size: .78rem; }
+  .chk-toggle { gap: .3rem; }
+
+  /* 三排的標籤（模式／套用簡碼／流暢模式）字數不一樣，控制項因此各自從不同的
+     x 起跳，一眼看過去是三條參差的左緣（Wilson：「misaligned」）。給標籤一個
+     共同的最小寬度，控制項就對在同一條線上。 */
+  .try-mode > span,
+  .short-toggle > span { min-width: 4rem; }
+
+  /* ── 篇目摺疊起來（Wilson 2026-09-03）──────────────────────
+     四顆篇目在窄螢幕一定換行（標題＋出處＋四顆遠超過一欄寬），本來變成一整排
+     縮排 37px 的懸空按鈕。改成跟「設定」一樣的 <details>，預設收起來，
+     展開的時候自己佔滿一整行、切齊左緣。 */
+  .practice-pickwrap { display: block; }
+  /* 權重要跟上面桌面那條一樣（見那裡的說明），而且排在它後面才蓋得掉 */
+  .practice-head > .practice-pickwrap > summary { display: inline-flex; }
+  .practice-pick { display: flex; flex-wrap: wrap; margin: .25rem 0 0; }
+
+  /* ── 進度那一區收成兩列（Wilson 2026-09-03）──────────────────
+       第一列：說明句 ＋ 跳過／從頭開始兩顆**只有圖示**的小鈕，貼在右邊。
+       第二列：進度長條 ＋「x / y　z%」接在長條右邊（長條縮短讓出位子）。
+     原本四個項目一起 flex-wrap，寬度差一點點換行位置就不一樣（他的 iPhone
+     上「從頭開始」自己孤零零一行）。現在兩列各自寫死，不再靠 wrap 決定。 */
+  .practice-bar { gap: .4rem; margin-top: .6rem; }
+  /* 桌面那顆進度數字在手機上收掉 —— 手機用的是長條旁邊那顆 */
+  .practice-bar > .practice-prog { display: none; }
+  .practice-tip { flex: 1 1 auto; min-width: 0; }
+
+  .practice-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+  }
+  .practice-btn-t { display: none; }          /* 只留圖示 */
+  .practice-btn-i { display: block; width: 1.15rem; height: 1.15rem; }
+
+  .practice-progrow {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .5rem;
+  }
+  .practice-progbar { flex: 1 1 auto; margin-top: 0; }
+  .practice-prog-narrow {
+    display: block;
+    flex: none;
+    font-size: .72rem;
+    margin-inline-end: 0;
+  }
+
+  /* ── 右欄的高度固定下來（Wilson 2026-09-03）──────────────────
+       「提示一出現就把底下的東西往下推，整段看起來一直在跳。」
+     提示格改成**固定高度**（不是 min-height）—— 空的時候一樣佔位，內容多寡
+     都不會動到卡片高度。為了不讓固定的那一塊把整張卡片撐高，田字格與提示的
+     字級一起收（Wilson 明講可以縮字）。
+
+     ⚠️ 高度是量出來的，不是估的：走過四篇文本共 112 個字、每個字按滿四次提示，
+     最高的一筆是 104px（「上下皆橫，有些時候上橫寫成一撇，一邊有豎劃，豎劃上下
+     皆不穿頭」30 字，在 8.6rem 的欄寬排成三行）。留 7rem＝112px，多一行的餘裕。
+
+     ⚠️ 縮字級救不了多少：真正決定高度的是**行數**，而行數由欄寬決定 ——
+     .72rem→.62rem 只差 4px，因為兩種字級下那句話都是三行。所以這裡的餘裕靠
+     多留一行，不是靠再縮小。
+
+     ⚠️ overflow 用 auto 不用 hidden：萬一以後加了更長的取形意圖（碼表裡最長的
+     一條 39 字，這四篇剛好沒收到），至少捲得到，不會有一段字永遠讀不到。 */
+  /* ⚠️ 選擇器一律用 id，不要用 .tz-hint／.tz-chip／.tz-intent 這些 class：
+     同一組 class 也在〈拆碼查詢〉（chaima.js）與〈字根練習〉（lianxi.js）用，
+     而且自由試打的拆碼圖（#pyq-hint／#pyq-tianzi）就住在同一個 .practice-cell
+     裡面 —— 寫成 class 或 `.practice-cell .tz-hint`，會一路改到三個沒人要求
+     改的地方。這一節只管〈試打文本〉右欄那一格。 */
+  #tianzi { max-width: 6rem; }
+  #practice-hint { height: 7rem; min-height: 0; overflow-y: auto; margin-top: .45rem; }
+  #practice-hint .tz-intent { font-size: .68rem; line-height: 1.45; }
+  #practice-hint .tz-short { font-size: .68rem; line-height: 1.45; }
+  #practice-hint .tz-more { font-size: .66rem; }
+  #practice-hint .tz-chip { font-size: .74rem; min-width: 1.3rem; }
+  .practice-next { margin-top: .45rem; font-size: .8rem; }
+  .practice-next b { font-size: 1.05rem; }
+}
+
+/* ---------- 11. 自由試打的拼音查字：候選換到下一行（Wilson 2026-09-02）----------
+   .pyq-row 是一排三個：拼音／注音鈕（約 110px）＋ 輸入框（12.5rem＝200px 寫死）
+   ＋ 候選框（flex:1 吃剩下的）。手機上整排只有 350px，候選框分到約 40px ——
+   「只有半個字寬」。讓它整排換行，候選自己佔一整行；輸入框改成彈性寬度，
+   把第一行剩下的吃滿。 */
+@media (max-width: 52rem) {
+  .pyq-row { flex-wrap: wrap; }
+  .pyq-input { flex: 1 1 auto; width: auto; min-width: 0; }
+  .pyq-cands-box { flex: 1 0 100%; margin-top: .4rem; }
+}
+
+/* ---------- 12. 〈拆碼查詢〉導言裡的方位詞跟著版面走（Wilson 2026-09-02）----------
+   「貼進右邊的框」在手機上是錯的 —— 那個框在**下面**。
+   ⚠️ 這兩個框是靠 flex-wrap 自己折行的（.cm-field 是 flex: 1 1 12rem、
+   .cm-field-wide 是 2.4 1 22rem），沒有對應的 media query，所以斷點是量出來的：
+   逐 px 掃出來的：**652px 還併排、651px 開始上下疊**，所以取 40.7rem
+   （651.2px）。用 rem 不用 px：那兩個 flex-basis 本來就是 rem，使用者把字級
+   調大時折行點會跟著移，寫死 px 就對不上了。
+   （840–850px 之間還有一個十來 px 的窄帶也會疊 —— 那是側邊欄收掉前正文最擠的
+   那一瞬間，一個媒體查詢蓋不到兩段，而那一段沒有人會停在那裡。） */
+.cm-where-narrow { display: none; }
+@media (max-width: 40.7rem) {
+  .cm-where-wide { display: none; }
+  .cm-where-narrow { display: inline; }
+}
+
+/* ---------- 13. 漢堡選單的開合動畫與底部把手（Wilson 2026-09-02）----------
+   原本是 display 直接切換，開跟關都是「啪」一下。改成滑下來／滑上去，
+   並在選單底部放一條小橫桿當把手 —— 讓人看得出這一片是可以收起來的。
+
+   ⚠️ 「寬螢幕不顯示把手」這條要寫在 @media **前面**：寫在後面的話同權重、
+   排在後面就贏，把手在手機上也會被藏掉（css_order_test 當場抓到，跟
+   .navtoggle 是一模一樣的坑，我在同一支檔案裡連犯兩次）。 */
+.navtoggle-grab { display: none; }
+
+@media (max-width: 52rem) {
+  @keyframes mn-slide-in {
+    from { opacity: 0; transform: translateY(-.5rem); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes mn-slide-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-.5rem); }
+  }
+
+  .topbar.has-navtoggle.nav-open nav.site {
+    animation: mn-slide-in .24s cubic-bezier(.22, .61, .36, 1);
+  }
+  /* 收起來的那一段：JS 先掛 nav-closing 讓版面留著把動畫播完，再真的收掉
+     （見 site.js 的 mnSet）。這裡要把 .nav-open 那一整組版面規則再寫一次 ——
+     class 已經拿掉了，只靠動畫是撐不住版面的。 */
+  .topbar.has-navtoggle.nav-closing nav.site {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    order: 9;
+    gap: .1rem;
+    margin: .5rem 0 0;
+    padding: .6rem 1.1rem 1rem;
+    border-top: 1px solid var(--line);
+    max-height: calc(100dvh - 4.5rem);
+    overflow-y: hidden;
+    animation: mn-slide-out .18s ease forwards;
+    pointer-events: none;
+  }
+  .topbar.has-navtoggle.nav-closing .wrap { flex-wrap: wrap; align-items: center; }
+
+  /* 底部的小橫桿 */
+  .navtoggle-grab {
+    display: block;
+    flex: none;
+    align-self: center;
+    width: 100%;            /* 整條寬，中間那道橫桿才置中；看得見的只有橫桿 */
+    max-width: none;
+    height: 1.6rem;         /* 手指按得到的高度 */
+    margin: .35rem 0 0;
+    padding: 0;
+    border: 0;
+    cursor: grab;
+    /* ⚠️ 這一顆要能「往上撥就收起來」（見 site.js 的 mnGrab 拖曳）。選單本身是
+       overflow-y: auto 的捲動容器，不寫 touch-action: none 的話 iOS 會把手指
+       往上的動作直接當成捲選單、pointermove 收不到，拖曳等於不存在。 */
+    touch-action: none;
+    /* ⚠️ 黏在捲動容器的底邊：選單放不下時（〈取碼原則〉的章節清單一展開就
+       超過一個螢幕）把手會被推到捲動內容的最後面，要一路捲到底才看得到 ——
+       那就完全失去「這一片可以收起來」的提示作用了。sticky 讓它永遠貼在
+       選單的下緣。底色要不透明，不然底下的連結會透出來穿過橫桿。 */
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: linear-gradient(to bottom, transparent, var(--surface) 45%);
+  }
+  .navtoggle-grab::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2.6rem;
+    margin: -1.5px 0 0 -1.3rem;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--line);
+    transition: background .15s ease;
+  }
+  .navtoggle-grab:active { cursor: grabbing; }
+  .navtoggle-grab:active::before { background: var(--ink-faint); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar.has-navtoggle.nav-open nav.site,
+  .topbar.has-navtoggle.nav-closing nav.site { animation: none; }
+}
+
+/* ---------- 14. 〈約定字表〉與〈簡碼〉：單欄時的表頭處理（Wilson 2026-09-02）----------
+   兩頁的結構一樣：一個 <h2>（組名／節名）底下一個 .jm-cols，裡面兩三張**各自帶
+   表頭**的表。寬螢幕併排時每張表都要有自己的表頭；收成單欄之後那些表頭就變成
+   「捲到一半又冒出一次欄位名」，是雜訊不是資訊。
+
+   同時把組名釘在頁首底下，捲到下一組才換 —— 這幾頁捲起來很長，捲到一半常常
+   不知道現在看的是哪一類（Wilson）。 */
+@media (max-width: 52rem) {
+  /* 單欄之後，第二張以後的表頭收掉 */
+  .cv-page .jm-cols > table:not(:first-of-type) thead,
+  .jm-page .jm-cols > table:not(:first-of-type) thead { display: none; }
+
+  /* ⚠️ .jm-cols 帶著 overflow-x: auto，只要有這個屬性，裡面的 sticky 就會黏在
+     **它**身上而不是視窗上（跟字根表表頭同一個坑）。單欄時本來就不需要橫捲，
+     關掉它 sticky 才有意義。表格自己有 max-width: 100%，不會撐爆版面。 */
+  .cv-page .jm-cols, .jm-page .jm-cols { overflow-x: visible; }
+
+  /* 組名／節名黏在頁首底下。3.7rem 是收起來的頁首那一列。
+     ⚠️ 底色要不透明，不然捲過去的內容會透出來疊在字上。 */
+  .cv-page #cv-groups > div > h2,
+  .jm-page > h2 {
+    position: sticky;
+    top: 3.7rem;
+    z-index: 3;
+    margin-inline: -.2rem;
+    padding: .35rem .2rem .3rem;
+    background: var(--bg);
+  }
+
+  /* 留下來的那一張表頭再黏在組名底下 */
+  .cv-page .jm-tbl thead th,
+  .jm-page .jm-tbl thead th {
+    position: sticky;
+    top: 6.3rem;
+    z-index: 2;
+    background: var(--code-bg);
+  }
+}
+
+/* ---------- 15. 〈線上試打〉：設定與按鍵指南預設收起來（Wilson 2026-09-02）----------
+   用原生的 <details>，不是自己做的開關 —— 沒有 JS 也展得開，鍵盤與讀螢幕本來就
+   認得，而且「預設收起來」只要不寫 open 就好。
+   Wilson 的理由（他提了 Duolingo）：這一頁真正在做的事只有三件 —— 看文本、打字、
+   看提示。三件事要在同一個畫面上，中間不能夾著一頁設定，眼睛不該為了打一個字
+   上下捲。 */
+.try-opts {
+  grid-column: 1 / -1;
+  margin: 0 0 .7rem;
+}
+.try-opts > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  padding: .3rem 0;
+}
+.try-opts > summary::-webkit-details-marker { display: none; }
+/* 自己畫箭頭：原生的三角形在不同系統上大小、位置差很多 */
+.try-opts > summary::before {
+  content: '';
+  width: .42rem;
+  height: .42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  margin-inline-end: .15rem;
+  transition: transform .18s ease;
+}
+.try-opts[open] > summary::before { transform: rotate(45deg); }
+.try-opts > summary:hover { color: var(--ink); }
+.try-opts > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .try-opts > summary::before { transition: none; }
+}
+
+/* ---------- 16. iOS 點進輸入框不要自己放大（Wilson 2026-09-03）----------
+   iOS Safari 只要看到聚焦的表單元件字級**小於 16px**，就會自己把整頁放大湊到
+   16px —— 而且打完不會縮回去，得自己雙指縮小（Wilson：「very disruptive」）。
+   全站量過只有兩個框中招：〈線上試打〉的拼音查字框（.95rem＝15.2px）與首頁
+   猜猜看的輸入框（.84rem＝13.44px）；其餘（試打框 19.2px、字根表查字 17.6px、
+   拆碼查詢兩個框 16.8px）本來就過線。
+
+   ⚠️ 唯一可靠的解法就是把字級提到 16px。另一條路是在 viewport 加
+   `maximum-scale=1` 把縮放整個關掉 —— 那會連需要放大來看的人也一起擋掉，
+   不做。
+
+   提示字（placeholder）另外壓小：**觸發放大的是輸入框自己的字級，不是提示字
+   的**，所以整句中文提示可以維持原本的大小，不必跟著變大撐破框。 */
+@media (max-width: 52rem) {
+  .pyq-input { font-size: 16px; }
+  .pyq-input::placeholder { font-size: .78rem; }
+  .guess-input { font-size: 16px; }
+  .guess-input::placeholder { font-size: .84rem; letter-spacing: .02em; }
+}
+
+/* ---------- 17. 「怎麼運作？」貼太緊（Wilson 2026-09-03）----------
+   .short-toggle-link 帶 margin-inline-start: -.75rem（12px），刻意把說明連結
+   拉近「單字上屏」，讓它讀起來是那一個選項的附註、不是整排的第四項。桌面那排
+   的 gap 是 1.1rem（17.6px），扣掉還剩 5.6px；但手機版把 gap 收成 .7rem
+   （11.2px），扣掉變成 **-0.8px** —— 兩段字直接黏在一起。
+   手機上改用小一點的負值：留 7.2px，比整排的 11.2px 近，但不會黏住。 */
+@media (max-width: 52rem) {
+  .short-toggle-link { margin-inline-start: -.25rem; }
+}
+
+/* ---------- 18. 字級那一組留在頁首那一列（Wilson 2026-09-03）----------
+   它本來被 JS 搬進漢堡選單裡（見 site.js 的 mnPlaceSize），理由是量到的寬度：
+   品牌 143 ＋ 兩組切換 181 ＋ 漢堡 44 ＋ 內距與間隔 59 ＝ 427px，視窗只有 390。
+   Wilson 要它跟繁簡一樣露在外面，那就得把那 84px 從別處省出來：
+
+   - 品牌的英文字樣「AiPhaBi」收掉（量到 53.1px）。中文「愛發筆」與標誌都留著，
+     品牌還認得出來；桌面版原樣不動。
+   - 「字級」兩個字的標籤收掉。旁邊就是小／中／大三顆，不會看不懂。
+   - 兩組切換之間的間隔從 .55rem 收到 .4rem，頁首整列的 gap 從 .75rem 收到 .45rem。
+
+   ⚠️ 同時把頁首那一列改成**可以換行**。省下來的寬度在 390px 上夠用，但更窄的
+   機器、或使用者把系統字級調大時還是可能擠不下 —— 寧可讓控制項整組掉到第二列，
+   也不要重演上次「整頁被撐寬 19px、十二頁一起可以左右滑」。 */
+@media (max-width: 52rem) {
+  .topbar.has-navtoggle .wrap { flex-wrap: wrap; row-gap: .4rem; gap: .45rem; }
+  .topbar.has-navtoggle .brand-text .en { display: none; }
+  .topbar.has-navtoggle .zg-size > span { display: none; }
+  .topbar.has-navtoggle .topbar-controls { gap: .4rem; }
+  /* 品牌吃掉剩下的寬度，控制項與漢堡靠右；擠不下時整組控制項自己掉到第二列。 */
+  .topbar.has-navtoggle .brand { flex: 1 1 auto; min-width: 0; }
+  .topbar.has-navtoggle .navtoggle { flex: none; }
+}
+
+/* ---------- 20. 手機選單：整片收起來、就地展開章節、麵包屑（Wilson 2026-09-03）----------
+
+   三件事一起做，因為它們都在講同一個問題：收成漢堡之後，「這個網站有哪些東西、
+   我現在在哪裡」全部躲進了一顆按鈕後面。
+
+   ⚠️ 這一節的每一條「桌面預設值」都必須排在對應的 @media 前面。@media 不加
+   任何權重，同權重時純看先後 —— .crumbs 那一對就是同權重（各一個 class），
+   把 `display: none` 寫在後面的話麵包屑在手機上也看不見。這個檔案已經為了同一
+   件事被咬過四次（見第 13、19 節）。 */
+
+/* .navpanel 是 site.js 包在 <nav> 外面的一層。桌面與收起來的時候它
+   `display: contents` —— 自己不生盒子，nav 仍然直接是 .wrap 的 flex 項目，
+   版面跟沒有這一層完全一樣。只有手機把選單打開時它才變成真的區塊（見上面
+   第 13 節那一段 @media），給拖曳當切邊用的容器。 */
+.navpanel { display: contents; }
+
+/* 別頁的章節清單與它的箭頭：**只在手機選單裡**存在。桌面側邊欄照舊只有目前
+   這一頁有章節清單 —— 六串一起攤開會把底下三條連結推到看不見。 */
+.navsub-x, .navsub-xbtn { display: none; }
+
+/* 麵包屑只有手機有。桌面的側邊欄一直都在，位置一目了然，再加一條是多的。 */
+.crumbs { display: none; }
+
+@media (max-width: 52rem) {
+  .topbar.has-navtoggle.nav-open .navsub-xbtn { display: flex; }
+  .topbar.has-navtoggle.nav-open .navsub-x { display: block; }
+
+  /* 展開鈕要看得出是一顆按鈕（Wilson：「a clear enough button… then people will
+     know these can be expanded」）。桌面那顆是 1.6rem 寬的淡灰三角形，手指按不到
+     也不像按鈕。這裡給它 2.6rem 的方框、一條淡框線與底色，箭頭也放大。
+     ⚠️ 只放大按鈕，不動連結本身：連結照舊佔滿剩下的寬度，點文字就是換頁
+     （Wilson：「if they click the heading directly, it should navigate」）。 */
+  .topbar.has-navtoggle.nav-open .pr-toggle {
+    width: 2.6rem;
+    align-self: center;
+    height: 2.2rem;
+    margin-inline-start: .3rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink-dim);
+  }
+  .topbar.has-navtoggle.nav-open .pr-toggle::before {
+    border-inline-width: .38rem;
+    border-top-width: .42rem;
+  }
+  .topbar.has-navtoggle.nav-open .pr-toggle[aria-expanded="true"] {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--accent);
+  }
+
+  /* ── 麵包屑 ──────────────────────────────────────────
+     一條「首頁 › 分組 › 本頁 › 本節」。橫的放不下時自己捲，不換行 ——
+     換行的麵包屑會把正文標題推下去，而它本來只該是一條細細的座標。 */
+  .crumbs {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: .1rem;
+    /* ⚠️ 要黏在頁首底下，不能跟著正文捲走：第四格寫的是「你現在讀到哪一節」，
+       捲動時看不見的話那一格等於不存在。top 就是手機頁首那一列的高度（同一個
+       3.5rem 也用在字根表的黏頂表頭，見 .has-navtoggle .zg-jump）。
+       ⚠️ 底色要不透明而且滿版（負外距＋等量內距），不然正文會從麵包屑背後、
+       以及左右兩側的空隙透出來。 */
+    position: sticky;
+    top: var(--topbar-h, 3.7rem);
+    z-index: 5;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    margin: -1.5rem -1.6rem 1.4rem;
+    padding-inline: 1.6rem;
+    /* ⚠️ 高度寫死（Wilson 2026-09-03：「i don't really like how the mobile
+       breadcrumb would expand in height when i scroll all the way up, i think
+       that can just be fixed height」）。第四格是捲到哪一節才出現的，出現、
+       消失、換成更長的節名都不該讓這一條忽高忽低 —— 它就在頁首底下，抖一下
+       整頁的內容都跟著移。box-sizing 已經是全域 border-box。 */
+    height: 2.1rem;
+    box-sizing: border-box;
+    overflow-x: auto;
+    /* ⚠️ overflow-x 一旦不是 visible，另一軸的 visible 就被算成 auto（CSS 規則，
+       這個檔案第二次踩，見第 10 節的候選列）。這裡的內容只有一行高，直向不該
+       捲，明寫 hidden。 */
+    overflow-y: hidden;
+    scrollbar-width: none;
+    font-size: .76rem;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .crumbs::-webkit-scrollbar { display: none; }
+  .crumbs > * {
+    flex: none;
+    padding: .4rem .35rem;
+    border: 0;
+    border-radius: 6px;
+    font: inherit;
+    color: var(--ink-dim);
+    background: none;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .crumbs > * + *::before {
+    content: '›';
+    margin-inline-end: .4rem;
+    color: var(--ink-faint);
+  }
+  .crumbs > .crumb-tail { color: var(--accent); font-weight: 600; }
+  .crumbs > .crumb-tail::before { color: var(--ink-faint); font-weight: 400; }
+  .crumbs > :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+}
+
+/* ---------- 21. 〈簡介〉九大特點：手機上是一疊可以左右滑的卡片（Wilson 2026-09-03）----------
+   「maybe show like first point in like a floating panel, with the title of the
+   point in green, and then you can swipe right to the 2nd point… like a card
+   deck almost」。桌面版那一長串維持原樣 —— 那個寬度一次讀完一點很自然，手機上
+   同樣的九點要捲過大半個螢幕才看得完一點。
+
+   ⚠️ 圓點那一列的預設值要寫在 @media **前面**（同權重、後來者贏）。這個檔案
+   為了同一件事被咬過五次了，見第 13、19、20 節。 */
+.points-dots { display: none; }
+
+@media (max-width: 52rem) {
+  .points {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: .8rem;
+    /* 滿版出血：卡片要能滑到貼著螢幕邊，才看得出「右邊還有一張」 */
+    max-width: none;
+    margin: 1.3rem -1.6rem 0;
+    padding: .35rem 1.6rem .5rem;
+    overflow-x: auto;
+    /* ⚠️ 明寫 hidden。只寫 overflow-x 的話另一軸的 visible 會被算成 auto
+       （這個檔案第三次踩，見第 10 節的候選列、第 20 節的麵包屑）。 */
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1.6rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .points::-webkit-scrollbar { display: none; }
+
+  .points > li {
+    /* 84%：右邊固定露出一小截下一張，這是「還可以滑」唯一的視覺線索 */
+    flex: 0 0 84%;
+    scroll-snap-align: center;
+    margin-bottom: 0;
+    padding: 1rem 1.1rem 1.1rem;
+    padding-inline-start: 1.1rem;
+    /* 九張卡的長度差很多（第 8 點是第 9 點的十倍），高度不寫死的話整疊會跟著
+       最長的那張走，短的下面空一大片。固定高度＋卡片內部自己捲：一疊卡就該
+       一樣大，而且滑到哪一張都不會讓底下的東西上下跳。 */
+    height: min(62vh, 27rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 20px rgba(0, 0, 0, .06);
+  }
+  /* 編號改成排在標題上面的一顆徽章。⚠️ 不能留 absolute：卡片內部會捲，
+     絕對定位的編號會跟著內容捲出畫面。 */
+  .points > li::before {
+    position: static;
+    display: inline-flex;
+    margin-bottom: .5rem;
+  }
+  .points > li > h3 { color: var(--accent); font-size: 1.02rem; }
+  /* 一句一分一段（Wilson）—— 斷句在 assets/jieshao.js，這裡只管段距 */
+  .points > li > p + p { margin-top: .5rem; }
+
+  .points-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .35rem;
+    margin-top: .8rem;
+  }
+  .points-dots button {
+    width: .45rem;
+    height: .45rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: var(--line);
+    cursor: pointer;
+    transition: width .18s ease, background .18s ease;
+  }
+  .points-dots button[aria-current="true"] { width: 1.3rem; background: var(--accent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .points-dots button { transition: none; }
+}
+
+/* ---------- 22. 桌面：側邊欄的收合把手，與每頁底部的上一頁／下一頁（Wilson 2026-09-04）----------
+
+   ⚠️ 兩塊的「桌面預設值」都寫在對應的 @media 前面。@media 不加權重，同權重時純
+   看先後 —— 這個檔案為了同一件事被咬過六次了（見第 13、19、20、21 節）。 */
+
+/* ── 側邊欄收起來 ──────────────────────────────────────────────
+   --nav-w 只被兩條規則用到（.topbar 的 width、body 的 padding-inline-start），
+   所以整個收合就是改這一個變數，其餘自己跟上。
+   ⚠️ 收起來要 overflow: hidden：寬度 0 的捲動容器裡還塞著十二條連結，不裁掉會
+   長出捲軸、也可能吃掉滑鼠事件。 */
+:root.nav-min { --nav-w: 0rem; }
+.nav-min .topbar { overflow: hidden; border-inline-end: 0; }
+
+/* ⚠️ transition 是簡寫，會把同一元素上先前的 transition 整條蓋掉。上面第
+   〈首頁〉那一節給 .topbar 下過 `transition: transform .55s`（導覽滑進來的動畫），
+   這裡必須把它一起寫回去，不然首頁的進場動畫會變成瞬移。 */
+.topbar {
+  transition: transform .55s cubic-bezier(.22, .61, .36, 1),
+              width .24s cubic-bezier(.22, .61, .36, 1);
+}
+/* 首頁那條 .lg-body 的 .55s 權重比這條高（一個 class 對一個元素），
+   所以首頁維持它自己的節奏，其餘頁面用這條。 */
+body { transition: padding-inline-start .24s cubic-bezier(.22, .61, .36, 1); }
+
+.navmin {
+  position: fixed;
+  inset-inline-start: calc(var(--page-pad) + var(--nav-w));
+  top: 50%;
+  z-index: 11;                 /* .topbar 是 10，把手要在它前面 */
+  width: 1.15rem;
+  height: 3.4rem;
+  margin-top: -1.7rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-inline-start: 0;
+  border-start-end-radius: 6px;
+  border-end-end-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: inset-inline-start .24s cubic-bezier(.22, .61, .36, 1),
+              /* 首頁的側邊欄是用 transform 滑進來的（.55s），把手要用**同一個
+                 位移量、同一條曲線**跟著走，不然那 .55s 裡它會單獨浮在正文上，
+                 看起來就是「把手跟側邊欄分家了」（Wilson 2026-09-04 看到的）。 */
+              transform .55s cubic-bezier(.22, .61, .36, 1),
+              opacity .3s ease,
+              color .15s ease, background .15s ease;
+}
+.navmin:hover { color: var(--ink); background: var(--code-bg); }
+.navmin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 箭頭用 border 畫的三角形，跟章節收合鈕同一招 —— 展開時指向左（收起來），
+   收起來之後指向右（拉出來）。 */
+.navmin-arrow {
+  width: 0; height: 0;
+  border-block: .3rem solid transparent;
+  border-inline-end: .34rem solid currentColor;
+  transition: transform .2s ease;
+}
+.nav-min .navmin-arrow { transform: rotate(180deg); }
+/* 首頁的側邊欄要等動畫播完才滑出來，把手不能比它早到。位移量剛好是側邊欄的寬度
+   （側邊欄自己是 translateX(-100%)，等值），兩者因此整段動畫都貼在一起。 */
+.lg-body.lg-navhide .navmin {
+  transform: translateX(calc(-1 * var(--nav-w)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── 每頁底部的上一頁／下一頁 ────────────────────────────────── */
+.pagenav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3.5rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+}
+/* ⚠️ 不要 `flex: 1 1 0`：那會把兩顆撐成各佔半條正文（464px），一個四個字的頁名
+   配一顆這麼大的框（Wilson 2026-09-04：「a bit wide」）。收成內容寬、各自靠邊，
+   中間空著 —— 那條空白正好讀成「這是兩個相反的方向」。 */
+.pagenav-prev, .pagenav-next {
+  flex: 0 1 auto;
+  max-width: 46%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  padding: .8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
+}
+/* 只有一邊的時候（〈簡介〉沒有上一頁、〈後記〉沒有下一頁），那一顆要留在自己
+   該在的邊，不要跑到中間去佔滿整排。 */
+.pagenav-next:only-child { margin-inline-start: auto; }
+.pagenav-prev:only-child { margin-inline-end: auto; }
+.pagenav-next { text-align: end; }
+.pagenav:hover .pagenav-prev:hover,
+.pagenav:hover .pagenav-next:hover { border-color: var(--accent); background: var(--code-bg); }
+.pagenav-k { font-size: .78rem; color: var(--ink-faint); }
+.pagenav-t { font-weight: 600; }
+.pagenav-prev .pagenav-k::before { content: '← '; }
+.pagenav-next .pagenav-k::after  { content: ' →'; }
+
+@media (max-width: 52rem) {
+  /* 手機的頁首是一條橫的，沒有側邊欄可收 —— 這一顆整個不出現 */
+  .navmin { display: none; }
+  /* 兩顆並排在 390px 上一顆只剩 160px，頁名會斷成兩三行；改成上下疊。 */
+  .pagenav { flex-direction: column; gap: .6rem; margin-top: 2.4rem; }
+  .pagenav-next:only-child, .pagenav-prev:only-child { margin: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar, body, .navmin, .navmin-arrow { transition: none; }
+}
+
+/* ---------- 23. 側邊欄的章節清單：標出「現在讀到哪一節」（Wilson 2026-09-04）----------
+   ⚠️ 這一條必須排在檔案上半部那條
+   `nav.site .pr-sidenav a[aria-current="page"] { font-weight: 400; … }` **後面**。
+   兩者權重一模一樣（三個 class ＋兩個元素），同權重時純看先後 —— 寫在前面的話
+   十條錨點全部被那條「取消高亮」壓掉，亮不起來。那條存在的理由見它自己的說明：
+   章節錨點跟頁面共用網址路徑，會被一起標成 aria-current，那不是「你在哪一頁」。 */
+nav.site .pr-sidenav a.is-here {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--accent-soft);
+}
+
+/* ---------- 24. 主題切換、回到頁首、標題錨點（Wilson 2026-09-04）----------
+   ⚠️ 三塊的桌面預設值都排在對應的 @media 前面（第七次提醒，見第 13、19–23 節）。 */
+
+/* ── 主題（跟系統／淺／深）：長相跟繁簡切換同一套，它們是同一種東西 ── */
+.themetoggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: .66rem;
+}
+.themetoggle button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  padding: .12rem .45rem;
+  cursor: pointer;
+  font: inherit;
+}
+.themetoggle button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.themetoggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ── 回到頁首 ──────────────────────────────────────────────
+   ⚠️ 平常要**完全按不到**（visibility + pointer-events），不能只把 opacity 調成 0：
+   透明但還在的按鈕會擋住它底下的東西，而它就浮在正文右下角。 */
+.totop {
+  position: fixed;
+  inset-inline-end: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 9;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-dim);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(.4rem);
+  transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 6px 16px rgba(0, 0, 0, .08);
+}
+.totop.is-on { opacity: 1; visibility: visible; transform: none; }
+.totop:hover { color: var(--accent); border-color: var(--accent); }
+.totop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 箭頭用 border 畫的三角形，跟章節收合鈕、把手同一招 */
+.totop-arrow {
+  width: 0; height: 0;
+  border-inline: .34rem solid transparent;
+  border-bottom: .4rem solid currentColor;
+  margin-top: -.1rem;
+}
+
+/* ── 標題旁邊的「連到這一節」 ──────────────────────────────
+   平常看不見，滑到標題上才淡入。⚠️ 用 opacity 不用 display：display 從 none 變回來
+   會讓標題的寬度跳一下，滑過去的瞬間整行字往左挪。 */
+.hlink {
+  margin-inline-start: .45rem;
+  font-weight: 400;
+  color: var(--ink-faint);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity .15s ease, color .15s ease;
+}
+h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
+.hlink:hover { color: var(--accent); }
+.hlink:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 52rem) {
+  /* 手機沒有滑鼠，錨點連結不會有「移上去」這件事，留著只是每個標題後面多一個
+     看不出用途的井字號。 */
+  .hlink { display: none; }
+  /* ⚠️ 主題切換在手機上收起來，是量出來的取捨：頁首那一列本來是 59px 一整列，
+     加了這一組（87px）之後控制項擠不下、整組掉到第二列，頁首變成 92px ——
+     十二頁每一頁的第一個畫面都少掉 33px，320px 的機器上更是 135px。
+     手機的深色本來就跟著系統走（iOS／Android 的深色開關都在兩三下之內），
+     為了一個系統已經提供的選擇，不值得每一頁都付這 33px。
+     （Wilson 2026-09-04 是在**桌面**的脈絡下要這一顆的。） */
+  .themetoggle { display: none; }
+  /* 手機的右下角是拇指最順的位置，但也最容易蓋到內容 —— 收小一點、貼邊一點。 */
+  .totop { inset-inline-end: .9rem; bottom: .9rem; width: 2.4rem; height: 2.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .totop, .hlink { transition: none; }
 }

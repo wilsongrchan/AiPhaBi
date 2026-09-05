@@ -2356,7 +2356,11 @@ async function rejectMatch(r) {
     return;
   }
 
-  /* 收緊之後，本來靠這些字根取碼的字會不會配不上？先算給你看 */
+  /* 收緊之後，本來靠這些字根取碼的字會不會配不上？先算給你看 —— 但碼表有
+     7000+ 字，逐字 await getGlyph() 是幾千次序列網路請求，畫面會像按了沒反應
+     好一陣子。先篩出「這個字根本上就有同字母、同筆數的字」才值得抓它的
+     medians，再用 primeGlyphs 一次要完，不要一個個等。 */
+  $('#status').textContent = '正在檢查會不會有已取碼的字受影響…';
   const casualties = new Set();
   const plans = [];
   for (const { e, d } of hits) {
@@ -2364,8 +2368,10 @@ async function rejectMatch(r) {
     const tight = Math.max(0.005, +(d * 0.9).toFixed(4));
     if (tight >= cur) continue;
     plans.push({ e, tight, cur, d });
-    for (const [ch, rec] of Object.entries(codes)) {
-      if (!rec.segments) continue;
+    const cand = Object.entries(codes).filter(([, rec]) =>
+      rec.segments && rec.segments.some(sg => sg.letter === r.letter && sg.strokes.length === e.n));
+    await Zigen.primeGlyphs(cand.map(([ch]) => ch));
+    for (const [ch, rec] of cand) {
       const g = await Zigen.getGlyph(ch);
       if (!g) continue;
       for (const sg of rec.segments) {
@@ -2377,6 +2383,7 @@ async function rejectMatch(r) {
       }
     }
   }
+  $('#status').textContent = '';
   if (!plans.length) { alert('不需要再收緊。'); return; }
 
   const cas = [...casualties];

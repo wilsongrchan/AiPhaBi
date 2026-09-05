@@ -2,122 +2,17 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>約定字表 · 愛發筆 AiPhaBi</title>
-<meta name="description" content="愛發筆輸入法裡另外約定拆碼的常用獨體字，以及它們作為偏旁時的碼。">
-<!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
-     16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
-     仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
-<!-- 分享卡與正規網址。同一個站現在有三個公開位址（自訂網域、vercel.app、
-     github.io），canonical 指向自訂網域，搜尋引擎才不會把它們當成三份重複
-     內容、而且把分數算到 github.io 頭上。og:image 一定要用絕對網址 ——
-     抓預覽的機器人不會幫你補上網域。 -->
-<link rel="canonical" href="https://www.aiphabi.com/conventional.html">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="愛發筆輸入法">
-<meta property="og:locale" content="zh_TW">
-<meta property="og:url" content="https://www.aiphabi.com/conventional.html">
-<meta property="og:title" content="約定字表 · 愛發筆 AiPhaBi">
-<meta property="og:description" content="愛發筆輸入法裡另外約定拆碼的常用獨體字，以及它們作為偏旁時的碼。">
-<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
-<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
-<!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
-<link rel="apple-touch-icon" href="assets/img/logo-180.png">
-<link rel="stylesheet" href="assets/site.css">
+<!-- 舊網址的轉向頁（2026-09-03 改名，見 PROJECT_NOTES § C）。
+     這一頁不進 sitemap、不給搜尋引擎收錄，只負責把舊連結送到新網址。
+     Vercel 那兩個位址走 vercel.json 的 301；GitHub Pages 是純靜態、沒有
+     轉向設定，所以還是需要這個檔。 -->
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=yueding.html">
+<link rel="canonical" href="https://www.aiphabi.com/yueding.html">
+<title>已移到 約定字表 · 愛發筆 AiPhaBi</title>
+<script>location.replace('yueding.html' + location.hash);</script>
 </head>
 <body>
-
-<header class="topbar">
-  <div class="wrap">
-    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
-    <div class="topbar-controls">
-      <div class="langtoggle" role="group" aria-label="字體切換">
-        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
-        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
-      </div>
-
-      <div class="zg-size" role="group" aria-label="字級">
-        <span>字級</span>
-        <div class="zg-size-btns">
-          <button type="button" data-size="small" aria-pressed="false">小</button>
-          <button type="button" data-size="normal" aria-pressed="true">中</button>
-          <button type="button" data-size="large" aria-pressed="false">大</button>
-        </div>
-      </div>
-    </div>
-    <nav class="site">
-      <a href="jieshao.html">簡介</a>
-      <div class="nav-sec">
-        <span class="nav-sec-t">基礎學習</span>
-        <a href="zigen.html">字根表</a>
-        <a href="lianxi.html">字根練習</a>
-        <a href="principles.html">取碼原則</a>
-        <a href="conventional.html">約定字表</a>
-        <!-- ⚠️ 這串只是「還沒載到資料／沒有 JS」時的後備，真正的清單由
-             conventional.js 的 renderSideNav() 從 conventional.json 現長出來
-             （手維護的清單會跟資料脫節：Side A 加了目字類，這裡就漏了一條）。
-             順序照畫面上的順序：大字類與目字類左右並排，馬字類與己字類並排。 -->
-        <ul class="pr-sidenav">
-          <li><a href="#cv-1">1. 數字類</a></li>
-          <li><a href="#cv-2">2. 木字類</a></li>
-          <li><a href="#cv-3">3. 土字類</a></li>
-          <li><a href="#cv-4">4. 大字類</a></li>
-          <li><a href="#cv-8">5. 目字類</a></li>
-          <li><a href="#cv-5">6. 甲字類</a></li>
-          <li><a href="#cv-6">7. 馬字類</a></li>
-          <li><a href="#cv-7">8. 己字類</a></li>
-        </ul>
-        <a href="jianma.html">簡碼</a>
-      </div>
-      <div class="nav-sec">
-        <span class="nav-sec-t">流暢模式</span>
-        <a href="cizu.html">詞組連打</a>
-        <a href="dingping.html">自動上屏</a>
-      </div>
-      <div class="nav-sec">
-        <span class="nav-sec-t">體驗工具</span>
-        <a href="try.html">線上試打</a>
-        <a href="chaima.html">拆碼查詢</a>
-      </div>
-      <a href="houji.html">後記</a>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap doc-prose">
-
-  <p class="eyebrow">愛發筆輸入法</p>
-  <h1>約定字表</h1>
-
-  <p class="lede">
-    絕大部分的字都根據前頁所列的原則拆碼，但有少數常用的獨體字，字形簡單、筆劃數少，卻又有許多字形相似的其他字，如果用一般的原則拆碼會造成大量重碼，所以另外根據<a href="principles.html#pr-8">約定原則</a>，約定這些字單獨成字時和作為偏旁時的拆碼。雖然這些約定拆碼大多數不符合能合不分原則，但基本上符合筆順原則，所用的字根筆劃亦都是字根表內的字根，雖然需要另外記憶，但並非完全死記硬背。
-  </p>
-
-  <div class="jm-sortbar" role="group" aria-label="拆碼分析">
-    <span>拆碼分析</span>
-    <div class="jm-sortbar-btns">
-      <button type="button" data-cv-color="off" aria-pressed="false">關</button>
-      <button type="button" data-cv-color="on" aria-pressed="true">開</button>
-    </div>
-  </div>
-
-  <div id="cv-groups" class="cv-color">
-    <p>約定字表載入中……</p>
-  </div>
-
-</main>
-
-
-<footer class="wrap">
-  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
-    <span class="en-note" data-keep>All Rights Reserved</span></p>
-</footer>
-
-<script src="assets/site.js"></script>
-<script src="assets/conventional.js"></script>
+<p>這一頁已經改名為 <a href="yueding.html">約定字表</a>。</p>
 </body>
 </html>

@@ -20,6 +20,7 @@ Run it by hand before previewing locally:
 Reading Side A's data is fine from any side (the guard never blocks reads). Writing stays inside
 `site/`, which is Side C's. This script must not write anywhere else.
 """
+import collections
 import json
 import pathlib
 import re
@@ -2931,6 +2932,39 @@ def build_pyphrase(phrase_dict):
     return idx
 
 
+def build_charset():
+    """〈自動上屏〉頁要用的兩份字集：常用字白名單與簡體專屬字。
+
+    ⚠️ 來源是 Side B 產生的 rime/lua/aiphabi_data.lua，**不是**在這裡重新從
+    data/standards/ 推一次。「常用字」是六路聯集（甲表 ∪ GB 2312 一級 ∪ 常見異體
+    ∪ 精選詞庫用字 ∪ 姓名用字 ∪《百家姓》∪ 常用粵語字 ∪ 手動白名單），那份定義
+    住在 build_rime.py 裡；照抄一份到這裡，兩邊遲早會走偏，而走偏的那一邊會是
+    網站——網站會用一個輸入法其實沒在用的定義，向讀者報一個數字。寧可依賴人家的
+    產出，也不要養第二個定義。
+
+    ⚠️ 欄位名 2026-09-04 從 M.biaonei 改成 M.common（Side B 的用語清理）。兩個都
+    認：部署時抓到的可能是改名還沒進 main 的那一刻。
+
+    抓不到檔或抓不到欄位就回 None —— 那一段數字整段不出現，不是印 0%。
+    """
+    lua = ROOT / "rime" / "lua" / "aiphabi_data.lua"
+    if not lua.is_file():
+        return None
+    text = lua.read_text("utf-8")
+
+    def grab(field):
+        m = re.search(r"\nM\.%s = \{(.*?)\n\}" % field, text, re.S)
+        if not m:
+            return None
+        return sorted(set(re.findall(r'\["(.+?)"\]', m.group(1))))
+
+    common = grab("common") or grab("biaonei")
+    simp = grab("simp")
+    if not common or not simp:
+        return None
+    return {"common": "".join(common), "simp": "".join(simp)}
+
+
 def main():
     codes = load("codes.json")
     rules = load("rules.json")
@@ -3007,6 +3041,63 @@ def main():
         stats[sid] = {"label": label, "done": done, "total": len(chars),
                       "pct": round(done * 100 / len(chars), 1)}
 
+    # GB 2312 的一級漢字（3,755 字，拼音序）單獨算一份 —— 二級還沒收完，把
+    # 6,763 字的合併數字講成「全部收錄」會是假話（Side A 2026-09-02 特別提醒）。
+    #
+    # ⚠️ 分級**不靠檔案裡的位置**（「前 3755 個」），靠 GB 2312 自己的區位碼：
+    # 一級是第一個 byte 落在 0xB0–0xD7，二級是 0xD8–0xF7。標準本身就是這樣定義的，
+    # 所以檔案哪天重新產生、排序換了也不會算錯 —— 位置切法會安靜地錯給你看。
+    # （實測這份檔前 3755 個剛好全是一級、其後全是二級，兩種算法目前一致。）
+    gb_path = DATA / "standards" / "gb2312.txt"
+    if gb_path.exists():
+        def _gb_tier(ch):
+            try:
+                return ch.encode("gb2312")[0]
+            except (UnicodeEncodeError, IndexError):
+                return None
+        gb_all = {c for line in gb_path.read_text("utf-8").splitlines()
+                  if not line.startswith("#") for c in line.strip()}
+        lvl1 = {c for c in gb_all if (b := _gb_tier(c)) is not None and 0xB0 <= b <= 0xD7}
+        if lvl1:
+            done1 = len(lvl1 & set(codes))
+            stats["gb2312_l1"] = {"label": "GB 2312 一級漢字", "done": done1,
+                                  "total": len(lvl1),
+                                  "pct": round(done1 * 100 / len(lvl1), 1)}
+
+    # 行文覆蓋率：「打得出多少實際文字」——不是字數覆蓋率，罕用字取再多也不太會動它。
+    #
+    # ⚠️⚠️ data/textfreq.json **不是純粹的語料統計**：中低頻那段墊了一層合成的底重
+    # （大概是為了讓參考字集裡每個字都有非零的候選權重）。痕跡很明顯——69 個互不
+    # 相干的生僻字剛好都是 251 次、65 個都是 278 次；而且計數 <100 的字只有 374 個，
+    # 100–499 卻有 10,606 個。真實語料照 Zipf 分佈不會長這樣。
+    #
+    # 所以算兩個數字（跟 server.py 的 coverage／coverageEveryday 同一套算法，
+    # Side A 2026-09-02 的 0708dcd；⚠️ 這裡**不打 /api/progress**，建置不能依賴
+    # 一台跑著的伺服器，直接讀同一份 data/textfreq.json 自己算）：
+    #
+    #   all       全量，含灌水字。這個數字會**低估**——分母裡有 12.69% 的字次
+    #             根本不對應任何真實文字。
+    #   everyday  把「同一個出現次數被 ≥5 個字共用」的那些次數值整批排除（兩邊都
+    #             排除，不當 0 也不當真值，因為真的不知道）之後的數字。
+    #             ⚠️ 這個門檻不敏感：≥3 到 ≥10 之間結果都在 99.47–99.74，
+    #             所以「約 99%」怎麼切都成立。
+    tfp = DATA / "textfreq.json"
+    if tfp.exists():
+        tf = json.loads(tfp.read_text("utf-8"))
+        tf_total = sum(tf.values())
+        if tf_total:
+            susp = {v for v, n in collections.Counter(tf.values()).items() if n >= 5}
+            clean_total = sum(n for n in tf.values() if n not in susp)
+            clean_cov = sum(n for c, n in tf.items()
+                            if n not in susp and c in codes)
+            stats["coverage"] = {
+                "all": round(sum(n for c, n in tf.items() if c in codes)
+                             / tf_total * 100, 2),
+                "everyday": (round(clean_cov / clean_total * 100, 2)
+                             if clean_total else None),
+                "corpus": tf_total,
+            }
+
     # 重碼率：首 2000 常用字裡，有多少字跟別的字共用同一個主碼。這是對外會被引用的數字，
     # 所以定義寫死在這裡、每次重算 —— 「涉及重碼的字 ÷ 2000」，跟文案講的是同一件事。
     top = [c for c in freq_order if c in codes][:2000]
@@ -3082,10 +3173,21 @@ def main():
     #
     # 「像」「俱」在現代規範簡體裡是無條件不轉的；「藉」跟「著」一樣是一對多
     # （憑藉／藉此 該作「借」，狼藉／慰藉 維持「藉」），所以配一道跟 keep_zhu
-    # 同樣的檢查。⚠️「覆」是下一個候選（答覆→答复，但覆蓋維持覆），目前只出現
-    # 在 site/content/examples.md 那種不會發佈的建置輸入裡，所以先不動它。
-    for wrong in ("像", "俱", "藉"):
+    # 同樣的檢查。
+    #
+    # ⚠️「覆」2026-09-02 加進來（原本記著「先不動它」）：〈簡介〉的行文覆蓋率
+    # 那一行一寫上去，簡體檢視立刻印成「复盖率」—— 而現代規範簡體「覆蓋」就是
+    # 「覆盖」，不是「复盖」。它跟「藉」一樣是一對多（答覆→答复 對，覆蓋／顛覆
+    # 維持覆），所以同樣配一道詞表檢查。
+    for wrong in ("像", "俱", "藉", "覆"):
         t2s.pop(wrong, None)
+    reply_fu = ("答覆", "批覆", "回覆", "覆函", "覆電")
+    fu_hits = []
+    for page in _site_copy():
+        text = page.read_text("utf-8")
+        for word in reply_fu:
+            if word in text:
+                fu_hits.append(f"{page.name} 的「{word}」")
     borrow_jie = ("憑藉", "藉此", "藉口", "藉故", "藉機", "藉由", "藉著", "藉以")
     jie_hits = []
     for page in _site_copy():
@@ -3215,6 +3317,10 @@ def main():
         json.dumps(dict_out, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "t2s.json").write_text(
         json.dumps(t2s, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    charset = build_charset()
+    if charset:
+        (OUT / "charset.json").write_text(
+            json.dumps(charset, ensure_ascii=False, separators=(",", ":")), "utf-8")
     if practice:
         (OUT / "practice.json").write_text(
             json.dumps(practice, ensure_ascii=False, separators=(",", ":")), "utf-8")
@@ -3246,6 +3352,12 @@ def main():
             json.dumps(pyphrase, ensure_ascii=False, separators=(",", ":")), "utf-8")
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
+    if charset:
+        print(f"charset.json 常用字 {len(charset['common'])} / 簡體專屬 {len(charset['simp'])}"
+              f"（抄自 rime/lua/aiphabi_data.lua，〈自動上屏〉頁算常用字自動上屏率用）")
+    else:
+        print("::warning::charset.json 沒產出來（rime/lua/aiphabi_data.lua 缺檔或欄位改名），"
+              "〈自動上屏〉頁的常用字自動上屏率那一句會整段不出現")
     if practice:
         print(f"practice.json 參考文章 {len(practice['texts'])} 篇 / "
               f"{len(practice['glyphs'])} 字有字形")
@@ -3291,7 +3403,9 @@ def main():
           + (f"  ⚠️ {'、'.join(zhu_hits)} 不該轉成「着」，"
              f"這裡的單字表分不出來 —— 改寫用詞，或改成詞表轉換" if zhu_hits else "")
           + (f"  ⚠️ {'、'.join(jie_hits)} 的「藉」該轉成「借」，但站上另有「狼藉」"
-             f"這種要維持「藉」的用法，單字表分不出來 —— 改寫用詞" if jie_hits else ""))
+             f"這種要維持「藉」的用法，單字表分不出來 —— 改寫用詞" if jie_hits else "")
+          + (f"  ⚠️ {'、'.join(fu_hits)} 的「覆」該轉成「复」，但站上另有「覆蓋」"
+             f"這種要維持「覆」的用法，單字表分不出來 —— 改寫用詞" if fu_hits else ""))
     if n_glyph:
         kb = (OUT / "glyphs.json").stat().st_size / 1024
         print(f"glyphs.json {n_glyph} 字的筆畫輪廓 / {kb:.0f} KB  （Arphic PL，見 site/ARPHICPL.txt）")

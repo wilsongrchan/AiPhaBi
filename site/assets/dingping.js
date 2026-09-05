@@ -200,6 +200,69 @@
       (b.ext[0].length - b.code.length) + ' 碼', 'is-wait'));
   }
 
+  var CS = null;
+
+  /* ── 常用字自動上屏率（Wilson 2026-09-04）──────────────────────────────
+     打開〈只打常用字〉與〈不打簡體〉之後，**已取碼的常用繁體字**裡有多少可以自動
+     上屏。分母與分子都只算這一批字：生僻字自己上屏不算分，也不佔分母。
+
+     ⚠️ 分母（5,118）跟上一句的分母（7,682 個已取碼的字）**不是同一批**。兩個
+     百分比因此不能直接相減 —— 同一批字上的差距是 75% → 78%，不是 74% → 78%。
+     那個 75% 曾經寫在這一句裡，Wilson 2026-09-04 定稿時拿掉了；句子本身有講明
+     「那 5,118 個已取碼的常用繁體字裡」，所以說的仍然是真的。
+     ⚠️ 要是哪天想把差距寫回去，基準是 mainMap(null) 在同一批 pool 上的結果
+     （3,820／75%），不是上一句的 5,676。
+
+     ⚠️ 用「只剩主碼」的碼表算，跟上一句同一個模型。上一句講的就是三簡碼／左簡碼／
+     偏旁碼／容錯碼都關掉之後的樣子；一句用全開的碼表、一句用關掉的，兩個百分比
+     擺在一起會互相打架。
+
+     ⚠️ 「常用字」的定義不在這裡，也不該在這裡：它是 rime/lua/aiphabi_data.lua 的
+     M.common（甲表 ∪ GB 2312 一級 ∪ 異體 ∪ 詞庫用字 ∪ 姓名 ∪ 百家姓 ∪ 粵語 ∪
+     手動白名單），由建置時抄進 assets/charset.json。網站不自己推一份。 */
+  function commonRate(cs) {
+    if (!cs || !cs.common || !cs.simp) return null;
+    var common = {}, simp = {}, i, ch;
+    for (i = 0; i < cs.common.length; i++) common[cs.common.charAt(i)] = 1;
+    for (i = 0; i < cs.simp.length; i++) simp[cs.simp.charAt(i)] = 1;
+
+    var pool = {}, denom = 0;
+    for (ch in D.main) {
+      if (D.main[ch] && common[ch] === 1 && simp[ch] !== 1) { pool[ch] = 1; denom++; }
+    }
+    if (!denom) return null;
+
+    // 只剩主碼的碼表；only 給了就順便把候選池縮到那一批字
+    function mainMap(only) {
+      var m = {}, c, k;
+      for (k in D.main) {
+        c = D.main[k];
+        if (!c || (only && only[k] !== 1)) continue;
+        m[c] = (m[c] || '') + k;
+      }
+      return m;
+    }
+    // 「打完主碼就自己出字」＝這串碼底下只有它，而且沒有更長的碼還等著
+    function soleIn(map) {
+      var keys = Object.keys(map).sort();
+      return function (one) {
+        var c = D.main[one];
+        if (map[c] !== one) return false;
+        if (c.length >= 5) return true;
+        var r = range(keys, c), j, k;
+        for (j = r[0]; j < r[1]; j++) {
+          k = keys[j];
+          if (k !== c && k.length > c.length && k.length <= 5) return false;
+        }
+        return true;
+      };
+    }
+    var tight = soleIn(mainMap(pool));
+    var b = 0;
+    for (ch in pool) { if (tight(ch)) b++; }
+    return { denom: denom, tight: b };
+  }
+
   function paint(d) {
     D = d;
     D.keys = Object.keys(d.codes).sort();
@@ -244,8 +307,21 @@
       if (lone) off++;
     }
     put('ac-off-line', '關掉之後，全部 ' + nf(all) + ' 個已取碼的字裡，有 ' + nf(off) +
-        ' 個（' + Math.round(off * 100 / all) + '%）打完主碼就自己出字（上面那個 ' +
-        Math.round(solo * 100 / all) + '% 是連兼容碼一起算的）。');
+        ' 個（' + Math.round(off * 100 / all) + '%）可以在打完主碼後自動上屏。');
+
+    var cr = commonRate(CS);
+    var crNode = document.getElementById('ac-common-line');
+    if (crNode) {
+      if (cr) {
+        crNode.textContent = '在日常使用中還能打開〈只打常用字〉與〈不打簡體〉，'
+          + '把生僻字與簡體字移出候選池，那 ' + nf(cr.denom) + ' 個已取碼的常用繁體字裡，'
+          + nf(cr.tight) + ' 個（' + Math.round(cr.tight * 100 / cr.denom)
+          + '%）可以自動上屏。';
+      } else {
+        // 沒有字集資料就整句不出現，不要印一個算不出來的百分比
+        crNode.parentNode.removeChild(crNode);
+      }
+    }
 
     put('ac-solo-line', '全部 ' + nf(all) + ' 個已取碼的字裡，有 ' + nf(solo) +
         ' 個（' + Math.round(solo * 100 / all) + '%）是這一種——打完就走，一下空白都不必按。');
@@ -290,9 +366,14 @@
     }
   }
 
-  fetch('assets/dict.json')
-    .then(function (r) { return r.json(); })
-    .then(paint)
+  /* charset.json 是**選配**：抓不到就只少那一句，這一頁其餘的數字照常算
+     （它抄自 Side B 的產出，欄位改名的空窗期有可能產不出來）。 */
+  Promise.all([
+    fetch('assets/dict.json').then(function (r) { return r.json(); }),
+    fetch('assets/charset.json').then(function (r) { return r.json(); })
+      .catch(function () { return null; })
+  ])
+    .then(function (v) { CS = v[1]; paint(v[0]); })
     .catch(function () {
       var n = document.getElementById('ac-solo-line');
       if (n) n.textContent = '（碼表載入失敗，這一頁的例字與數字暫時算不出來。）';

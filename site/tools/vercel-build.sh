@@ -26,6 +26,7 @@ fi
 
 echo "→ 產生網站資料"
 python3 site/tools/build_site_data.py
+python3 site/tools/build_nav.py
 
 echo "→ 確認必要產出存在"
 for f in dict.json t2s.json zigen.json; do

@@ -976,7 +976,7 @@ load failure.
 
 ### Candidate-bar filters (the ordering brain) — `rime/lua/`
 Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuzzy` →
-`aiphabi_order[_plus]`.
+`aiphabi_order[_plus]` → `aiphabi_charset`.
 
 - **`aiphabi_order.lua`** (pure) and **`aiphabi_order_plus.lua`** (plus) — the reorder filters.
   **They are two separate files with different structure and MUST be kept in sync** — any ordering
@@ -1041,6 +1041,36 @@ Filter chain order matters: `aiphabi_phrase` → `aiphabi_hint` → `aiphabi_fuz
   off, hides multi-char candidates.
 - **`aiphabi_fuzzy.lua`** — input tolerance (missing/extra/adjacent-key/swapped codes).
 - **`aiphabi_wildcard.lua`** — the `` ` `` wildcard key (forgot a code or two → press `` ` ``).
+- **`aiphabi_charset.lua`** — 只打常用字 gate (`aiphabi_common_only`, default off). **Whitelist
+  model** (Wilson's spec, settled 2026-09-04 after a false start — see history below): `M.common`
+  in `aiphabi_data.lua`, built by `build_rime.py` as `_keep`:
+
+  常用字 = 甲表 ∪ GB 一級 ∪ 常見異體 (t2s same-simplified: 裏 啓 歎 綫 鷄…) ∪ every char in a
+  curated `data/phrases_*.txt` entry ∪ 〈試打〉頁 name chars (regex-read from `site/assets/try.js`
+  `NAME_*` consts — a Side-B build reading a Side-C file; warns if the regex misses) ∪ 《百家姓》
+  (`data/standards/baijiaxing.txt`) ∪ 常用粵語字 (`data/standards/canton_common.txt`) ∪
+  `data/standards/common_extra.txt` (manual force-keep, for chars that aren't really rare but
+  fell through every other net — 佼 亵 兖 幺…). ~6,450 chars, ~6,410 of them coded; everything
+  outside that whitelist is dropped — **including the ~455 coded chars in no GB table at all**
+  (亶 丏 㐬…), not just GB-2312-level-2 ones (苤 陧 哿…). ~1,272 coded chars blocked total.
+
+  **Taiwan 乙/丙/丁 deliberately not used as a data source** — see the 乙/丙/丁 discussion in the
+  git log (`8019f26`) for the reasoning; it still holds under the whitelist model. Leaks (a common
+  char the whitelist missed) go in `common_extra.txt` one at a time.
+
+  Multi-char candidate dropped if *any* char isn't on the whitelist. Runs **last** (after
+  `aiphabi_fuzzy`, which makes its own candidates). Non-Han candidates (punctuation, latin) never
+  checked. Missing `data/standards/` → `M.common` empty → toggle self-disables. Same three switch
+  homes (schema, plus-schema, save_options).
+
+  **History**: shipped 2026-09-03 as `aiphabi_no_ext` (不打表外字, a *blocklist* — only GB-2312
+  level 2 dropped, everything else 表內 by default). Wilson asked for the stricter whitelist form
+  next (`aiphabi_common_only`, 只打常用字) — briefly shipped **both** switches side by side sharing
+  the same 回填, then Wilson pointed out two toggles serving the same purpose is just confusing UX
+  and asked to replace, not add. `aiphabi_no_ext` is fully removed (schema, plus-schema,
+  save_options in both `default.custom.yaml` copies, `M.biaowai`, `biaowai_extra.txt` deleted);
+  `menu/page_size` in `default.custom.yaml` is back to 13 (was bumped to 14 for the two-switch
+  version). Net: repo ends up with **one** switch, `aiphabi_common_only`.
 
 ### Candidate comment convention (what the bar writes next to a candidate)
 
@@ -1096,16 +1126,31 @@ is Side C's from now on**, and the guard enforces it.
 | | |
 |---|---|
 | Source | `site/` — hand-written HTML/CSS/JS, no toolchain, no `node_modules` |
-| Deploy | `.github/workflows/pages.yml` → GitHub Pages, on every push to `main` that touches `site/**` or the data the site is generated from |
-| URL | `https://wilsongrchan.github.io/AiPhaBi/` |
 | Language | 繁體中文 written once; 简体 converted **in the browser** from `assets/t2s.json` |
+
+**Three hosts, and they do not deploy the same way** (updated 2026-09-03):
+
+| host | how it deploys |
+|---|---|
+| `https://www.aiphabi.com` (the real one) | Vercel, **automatically on every push to `main`**. Config is `vercel.json` → `site/tools/vercel-build.sh` |
+| `https://aiphabi.vercel.app` | same Vercel deployment, alternate domain |
+| `https://wilsongrchan.github.io/AiPhaBi/` | GitHub Pages, **manual only**: `gh workflow run "Deploy site to Pages" --ref main`. The `push:` trigger in `pages.yml` is still commented out (see the note at the top of that file) |
+
+So a normal deploy is: push to `main` → Vercel picks it up in ~1 minute → then fire the Pages
+workflow by hand and wait for `completed success`. **Verify all three actually serve the new
+bytes** (`curl … | grep` for something you just added) before saying it shipped.
 
 **One manual step, done once on github.com:** *Settings → Pages → Build and deployment → Source*
 must be **GitHub Actions**. The workflow cannot set this itself and its deploy step fails without it.
 
-**It is a project site, so everything is served under `/AiPhaBi/`.** Every link and asset path in
-`site/` must be **relative** (`assets/site.css`, `design.html`). An absolute path (`/assets/…`)
-works in local preview and 404s in production — the worst kind of bug to ship.
+**The Pages copy is a project site, so everything there is served under `/AiPhaBi/`.** Every link
+and asset path in `site/` must be **relative** (`assets/site.css`, `design.html`). An absolute path
+(`/assets/…`) works on aiphabi.com and 404s on Pages — the worst kind of bug to ship.
+
+`site.js` injects Vercel Web Analytics (`/_vercel/insights/script.js`) **only** when the hostname is
+`aiphabi.com` or `*.vercel.app` — that path is generated by Vercel's edge and 404s on Pages and in
+local preview. ⚠️ The analytics script filters itself out when it sees `navigator.webdriver` or
+`Headless` in the UA, so a headless browser can never confirm the beacon fires.
 
 ### The generated files (this is the important part)
 
@@ -1134,12 +1179,51 @@ or the demo starts lying. It emits:
 `stats` exists so **no number is ever hand-typed into the HTML**. The pages carry a stale fallback
 value inline (so they read correctly without JS) and `site.js` overwrites it from `dict.json`.
 
+Two more generated files, both added 2026-09-04, both gitignored, both produced by a build step
+that had to be added to **`vercel-build.sh` and `pages.yml` together**:
+
+| file | tool | why it is generated rather than written |
+|---|---|---|
+| `nav.json` | `site/tools/build_nav.py` | every page's mobile menu can expand **any** page's section list. The lists live in six `*.html` files as `<ul class="pr-sidenav">`; copying them into twelve navs, or hardcoding a table in `site.js`, would both go stale. The tool scans the HTML. |
+| `charset.json` | `build_charset()` inside `build_site_data.py` | 〈自動上屏〉's 常用字自動上屏率 needs the 常用字 whitelist and the 簡體專屬 set. Both are copied out of **Side B's** `rime/lua/aiphabi_data.lua` (`M.common`, `M.simp`). |
+
+⚠️ `charset.json` is the first time a Side C build artifact depends on a Side B **generated** file.
+Do not re-derive 常用字 from `data/standards/` here — it is a six-way union (甲表 4,808 ∪ GB 2312
+一級 3,755 ∪ 常見異體 ∪ 精選詞庫用字 ∪ 姓名用字 ∪《百家姓》∪ 常用粵語字 ∪ 手動白名單, total
+**6,446**) whose definition lives in `build_rime.py`. A second implementation drifts, and the one
+that drifts is the website — which would then report a number for a rule the IME does not apply.
+`build_charset()` accepts `M.common` **or** the older `M.biaonei` (Side B renamed it on 2026-09-04),
+and returns `None` if it finds neither, which makes the sentence disappear rather than print an
+uncomputable percentage.
+
+### Page URLs are all pinyin — never mix
+
+Every subpage is named after its Chinese title in pinyin. `principles.html`, `conventional.html`
+and `try.html` were renamed to `yuanze.html`, `yueding.html` and `shida.html` on 2026-09-03
+(Wilson: "I'm okay with using either all English or all pinyin, but don't use a mix of both"), and
+`dingping.html` → `shangping.html` on 2026-09-04 (Wilson picked the name; 自動上**屏**, not 頂屏).
+A new page follows the same rule. `index.html` is the one exception — that filename is a server
+convention, not a page name. ⚠️ The JS/JSON asset names were deliberately **not** renamed
+(`assets/dingping.js`, `assets/principles.js`, `assets/conventional.js`, `assets/try.js`): those are
+not URLs anybody reads or shares, and renaming them would churn `build_site_data.py`'s outputs for
+no reader-visible gain. So the page and its script do not share a stem — that is on purpose.
+
+The three old paths still exist as **redirect stubs** (`<meta refresh>` + `noindex` + a
+`location.replace` that carries the `#hash` through), because the canonical URLs had already
+been published. Vercel additionally serves real 301s for them via `vercel.json`'s `redirects`;
+GitHub Pages is pure static and has no redirect config, so the stub files are what make it work
+there. ⚠️ Anything scanning `site/*.html` now sees **sixteen** files, twelve real pages plus
+four stubs — `build_nav.py` is safe (it keys off `pr-sidenav`, which stubs don't have), but a
+new tool that assumes "every .html is a page" will be wrong.
+
 ### What is built and what is not
 
-Built and verified: five pages (`index.html` 簡介, `zigen.html` 字根表, `principles.html`
-取碼原則, `jianma.html` 簡碼, `try.html` 線上試打), the shared shell (side nav, 繁簡 toggle,
-字級 small/normal/large — the last two are site-wide via `site.js`, not per-page), the deploy
-workflow, the generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion,
+Built and verified — **twelve pages** as of 2026-09-03: `index.html` (landing + animation),
+`jieshao.html` 簡介, `zigen.html` 字根表, `lianxi.html` 字根練習, `yuanze.html` 取碼原則,
+`yueding.html` 約定字表, `jianma.html` 簡碼, `cizu.html` 詞組連打, `shangping.html` 自動上屏,
+`shida.html` 線上試打, `chaima.html` 拆碼查詢, `houji.html` 後記 — plus the shared shell (side nav
+on desktop / hamburger on mobile, 繁簡 toggle, 字級 small/normal/large — all site-wide via
+`site.js`, not per-page), the deploy workflow, the generator, and a working 試打 demo — 主碼/完整碼/兼容碼 lookup, prefix completion,
 frequency ordering, 約定簡碼 with the reverse hint, digit/space selection, 正體 punctuation.
 
 `jianma.html` (2026-08-21) is a plain reference page for the three code-shortening mechanisms —
@@ -1154,25 +1238,136 @@ their real 主碼; 三簡碼 has no fixed list (it's a blanket rule over any 主
 plainly that 左簡碼 is design-only, not shipped — see below.
 
 `zigen.html` also carries a 相近字形辨析 section (from `content/similar.md`, hand-written) and
-`principles.html` is new (2026-08-21): the nine 取碼原則 with worked examples. Both pages can
+`yuanze.html` is new (2026-08-21): the nine 取碼原則 with worked examples. Both pages can
 render a "正確 vs 錯誤拆法" colour diagram per example — each stroke-group gets one of six
 rainbow colours (`--rb-0`…`--rb-5`, deliberately skipping orange: red/orange/yellow read as one
 blur at small icon sizes) plus a background-coloured stroke outline so adjacent same-colour
 strokes still separate. The "correct" side is always derived from `data/codes.json` at build time
 (never hand-typed); the "wrong" side is authored by hand in `build_site_data.py`
-(`WRONG_BREAKDOWN` for `zigen.html`, `PRINCIPLE_WRONG` for `principles.html`) **only** when there's
+(`WRONG_BREAKDOWN` for `zigen.html`, `PRINCIPLE_WRONG` for `yuanze.html`) **only** when there's
 a real basis for the stroke split — either Wilson states it directly, or it's the unique remainder
 once the known groups are subtracted, or it matches an actual shape already catalogued under that
 letter in `zigen.json`. Where none of those held, the page shows the wrong code as plain text with
 no diagram rather than guessing a stroke split.
 
 **Not usable in the 試打 demo** (it must keep saying so there): 三簡碼, 左簡碼, 詞組連打, 四碼快打,
-輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞 — typing those codes in `try.html` still won't
+輸入容錯, 萬用鍵 `` ` ``, 同類字, 偏旁碼, 智能分詞 — typing those codes in `shida.html` still won't
 resolve. 三簡碼 and 左簡碼 now have *reference tables* on `jianma.html` (rules + real data), which is
 a different claim from "usable here" — 三簡碼 actually ships in `rime/` behind a default-off switch
 (`aiphabi_short3`), 左簡碼 does not ship anywhere yet (`rules.json`'s own note says so; it's a
-Side B build task). Neither is wired into the `try.html` lookup regardless. Also not built: the
+Side B build task). Neither is wired into the `shida.html` lookup regardless. Also not built: the
 下載安裝 page (Wilson deferred it — the site currently points at GitHub instead).
+
+### 桌面版的版面模型（2026-09-04 改過，動版面前先讀）
+
+The whole layout is driven by four custom properties on `:root`:
+
+```css
+--nav-w:    12.5rem                                   /* 側邊欄寬；收起來時 0 */
+--nav-gap:  3rem                                      /* 側邊欄與正文之間；收起來時 0 */
+--page-w:   calc(var(--nav-w) + var(--nav-gap) + 58rem)
+--page-pad: max(0px, calc((100% - var(--page-w)) / 2))
+```
+
+`.topbar` starts at `--page-pad`, `body` pads by `--page-pad + --nav-w + --nav-gap`, and
+`main.wrap` / `footer.wrap` are **left-aligned** (`margin-inline-start: 0`). Collapsing the sidebar
+只改 `--nav-w`／`--nav-gap`，其餘自己跟上。
+
+- ⚠️ **`100%`, never `100vw`.** `100vw` includes the scrollbar (~15px); computing the padding from
+  it makes the page 15px wider than the viewport and every page grows a horizontal scrollbar.
+  Custom properties are substituted textually, so the same `100%` resolves against the viewport
+  inside `.topbar` (fixed) and against `<html>` inside `body`, and the two agree.
+- ⚠️ `main.wrap` must not keep `margin: 0 auto`. Before this change the sidebar was pinned to the
+  window edge while the text column centred itself in the remainder, so a dead band opened between
+  them that **grew with the screen**: 76px at 1280, 309px at 1745, 396px at 1920, 716px at 2560.
+  Auto margins would hand half of that back.
+- Collapsing the sidebar **does not widen the text.** `main.wrap` is capped at 58rem, so it measures
+  928px at 1280 and at 2560 alike. The collapse tab is a clear-the-screen control; do not sell it
+  as a reading-width one.
+- The collapse tab (`.navmin`) is `position: fixed` on `<body>`, **not** inside `.topbar` — the
+  collapsed sidebar is `width: 0; overflow: hidden`, which would clip it into an unclickable button.
+  On the landing page it needs the *same* transform and easing as `.topbar`, or it floats detached
+  over the content for the 0.55s the nav takes to slide in.
+
+### 讓晚生的 DOM 咬過兩次（同一天，同一頁）
+
+〈約定字表〉的章節標題與側邊欄清單都是 `conventional.js` 抓完 JSON 才畫的。任何「載入時抓一份
+元素、之後一直用」的功能，在那一頁都會**安靜地失效**：
+
+1. `getElementById` 在載入當下全部落空 → 快取到 `null`；
+2. `renderSideNav()` 用 `ul.textContent = ''` 清空重建 → 快取到的 `<a>` 變成**離開文件的節點**，
+   `classList.add()` 照樣成功，畫面上什麼都不會發生。
+
+The scrollspy shipped broken on that one page because of exactly this. Anything that decorates or
+watches headings/section links must resolve lazily **and** watch for the list being replaced
+(`MutationObserver`). 〈試打〉頁沒有章節清單，所以不掛觀察者 —— 那一頁的 `main` 每打一個字就變動
+一次。
+
+⚠️ And test **all six** section pages (`zigen` `yuanze` `yueding` `jianma` `cizu` `shangping`),
+not two. I called that feature verified after checking two.
+
+### 手機版 — the rules that keep getting broken
+
+The site got a full mobile pass over 2026-09-01…03 (six rounds, all driven by Wilson testing on his
+own iPhone). Two process rules came out of it, both learned the hard way:
+
+1. **Deploy after every round.** Round one was not deployed while he kept testing, so two of his
+   next three messages were about the stale live version. A round isn't finished until all three
+   hosts serve it.
+2. **His feedback applies only to the platform he is testing on.** He said it twice on 2026-09-03,
+   the second time after desktop had drifted anyway: *"everything i said today should only be for
+   the mobile site … if you are unsure, you should also ask me."* This covers **copy as well as
+   layout** — a label he finds confusing on mobile is not licence to reword it on desktop.
+   When mobile needs an extra HTML wrapper, flatten it on desktop with `display: contents`, then
+   **prove desktop is unchanged by diffing measured positions against the commit before the mobile
+   work started**, not by reading the diff:
+   ```bash
+   git archive <base-sha> site | tar -x -C /tmp/base       # the baseline copy
+   cp site/assets/*.json /tmp/base/site/assets/            # ⚠️ build outputs aren't in git —
+   python3 -m http.server 8098 --directory /tmp/base/site  #    without them the page is a shell
+   ```
+
+Four CSS traps, each of which has bitten more than once:
+
+- **`@media` adds no specificity.** An unconditional rule *later in the file* beats a media-query
+  rule of equal specificity. `site/tools/css_order_test.js` checks for this — but only when the two
+  selectors are the *same string*. **Three separate bugs came from equal-specificity rules with
+  different selector strings** (`.try-keyguide > summary` vs `.try-opts > summary`, and
+  `.practice-pickwrap` vs `.try-opts`); the test cannot see those, only measuring can.
+  Note a **shorthand** (`margin: 0 0 .7rem`) resets the sides it doesn't name.
+- **Overriding one axis of `gap` leaves the other.** `column-gap` alone left a 22.4px `row-gap`
+  stacking on top of every hand-tuned margin.
+- **`overflow-x: auto` makes the other axis `auto` too** (CSS spec: a non-`visible` value on one
+  axis forces `visible` to `auto` on the other). Fix by making the content fit, not by adding
+  `overflow-y: hidden`. ⚠️ `scrollHeight > clientHeight` still reports overflow under
+  `overflow:hidden` — check `getComputedStyle().overflowY`, or set `scrollTop` and see if it moves.
+- **`<details>` blocks margin collapsing** and inserts a UA `::details-content` box. Wrapping
+  existing content in one silently changes spacing (adjacent margins start *adding* instead of
+  collapsing) and breaks `margin: auto` on grandchildren. `order` on a `display: contents` element
+  does nothing — put it on the child that actually becomes the flex/grid item.
+
+Also: **iOS Safari zooms the whole page in when a focused form control's font-size is under 16px**,
+and never zooms back out. Every `<input>`/`<textarea>` on a mobile breakpoint must be ≥16px. The
+`::placeholder` may stay smaller — it's the field's own size that triggers it.
+
+### Side C's own test scripts
+
+`site/tools/` (run with `node`, no dependencies):
+
+| | |
+|---|---|
+| `css_order_test.js` | the `@media`-ordering trap above |
+| `lianxi_test.js` | 〈字根練習〉question generation |
+| `pair_cells_test.js` / `si4_cells_test.js` | 田字格 two-char and four-code cell rendering |
+| `autocommit_test.js` | 自動上屏 logic mirrored from the IME |
+| `theme_test.js` | the dark palette exists **twice** in `site.css` (`@media (prefers-color-scheme: dark)` for following the system, `[data-theme="dark"]` for a manual choice). CSS cannot share declarations between a media query and an attribute selector, and the media block must stay because it is the only dark mode without JS. This compares them variable by variable. |
+| `review_examples.js` / `.py` | example lists on the public pages: every example must demonstrate its own rule, checked both ways |
+
+There is no browser test runner. Visual checks are done with a hand-rolled CDP driver (Node 24 has
+a built-in `WebSocket`, so no puppeteer): `Emulation.setDeviceMetricsOverride` +
+`setTouchEmulationEnabled` for phones, `setEmulatedMedia` for `prefers-reduced-motion`,
+`setCPUThrottlingRate` + `Profiler` for the lag hunts. **Probes have twice reported "fine" on a
+render that was visibly broken** — take a screenshot too.
 
 ### Copy
 
@@ -1193,7 +1388,7 @@ the inward-facing one. Two things it records that matter:
 
 Its 取碼原則 section was left unfinished in the source doc (stroke-order references were still
 `XXX`) — Wilson gave the complete nine-principle text directly in chat instead on 2026-08-21,
-now built into `principles.html`. `blurb.md` points at that page rather than re-quoting it.
+now built into `yuanze.html`. `blurb.md` points at that page rather than re-quoting it.
 
 ### Reference sites (content, not visual)
 

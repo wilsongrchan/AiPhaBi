@@ -8,24 +8,24 @@
   :root{
     --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a; --line:#e3ded4;
     --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
-    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17; --cov:#0e8a82;
+    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17; --cov:#0e8a82; --cov2:#b23a72;
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb;
     --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26);
   }
   @media (prefers-color-scheme:dark){
     :root{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455; --line:#33312a;
       --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
-      --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc; --cov:#3fc9bf;
+      --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc; --cov:#3fc9bf; --cov2:#e0699b;
       --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
   }
   :root[data-theme="light"]{ --bg:#faf9f7; --card:#fff; --ink:#1c1a17; --muted:#7c7568; --faint:#b3aa9a;
     --line:#e3ded4; --grid:#ece5d8; --accent:#b4531f; --accent-soft:rgba(180,83,31,.12); --s2:#3a6ea5; --s2-soft:rgba(58,110,165,.12);
-    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17; --cov:#0e8a82;
+    --s3:#5c8a3a; --s4:#7d5ba6; --sum:#1c1a17; --cov:#0e8a82; --cov2:#b23a72;
     --bar:#d98324; --warn:#d98324; --ghost:#cfc8bb; --shadow:0 1px 2px rgba(60,42,20,.05),0 14px 40px -20px rgba(60,42,20,.26); }
   :root[data-theme="dark"]{ --bg:#16150f; --card:#1f1e18; --ink:#ece7dc; --muted:#9a9284; --faint:#6b6455;
     --line:#33312a; --grid:#28251e; --accent:#e0894f; --accent-soft:rgba(224,137,79,.15); --s2:#5c9bd6; --s2-soft:rgba(92,155,214,.16);
-    --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc; --cov:#3fc9bf;
+    --s3:#82b85c; --s4:#a688d1; --sum:#ece7dc; --cov:#3fc9bf; --cov2:#e0699b;
     --bar:#e0a95c; --warn:#e0a95c; --ghost:#4a463c; --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 46px -22px rgba(0,0,0,.7); }
 
   *{box-sizing:border-box}
@@ -175,7 +175,7 @@ let PROG=null;
 /* 繁體／簡體／傳承／日本漢字：同一組開關，同時控制下面的 tile 跟圖上要疊哪幾條帶；
    「加總」不是一條帶，只決定要不要在堆疊頂端描一條總計線。 */
 const CAT_KEY='aiphabi-progress-cats';
-let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true,coverage:true};
+let catOn={trad:true,simp:true,inherited:true,jp:false,sum:true,coverage:true,coverageEveryday:true};
 try{Object.assign(catOn,JSON.parse(localStorage.getItem(CAT_KEY)||'{}'));}catch(e){}
 function saveCats(){localStorage.setItem(CAT_KEY,JSON.stringify(catOn));}
 const CATDEF=[
@@ -199,7 +199,8 @@ function render(){ if(PROG) draw(PROG); }
 function renderLegend(){
   const box=$('#chartlegend'); box.innerHTML='';
   const defs=[...CATDEF, {key:'sum',name:'加總',col:'var(--sum)'},
-    {key:'coverage',name:'覆蓋率',col:'var(--cov)'}];
+    {key:'coverage',name:'覆蓋率（全量語料）',col:'var(--cov)'},
+    {key:'coverageEveryday',name:'覆蓋率（日常文本）',col:'var(--cov2)'}];
   defs.forEach(c=>{
     const b=document.createElement('button');
     b.className=(catOn[c.key]?'on':'')+(c.key==='sum'?' sumbtn':'');
@@ -241,7 +242,7 @@ function draw(data){
     :                   d.jp;
   const defOf=Object.fromEntries(CATDEF.map(c=>[c.key,c]));
   const keys=STACK.filter(k=>catOn[k]);
-  if(!keys.length && !catOn.coverage){
+  if(!keys.length && !catOn.coverage && !catOn.coverageEveryday){
     $('#chartcard').innerHTML='<div class="msg">下面請至少勾選一個類別（繁體／簡體／傳承／日本漢字／覆蓋率）。</div>';
     renderCats(data); return;
   }
@@ -258,13 +259,15 @@ function draw(data){
     const vals={},adds={};
     for(const k of keys){ vals[k]=bandVal(d,k); adds[k]=prev?vals[k]-bandVal(prev,k):vals[k]; }
     return {x:off(d.date),date:d.date,label:d.date.slice(5),vals,adds,coverage:d.coverage||0,
+            coverageEveryday:d.coverageEveryday||0,
             total:keys.reduce((s,k)=>s+vals[k],0)};
   });
   if(uncommitted){
     const prev=lastDay, vals={},adds={};
     for(const k of keys){ vals[k]=bandVal(nowDay,k); adds[k]=vals[k]-bandVal(prev,k); }
     rows.push({x:rows[rows.length-1].x+1,date:'現在',label:'現在',vals,adds,now:true,
-               coverage:data.coverage||0,total:keys.reduce((s,k)=>s+vals[k],0)});
+               coverage:data.coverage||0,coverageEveryday:data.coverageEveryday||0,
+               total:keys.reduce((s,k)=>s+vals[k],0)});
   }
   const dayMax=Math.max(1,...rows.map(p=>p.x));
   const cumMax=Math.max(200,Math.ceil(Math.max(...rows.map(p=>p.total))/300)*300);
@@ -284,8 +287,7 @@ function draw(data){
   $('#lede').innerHTML=`第一筆取碼在 <b>${first}</b>，到現在共 <b>${data.totalUniq.toLocaleString()} 字</b>`+
     `（繁簡同字只算一個）；<span class="raw">另計 ${data.total.toLocaleString()} 條碼</span>。`+
     (unc>0?` 其中 <b>${unc}</b> 字還沒提交。`:'')+
-    ` 目前覆蓋真實中文文本約 <b>${(data.coverage||0).toFixed(1)}%</b>。`+
-    ` 圖表跟著下面的 tile 開關走。`;
+    ` 圖表跟著下面的 tile 開關走，覆蓋率兩條線（全量語料／日常文本）也可以個別切換。`;
 
   const svg=$('#chart'); svg.innerHTML='';
   const bxx={x:padL,y:cumTop,w:W-padL-padR,h:cumBot-cumTop};
@@ -297,9 +299,9 @@ function draw(data){
     const t=mk('text',{x:padL-8,y:yc(v)+4,'text-anchor':'end',class:'tick'});t.textContent=v;svg.appendChild(t);}
   // 覆蓋率：右邊獨立的 0–100% 座標軸，跟左邊的字數座標軸不是同一把尺
   const yc2=v=>cumBot-v/100*(cumBot-cumTop);
-  if(catOn.coverage){
+  if(catOn.coverage||catOn.coverageEveryday){
     for(let i=0;i<=4;i++){const v=i*25;
-      const t=mk('text',{x:W-padR+8,y:yc2(v)+4,'text-anchor':'start',class:'tick',style:'fill:var(--cov)'});
+      const t=mk('text',{x:W-padR+8,y:yc2(v)+4,'text-anchor':'start',class:'tick',style:'fill:var(--muted)'});
       t.textContent=v+'%';svg.appendChild(t);}
   }
   // 累計：疊加區域。先算出每條帶的上下緣（下緣＝前面所有帶的和）
@@ -328,6 +330,7 @@ function draw(data){
       fill:'none',stroke:'var(--sum)','stroke-width':2.5,'stroke-linejoin':'round',
       'stroke-linecap':'round','stroke-opacity':.85}));
   // 覆蓋率：獨立座標軸（0–100%），跟堆疊區域用不同的尺，虛線分開來看不會誤讀成同一個量
+  // 兩條線共用這把尺：全量語料（含 textfreq 灌水痕跡）／扣掉灌水後的日常文本，見 _padding_suspect_values
   if(catOn.coverage){
     svg.appendChild(mk('path',{d:'M '+rows.map(p=>`${x(p.x)} ${yc2(p.coverage)}`).join(' L '),
       fill:'none',stroke:'var(--cov)','stroke-width':2.5,'stroke-linejoin':'round',
@@ -335,6 +338,14 @@ function draw(data){
     const lp=rows[rows.length-1];
     svg.appendChild(mk('circle',{cx:x(lp.x),cy:yc2(lp.coverage),r:5,
       fill:'var(--cov)',stroke:'var(--card)','stroke-width':2}));
+  }
+  if(catOn.coverageEveryday){
+    svg.appendChild(mk('path',{d:'M '+rows.map(p=>`${x(p.x)} ${yc2(p.coverageEveryday)}`).join(' L '),
+      fill:'none',stroke:'var(--cov2)','stroke-width':2.5,'stroke-linejoin':'round',
+      'stroke-linecap':'round','stroke-dasharray':'6 3'}));
+    const lp=rows[rows.length-1];
+    svg.appendChild(mk('circle',{cx:x(lp.x),cy:yc2(lp.coverageEveryday),r:5,
+      fill:'var(--cov2)',stroke:'var(--card)','stroke-width':2}));
   }
   // 還沒提交的那一格：畫一條虛線分隔，右邊那段是工作區現況、不是 git 歷史
   if(uncommitted){
@@ -397,8 +408,12 @@ function draw(data){
           `<span class="val">${p.total.toLocaleString()} <small style="color:var(--muted)">${ta>=0?'+':''}${ta}</small></span></div>`;
       }
       if(catOn.coverage){
-        html+=`<div class="row"><span class="lab"><i style="background:var(--cov)"></i>覆蓋率</span>`+
+        html+=`<div class="row"><span class="lab"><i style="background:var(--cov)"></i>覆蓋率（全量語料）</span>`+
           `<span class="val">${(p.coverage||0).toFixed(2)}%</span></div>`;
+      }
+      if(catOn.coverageEveryday){
+        html+=`<div class="row"><span class="lab"><i style="background:var(--cov2)"></i>覆蓋率（日常文本）</span>`+
+          `<span class="val">${(p.coverageEveryday||0).toFixed(2)}%</span></div>`;
       }
     }
     tip.innerHTML=html; tip.classList.add('on');
@@ -472,7 +487,8 @@ function renderStandards(data){
 /* ---------- 繁體／簡體／傳承／日本漢字：純顯示（開關搬到圖表上方那排小按鈕了，
    這裡不再點得動），只留「看這些字」連去 /annotate？q=。 ---------- */
 const CATDESC={trad:'有對應簡體字，如 國魚雲',simp:'簡體專屬，如 国鸟',inherited:'如人天后',jp:'新字体／國字，如県駅鉄',
-  coverage:'取碼字佔真實中文文本的比例（依 librime essay 語料單字計次加權，樣本廣，不只新聞）——不是字數比例，罕用字取再多也不太會動這條線'};
+  coverage:'取碼字佔真實中文文本的比例（依 librime essay 語料單字計次加權，樣本廣，不只新聞）——不是字數比例，罕用字取再多也不太會動這條線',
+  coverageEveryday:'同一個語料，但先扣掉中低頻段明顯的灌水痕跡（同一個出現次數被十幾、幾十個不相干的生僻字共用，見 _padding_suspect_values）——比較貼近廣告、公告、文章、報章等日常文本'};
 function renderCats(data){
   const chars={trad:data.tradChars||[],simp:data.simpChars||[],
     inherited:data.inheritedChars||[],jp:data.jpChars||[]};

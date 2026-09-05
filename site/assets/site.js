@@ -71,6 +71,94 @@
     }
   }
 
+  /* ---------- 「現在讀到哪一節」：一份捲動偵測，兩個地方用（Wilson 2026-09-04）----------
+     桌面側邊欄把目前這一頁的十條章節全部列出來，卻不會告訴你人在哪一節
+     （量過：捲到 0／2500／5000，十條的樣式一模一樣）。〈取碼原則〉4,456px、
+     〈詞組連打〉6,786px、〈字根表〉15,420px —— 清單愈長，愈需要它。
+
+     ⚠️ 只有一份偵測，兩個消費者：側邊欄的高亮，與手機麵包屑的第四格。手機那一格
+     本來自己跑一輪一模一樣的迴圈；兩份「哪一節是現在」的判斷遲早會各說各的，
+     所以合成一份，其餘的用訂閱。
+     ⚠️ 判斷線是視窗頂端往下 90px：剛好在頁首底下一點，跟麵包屑原本用的同一個值，
+     換掉的話兩邊會在不同的時機跳。 */
+  var spyItems = [];
+  var spySubs = [];
+  var spyAt;                    // undefined ＝還沒算過，所以第一次一定會發出通知
+  var spyRaf = 0;
+
+  /* ⚠️ 這一份清單有兩件事會在載入之後才變，兩件都會讓高亮**完全不會出現**，
+     而且兩件都不報錯 —— 〈約定字表〉一頁同時中了兩個：
+
+     一、標題不一定在載入時就存在：那八個章節標題是 conventional.js 抓完 JSON
+         才畫上去的，載入當下 getElementById 全部落空。所以只記 id，元素等用得到
+         時才找，找不到下一輪再找。判斷「要不要掛捲動監聽」也只能看**連結**幾條，
+         不能看解析出幾個元素 —— 後者在那一頁載入當下是 0，監聽根本不會掛上，
+         之後就永遠不會恢復。
+     二、側邊欄那串連結本身會被整批換掉：conventional.js 的 renderSideNav() 用
+         `ul.textContent = ''` 清空再重建（它有它的道理：清單要從資料長出來，
+         手寫的那版就漏過一組）。快取住的 <a> 因此變成**已經離開文件的節點**，
+         classList 照樣加得上去，畫面上卻什麼都不會發生。所以掛一個
+         MutationObserver 盯著它，被換掉就重建這份清單。 */
+  function spyBuild() {
+    if (!sub) return;
+    var was = {};
+    spyItems.forEach(function (o) { if (o.el) was[o.id] = o.el; });
+    spyItems = [];
+    [].forEach.call(sub.querySelectorAll('a[href^="#"]'), function (a) {
+      var id = a.getAttribute('href').slice(1);
+      spyItems.push({ id: id, el: was[id] || null, a: a });
+    });
+    spyAt = undefined;          // 清單換了，重新判一次並通知訂閱者
+  }
+  spyBuild();
+
+  /* 側邊欄自己也會捲（〈取碼原則〉展開章節後內容 1,065px、視窗只有 900px）。
+     亮起來的那一條如果剛好在捲動範圍外，等於沒亮 —— 把側邊欄自己的 scrollTop
+     推一下就好，不要用 scrollIntoView：那會連帶把**整頁**捲走。 */
+  function spyReveal(a) {
+    if (window.matchMedia('(max-width: 52rem)').matches) return;   // 手機沒有側邊欄
+    var bar = document.querySelector('.topbar');
+    if (!bar || bar.scrollHeight <= bar.clientHeight) return;
+    var r = a.getBoundingClientRect(), br = bar.getBoundingClientRect();
+    if (r.top < br.top + 8) bar.scrollTop -= (br.top + 8 - r.top);
+    else if (r.bottom > br.bottom - 8) bar.scrollTop += (r.bottom - (br.bottom - 8));
+  }
+
+  function spyPaint() {
+    spyRaf = 0;
+    var hit = null;
+    spyItems.forEach(function (o) {
+      if (!o.el) o.el = document.getElementById(o.id);
+      if (o.el && o.el.getBoundingClientRect().top <= 90) hit = o;
+    });
+    if (hit === spyAt) return;
+    spyAt = hit;
+    spyItems.forEach(function (o) { o.a.classList.toggle('is-here', o === hit); });
+    if (hit) spyReveal(hit.a);
+    spySubs.forEach(function (fn) { fn(hit); });
+  }
+
+  /* 新的訂閱者要立刻拿到現況：spyPaint 只在「換了一節」時才通知，掛得晚的
+     訂閱者等不到那一次。 */
+  function spyWatch(fn) {
+    spySubs.push(fn);
+    fn(spyAt || null);
+  }
+
+  if (spyItems.length) {
+    var spyQueue = function () { if (!spyRaf) spyRaf = requestAnimationFrame(spyPaint); };
+    if (window.MutationObserver) {
+      new MutationObserver(function () { spyBuild(); spyQueue(); })
+        .observe(sub, { childList: true });
+    }
+    window.addEventListener('scroll', spyQueue, { passive: true });
+    /* ⚠️ 版面長高時要重算：字根表那幾頁的表格是抓完 JSON 才畫的，剛載入時整頁
+       還很短，錨點全擠在視窗頂端 —— 只算一次的話會亮在一個還沒讀到的章節上。 */
+    window.addEventListener('resize', spyQueue, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(spyQueue).observe(document.body);
+    spyPaint();
+  }
+
   /* ---------- 繁簡切換 ---------- */
   var KEY = 'aiphabi-site-lang';
   var SKIP = { SCRIPT: 1, STYLE: 1, CODE: 1, PRE: 1, KBD: 1, TEXTAREA: 1 };
@@ -198,12 +286,127 @@
   try { applySize(localStorage.getItem(SIZE_KEY) || 'normal'); }
   catch (e) { applySize('normal'); }
 
+  /* ---------- 主題：跟著系統／淺色／深色（Wilson 2026-09-04）----------
+     網站本來就有深色（@media prefers-color-scheme），但只能跟著系統走。有人中午
+     想看深的、有人在深色系統上想看淺的 —— 給一個手動的第三種選擇。
+
+     ⚠️ 按鈕在這裡長出來、不寫進十二份 HTML：沒有 JS 的時候，主題本來就會跟著
+     系統走（那是 CSS 的事），這時候擺一顆按不動的切換鈕只會騙人。跟漢堡鈕、
+     章節收合鈕同一個道理。
+     ⚠️ 「畫面之前就定案」那一段不在這裡，在每一頁 <head> 的內嵌小腳本裡 ——
+     等到這支檔案執行才套的話，選了跟系統相反的人每開一頁都會看到閃一下。
+     這裡只負責畫按鈕、記選擇。 */
+  var THEME_KEY = 'aiphabi-site-theme';
+  var THEMES = [['auto', '自動'], ['light', '淺'], ['dark', '深']];
+  var tmHost = document.querySelector('.topbar-controls');
+  if (tmHost) {
+    var tmBox = document.createElement('div');
+    tmBox.className = 'themetoggle';
+    tmBox.setAttribute('role', 'group');
+    tmBox.setAttribute('aria-label', '主題');
+
+    var applyTheme = function (name) {
+      var ok = false;
+      THEMES.forEach(function (t) { if (t[0] === name) ok = true; });
+      if (!ok) name = 'auto';
+      if (name === 'auto') delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = name;
+      [].forEach.call(tmBox.children, function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.theme === name));
+      });
+      try { localStorage.setItem(THEME_KEY, name); } catch (e) { /* 無痕模式 */ }
+    };
+
+    THEMES.forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.theme = t[0];
+      b.textContent = t[1];
+      b.setAttribute('aria-label', t[0] === 'auto' ? '主題跟著系統' : '主題固定' + t[1] + '色');
+      b.title = b.getAttribute('aria-label');
+      b.addEventListener('click', function () { applyTheme(t[0]); });
+      tmBox.appendChild(b);
+    });
+    tmHost.appendChild(tmBox);
+
+    var tmSaved = 'auto';
+    try { tmSaved = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
+    applyTheme(tmSaved);
+  }
+
+  /* ---------- 回到頁首（Wilson 2026-09-04）----------
+     〈字根表〉15,420px（十七個畫面）、〈詞組連打〉6,786px、〈取碼原則〉4,456px。
+     捲到底之後回頭只能一路刷上去。捲過一個半畫面才出現 —— 短頁面上不該有一顆
+     擋著內容的浮鈕。 */
+  var ttReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var ttBtn = document.createElement('button');
+  ttBtn.type = 'button';
+  ttBtn.className = 'totop';
+  ttBtn.setAttribute('aria-label', '回到頁首');
+  ttBtn.title = '回到頁首';
+  ttBtn.innerHTML = '<span class="totop-arrow" aria-hidden="true"></span>';
+  document.body.appendChild(ttBtn);
+
+  var ttOn = false, ttRaf = 0;
+  function ttPaint() {
+    ttRaf = 0;
+    var want = window.scrollY > window.innerHeight * 1.5;
+    if (want === ttOn) return;
+    ttOn = want;
+    ttBtn.classList.toggle('is-on', want);
+  }
+  window.addEventListener('scroll', function () {
+    if (!ttRaf) ttRaf = requestAnimationFrame(ttPaint);
+  }, { passive: true });
+  ttPaint();
+  ttBtn.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: ttReduced.matches ? 'auto' : 'smooth' });
+  });
+
+  /* ---------- 標題旁邊的「連到這一節」（Wilson 2026-09-04）----------
+     這是一份會被引用的參考資料，讀者要能把某一節的網址傳給別人。滑鼠移到標題上
+     才顯示，平常不佔視覺。
+
+     ⚠️ 只裝在**本來就有 id** 的標題上（那 23 個，加上〈約定字表〉現畫的八個）。
+     沒有 id 的標題要現編一個中文轉出來的錨點，那種錨點改一個字就換一個網址，
+     比沒有更糟。
+     ⚠️〈約定字表〉的標題是抓完 JSON 才畫的（同一個坑見上面 spyBuild 的說明），
+     所以有章節清單的頁面要盯著 main 看。試打頁沒有章節清單，也就不會掛這個
+     觀察者 —— 那一頁的 main 每打一個字就變動一次。 */
+  var haMain = document.querySelector('main');
+  if (haMain) {
+    var haPaint = function () {
+      /* 兩種來源：標題自己帶 id（23 個），以及 id 掛在外層 <section> 上、標題自己
+         沒有 id 的（〈字根表〉的「相近字形辨析」就是這一種）。第二種要跟著抓，
+         不然六頁裡就有一頁的錨點是缺的 —— 而缺的那一頁不會有任何症狀。 */
+      [].forEach.call(haMain.querySelectorAll('h2[id], h3[id], section[id] > h2, section[id] > h3'),
+        function (h) {
+        if (h.querySelector('.hlink')) return;
+        var id = h.id || (h.parentNode && h.parentNode.id);
+        if (!id) return;
+        var a = document.createElement('a');
+        a.className = 'hlink';
+        a.href = '#' + id;
+        a.textContent = '#';
+        a.setAttribute('aria-label', '連到「' + h.textContent.trim() + '」這一節');
+        a.title = a.getAttribute('aria-label');
+        h.appendChild(a);
+      });
+    };
+    haPaint();
+    if (sub && window.MutationObserver) {
+      new MutationObserver(haPaint).observe(haMain, { childList: true, subtree: true });
+    }
+  }
+
   /* ---------- 進度數字：從 dict.json 填，HTML 裡寫的是離線後備值 ----------
    * 頁面在沒有 JS／抓不到檔案時仍然顯示得出數字，只是可能舊一點；有 JS 時一律以
    * 產生當下的 codes.json 為準。手抄的數字撐不過幾天取碼。 */
   var slots = document.querySelectorAll('[data-stat]');
   var tw4808El = document.getElementById('tw4808-stat');
-  if (slots.length || tw4808El) {
+  var gbL1El = document.getElementById('gb2312l1-stat');
+  var covEl = document.getElementById('coverage-stat');
+  if (slots.length || tw4808El || gbL1El || covEl) {
     fetch('assets/dict.json')
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -225,17 +428,589 @@
         if (tw4808El && d.stats && d.stats.tw4808) {
           var s = d.stats.tw4808;
           var tw4808Link = '<a href="https://language.moe.gov.tw/material/info?m=9fe3ff5a-5a8c-4817-9e60-6337dd55a509" ' +
-            'target="_blank" rel="noopener">台灣教育部常用國字甲表</a>';
+            'target="_blank" rel="noopener">台灣地區教育部常用國字甲表</a>';
           tw4808El.innerHTML = s.done >= s.total
             ? (tw4808Link + ' ' + s.total.toLocaleString('en-US') + ' 字，全部收錄')
             : (tw4808Link + '已收錄 ' + s.done.toLocaleString('en-US') + '／' + s.total.toLocaleString('en-US') + ' 字');
         }
+        /* GB 2312 一級漢字，跟上面那行同一套規矩：收滿了才講「全部收錄」，
+           沒收滿就講分數，哪一句由資料決定。
+
+           ⚠️ 用的是 stats.gb2312_l1（一級 3,755 字），**不是** stats.gb2312
+           （一級＋二級 6,763 字）。二級還沒收完，拿合併的數字講「全部收錄」
+           會是假話（Side A 2026-09-02 特別提醒）。分級是照 GB 2312 自己的
+           區位碼算的，不是照檔案裡的位置切，見 build_site_data.py。
+
+           連結指向「國家標準全文公開系統」的 GB/T 2312-1980 頁（2026-09-02 實查
+           200、標題確實是「信息交换用汉字编码字符集 基本集」）—— 那是大陸這邊
+           對應教育部語文成果入口網的官方頁。⚠️ 跟上面那行一樣，HTML 裡的靜態
+           後備值也要是同一顆連結，兩處手動保持一致。 */
+        if (gbL1El && d.stats && d.stats.gb2312_l1) {
+          var g = d.stats.gb2312_l1;
+          var gbLink = '<a href="https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=5664A728BD9D523DE3B99BC37AC7A2CC" ' +
+            'target="_blank" rel="noopener">大陸地區國標 GB 2312 第一級漢字</a>';
+          gbL1El.innerHTML = g.done >= g.total
+            ? (gbLink + ' ' + g.total.toLocaleString('en-US') + ' 字，全部收錄')
+            : (gbLink + '已收錄 ' + g.done.toLocaleString('en-US') + '／' +
+               g.total.toLocaleString('en-US') + ' 字');
+        }
+        /* 行文覆蓋率——「打得出多少實際文字」，不是字數覆蓋率。
+           ⚠️ 兩個數字的意思不一樣，不要只印一個：
+             everyday 扣掉語料裡的合成底重之後的日常文本數字（99.67）
+             all      全量語料，含那批灌水字（91.01）—— 它**低估**，
+                      因為分母有 12.69% 的字次不對應任何真實文字。
+           兩個都印是 Wilson 2026-09-02 的決定。算法見 build_site_data.py。
+           ⚠️ 一律**無條件捨去**，不要四捨五入：99.67 進位成「約 100%」等於把
+           「幾乎全部」講成「全部」（實測差點就這樣上線）。日常那個取到小數
+           一位（99.6%，Wilson 指定），全量那個取整數。 */
+        if (covEl && d.stats && d.stats.coverage &&
+            d.stats.coverage.everyday != null && d.stats.coverage.all != null) {
+          var cv = d.stats.coverage;
+          covEl.textContent =
+            '日常文本（廣告、公告、文章、報章）覆蓋率約 ' +
+            (Math.floor(cv.everyday * 10) / 10).toFixed(1) +
+            '%；含生僻字的全量語料統計約 ' + Math.floor(cv.all) + '%';
+        }
+        /* ⚠️ 這幾行的字是 fetch 回來之後才寫進 DOM 的，而繁簡轉換是**載入時掃一遍**
+           做的。目前碰巧不會出錯（t2s.json 比 dict.json 晚回來，最後那次
+           toSimplified(document.body) 會蓋過去），但那是**賽跑**，不是保證 ——
+           哪天 dict.json 比較慢，這幾行就會卡在繁體。寫完就自己轉一次，不要賭。
+           跟 lianxi.js 的 loc() 是同一條規矩。 */
+        if (window.AiPhaBiSite) {
+          slots.forEach(function (el) { window.AiPhaBiSite.localize(el); });
+          if (tw4808El) window.AiPhaBiSite.localize(tw4808El);
+          if (gbL1El) window.AiPhaBiSite.localize(gbL1El);
+          if (covEl) window.AiPhaBiSite.localize(covEl);
+        }
       })
       .catch(function () { /* 留著 HTML 裡的後備值 */ });
+  }
+
+
+  /* ---------- 桌面：側邊欄可以收起來（Wilson 2026-09-04）----------
+     「maybe add a little arrow tab or something that allows collapsing or
+     minimizing the side bar」。
+
+     ⚠️ 收起來**不會讓正文變寬**：正文欄有 58rem 的上限，1280 也好 1920 也好都是
+     928px。這一顆的用處是把畫面清乾淨、讓那一欄置中，不是爭寬度 —— 別把它當成
+     版面優化在賣。
+     ⚠️ 整件事只靠一個 CSS 變數：--nav-w 只被兩條規則用到（側邊欄的 width、body
+     的 padding-inline-start），把它改成 0 兩邊自然跟著走，不必各改各的。
+     ⚠️ 那顆把手要掛在 <body> 上、不能放進 .topbar：收起來的側邊欄是
+     width:0 ＋ overflow:hidden，放進去會跟著被裁掉，變成一顆按不到的按鈕。
+     ⚠️ 手機沒有側邊欄（頁首是一條橫的），這一顆在窄螢幕整個不出現，見 site.css。 */
+  var NAVMIN_KEY = 'aiphabi-site-navmin';
+  var nmBar = document.querySelector('.topbar');
+  if (nmBar) {
+    var nmBtn = document.createElement('button');
+    nmBtn.type = 'button';
+    nmBtn.className = 'navmin';
+    nmBtn.innerHTML = '<span class="navmin-arrow" aria-hidden="true"></span>';
+
+    var nmOff = false;
+    try { nmOff = localStorage.getItem(NAVMIN_KEY) === '1'; } catch (e) {}
+
+    var nmPaint = function () {
+      document.documentElement.classList.toggle('nav-min', nmOff);
+      nmBtn.setAttribute('aria-expanded', String(!nmOff));
+      // 名字講「按下去會怎樣」，不是「現在是什麼狀態」
+      nmBtn.setAttribute('aria-label', nmOff ? '展開側邊導覽' : '收合側邊導覽');
+      nmBtn.title = nmBtn.getAttribute('aria-label');
+    };
+    nmPaint();
+    document.body.appendChild(nmBtn);
+
+    nmBtn.addEventListener('click', function () {
+      nmOff = !nmOff;
+      nmPaint();
+      try { localStorage.setItem(NAVMIN_KEY, nmOff ? '1' : '0'); } catch (e) {}
+    });
+  }
+
+  /* ---------- 每一頁底部的上一頁／下一頁（Wilson 2026-09-04）----------
+     「at the bottom of each subpage, it should have an arrow to navigate to the
+     next page so when someone is done reading all of a page, they can just click
+     that to go to the next page」。
+
+     ⚠️ 順序**從導覽自己讀出來**，不在這裡再寫一張表：導覽的 DOM 順序就是閱讀
+     順序，而它已經在每一頁的 HTML 裡了。寫死第二份順序表的話，哪天加一頁、或
+     把某頁換組，兩邊就會各說各的 —— 而錯的那一份會是這裡。
+     ⚠️ 章節錨點（.pr-sidenav 裡那些 #pr-1）要濾掉，它們不是「下一頁」。
+     ⚠️ 首頁不在 nav.site 裡（它是品牌那顆連結），所以在首頁找不到目前頁，
+     整塊就不出現 —— 首頁不是「一篇讀完要接下一篇」的頁。 */
+  var pnMain = document.querySelector('main');
+  var pnNav = document.querySelector('nav.site');
+  if (pnMain && pnNav) {
+    var pnLinks = [].filter.call(pnNav.querySelectorAll('a'), function (a) {
+      return !a.closest('.pr-sidenav');
+    });
+    var pnAt = -1;
+    pnLinks.forEach(function (a, i) {
+      if (a.getAttribute('aria-current') === 'page') pnAt = i;
+    });
+    if (pnAt >= 0 && pnLinks.length > 1) {
+      var pnBox = document.createElement('nav');
+      pnBox.className = 'pagenav';
+      pnBox.setAttribute('aria-label', '上一頁與下一頁');
+
+      var pnMake = function (src, dir, label) {
+        var a = document.createElement('a');
+        a.className = 'pagenav-' + dir;
+        a.href = src.getAttribute('href');
+        a.rel = dir;
+        var k = document.createElement('span');
+        k.className = 'pagenav-k';
+        k.textContent = label;
+        var t = document.createElement('span');
+        t.className = 'pagenav-t';
+        t.textContent = src.textContent.trim();
+        a.appendChild(k);
+        a.appendChild(t);
+        return a;
+      };
+      if (pnAt > 0) pnBox.appendChild(pnMake(pnLinks[pnAt - 1], 'prev', '上一頁'));
+      if (pnAt < pnLinks.length - 1) pnBox.appendChild(pnMake(pnLinks[pnAt + 1], 'next', '下一頁'));
+      if (pnBox.children.length) pnMain.appendChild(pnBox);
+    }
+  }
+
+  /* ---------- 窄螢幕：導覽收成漢堡選單 ----------
+     手機上十二條連結橫排會折成三行，加上底下那排切換共 225px —— 視窗才 844px，
+     等於每一頁一打開有 27% 是導覽。掛了章節清單的頁面更誇張：〈取碼原則〉542px
+     （64%），〈約定字表〉472px，而且章節清單在橫排裡會變成一條窄窄的直欄，
+     旁邊的連結繞著它排，看起來像壞掉。
+
+     ⚠️ 按鈕在這裡長出來、不寫進十二份 HTML：沒有 JS 的時候不該出現一顆按不動的
+     按鈕，而「全部攤開」本來就是可用的狀態 —— 什麼都不做剛好就是對的。
+     跟上面章節清單那顆收合鈕同一個道理。CSS 也一律掛在 .has-navtoggle 底下，
+     所以沒有 JS 就完全不會進入收合模式。 */
+  var mnBar = document.querySelector('.topbar');
+  var mnNav = document.querySelector('nav.site');
+  if (mnBar && mnNav) {
+    var mnWrap = mnBar.querySelector('.wrap') || mnBar;
+    if (!mnNav.id) mnNav.id = 'site-nav';
+
+    var mnBtn = document.createElement('button');
+    mnBtn.type = 'button';
+    mnBtn.className = 'navtoggle';
+    mnBtn.setAttribute('aria-controls', mnNav.id);
+    mnBtn.setAttribute('aria-expanded', 'false');
+    mnBtn.setAttribute('aria-label', '選單');
+    /* 三條線用 span 畫，不用文字的 ☰ —— 那個字在不同系統上大小差很多，
+       而且會被繁簡轉換掃到。打開時兩條線交叉成 ✕，第三條淡出。 */
+    mnBtn.innerHTML = '<span class="navtoggle-bars" aria-hidden="true"><i></i><i></i><i></i></span>';
+    mnWrap.appendChild(mnBtn);
+    mnBar.classList.add('has-navtoggle');
+    /* 同一個 class 也加到 <html>：頁面別處（字根表那幾層黏頂的 top）要知道
+       頁首現在只有一列高，而它們不在 .topbar 裡面，掛在根節點上最好寫。 */
+    document.documentElement.classList.add('has-navtoggle');
+
+    var mnQuery = window.matchMedia('(max-width: 52rem)');
+
+    /* 選單外面再包一層 .navpanel。⚠️ 這一層在桌面與收起來的狀態是
+       `display: contents`，自己不生盒子，版面跟沒有它一模一樣；只有手機把選單
+       打開時它才變成真的區塊。
+       它存在的唯一理由是「把手往上撥」那個手勢（Wilson 2026-09-03：「it should
+       slide up the entire menu panel, not just the text inside it」）：前一版只
+       對 nav 下 translateY，nav 是 .wrap 這個 flex 的項目，往上位移只是**壓過
+       頁首那一列**，底下的正文一動也不動 —— 看起來就是「字往上跑」，不是
+       「整片收起來」。有了這一層，拖曳時同時做兩件事：nav 往上位移、panel 的
+       高度等量變矮並且切邊，於是選單被切齊頁首往上捲走，底下的正文跟著遞補
+       上來，就是一般手機上「把面板往上推掉」的樣子。 */
+    var mnPanel = document.createElement('div');
+    mnPanel.className = 'navpanel';
+    mnNav.parentNode.insertBefore(mnPanel, mnNav);
+    mnPanel.appendChild(mnNav);
+
+    /* 選單底部那條小橫桿。⚠️ 做成真的按鈕、不是純裝飾的 ::after —— 它長得像
+       「可以往上收」的把手，那就該真的按得動；看起來能按卻按不動比沒有更糟。
+       aria-hidden 是因為它跟漢堡鈕做同一件事，讀螢幕的人已經有那一顆了。 */
+    var mnGrab = document.createElement('button');
+    mnGrab.type = 'button';
+    mnGrab.className = 'navtoggle-grab';
+    mnGrab.setAttribute('aria-hidden', 'true');
+    mnGrab.tabIndex = -1;
+    mnGrab.addEventListener('click', function () {
+      /* 剛剛是拖上去關的話，收尾的那個 click 不要再關一次；拖到一半又放回來的
+         也不算數 —— 手指動過就不是「點」。 */
+      if (mnGrabDragged) { mnGrabDragged = false; return; }
+      mnSet(false);
+    });
+    mnNav.appendChild(mnGrab);
+
+    /* 把手往上一推就收（Wilson 2026-09-03）：它長得像可以往上撥的把手，那就該
+       真的撥得動 —— 這是「按 ✕」之外的第二條路，手指本來就在螢幕下半。
+       ⚠️ 用 Pointer Events 一次收掉滑鼠與觸控；.navtoggle-grab 那邊配了
+       `touch-action: none`，不然 iOS 會先把這個手勢當成捲選單、pointermove
+       根本收不到。
+       ⚠️ 跟著手指走的位移直接寫 inline style（不是加 class）：拖到一半放手要能
+       原地彈回去，class 做不到「停在任意位置」。放手時一律清掉，交還給 CSS。 */
+    var mnGrabDrag = null;      // 正在拖：{ id, y0 }
+    var mnGrabDragged = false;  // 這一輪拖動過（給 click 判斷用）
+    var MN_GRAB_CLOSE = 36;     // 往上超過這麼多 px 就當作要收起來
+
+    var mnGrabH = 0;            // 拖曳開始時整片面板的高度
+
+    function mnGrabPaint(dy) {
+      /* 往下拉沒有意義（選單上緣就貼著頁首），給阻力擋住，只讓它往上走。 */
+      var d = dy < 0 ? dy : dy / 5;
+      mnPanel.style.transition = 'none';
+      mnPanel.style.overflow = 'hidden';
+      mnPanel.style.height = Math.max(0, mnGrabH + d) + 'px';
+      mnNav.style.transition = 'none';
+      mnNav.style.transform = 'translateY(' + d.toFixed(1) + 'px)';
+    }
+
+    function mnGrabReset() {
+      mnPanel.style.transition = '';
+      mnPanel.style.overflow = '';
+      mnPanel.style.height = '';
+      mnNav.style.transition = '';
+      mnNav.style.transform = '';
+      mnNav.style.opacity = '';
+    }
+
+    /* 放手之後把剩下的那一段**演完**，不要瞬移（Wilson：「isn't smooth」）。
+       關的那一路走到底再真的收掉，所以 mnSet 不必再播一次自己的關閉動畫。 */
+    function mnGrabSettle(close) {
+      if (mnReduced.matches) { mnGrabReset(); if (close) mnSet(false, true); return; }
+      var ease = 'cubic-bezier(.22,.61,.36,1)';
+      mnPanel.style.transition = 'height .2s ' + ease;
+      mnNav.style.transition = 'transform .2s ' + ease + ', opacity .2s ease';
+      mnPanel.style.height = close ? '0px' : mnGrabH + 'px';
+      mnNav.style.transform = close ? 'translateY(' + (-mnGrabH) + 'px)' : 'translateY(0)';
+      mnNav.style.opacity = close ? '0' : '1';
+      var fired = false;
+      var done = function () {
+        if (fired) return;
+        fired = true;
+        mnPanel.removeEventListener('transitionend', done);
+        mnGrabReset();
+        if (close) mnSet(false, true);
+      };
+      mnPanel.addEventListener('transitionend', done);
+      setTimeout(done, 300);        // transitionend 沒發（高度本來就是 0 之類）的保險
+    }
+
+    mnGrab.addEventListener('pointerdown', function (e) {
+      if (!mnBar.classList.contains('nav-open')) return;
+      mnGrabDrag = { id: e.pointerId, y0: e.clientY };
+      mnGrabDragged = false;
+      mnGrabH = mnPanel.getBoundingClientRect().height;
+      try { mnGrab.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    mnGrab.addEventListener('pointermove', function (e) {
+      if (!mnGrabDrag || e.pointerId !== mnGrabDrag.id) return;
+      var dy = e.clientY - mnGrabDrag.y0;
+      if (Math.abs(dy) > 4) mnGrabDragged = true;
+      if (mnGrabDragged) { mnGrabPaint(dy); e.preventDefault(); }
+    });
+
+    function mnGrabEnd(e) {
+      if (!mnGrabDrag || e.pointerId !== mnGrabDrag.id) return;
+      var dy = e.clientY - mnGrabDrag.y0;
+      var moved = mnGrabDragged;
+      mnGrabDrag = null;
+      if (!moved) { mnGrabReset(); return; }
+      /* 推得夠遠就收，差一點就放手的滑回原位 —— 兩邊都是演出來的。 */
+      mnGrabSettle(dy < -MN_GRAB_CLOSE);
+    }
+    mnGrab.addEventListener('pointerup', mnGrabEnd);
+    /* 手指被系統搶走（來電、滑出邊界）也要收乾淨，不然選單會卡在半路。 */
+    mnGrab.addEventListener('pointercancel', function (e) {
+      if (!mnGrabDrag || e.pointerId !== mnGrabDrag.id) return;
+      mnGrabDrag = null;
+      mnGrabDragged = false;
+      mnGrabReset();
+    });
+
+    /* ---------- 手機選單：每一條有章節的連結都能就地展開 ----------
+       Wilson 2026-09-03：「if you build a clear enough button (+ or like a
+       downward arrow) toward the right hand side, then people will know these
+       can be expanded, then if they click that button then it expands,
+       otherwise, if they click the heading directly, it should navigate」。
+
+       ⚠️ 十二頁的 <nav> 裡各自只寫著**自己**那一頁的章節清單，別頁的要另外拿。
+       來源是建置時掃出來的 assets/nav.json（見 site/tools/build_nav.py）——
+       不把六份清單複製進十二個檔案，也不在這裡寫死一張表，兩種都會走味。
+       ⚠️ 只有窄螢幕才長出來，而且轉回寬螢幕要拆掉：桌面側邊欄照舊只有「目前
+       這一頁」有章節清單，多出來的幾串會把試打／拆碼查詢／後記推到看不見。 */
+    var mnSubs = null;            // nav.json 的內容
+    var mnSubsFetching = false;
+    var mnSubsBuilt = false;
+
+    function mnBuildSubs() {
+      if (mnSubsBuilt || !mnSubs) return;
+      mnSubsBuilt = true;
+      Object.keys(mnSubs).forEach(function (page) {
+        var a = mnNav.querySelector('a[href="' + page + '"]');
+        /* 已經包在 .pr-navhead 裡的就是目前這一頁 —— 它本來就有清單與箭頭 */
+        if (!a || (a.parentNode && a.parentNode.classList.contains('pr-navhead'))) return;
+
+        var head = document.createElement('div');
+        head.className = 'pr-navhead navsub-xhead';
+        a.parentNode.insertBefore(head, a);
+        head.appendChild(a);
+
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pr-toggle navsub-xbtn';
+        head.appendChild(b);
+
+        var ul = document.createElement('ul');
+        ul.className = 'pr-sidenav navsub-x';
+        ul.id = 'navsub-' + page.replace(/[^a-z0-9]+/gi, '-');
+        ul.hidden = true;
+        b.setAttribute('aria-controls', ul.id);
+        mnSubs[page].forEach(function (it) {
+          var li = document.createElement('li');
+          var link = document.createElement('a');
+          /* ⚠️ 錨點要帶上頁名：這是**別頁**的章節，只寫 #pr-3 會跳到本頁的同名
+             錨點（多半不存在），看起來就是「按了沒反應」。 */
+          link.href = page + it[0];
+          link.textContent = it[1];
+          li.appendChild(link);
+          ul.appendChild(li);
+        });
+        head.parentNode.insertBefore(ul, head.nextSibling);
+
+        var paint = function (open) {
+          ul.hidden = !open;
+          b.setAttribute('aria-expanded', String(open));
+          b.setAttribute('aria-label', (open ? '收合' : '展開') + a.textContent.trim() + '的章節');
+          b.title = b.getAttribute('aria-label');
+        };
+        paint(false);
+        b.addEventListener('click', function () { paint(ul.hidden); });
+      });
+      /* 剛長出來的字沒經過繁簡轉換，選「简」的時候會夾著幾條繁體 */
+      if (window.AiPhaBiSite) window.AiPhaBiSite.localize(mnNav);
+    }
+
+    function mnDropSubs() {
+      if (!mnSubsBuilt) return;
+      mnSubsBuilt = false;
+      [].forEach.call(mnNav.querySelectorAll('.navsub-x'), function (ul) {
+        ul.parentNode.removeChild(ul);
+      });
+      [].forEach.call(mnNav.querySelectorAll('.navsub-xhead'), function (h) {
+        var a = h.querySelector('a');
+        if (a) h.parentNode.insertBefore(a, h);
+        h.parentNode.removeChild(h);
+      });
+    }
+
+    function mnEnsureSubs() {
+      if (!mnQuery.matches || mnSubsBuilt) return;
+      if (mnSubs) { mnBuildSubs(); return; }
+      if (mnSubsFetching) return;
+      mnSubsFetching = true;
+      fetch('assets/nav.json')
+        .then(function (r) { return r.json(); })
+        .then(function (d) { mnSubs = d; if (mnQuery.matches) mnBuildSubs(); })
+        .catch(function () { /* 抓不到就維持原樣：每一條連結照樣點得動 */ });
+    }
+
+    /* 收起來要**演完再消失**：display 從 flex 變 none 是不能過渡的，所以關閉時
+       先掛 nav-closing（版面還在、播反向動畫），動畫跑完才真的收掉。
+       ⚠️ 一定要接 animationend 之外的保險：動畫被 prefers-reduced-motion 關掉時
+       animationend 不會發，選單就永遠卡在「正在關」的狀態。所以那種情況直接收。 */
+    var mnReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function mnSet(open, skipAnim) {
+      if (open) {
+        mnBar.classList.remove('nav-closing');
+        mnBar.classList.add('nav-open');
+        mnEnsureSubs();
+      } else if (mnBar.classList.contains('nav-open')) {
+        mnBar.classList.remove('nav-open');
+        if (!mnReduced.matches && !skipAnim) {
+          mnBar.classList.add('nav-closing');
+          var done = function () {
+            mnBar.classList.remove('nav-closing');
+            mnNav.removeEventListener('animationend', done);
+          };
+          mnNav.addEventListener('animationend', done);
+        }
+      }
+      mnBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      mnBtn.setAttribute('aria-label', open ? '關閉選單' : '選單');
+    }
+
+    mnBtn.addEventListener('click', function () {
+      mnSet(!mnBar.classList.contains('nav-open'));
+    });
+
+    /* 點了連結就關 —— 同一頁裡的錨點（章節清單）不會重新載入頁面，
+       選單留在原地擋著內容的話，等於點了沒反應。 */
+    mnNav.addEventListener('click', function (e) {
+      /* 只有連結才關 —— 字級那一組現在也住在選單裡，按「大」之後選單就消失的話
+         沒辦法連按兩下比較大小。 */
+      if (e.target.closest('a')) mnSet(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && mnBar.classList.contains('nav-open')) {
+        mnSet(false);
+        mnBtn.focus();
+      }
+    });
+
+    /* 點選單以外的地方就關。用 pointerdown 而不是 click：click 要等手指離開，
+       在捲動的頁面上常常不會發生。 */
+    document.addEventListener('pointerdown', function (e) {
+      if (!mnBar.classList.contains('nav-open')) return;
+      if (!mnBar.contains(e.target)) mnSet(false);
+    });
+
+    /* 「字級」那一組**留在頁首那一列**，不搬進選單（Wilson 2026-09-03：
+       「the font size S/M/L toggle should be outside the burger menu, just like
+       the trad/simp toggle」）。
+       它本來是搬進去的，理由是量到的寬度：品牌 143px ＋ 兩組切換 181px ＋
+       漢堡 44px ＋ 內距與間隔 59px ＝ 427px，而視窗只有 390px。現在改成把那
+       84px 從別的地方省出來（見 site.css 第 18 節）：手機上收掉品牌的英文
+       字樣與「字級」兩個字的標籤，間隔從 .75rem 收到 .45rem。
+       ⚠️ 頁首那一列在手機上同時改成可以換行 —— 省下來的寬度在 390px 上綽綽
+       有餘，但更窄的機器（或使用者把系統字級調大）擠不下時，寧可讓控制項
+       整組掉到第二列，也不要像上次那樣把整頁撐寬 19px。 */
+    function mnPlaceSize() {
+      /* 把手永遠是選單的最後一個子元素 —— 它是「這一片可以往上收」的提示，
+         夾在連結中間會被讀成分隔線。 */
+      if (mnGrab.parentNode === mnNav) mnNav.appendChild(mnGrab);
+    }
+    mnPlaceSize();
+
+    /* 轉成寬螢幕（轉橫、或桌機縮放）時把狀態收掉 —— 留著 nav-open 不會怎樣，
+       但轉回窄螢幕時選單會自己是開的，那不是使用者按的。 */
+    var mnOnChange = function () {
+      mnPlaceSize();
+      if (!mnQuery.matches) { mnSet(false); mnDropSubs(); }
+    };
+    if (mnQuery.addEventListener) mnQuery.addEventListener('change', mnOnChange);
+    else if (mnQuery.addListener) mnQuery.addListener(mnOnChange);
+
+    /* ---------- 手機版：麵包屑（Wilson 2026-09-03）----------
+       「it should show on the top like Home / Page / Subpage bar so people can
+       see where they are in the tree, and these should also be clickable」。
+       收成漢堡選單之後，「我在整個網站的哪裡」這件事只有打開選單才看得到；
+       這一條把它擺回頁面最上面。
+
+       ⚠️ 四個層級都要按得動，但按下去的意思不一樣：
+         首頁    → 真的是一頁，直接連過去
+         分組    → **不是一頁**（基礎學習／流暢模式／體驗工具沒有自己的頁面，
+                   這是刻意的，見 .nav-sec-t 的說明），所以它打開選單，
+                   而不是假裝連到一個不存在的網址
+         本頁    → 捲回頁首（連到自己會整頁重載，那是白花一次載入）
+         本節    → 也是打開選單（選單裡就是這一頁的章節清單，可以跳到別節）
+       ⚠️ 每一格的字都從**現成的 DOM** 抄，不要另外寫一份：抄過來的已經是使用者
+       選的繁／簡，也不會跟導覽的用詞各講各的。 */
+    /* 麵包屑要黏在頁首**底下**，而頁首那一列的高度不是固定的：字級調大、或是
+       螢幕窄到控制項掉第二列（見 site.css 第 18 節），它就會變高。量出來寫進
+       一個 CSS 變數，CSS 那邊拿 var() 用。
+       ⚠️ 選單打開時 <nav> 也在 .topbar 裡面，這時量到的是「頁首＋整片選單」——
+       所以開著的時候不量，維持上一次的值。 */
+    function mnTopH() {
+      if (mnBar.classList.contains('nav-open') || mnBar.classList.contains('nav-closing')) return;
+      var h = mnBar.getBoundingClientRect().height;
+      if (h > 0) document.documentElement.style.setProperty('--topbar-h', h.toFixed(1) + 'px');
+    }
+    mnTopH();
+    if (window.ResizeObserver) new ResizeObserver(mnTopH).observe(mnBar);
+    window.addEventListener('resize', mnTopH, { passive: true });
+
+    var bcCur = null;
+    [].forEach.call(mnNav.querySelectorAll('a[aria-current="page"]'), function (a) {
+      if (!a.closest('.pr-sidenav')) bcCur = a;
+    });
+    var bcMain = document.querySelector('main');
+    if (bcCur && bcMain && !/(^|\/)index\.html$/.test(bcCur.getAttribute('href') || '')) {
+      var bc = document.createElement('nav');
+      bc.className = 'crumbs';
+      bc.setAttribute('aria-label', '所在位置');
+
+      var bcHome = document.createElement('a');
+      bcHome.href = 'index.html';
+      bcHome.textContent = '首頁';
+      bc.appendChild(bcHome);
+
+      var bcSec = bcCur.closest('.nav-sec');
+      var bcSecT = bcSec && bcSec.querySelector('.nav-sec-t');
+      if (bcSecT) {
+        var bcGrp = document.createElement('button');
+        bcGrp.type = 'button';
+        bcGrp.className = 'crumb-btn';
+        bcGrp.textContent = bcSecT.textContent;
+        bcGrp.addEventListener('click', function () { mnSet(true); });
+        bc.appendChild(bcGrp);
+      }
+
+      var bcSelf = document.createElement('a');
+      bcSelf.href = bcCur.getAttribute('href');
+      bcSelf.textContent = bcCur.textContent.trim();
+      bcSelf.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      /* 「你在這裡」那一格用 class 標，不用 :last-child —— 第四格只是 hidden，
+         它仍然是最後一個子元素，靠 :last-child 的話捲到頁頂時整條都沒有重點色。 */
+      bcSelf.className = 'crumb-tail';
+      bc.appendChild(bcSelf);
+
+      /* 第四格：目前捲到哪一節。只有本來就有章節清單的那六頁才有。 */
+      var bcNow = null;
+      if (sub) {
+        bcNow = document.createElement('button');
+        bcNow.type = 'button';
+        bcNow.className = 'crumb-btn crumb-now';
+        bcNow.hidden = true;
+        bcNow.addEventListener('click', function () { mnSet(true); });
+        bc.appendChild(bcNow);
+      }
+
+      bcMain.insertBefore(bc, bcMain.firstChild);
+
+      /* 第四格跟側邊欄的高亮共用同一份捲動偵測（見上面的 spyWatch），
+         不再自己跑一輪一樣的迴圈。 */
+      if (bcNow) {
+        spyWatch(function (hit) {
+          if (hit) {
+            var t = hit.a.textContent.trim();
+            if (bcNow.textContent !== t) bcNow.textContent = t;
+            bcNow.hidden = false;
+            bcNow.classList.add('crumb-tail');
+            bcSelf.classList.remove('crumb-tail');
+          } else {
+            bcNow.hidden = true;
+            bcNow.classList.remove('crumb-tail');
+            bcSelf.classList.add('crumb-tail');
+          }
+        });
+      }
+    }
   }
 
   /* 給試打頁用：候選字是後來才畫上去的，畫完要跟著轉 */
   window.AiPhaBiSite = {
     localize: function (root) { if (current() === 'simp' && t2s) toSimplified(root); }
   };
+
+  /* ---------- Vercel Web Analytics ----------
+     `/_vercel/insights/script.js` 是 Vercel 邊緣自己生出來的路徑，**只有 Vercel
+     服務的網域上有**。GitHub Pages 那一份（專案站，掛在 /AiPhaBi/ 底下）和本機
+     預覽都會 404，所以先看網域再決定要不要載入 —— 不然每一頁都在主控台噴一行紅字。
+
+     ⚠️ 為什麼寫在這裡而不是十二份 HTML 的 <head>：十二頁全都載入 site.js，寫在
+     這裡只有一處要維護，而且才有地方擺上面那個網域判斷。頁與頁之間是**整頁換頁**
+     （不是單頁應用），所以每次導覽本來就是一次新的載入 ＝ 一次瀏覽紀錄，
+     不需要自己接管路由事件。
+
+     只有 Vercel 預設的瀏覽計數，不送自訂事件、不帶任何識別碼。 */
+  var vaHost = location.hostname;
+  if (/(^|\.)aiphabi\.com$/.test(vaHost) || /(^|\.)vercel\.app$/.test(vaHost)) {
+    var vaTag = document.createElement('script');
+    vaTag.defer = true;
+    vaTag.src = '/_vercel/insights/script.js';
+    document.head.appendChild(vaTag);
+  }
 })();

@@ -27,6 +27,12 @@
 <link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
 <!-- iOS 加到主畫面用的圖示：滿版不透明的綠底，圓角交給 iOS 自己切 —— 留透明角的話 iOS 會把它填成黑色。 -->
 <link rel="apple-touch-icon" href="assets/img/logo-180.png">
+<!-- 主題：使用者手動選的「淺／深」要在**畫面畫出來之前**就定案，所以這一小段
+     必須內嵌在 <head>、而且排在樣式表前面。搬進 assets/site.js 的話，頁面會先用
+     系統主題畫一次、再閃一下跳到使用者選的那個 —— 選了跟系統相反的人每開一頁
+     都會看到那一閃。沒有選過（'auto'）就什麼都不做，交給 CSS 的
+     prefers-color-scheme，沒有 JS 也一樣跟著系統走。切換鈕本身在 site.js。 -->
+<script>try{var t=localStorage.getItem('aiphabi-site-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
@@ -55,8 +61,8 @@
         <span class="nav-sec-t">基礎學習</span>
         <a href="zigen.html">字根表</a>
         <a href="lianxi.html">字根練習</a>
-        <a href="principles.html">取碼原則</a>
-        <a href="conventional.html">約定字表</a>
+        <a href="yuanze.html">取碼原則</a>
+        <a href="yueding.html">約定字表</a>
         <a href="jianma.html">簡碼</a>
       </div>
       <div class="nav-sec">
@@ -68,11 +74,11 @@
           <li><a href="#cz-5">3. 智能分詞</a></li>
           <li><a href="#cz-7">4. 收錄詞組範例</a></li>
         </ul>
-        <a href="dingping.html">自動上屏</a>
+        <a href="shangping.html">自動上屏</a>
       </div>
       <div class="nav-sec">
         <span class="nav-sec-t">體驗工具</span>
-        <a href="try.html">線上試打</a>
+        <a href="shida.html">線上試打</a>
         <a href="chaima.html">拆碼查詢</a>
       </div>
       <a href="houji.html">後記</a>
@@ -86,7 +92,7 @@
   <h1>詞組連打</h1>
 
   <p class="lede">
-    詞組連打是愛發筆支持的兩種流暢打字模式之一，另一種為<a href="dingping.html">單字自動上屏</a>。詞組連打讓打詞組的時候更加流暢快捷；特別是三字或以上的詞組，還另外支持「四碼快打」，將冗長的碼串固定縮短成四碼。
+    詞組連打是愛發筆支持的兩種流暢打字模式之一，另一種為<a href="shangping.html">單字自動上屏</a>。詞組連打讓打詞組的時候更加流暢快捷；特別是三字或以上的詞組，還另外支持「四碼快打」，將冗長的碼串固定縮短成四碼。
   </p>
 
   <div class="cz-stats stats">

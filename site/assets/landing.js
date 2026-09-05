@@ -20,8 +20,26 @@
   var codeEl = document.getElementById('lg-code');
   if (!svg || !codeEl) return;
 
-  var REDUCED = window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* 「減少動態效果」偏好。⚠️ 不是常數，是一個**可以被使用者推翻**的判斷：
+     iOS 的「減少動態效果」開著的人（Wilson 自己就是）看到的是字母直接出現在
+     定位、只有淡入淡出 —— 那是照系統偏好辦事，不是壞掉，但整段動畫要講的
+     「字母飛過去變成筆畫」他就一次也沒看過。
+     所以照偏好當預設，另外給一顆「播放完整動畫」讓想看的人自己開。
+     ⚠️ 記在 sessionStorage，**不是** localStorage：這是無障礙偏好，一次點擊
+     不該永久推翻它。分頁關掉就回到系統偏好；但在同一次瀏覽裡逛去〈字根表〉
+     再回首頁，不用再按一次。
+     ⚠️ 存取要包 try：無痕模式與「封鎖網站資料」底下讀 sessionStorage 會直接
+     丟例外，沒包的話整支 landing.js 在那裡就停了，連動畫都不會播。 */
+  var MOTION_KEY = 'aiphabi-lg-motion';
+  var MOTION_OK = (function () {
+    try { return window.sessionStorage.getItem(MOTION_KEY) === '1'; }
+    catch (e) { return false; }
+  })();
+  function reduced() {
+    if (MOTION_OK) return false;
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
 
   /* 跟 glyphbox.js 的 SVG_TF 同一套算法：字形本身填滿 0–1024，y 軸原點在
    * 左下，縮到 86% 置中再把 y 軸翻回螢幕慣用的方向。 */
@@ -30,9 +48,49 @@
                (1024 * (1 - INSET) / 2).toFixed(1) + ') scale(' + INSET + ') ' +
                'scale(1,-1) translate(0,-900)';
 
+  /* 排隊的幾何。QUEUE_NEAR_* 是隊伍裡**最靠近舞台**的那一個位置，其餘的往外推。 */
+  var QUEUE_GAP_X = 210;      // 寬螢幕：橫排時兩個字母的間距
+  /* 窄螢幕直排的間距。⚠️ 230 不夠 —— 實測相鄰兩個字母的著墨範圍**重疊 26px**
+     （每個字母在畫面上高 71px，間距只有 45px）。橫排時字母是左右錯開的，
+     間距抓 210 沒問題；直排要讓開的是字母**自己的高度**，那是兩回事。 */
+  var QUEUE_GAP_Y = 328;
+  var QUEUE_NEAR_X = -170;    // 寬螢幕：排在字形左邊
+  var QUEUE_NEAR_Y = 1050;    // 窄螢幕：排在字形上面（local y=900 是字形頂端）
+  var QUEUE_MID_X = 512;      // 直排時整列的 x。用字形框的正中央，不是各組筆畫的
+                              // 平均 —— 平均會被偏心的部件拉歪（哈 的 口 在左邊，
+                              // 整列就跟著偏左，看起來像沒對準）。
+
+  /* 舞台的可視範圍。寬螢幕左右各留一大片給橫排的隊伍；窄螢幕改成上面留一片，
+     左右就貼著字形本身（1024 寬）。⚠️ 這兩個值要跟 site.css 裡 .lg-stage 的
+     aspect-ratio 一致，不然 SVG 會在框裡自己置中、留下上下或左右的空白。 */
+  var VIEWBOX_WIDE = '-650 0 2324 1024';
+  /* ⚠️ 上面留的空間要**放得下整條隊伍**，不是留個意思。算法（單位是 local，
+     y 越大畫面上越高，字形頂端是 900）：
+       最遠那個字母的中心 = QUEUE_NEAR_Y + (n-1) × QUEUE_GAP_Y
+       換成 viewport：0.86 × (900 − 中心) + 71.7
+       再往上半個字母的外框高（實測 313 單位）才是它的頂端
+     最長的一個字是 哈（OAO，三個字母；竹昌石都只有兩個），用窄螢幕的字母大小
+     （LETTER_SIZE_NARROW）與 QUEUE_GAP_Y 算出來頂端在 −726，所以 viewBox 從
+     −759 起跳，留 33 單位的餘裕。
+     ⚠️ 原本是 −420，只比字形頂端（71.7）高一點點 —— 畫面上只剩 16px 的空間要
+     塞 161px 的隊伍，最上面那個 O 有 43px 被切在標語正下方，看起來像被那行綠字
+     蓋住（Wilson 2026-09-02 回報）。 */
+  var VIEWBOX_TALL = '0 -759 1024 1783';
+
+  /* 跟 site.css 的 52rem 斷點同一條線 —— 導覽收成漢堡選單的那一刻，
+     舞台也該換成直排。 */
+  var NARROW_Q = window.matchMedia('(max-width: 52rem)');
+  function isNarrow() { return NARROW_Q.matches; }
+
   var ORDER = ['哈', '竹', '昌', '石'];
   var DATA = null;
-  var LETTER_SIZE = 260; // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
+  var LETTER_SIZE = 260;        // 排隊／飛行時的字母大小，統一一個尺寸，不跟著各組筆畫的大小走
+  /* 窄螢幕用小一號的字母。直排要在字形上方擠下三個字母（哈＝OAO），260 那一號
+     排開來要 165px 的淨空，舞台得長到 28rem 才放得下，整片首頁就爆出一個螢幕。
+     縮到 175 之後三個字母加間距約 165px，舞台 24rem 就夠，字形也維持得住。
+     ⚠️ 寬螢幕**不要動** —— 那邊是橫排，左右有的是地方，260 是 Wilson 調過的。 */
+  var LETTER_SIZE_NARROW = 175;
+  function letterSize() { return isNarrow() ? LETTER_SIZE_NARROW : LETTER_SIZE; }
 
   /* 字母用**一般字重**，不是粗體（Wilson 2026-08-31：石 的 J 看起來太粗）。
      只有 J 單獨指定 Verdana（為了它頂端天生那一橫，見 fontFor），而 Verdana 在
@@ -109,19 +167,31 @@
     }
 
 
-    // 排隊位置：全部字母先在左邊排成一橫排，由左到右照碼的順序排（跟打字、
-    // 跟閱讀方向一樣，第一個字母在最左邊），等飛的時候才一個一個離隊往右飛到
-    // 自己真正該在的位置。整排都站到可視範圍（0–1024）外面，讀起來才像
-    // 「排隊等著上場」而不是「已經在畫面裡了」。
+    // 排隊位置：全部字母先排成一列，照碼的順序排（跟打字、跟閱讀方向一樣，
+    // 第一個字母離舞台最遠、最先出發），等飛的時候才一個一個離隊飛到自己真正
+    // 該在的位置。整排都站到字形範圍（0–1024）外面，讀起來才像「排隊等著上場」
+    // 而不是「已經在畫面裡了」，而且隊尾會被 viewBox 切掉一點，像還有人在後面。
+    //
+    // ⚠️ 方向看螢幕寬窄（Wilson 2026-09-02）：
+    //   寬螢幕 —— 排在**左邊**一橫排，往右飛。舞台是寬的（viewBox 2324×1024），
+    //             左右有的是地方。
+    //   窄螢幕 —— 排在**上面**一直排，往下飛。手機上寬度只有 390px，橫排根本
+    //             站不下，隊伍會整條擠在字形上面糊成一團。
+    // 位置只在建這個字的時候算一次；轉向之後下一個字才換排法，動畫進行中不重排。
     var n = pieces.length;
     var sumY = 0;
     for (var si = 0; si < n; si++) sumY += centers[si].y;
     var midY = sumY / n;
-    var spacing = 210;
-    var queueNearX = -170; // 隊伍裡最靠近舞台（最右）的那個位置
+    var tall = isNarrow();
+    svg.setAttribute('viewBox', tall ? VIEWBOX_TALL : VIEWBOX_WIDE);
     var queue = [];
     for (var qi = 0; qi < n; qi++) {
-      queue.push({ x: queueNearX - (n - 1 - qi) * spacing, y: midY });
+      /* ⚠️ 直排時 y 要**加**才是往上：外層那個 SVG_TF 帶了 scale(1,-1)，
+         在這一層的座標裡 y 越大、畫面上越高（local y=900 剛好是字形頂端）。
+         寫成減的話隊伍會排到字形下面去。 */
+      queue.push(tall
+        ? { x: QUEUE_MID_X, y: QUEUE_NEAR_Y + (n - 1 - qi) * QUEUE_GAP_Y }
+        : { x: QUEUE_NEAR_X - (n - 1 - qi) * QUEUE_GAP_X, y: midY });
     }
 
     // 字母的位置分兩層：外層 .lg-letter-pos 只管「人在哪」（排隊位置飛到定點，
@@ -140,7 +210,7 @@
             '<g class="lg-letter" style="opacity:0">' +
               '<text text-anchor="middle" dominant-baseline="central" ' +
                 'font-family="' + fontFor(entry.groups[gi].L) + '" font-weight="' + LETTER_WEIGHT + '" ' +
-                'font-size="' + LETTER_SIZE + '">' + entry.groups[gi].L + '</text>' +
+                'font-size="' + letterSize() + '">' + entry.groups[gi].L + '</text>' +
             '</g>' +
           '</g>' +
         '</g>';
@@ -160,7 +230,7 @@
        沒有字母飛進來 —— iOS 的「減少動態效果」開著就會走到這條路）。
        改成把字母直接放在它**最後該在的位置**，停一下，再純粹用淡入淡出換成
        筆畫。只有透明度在動，沒有任何位移或形變，符合這個偏好的本意。 */
-    if (REDUCED) {
+    if (reduced()) {
       for (var ri = 0; ri < n; ri++) {
         letterPos[ri].style.transform =
           'translate(' + centers[ri].x.toFixed(1) + 'px,' + centers[ri].y.toFixed(1) + 'px)';
@@ -317,7 +387,25 @@
      一次之後又消失會像壞掉。 */
   function revealNav() {
     document.body.classList.remove('lg-navhide');
+    window.removeEventListener('resize', snapHiddenNav);
   }
+
+  /* ⚠️ 藏起來那段時間如果使用者剛好縮放視窗（桌面版拖窗框、手機版轉方向），
+     會露出一截：.topbar 讓開側邊欄的位置（inset-inline-start，量的是
+     --page-pad）沒有轉場、視窗一變就立刻跳新值，但蓋住它的 transform 有
+     `.55s` 轉場（見 site.css 的 .topbar 進場動畫），要花半秒才追上新視窗
+     算出來的隱藏位置——這半秒裡兩個數字對不起來，側邊欄就從縫裡露出來
+     （實測：1200→1920px 露出 243px，不是理論上的邊緣像素）。做法是縮放的
+     當下把轉場關掉一瞬間，讓 transform 跟著新視窗直接跳過去、不要用動畫追，
+     動畫只保留給「藏起來 ↔ 滑出來」這個真正的狀態切換用。 */
+  function snapHiddenNav() {
+    var bar = document.querySelector('.topbar');
+    if (!bar) return;
+    bar.style.transition = 'none';
+    bar.offsetHeight; // 強制重排，讓 transition:none 先生效再放開
+    bar.style.transition = '';
+  }
+  window.addEventListener('resize', snapHiddenNav, { passive: true });
 
   function showGuess() {
     revealNav();
@@ -343,7 +431,7 @@
     svg.style.transition = 'none';
     svg.style.opacity = '1';
     buildChar(ch);
-    if (REDUCED) {
+    if (reduced()) {
       timers.push(window.setTimeout(function () {
         svg.style.transition = 'opacity .35s ease';
         svg.style.opacity = '0';
@@ -374,6 +462,35 @@
 
   if (restartBtn) restartBtn.addEventListener('click', restart);
   if (skipBtn) skipBtn.addEventListener('click', skip);
+
+  /* ---------- 「播放完整動畫」：給開了「減少動態效果」的人自己開 ----------
+     ⚠️ 按鈕在這裡長出來、不寫進 HTML：沒開那個偏好的人本來就看得到完整動畫，
+     給他一顆「播放完整動畫」只會讓人以為自己看到的是閹割版。跟導覽的漢堡鈕、
+     章節清單的收合鈕同一個規矩 —— 只在真的用得到的時候才存在。
+     位置擺在碼那一行（OAO → 哈）下面，不塞進右邊那兩顆圓鈕：那兩顆是圖示、
+     沒有字，這一顆需要把話講明白。 */
+  if (reduced() && codeEl && codeEl.parentNode) {
+    var motionBtn = document.createElement('button');
+    motionBtn.type = 'button';
+    motionBtn.className = 'lg-motion';
+    motionBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' +
+      '<span>播放完整動畫</span>';
+    codeEl.parentNode.insertBefore(motionBtn, codeEl.nextSibling);
+
+    motionBtn.addEventListener('click', function () {
+      MOTION_OK = true;
+      try { window.sessionStorage.setItem(MOTION_KEY, '1'); } catch (e) {}
+      motionBtn.remove();
+      /* 導覽也跟著藏起來 —— index.html 那段行內 script 在偏好開著時直接
+         return，所以現在導覽還在。既然他要看完整的一輪，就給他完整的一輪。
+         resize 的縮放保護在第一次 revealNav() 時拿掉了，這裡重新藏起來就要
+         重新掛上，不然這一輪播放期間縮放視窗又會露一截。 */
+      document.body.classList.add('lg-navhide');
+      window.addEventListener('resize', snapHiddenNav, { passive: true });
+      restart();
+    });
+  }
 
   /* 躲起來那一步在 index.html 的行內 script 做（要趕在第一次繪製之前，這裡太晚，
      見那邊的說明）。這裡只負責把它放出來：正常走 showGuess()，動畫資料抓不到就

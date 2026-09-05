@@ -683,4 +683,58 @@ do
     "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
 end
 
+print()
+print("== 只打常用字：白名單只留甲表∪GB一級∪回填（異體／詞庫／姓名／百家姓／粵語／手動）==")
+do
+  h.check("常用字在白名單裡（的／我／學）",
+    data.common["的"] and data.common["我"] and data.common["學"],
+    "expected common 的/我/學 = true")
+  h.check("常見異體在白名單裡（裏／啓／歎／綫／鷄）",
+    data.common["裏"] and data.common["啓"] and data.common["歎"]
+      and data.common["綫"] and data.common["鷄"],
+    "expected common 裏/啓/歎/綫/鷄 = true")
+  h.check("粵語字回填：睇／咁／啲 在白名單裡（canton_common.txt）",
+    data.common["睇"] and data.common["咁"] and data.common["啲"],
+    "expected common 睇/咁/啲 = true")
+  h.check("百家姓罕見姓氏用字在白名單裡（郗／璩／逄）",
+    data.common["郗"] and data.common["璩"] and data.common["逄"],
+    "expected common 郗/璩/逄 = true")
+  h.check("真正的生僻字不在白名單裡（苤／哿／陧，GB 二級也沒被任何回填救到）",
+    not data.common["苤"] and not data.common["哿"] and not data.common["陧"],
+    "expected common 苤/哿/陧 = nil")
+  h.check("兩張表都沒收、也沒被任何回填救到的字一樣濾掉（亶／丏／㐬）",
+    not data.common["亶"] and not data.common["丏"] and not data.common["㐬"],
+    "expected common 亶/丏/㐬 = nil")
+
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    -- 模擬：某段碼同時吐出一個常見字（森）跟一個生僻字（苤，GB 二級，沒被回填救到）。
+    local cands = { { text = "森" }, { text = "苤" } }
+    local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
+    h.checkPresent(schema .. " · 只打常用字關 → 苤 照常在", off, "苤", true)
+
+    local on = h.run{ schema = schema, code = "wwwd",
+      options = { aiphabi_common_only = true }, cands = cands }
+    h.checkPresent(schema .. " · 只打常用字開 → 苤 被濾掉", on, "苤", false)
+    h.checkPresent(schema .. " · 只打常用字開 → 森 還在", on, "森", true)
+
+    -- 回填的字（睇 粵語、裏 異體）開關開著也留下來
+    local kept = h.run{ schema = schema, code = "buhn", options = { aiphabi_common_only = true },
+      cands = { { text = "睇" }, { text = "裏" } } }
+    h.checkPresent(schema .. " · 只打常用字開 → 粵語字 睇 留著", kept, "睇", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 異體 裏 留著", kept, "裏", true)
+
+    -- 多字候選：一個字不在白名單，整條濾掉
+    local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_common_only = true },
+      cands = { { text = "森林" }, { text = "苤苤" } } }
+    h.checkPresent(schema .. " · 只打常用字開 → 乾淨的詞（森林）留著", ph, "森林", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 含生僻字的詞（苤苤）濾掉", ph, "苤苤", false)
+
+    -- 標點／英數不是漢字，開關開著也不能誤濾
+    local pn = h.run{ schema = schema, code = "z", options = { aiphabi_common_only = true },
+      cands = { { text = "，" }, { text = "A" } } }
+    h.checkPresent(schema .. " · 只打常用字開 → 標點（，）不受影響", pn, "，", true)
+    h.checkPresent(schema .. " · 只打常用字開 → 英數（A）不受影響", pn, "A", true)
+  end
+end
+
 os.exit(h.report() == 0 and 0 or 1)

@@ -6,6 +6,7 @@ aiphabi_hint       = require("aiphabi_hint")
 aiphabi_fuzzy      = require("aiphabi_fuzzy")
 aiphabi_wildcard   = require("aiphabi_wildcard")
 aiphabi_phrase     = require("aiphabi_phrase")   -- 詞組連打開關（純愛發筆用；濾掉多字候選）
+aiphabi_charset    = require("aiphabi_charset")  -- 只打常用字開關（候選只留甲表∪GB一級∪回填）
 aiphabi_order      = require("aiphabi_order")   -- 候選重排（簡碼→exact→其餘照常用度）
 aiphabi_order_plus = require("aiphabi_order_plus") -- 二合一版重排（選過衰減>簡碼>exact>常用度）
 aiphabi_autocommit = require("aiphabi_autocommit") -- 自動上屏（processor，排在 speller 前面）
