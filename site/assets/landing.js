@@ -387,7 +387,25 @@
      一次之後又消失會像壞掉。 */
   function revealNav() {
     document.body.classList.remove('lg-navhide');
+    window.removeEventListener('resize', snapHiddenNav);
   }
+
+  /* ⚠️ 藏起來那段時間如果使用者剛好縮放視窗（桌面版拖窗框、手機版轉方向），
+     會露出一截：.topbar 讓開側邊欄的位置（inset-inline-start，量的是
+     --page-pad）沒有轉場、視窗一變就立刻跳新值，但蓋住它的 transform 有
+     `.55s` 轉場（見 site.css 的 .topbar 進場動畫），要花半秒才追上新視窗
+     算出來的隱藏位置——這半秒裡兩個數字對不起來，側邊欄就從縫裡露出來
+     （實測：1200→1920px 露出 243px，不是理論上的邊緣像素）。做法是縮放的
+     當下把轉場關掉一瞬間，讓 transform 跟著新視窗直接跳過去、不要用動畫追，
+     動畫只保留給「藏起來 ↔ 滑出來」這個真正的狀態切換用。 */
+  function snapHiddenNav() {
+    var bar = document.querySelector('.topbar');
+    if (!bar) return;
+    bar.style.transition = 'none';
+    bar.offsetHeight; // 強制重排，讓 transition:none 先生效再放開
+    bar.style.transition = '';
+  }
+  window.addEventListener('resize', snapHiddenNav, { passive: true });
 
   function showGuess() {
     revealNav();
@@ -465,8 +483,11 @@
       try { window.sessionStorage.setItem(MOTION_KEY, '1'); } catch (e) {}
       motionBtn.remove();
       /* 導覽也跟著藏起來 —— index.html 那段行內 script 在偏好開著時直接
-         return，所以現在導覽還在。既然他要看完整的一輪，就給他完整的一輪。 */
+         return，所以現在導覽還在。既然他要看完整的一輪，就給他完整的一輪。
+         resize 的縮放保護在第一次 revealNav() 時拿掉了，這裡重新藏起來就要
+         重新掛上，不然這一輪播放期間縮放視窗又會露一截。 */
       document.body.classList.add('lg-navhide');
+      window.addEventListener('resize', snapHiddenNav, { passive: true });
       restart();
     });
   }

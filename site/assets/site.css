@@ -3278,7 +3278,16 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    ⚠️ body 的 padding-inline-start 不跟著變：側邊欄只是移出畫面，版面不重排，
    所以滑進來的時候正文不會跳。那條空出來的直帶由滿版漸層補上。 */
 .topbar { transition: transform .55s cubic-bezier(.22, .61, .36, 1); }
-.lg-body.lg-navhide .topbar { transform: translateX(-100%); }
+/* ⚠️ 不能用 translateX(-100%)：那只移動側邊欄自己的寬度（--nav-w），寬螢幕上
+   --page-pad（置中留白）比 --nav-w 還寬時，側邊欄只會被推進留白裡，還在視窗內、
+   露出一截（1576px 起就會，1920px 螢幕露出 172px）——這裡把留白的寬度也一起
+   推掉。不能直接重用 var(--page-pad)：它自己的公式裡有個 %，那個 % 是相對它
+   平常出現的 padding／inset-inline-start 算的，塞進 transform 的 calc 裡會被
+   當成「相對側邊欄自己的寬度」重新解讀，所以在這裡用 100vw 重算一次同樣的量。
+   視窗不夠寬、留白是 0 的時候，這條就退化回原本的 -100%，動畫不變。 */
+.lg-body.lg-navhide .topbar {
+  transform: translateX(calc(-1 * (max(0px, (100vw - var(--page-w)) / 2) + var(--nav-w))));
+}
 
 /* 導覽還沒進場時，正文要**置中在整個視窗**，不要先把側邊欄那條寬度空在那裡
    —— 空著會讓整頁看起來偏右（Wilson）。body 的 padding-inline-start 平常是
@@ -4280,7 +4289,13 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
    桌面版側邊欄在左邊，所以是從左邊滑進來。窄螢幕的頁首是**頂上那一條**，
    往左滑進來看起來像飄過去的，改成從上面落下。 */
 @media (max-width: 52rem) {
-  .lg-body.lg-navhide .topbar { transform: translateY(-100%); }
+  /* ⚠️ 窄螢幕的 .topbar 平常是 position: sticky（見第 2 節，捲動時黏頂）。
+     跟這裡的 translateY 疊在一起時，捲動會讓瀏覽器重新計算「該不該黏住」，
+     這個計算跟 transform 的位移互相打架，結果是捲一下導覽就露出一截。
+     動畫播完、拿掉 lg-navhide 之前先固定成 position: fixed：反正這段時間
+     整條導覽本來就該完全離開視窗，跟捲動一點關係都不該有。播完拿掉 class，
+     自然變回 sticky，跟平常頁面的行為銜接。 */
+  .lg-body.lg-navhide .topbar { position: fixed; transform: translateY(-100%); }
 }
 
 /* ---------- 5. 首頁的拆件動畫：窄螢幕改成直的 ----------
