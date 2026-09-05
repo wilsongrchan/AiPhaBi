@@ -850,14 +850,31 @@ load failure.
   whitelist table for the `aiphabi_common_only` switch, 只打常用字): `N=18000` now **crashes**
   (`M.common` alone doesn't fit in the margin that used to be there). Bisected fresh with
   `luajit -e "dofile(...)"`: **17,000 passes, 18,000 crashes** — right at the wall again, no
-  margin. Shipped at **`N=17000`**. `M.common` is emptied to `{}` for mobile alongside
-  `wordfreq` (same reasoning: `aiphabi_charset.lua` already guards with
-  `type(data.common) == "table" and next(data.common) ~= nil`, so an emptied table just makes
-  `aiphabi_common_only` silently do nothing if a mobile user enables it — not a crash. Tried
-  emptying `freq`/`si4_rev`/`si4` too as an alternative to lowering `N`, but that guts ordering
-  quality and the entire 四碼快打 feature for no reason when a lower `N` alone clears the bar —
-  prefer capping `si4`/`si4_rev` via `N` over zeroing other tables whenever the cap alone is
-  enough. Re-bisect next time, don't reuse 17000 blindly — same erosion logic as below.
+  margin. Shipped at **`N=17000`**.
+  - **First attempt got this wrong and shipped a dead feature.** The first pass emptied
+    `M.common` itself to `{}` alongside `wordfreq`, reasoning that `aiphabi_charset.lua`'s guard
+    (`type(data.common) == "table" and next(data.common) ~= nil`) would make the switch just
+    "silently do nothing" — true, but that *silently doing nothing* means **the whole
+    `aiphabi_common_only` feature is dead on every mobile build that ships this way**, which is
+    a much worse outcome than a slightly smaller `si4`/`si4_rev`. Two zips went out with `M.common`
+    emptied before a user's bug report ("switch is on, 收/夼/蕖 still type") got traced back to
+    this — traced by re-running `aiphabi_charset.lua`'s actual filter function (not just
+    inspecting the data table) against the exact bytes inside the shipped zip, which showed
+    *every* candidate passing, whitelisted or not.
+  - **The actual fix: don't strip `M.common` at all.** Re-bisecting with `wordfreq` stripped but
+    `M.common` left intact, `N=17000` *still* loads fine under `luajit` — the earlier crash at
+    `N=18000` was never about needing to empty `common`, just about needing a lower `N`. Verified
+    end-to-end this time, not just "loads": ran `aiphabi_charset.lua`'s filter with the switch
+    forced on against known in-list (殳, via 百家姓) and out-of-list (収, 夼, 蕖, 苤, 陧, 哿) test
+    characters, using the literal file extracted back out of the shipped zip — not a rebuilt copy
+    that might silently differ.
+  - **Lesson for next time a table needs emptying for budget:** "the guard makes it degrade
+    gracefully instead of crashing" is not the same question as "is this table load-bearing for a
+    switch the user can turn on." A table that backs an entire feature (not just a nice-to-have
+    hint) needs the cap-via-`N` approach tried first, exhaustively, before emptying it is even
+    considered — and any table that does get emptied needs its dependent feature actually
+    exercised post-build (call the filter/processor function with fake input), not just a bare
+    `dofile` load check. A file that *loads* is not the same as a feature that *works*.
 - **Cliff re-checked 2026-08-19** (character set had grown 5,911→6,449 in the meantime): the
   crash point moved from ~29,500 down to **between 25,000 and 28,000** — confirms the cliff isn't
   static, it erodes as Side A keeps adding characters. `N=18000` still passed with real margin
