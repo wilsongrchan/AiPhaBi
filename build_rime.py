@@ -55,10 +55,14 @@ def seed_default_options(path):
     還原——user.yaml 裡沒有的那條，就當預設（關）。實測回報 aiphabi_no_simp 這種
     「新加、從沒進過 user.yaml」的開關：選單開了，切一次英文再回來就變回關。種一條
     false 進去，往後 Rime 每次重建都會照著還原，選單再切也是改一條現成的 key。"""
-    on_by_default = ["aiphabi_family", "aiphabi_comp", "aiphabi_fuzzy", "aiphabi_short100"]
+    # 流暢模式（詞組連打／自動上屏）兩個互斥，選一個當預設：Wilson 用詞組連打，
+    # 不是自動上屏——這裡種對了，新機器／重灌才不必每次手動切一次（見 enforce_mutex，
+    # aiphabi_autocommit.lua）。
+    on_by_default = ["aiphabi_family", "aiphabi_comp", "aiphabi_fuzzy", "aiphabi_short100",
+                     "aiphabi_phrase"]
     off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_common_only",
                       "aiphabi_autocommit", "aiphabi_short3", "aiphabi_left_short",
-                      "aiphabi_phrase", "full_shape", "ascii_punct", "prediction"]
+                      "full_shape", "ascii_punct", "prediction"]
     seeds = [(k, "true") for k in on_by_default] + [(k, "false") for k in off_by_default]
     lines = path.read_text("utf-8").splitlines() if path.exists() else []
     var_i = next((i for i, l in enumerate(lines) if l == "var:"), None)
