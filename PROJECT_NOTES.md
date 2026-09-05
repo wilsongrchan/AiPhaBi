@@ -846,6 +846,18 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-05**, after merging Side A/C's `M.common` (a new ~6,464-entry
+  whitelist table for the `aiphabi_common_only` switch, 只打常用字): `N=18000` now **crashes**
+  (`M.common` alone doesn't fit in the margin that used to be there). Bisected fresh with
+  `luajit -e "dofile(...)"`: **17,000 passes, 18,000 crashes** — right at the wall again, no
+  margin. Shipped at **`N=17000`**. `M.common` is emptied to `{}` for mobile alongside
+  `wordfreq` (same reasoning: `aiphabi_charset.lua` already guards with
+  `type(data.common) == "table" and next(data.common) ~= nil`, so an emptied table just makes
+  `aiphabi_common_only` silently do nothing if a mobile user enables it — not a crash. Tried
+  emptying `freq`/`si4_rev`/`si4` too as an alternative to lowering `N`, but that guts ordering
+  quality and the entire 四碼快打 feature for no reason when a lower `N` alone clears the bar —
+  prefer capping `si4`/`si4_rev` via `N` over zeroing other tables whenever the cap alone is
+  enough. Re-bisect next time, don't reuse 17000 blindly — same erosion logic as below.
 - **Cliff re-checked 2026-08-19** (character set had grown 5,911→6,449 in the meantime): the
   crash point moved from ~29,500 down to **between 25,000 and 28,000** — confirms the cliff isn't
   static, it erodes as Side A keeps adding characters. `N=18000` still passed with real margin
