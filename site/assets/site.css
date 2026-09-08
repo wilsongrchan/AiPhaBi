@@ -1348,6 +1348,18 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 @media (max-width: 34rem) {
   .gj-demo-pair { grid-template-columns: 1fr; }
 }
+/* 一個 .ac-demo 灰底框裡塞好幾組「說明＋候選列」（〈萬用鍵〉那六步），組跟組
+   之間要有間距，但不能再用 .ac-demo 本身的外距——那是每個框各自一份，六個
+   框疊在一起白邊就多到不像話（Wilson）。改成框內自己控制：第一組緊貼著框，
+   後面每一組的說明文字往上留一點。 */
+.ac-demo .ac-demo-cap { margin-top: 0; }
+.ac-demo .rail.gj-demo + .ac-demo-cap { margin-top: 1.1rem; }
+.ac-demo .rail.gj-demo + .ac-caveat { margin-top: .6rem; }
+.ac-demo .ac-caveat + .ac-demo-cap { margin-top: 1.1rem; }
+/* 候選列裡塞不下的「還有更多」——跟真候選字同一排，但不給編號、顏色刻意
+   比較淡，一看就知道不是第 N 個候選，是省略號。 */
+.rail .cand.gj-more { padding-inline: .15rem; }
+.rail .cand.gj-more .g { color: var(--ink-faint); font-size: 1.3rem; }
 
 /* 例字：整個字畫出來，屬於該字根的筆畫塗深、其餘塗淺。
  * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
