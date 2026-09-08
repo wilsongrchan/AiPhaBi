@@ -1332,19 +1332,18 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .rail .empty { color: var(--ink-dim); font-size: .78rem; }
 
 /* 〈功能鍵〉頁拿候選列元件當範例圖用（不是真的可以打字選字）——拿掉滑鼠
-   回饋，不然看起來像點得動。範例圖跟底下接著的說明文字之間留夠空間，
-   不然候選列的框線緊貼著下一段文字，看起來像同一塊（Wilson）。 */
-.rail.gj-demo { cursor: default; margin-bottom: 1.1rem; }
+   回饋，不然看起來像點得動。範例圖跟前後文字的間距交給 .ac-demo 那個灰底
+   框（跟〈自動上屏〉頁同一個元件）處理，不在這裡另外加，兩層 margin 疊在
+   一起反而會忽大忽小。 */
+.rail.gj-demo { cursor: default; }
 .rail.gj-demo .cand { cursor: default; }
 .rail.gj-demo .cand:hover { background: transparent; }
 .gj-demo-stack .rail { margin-top: .5rem; }
-.gj-demo-stack .rail:first-child { margin-top: .7rem; }
-.gj-demo-stack .rail:last-child { margin-bottom: 1.1rem; }
+.gj-demo-stack .rail:first-child { margin-top: 0; }
 .gj-demo-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 1.2rem;
-  margin-bottom: 1.1rem;
 }
 @media (max-width: 34rem) {
   .gj-demo-pair { grid-template-columns: 1fr; }
