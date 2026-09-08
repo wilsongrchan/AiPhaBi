@@ -1344,7 +1344,11 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    被壓縮後的寬度」去算剩多少空間，兩個一算就對不上，「…」跟「共 N 個」會
    疊在一起（Wilson 抓到）。三個都不縮，讓 gongnengjian.js 自己決定要藏
    哪幾個候選，寬度算得動才準。 */
-.rail.gj-demo { cursor: default; overflow: hidden; }
+/* overflow 明寫成 visible，蓋掉 .rail 原本的 overflow-x:auto——真正決定顯示
+   幾個候選的是 gongnengjian.js 直接 display:none 藏起來，不是靠裁切或捲動，
+   這裡不該再冒出橫向捲軸。留 auto／hidden 都會把「機」的圈選註記卡在候選
+   列的高度裡，圈不出來——那個註記要蓋在候選列上面，不是被框住（Wilson）。 */
+.rail.gj-demo { cursor: default; overflow: visible; }
 .rail.gj-demo .buf, .rail.gj-demo .hint, .rail.gj-demo .cands { flex-shrink: 0; }
 .rail.gj-demo .cand { cursor: default; }
 .rail.gj-demo .cand:hover { background: transparent; }
@@ -1376,17 +1380,27 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    ink-dim，加粗、加大，讀起來才像「後面還有」而不是背景雜訊。 */
 .rail .cand.gj-more { padding-inline: .3rem; }
 .rail .cand.gj-more .g { color: var(--ink-dim); font-size: 1.4rem; font-weight: 700; }
-/* 圈出「機」——手動註記，讓人一路追蹤同一個字怎麼隨著範圍縮放進出候選列，
-   不是候選列本身的樣式，所以刻意不用 --accent（跟「打中的字」那個高亮
-   是同一套語言會混淆），借用畫筆畫用的 --rb-0 紅，一看就知道是外加的註記。 */
+/* 圈出「機」——手動註記，讓人一路追蹤同一個字怎麼隨著範圍縮放進出候選列。
+   用綠色（跟 --accent 同一色，Wilson 說可以），但形狀不是乾淨的橢圓框——
+   刻意用手繪筆觸的 SVG（兩筆疊起來、起訖點不對齊，像印出來拿筆圈的那種
+   隨手感），而且蓋在候選列**上面**（不裁邊、z-index 墊高），不能被候選列
+   的高度框住，不然看起來像候選列自己的樣式，不像額外加上去的註記。
+   顏色不寫死在 SVG 裡——SVG 只當作遮罩（mask），實際顏色交給
+   background-color: var(--accent)，深色模式換色才會跟著換。 */
 .rail .cand.gj-target { position: relative; }
 .rail .cand.gj-target::after {
   content: '';
   position: absolute;
-  inset: -.3rem -.5rem;
-  border: 2px solid var(--rb-0);
-  border-radius: 50%;
-  transform: rotate(-4deg);
+  inset: -.55rem -.75rem;
+  z-index: 1;
+  background-color: var(--accent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='5'%20stroke-linecap='round'/%3E%3Cpath%20d='M14,31%20C11,17%2028,8%2054,7%20C79,6%2091,16%2089,28'%20fill='none'%20stroke='black'%20stroke-width='3.5'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='5'%20stroke-linecap='round'/%3E%3Cpath%20d='M14,31%20C11,17%2028,8%2054,7%20C79,6%2091,16%2089,28'%20fill='none'%20stroke='black'%20stroke-width='3.5'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transform: rotate(-3deg);
   pointer-events: none;
 }
 
