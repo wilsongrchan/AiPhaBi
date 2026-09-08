@@ -103,21 +103,21 @@
 
   <h2 id="gj-4">4. 部件</h2>
   <p>
-    有些字母的一碼字（不必再加任何字母，單獨這一個字母就是完整的碼）同時對應兩種東西：一種是可以獨立使用的漢字，一種是只能當部首偏旁、不會獨立成字的部件——例如「扌」提手旁、「氵」三點水，這兩個部件本身不是一個字，但很多字都以它們拆碼。同一個碼只能給一個候選，愛發筆把它讓給獨立成字的漢字；想單獨打出部件本身，就在字母前面加一個「`」。
+    有些碼同時對應兩種東西：一種是可以獨立使用的漢字，一種是只能當部首偏旁、不會獨立成字的部件——例如「扌」提手旁、「氵」三點水，這兩個部件本身不是一個字，但很多字都以它們拆碼。同一條碼只能給一個候選，愛發筆把它讓給獨立成字的漢字；想單獨打出部件本身，就在碼的最前面加一個「`」。
   </p>
   <p>
-    以字母 <code data-keep>K</code> 為例：打<code data-keep>K</code>單獨查到的是「水」；打<code data-keep>`K</code>查到的是提手旁「扌」、將字旁「丬」／「爿」這幾個部件本身。目前共有 <span id="gj-component-count">…</span> 個部件字受影響：
+    以碼 <code data-keep>K</code> 為例：打<code data-keep>K</code>單獨查到的是「水」；打<code data-keep>`K</code>查到的是提手旁「扌」、將字旁「丬」／「爿」這幾個部件本身。碼不限於一個字母——「衣」部部件「衤」的碼是 <code data-keep>QK</code>，打<code data-keep>QK</code>查到的是「永」，打<code data-keep>`QK</code>才查到「衤」。目前共有 <span id="gj-component-count">…</span> 個部件字受影響：
   </p>
 
   <div class="tablewrap">
     <table class="jm-tbl jm-compact" id="gj-component-tbl">
-      <thead><tr><th>字母</th><th>打字母本身</th><th>打 ` ＋ 字母</th></tr></thead>
+      <thead><tr><th>碼</th><th>打這條碼本身</th><th>打 ` ＋ 這條碼</th></tr></thead>
       <tbody><tr><td colspan="3">載入中……</td></tr></tbody>
     </table>
   </div>
 
   <p class="ac-caveat">
-    「J」「U」兩個字母目前還沒有對應到可以獨立成字的漢字，一碼字全部都是部件——打「J」或「U」本身查不到字，只有加「`」才查得到表裡列出的部件。
+    少數幾條碼目前還沒有對應到可以獨立成字的漢字，整條碼全部都是部件——這些碼在上表「打這條碼本身」欄會顯示「（無）」，一樣要加「`」才查得到部件。
   </p>
 
 </main>

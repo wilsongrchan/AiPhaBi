@@ -1,4 +1,4 @@
-/* 〈功能鍵〉頁第 4 節（部件）：把 assets/gongnengjian.json 的字母清單畫成表格。
+/* 〈功能鍵〉頁第 4 節（部件）：把 assets/gongnengjian.json 的碼清單畫成表格。
  * 清單本身（哪些字算部件、哪個字獨立成字）全部由
  * site/tools/build_site_data.py 從 data/codes.json 的 componentOnly 旗標現算，
  * 這支程式只負責畫表。 */
@@ -25,7 +25,7 @@
 
   function row(g) {
     var tr = el('tr');
-    var tdL = el('td'); tdL.appendChild(el('code', null, g.letter)).setAttribute('data-keep', '');
+    var tdL = el('td'); tdL.appendChild(el('code', null, g.code)).setAttribute('data-keep', '');
     var tdM = el('td'); tdM.appendChild(chars(g.main));
     var tdC = el('td'); tdC.appendChild(chars(g.components));
     if (!g.main.length) tr.className = 'gj-no-main';
@@ -36,12 +36,12 @@
   fetch('assets/gongnengjian.json')
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      var letters = d.letters || [];
+      var rows = d.codes || [];
       body.innerHTML = '';
-      letters.forEach(function (g) { body.appendChild(row(g)); });
+      rows.forEach(function (g) { body.appendChild(row(g)); });
       var countEl = document.getElementById('gj-component-count');
       if (countEl) {
-        var n = letters.reduce(function (s, g) { return s + g.components.length; }, 0);
+        var n = rows.reduce(function (s, g) { return s + g.components.length; }, 0);
         countEl.textContent = n;
       }
     })
