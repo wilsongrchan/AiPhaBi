@@ -529,7 +529,11 @@ function cjNatural(ch) {          /* 倉頡自然碼：去掉消歧用的前導 
 }
 function curveList() {
   return Object.entries(codes).filter(([, r]) => r.code)
-    .map(([ch, r]) => ({ ch, code: finalOf(r), cj: cjNatural(ch), dy: (dayi && dayi[ch]) || '', rank: rank.get(ch) }))
+    .map(([ch, r]) => ({ ch, code: finalOf(r),
+      /* 部件字（扌／爿／丬…）打主碼看不到，要加 ` 才打得到——重碼率要算它實際
+         佔的碼位 `K，不是 K，不然會跟 水 誤判重碼、假性拉高重碼率。 */
+      dupKey: r.componentOnly ? '`' + finalOf(r) : finalOf(r),
+      cj: cjNatural(ch), dy: (dayi && dayi[ch]) || '', rank: rank.get(ch) }))
     .filter(x => x.rank != null)
     .sort((a, b) => a.rank - b.rank);
 }
@@ -586,7 +590,7 @@ function renderDupCurve() {
 
   const list = curveNoSimp ? curveList().filter(x => !simpOnly.has(x.ch)) : curveList();
   if (list.length < 2) { box.innerHTML = '<div class="empty">還沒有足夠的取碼資料。</div>'; return; }
-  const points = cumulativeDup(list, 'code');
+  const points = cumulativeDup(list, 'dupKey');
   const cjPoints = (cangjie && curveShowCJ) ? cumulativeDup(list, 'cj') : null;
   const dyPoints = (dayi && curveShowDY) ? cumulativeDup(list, 'dy', true) : null;
 
@@ -690,8 +694,11 @@ function render() {
     codeLen += code.length;
     for (const L of code) all[L] = (all[L] || 0) + 1;
     first[code[0]] = (first[code[0]] || 0) + 1;
-    if (!byCode.has(code)) byCode.set(code, []);
-    byCode.get(code).push(ch);
+    /* 部件字（如 扌／爿／丬）打主碼看不到，要加 ` 前綴才打得到——實際佔的是
+       `K 這個碼位，不是 K，所以重碼分組要用加了前綴的鍵，不然會跟 水 誤判重碼。 */
+    const dupKey = r.componentOnly ? '`' + code : code;
+    if (!byCode.has(dupKey)) byCode.set(dupKey, []);
+    byCode.get(dupKey).push(ch);
   }
 
   /* 倉頡的字母分佈 —— 只數「我也取過碼」的那些字，不然是拿兩批不同的字在比 */
@@ -776,7 +783,8 @@ function render() {
     const n = finalOf(r).length;
     lenStat[n] = lenStat[n] || { total: 0, dup: 0 };
     lenStat[n].total++;
-    if (byCode.get(finalOf(r)).length > 1) lenStat[n].dup++;
+    const dupKey = r.componentOnly ? '`' + finalOf(r) : finalOf(r);
+    if (byCode.get(dupKey).length > 1) lenStat[n].dup++;
   }
   /* 同一批字，官方倉頡的重碼率 —— 拿來當標準 */
   let cjRate = null;
