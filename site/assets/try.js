@@ -1212,7 +1212,9 @@
         P.text.scrollTop += (r.top - box.top) - box.height / 2;
       }
     }
-    if (window.AiPhaBiSite) window.AiPhaBiSite.localize(P.text);
+    /* ⚠️ 這裡不呼叫 localize(P.text)、也不需要：P.chars 本身在 setText／relang
+       裡就已經換成簡體開著時真正要練的那個形狀了（見 targetChar），這裡直接
+       照 P.chars 畫，文章、田字格、提示天生就是同一個字，不必事後再轉一次。 */
   }
 
   /* 文章接下來要打的（跳過換行）剛好就是這個詞嗎？跟著打模式下，詞組要不要
@@ -1381,13 +1383,29 @@
     renderPractice();
   }
 
+  /* 簡體開著時，文本試打要教的是使用者實際看到的那個形狀，不是文章原文
+     （手寫都是繁體，見 site.js 開頭那段）。t2s 是一對一單字轉換，query 得到
+     的簡體字自己有沒有形碼不歸這裡管——查不到就走既有的「尚未取碼，按跳過」，
+     不需要另外回退成繁體（那樣反而會在同一句裡混進一個沒人解釋的繁體字）。 */
+  function targetChar(ch) {
+    var S = window.AiPhaBiSite;
+    /* ⚠️ 只查方法存不存在還不夠——setupPractice 包在一個什麼錯都吞的 .catch()
+       裡（見檔尾 fetch practice.json 那段，本來是為了「抓不到就那塊不出現」
+       寫的），這裡萬一漏接會整塊試打文本悄悄空白、主控台什麼都不印
+       （2026-09-08 實測抓到）。寧可多這一行判斷，也不要再吞一次。 */
+    return (S && typeof S.simplifyChar === 'function') ? S.simplifyChar(ch) : ch;
+  }
+
   /* 換一篇文章。字形與字根分段是所有篇共用的（practice.json 只存一份），
-     所以換篇只要重算「要打的那一串字元」跟進度表就好。 */
+     所以換篇只要重算「要打的那一串字元」跟進度表就好。
+     P.rawChars 留著原文（繁體），P.chars 是實際要顯示／要打的那一串——
+     relang() 語言切換時只要重算 P.chars，不必碰 P.rawChars。 */
   function setText(i) {
     var t = P.texts[i];
     if (!t) return;
     P.ti = i;
-    P.chars = t.paras.join('\n').split('');
+    P.rawChars = t.paras.join('\n').split('');
+    P.chars = P.rawChars.map(targetChar);
     // typedBefore[i] = 第 i 格之前有幾個「真的要打」的字元（換行不算）
     P.typedBefore = [];
     var n = 0;
@@ -1405,6 +1423,20 @@
     });
     P.text.scrollTop = 0;
     renderPractice();
+  }
+
+  /* 語言切換定案時重算（site.js 的 paint() 發的 aiphabi:lang，見那邊註解：
+     可能是點切換鈕當下，也可能是 t2s.json 晚到、fetch 完才定案）。t2s 是
+     一對一單字轉換不會變長度，P.pos／已打過的格數不用動；但目前這一格如果
+     打到一半，答案的形狀可能整個換了（個 YOTO → 个 YJ），半路的碼對不上新
+     目標，所以連同提示一起清掉重來，跟點文章裡任一字跳位那條路一樣乾淨。 */
+  function relang() {
+    if (!P.texts) return;
+    P.chars = P.rawChars.map(targetChar);
+    resetHint();
+    setBuf('');
+    renderPractice();
+    render();
   }
 
   /* 跟著打／自由試打：兩種模式共用同一個試打框跟候選邏輯，差別在右邊那格
@@ -1507,6 +1539,8 @@
     document.getElementById('practice-reset').addEventListener('click', function () {
       P.pos = 0; resetHint(); renderPractice(); render(); out.focus();
     });
+
+    document.addEventListener('aiphabi:lang', relang);
 
     [].forEach.call(host.querySelectorAll('[data-mode]'), function (b) {
       b.addEventListener('click', function () { setMode(b.dataset.mode); out.focus(); });

@@ -231,6 +231,11 @@
     document.querySelectorAll('.langtoggle button').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
     });
+    /* 給試打頁：語言真的定案的那一刻（可能是切換當下，也可能是 t2s.json
+       晚到、fetch 完才定案）都從這裡發一次，讓〈試打文本〉重算要打的是
+       哪個字形（見 try.js 的 relang）——不能只在 click handler 那邊發，
+       不然頁面剛載入、還沒點過切換鈕時 try.js 永遠等不到通知。 */
+    document.dispatchEvent(new CustomEvent('aiphabi:lang', { detail: { lang: lang } }));
   }
 
   function apply(lang, root) {
@@ -990,9 +995,16 @@
     }
   }
 
-  /* 給試打頁用：候選字是後來才畫上去的，畫完要跟著轉 */
+  /* 給試打頁用：候選字是後來才畫上去的，畫完要跟著轉。simplifyChar 另外給
+     〈試打文本〉用——它要的不是「轉換一段文字」，是單一個字「現在該練哪個
+     形狀」，見 try.js 的 setText／relang：文章跟田字格、提示都改成問這個字
+     的答案，簡體字自己有沒有形碼（codes.json 查不查得到）不是這裡管的事，
+     那是 try.js 自己的字典——查不到的話，本來就有「尚未取碼，按跳過」那條
+     既有的路接住，不需要在這裡另外做一次回退判斷。 */
   window.AiPhaBiSite = {
-    localize: function (root) { if (current() === 'simp' && t2s) toSimplified(root); }
+    localize: function (root) { if (current() === 'simp' && t2s) toSimplified(root); },
+    current: current,
+    simplifyChar: function (ch) { return (current() === 'simp' && t2s) ? (t2s[ch] || ch) : ch; }
   };
 
   /* ---------- Vercel Web Analytics ----------
