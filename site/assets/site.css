@@ -1331,6 +1331,22 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 /* 候選列沒東西時那句說明：比候選字小一階，它是說明不是內容 */
 .rail .empty { color: var(--ink-dim); font-size: .78rem; }
 
+/* 〈功能鍵〉頁拿候選列元件當範例圖用（不是真的可以打字選字）——拿掉滑鼠
+   回饋，不然看起來像點得動。 */
+.rail.gj-demo { cursor: default; }
+.rail.gj-demo .cand { cursor: default; }
+.rail.gj-demo .cand:hover { background: transparent; }
+.gj-demo-stack .rail { margin-top: .5rem; }
+.gj-demo-stack .rail:first-child { margin-top: .7rem; }
+.gj-demo-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.2rem;
+}
+@media (max-width: 34rem) {
+  .gj-demo-pair { grid-template-columns: 1fr; }
+}
+
 /* 例字：整個字畫出來，屬於該字根的筆畫塗深、其餘塗淺。
  * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
 .zg-exg { display: inline-block; vertical-align: middle; margin-inline-end: .08rem; }

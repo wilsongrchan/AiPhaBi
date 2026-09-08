@@ -39,11 +39,6 @@
       var rows = d.codes || [];
       body.innerHTML = '';
       rows.forEach(function (g) { body.appendChild(row(g)); });
-      var countEl = document.getElementById('gj-component-count');
-      if (countEl) {
-        var n = rows.reduce(function (s, g) { return s + g.components.length; }, 0);
-        countEl.textContent = n;
-      }
     })
     .catch(function () {
       body.innerHTML = '<tr><td colspan="3">部件表載入失敗，請重新整理。</td></tr>';

@@ -87,6 +87,16 @@
   <p>
     拆碼想不起某幾碼時，用「<kbd>`</kbd>」代替忘記的部分，照樣能查到字：連續按幾個「`」，就是幾碼想不起來；只按一個「`」，代表「這裡至少還有一碼、但不確定幾碼」。「個」的碼是 <code data-keep>YOTO</code>：想不起中間兩碼，打<code data-keep>Y`O</code>（一個「`」＝一碼以上）能查到「個」；如果確定中間剛好是兩碼，打<code data-keep>Y``O</code>（兩個「`」＝剛好兩碼）範圍更窄，選字更快找到「個」。
   </p>
+  <p class="ac-demo-cap">打<code data-keep>Y`O</code>，選字列列出所有符合的字（節錄部分）：</p>
+  <div class="rail gj-demo">
+    <span class="buf" data-keep>Y`O</span>
+    <span class="cands">
+      <span class="cand"><span class="n">1</span><span class="g" data-keep>估</span></span>
+      <span class="cand"><span class="n">2</span><span class="g" data-keep>佔</span></span>
+      <span class="cand"><span class="n">3</span><span class="g" data-keep>侗</span></span>
+      <span class="cand"><span class="n">4</span><span class="g" data-keep>個</span></span>
+    </span>
+  </div>
   <p class="ac-caveat">
     「`」代替的碼可以任意長（甚至整個碼都想不起來），但選字列一次列出所有符合的字，忘得越多、範圍越大，越需要多看幾眼選字。
   </p>
@@ -96,20 +106,87 @@
     剛打完一個字，緊接著按「`」，選字列會多一個候選：重複上一個字。選了就等於把剛才那個字再打一次——打疊字（如「謝謝」「看看」）不用把整個碼再打一遍。連續按兩個「`」，候選改成「最後兩個字」接成一串，可以整段重複；三個以上以此類推，最多五個。
   </p>
   <p>
-    例如剛打完「他說是很高興」：這時候按一個「`」，候選是「興」（重複最後一個字）；按兩個「`」，候選改成「高興」（重複最後兩個字）。
+    例如剛打完「他說是很高興」，按 1 到 5 個「`」，候選分別是：
   </p>
+  <div class="gj-demo-stack">
+    <div class="rail gj-demo">
+      <span class="buf" data-keep>`</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>興</span><span class="c"><span class="tag">重複上字</span></span></span>
+      </span>
+    </div>
+    <div class="rail gj-demo">
+      <span class="buf" data-keep>``</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>高興</span><span class="c"><span class="tag">重複上2字</span></span></span>
+      </span>
+    </div>
+    <div class="rail gj-demo">
+      <span class="buf" data-keep>```</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>很高興</span><span class="c"><span class="tag">重複上3字</span></span></span>
+      </span>
+    </div>
+    <div class="rail gj-demo">
+      <span class="buf" data-keep>````</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>是很高興</span><span class="c"><span class="tag">重複上4字</span></span></span>
+      </span>
+    </div>
+    <div class="rail gj-demo">
+      <span class="buf" data-keep>`````</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>說是很高興</span><span class="c"><span class="tag">重複上5字</span></span></span>
+      </span>
+    </div>
+  </div>
 
   <h2 id="gj-3">3. 符號</h2>
   <p>
     如果選字框是空的（還沒開始拆碼）就按「`」，選字列會給三個符號可選：間隔號「·」（人名中間常用，例如「湯瑪斯<span data-keep>·</span>愛迪生」）、「`」本身、以及「~」。如果剛好有上一個字可以重複，這三個符號會和「重複上字」的候選一起出現在同一張選字列裡。
   </p>
+  <p class="ac-demo-cap">接著上面「他說是很高興」的例子，按一個「`」，兩種候選同時出現：</p>
+  <div class="rail gj-demo">
+    <span class="buf" data-keep>`</span>
+    <span class="cands">
+      <span class="cand">
+        <span class="n">1</span><span class="g" data-keep>興</span>
+        <span class="c"><span class="tag">重複上字</span></span>
+      </span>
+      <span class="cand"><span class="n">2</span><span class="g" data-keep>·</span></span>
+      <span class="cand"><span class="n">3</span><span class="g" data-keep>`</span></span>
+      <span class="cand"><span class="n">4</span><span class="g" data-keep>~</span></span>
+    </span>
+  </div>
 
   <h2 id="gj-4">4. 部件</h2>
   <p>
     有些碼同時對應兩種東西：一種是可以獨立使用的漢字，一種是只能當部首偏旁、不會獨立成字的部件——例如「扌」提手旁、「氵」三點水，這兩個部件本身不是一個字，但很多字都以它們拆碼。同一條碼只能給一個候選，愛發筆把它讓給獨立成字的漢字；想單獨打出部件本身，就在碼的最前面加一個「`」。
   </p>
+  <div class="gj-demo-pair">
+    <div>
+      <p class="ac-demo-cap">打<code data-keep>K</code>：</p>
+      <div class="rail gj-demo">
+        <span class="buf" data-keep>K</span>
+        <span class="cands">
+          <span class="cand"><span class="n">1</span><span class="g" data-keep>水</span></span>
+        </span>
+      </div>
+    </div>
+    <div>
+      <p class="ac-demo-cap">打<code data-keep>`K</code>：</p>
+      <div class="rail gj-demo">
+        <span class="buf" data-keep>`K</span>
+        <span class="cands">
+          <span class="cand"><span class="n">1</span><span class="g" data-keep>扌</span></span>
+          <span class="cand"><span class="n">2</span><span class="g" data-keep>丬</span></span>
+          <span class="cand"><span class="n">3</span><span class="g" data-keep>爿</span></span>
+        </span>
+      </div>
+    </div>
+  </div>
   <p>
-    以碼 <code data-keep>K</code> 為例：打<code data-keep>K</code>單獨查到的是「水」；打<code data-keep>`K</code>查到的是提手旁「扌」、將字旁「丬」／「爿」這幾個部件本身。碼不限於一個字母——「衣」部部件「衤」的碼是 <code data-keep>QK</code>，打<code data-keep>QK</code>查到的是「永」，打<code data-keep>`QK</code>才查到「衤」。目前共有 <span id="gj-component-count">…</span> 個部件字受影響：
+    以碼 <code data-keep>K</code> 為例：打<code data-keep>K</code>單獨查到的是「水」；打<code data-keep>`K</code>查到的是提手旁「扌」、將字旁「丬」／「爿」這幾個部件本身。碼不限於一個字母——「衣」部部件「衤」的碼是 <code data-keep>QK</code>，打<code data-keep>QK</code>查到的是「永」，打<code data-keep>`QK</code>才查到「衤」。只有在下表內的字才視作部件字：
   </p>
 
   <div class="tablewrap">
