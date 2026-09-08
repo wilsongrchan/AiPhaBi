@@ -1335,7 +1335,17 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    回饋，不然看起來像點得動。範例圖跟前後文字的間距交給 .ac-demo 那個灰底
    框（跟〈自動上屏〉頁同一個元件）處理，不在這裡另外加，兩層 margin 疊在
    一起反而會忽大忽小。 */
-.rail.gj-demo { cursor: default; }
+/* 不用 .rail 原本的橫向捲動——這裡的重點是讓人一眼看出範圍大小，捲軸會把
+   多出來的候選藏起來，反而看不出「這組比較大」。改成寬度塞不下就截斷，
+   由 gongnengjian.js 量實際寬度、超過的裁掉、補一個「…」（Wilson）。
+   buf／hint 不參與縮放，只有 .cands 會被裁——不然量出來的寬度每次都不準。 */
+/* ⚠️ .cands 不能跟著 flex 一起縮——縮了之後裡面的候選字還是照原寬度排列
+   （只是被切掉看不見），但 .hint 的 margin-inline-start:auto 是照「.cands
+   被壓縮後的寬度」去算剩多少空間，兩個一算就對不上，「…」跟「共 N 個」會
+   疊在一起（Wilson 抓到）。三個都不縮，讓 gongnengjian.js 自己決定要藏
+   哪幾個候選，寬度算得動才準。 */
+.rail.gj-demo { cursor: default; overflow: hidden; }
+.rail.gj-demo .buf, .rail.gj-demo .hint, .rail.gj-demo .cands { flex-shrink: 0; }
 .rail.gj-demo .cand { cursor: default; }
 .rail.gj-demo .cand:hover { background: transparent; }
 .gj-demo-stack .rail { margin-top: .5rem; }
@@ -1356,10 +1366,29 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .ac-demo .rail.gj-demo + .ac-demo-cap { margin-top: 1.1rem; }
 .ac-demo .rail.gj-demo + .ac-caveat { margin-top: .6rem; }
 .ac-demo .ac-caveat + .ac-demo-cap { margin-top: 1.1rem; }
-/* 候選列裡塞不下的「還有更多」——跟真候選字同一排，但不給編號、顏色刻意
-   比較淡，一看就知道不是第 N 個候選，是省略號。 */
-.rail .cand.gj-more { padding-inline: .15rem; }
-.rail .cand.gj-more .g { color: var(--ink-faint); font-size: 1.3rem; }
+/* 事後補充的說明（打錯碼數會漏掉目標之類）要讀起來比情境描述輕，不是同一
+   層級的東西——情境描述在教「打法」，這幾句只是補一句提醒（Wilson）。 */
+.ac-demo .ac-caveat { font-size: .8rem; }
+/* 情境代號 A) B) C)……讓六步讀起來像小標題，不是接續的句子。 */
+.gj-scenario { font-weight: 600; color: var(--accent); margin-inline-end: .3rem; }
+/* 候選列裡塞不下的「還有更多」——跟真候選字同一排，但不給編號。第一版用
+   ink-faint 太淡，量出來的螢幕幾乎看不見（Wilson），改成跟數字序號一樣的
+   ink-dim，加粗、加大，讀起來才像「後面還有」而不是背景雜訊。 */
+.rail .cand.gj-more { padding-inline: .3rem; }
+.rail .cand.gj-more .g { color: var(--ink-dim); font-size: 1.4rem; font-weight: 700; }
+/* 圈出「機」——手動註記，讓人一路追蹤同一個字怎麼隨著範圍縮放進出候選列，
+   不是候選列本身的樣式，所以刻意不用 --accent（跟「打中的字」那個高亮
+   是同一套語言會混淆），借用畫筆畫用的 --rb-0 紅，一看就知道是外加的註記。 */
+.rail .cand.gj-target { position: relative; }
+.rail .cand.gj-target::after {
+  content: '';
+  position: absolute;
+  inset: -.3rem -.5rem;
+  border: 2px solid var(--rb-0);
+  border-radius: 50%;
+  transform: rotate(-4deg);
+  pointer-events: none;
+}
 
 /* 例字：整個字畫出來，屬於該字根的筆畫塗深、其餘塗淺。
  * 這就是「元件分開、上色」的效果 —— 讀者一眼看到字根在字裡的哪個位置。 */
