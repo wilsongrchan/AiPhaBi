@@ -1382,26 +1382,41 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .rail .cand.gj-more .g { color: var(--ink-dim); font-size: 1.4rem; font-weight: 700; }
 /* 圈出「機」——手動註記，讓人一路追蹤同一個字怎麼隨著範圍縮放進出候選列。
    用綠色（跟 --accent 同一色，Wilson 說可以），但形狀不是乾淨的橢圓框——
-   刻意用手繪筆觸的 SVG（兩筆疊起來、起訖點不對齊，像印出來拿筆圈的那種
-   隨手感），而且蓋在候選列**上面**（不裁邊、z-index 墊高），不能被候選列
-   的高度框住，不然看起來像候選列自己的樣式，不像額外加上去的註記。
-   顏色不寫死在 SVG 裡——SVG 只當作遮罩（mask），實際顏色交給
-   background-color: var(--accent)，深色模式換色才會跟著換。 */
+   刻意用手繪筆觸的 SVG（單筆，不是正圓），像印出來拿筆隨手圈的那種感覺，
+   而且蓋在候選列**上面**（不裁邊、z-index 墊高），不能被候選列的高度框住，
+   不然看起來像候選列自己的樣式，不像額外加上去的註記。線要細、要半透明，
+   像鉛筆不是簽字筆（Wilson：筆觸太粗太實）。顏色不寫死在 SVG 裡——SVG
+   只當作遮罩（mask），實際顏色交給 background-color: var(--accent)，
+   深色模式換色才會跟著換。 */
 .rail .cand.gj-target { position: relative; }
 .rail .cand.gj-target::after {
   content: '';
   position: absolute;
   inset: -.55rem -.75rem;
   z-index: 1;
+  opacity: .55;
   background-color: var(--accent);
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='5'%20stroke-linecap='round'/%3E%3Cpath%20d='M14,31%20C11,17%2028,8%2054,7%20C79,6%2091,16%2089,28'%20fill='none'%20stroke='black'%20stroke-width='3.5'%20stroke-linecap='round'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='5'%20stroke-linecap='round'/%3E%3Cpath%20d='M14,31%20C11,17%2028,8%2054,7%20C79,6%2091,16%2089,28'%20fill='none'%20stroke='black'%20stroke-width='3.5'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   transform: rotate(-3deg);
   pointer-events: none;
+}
+/* 圈不到「機」的那組（B 反例）：不畫一個假的候選字佔位，直接補一個大大的
+   手寫問號，跟圈「機」那個註記同一套語氣（一樣的綠、一樣半透明、一樣
+   歪一點）——「這裡沒有你要找的字」，不用另外對照底下的說明才看得出來。 */
+.gj-question {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: .2rem;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: .55;
+  transform: rotate(6deg);
 }
 
 /* 例字：整個字畫出來，屬於該字根的筆畫塗深、其餘塗淺。
