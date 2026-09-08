@@ -9,6 +9,22 @@
 (function () {
   'use strict';
 
+  /* ---------- 本機預覽：圖示／favicon 換成灰階版 ----------
+     正式站（aiphabi.com／vercel.app／github.io）永遠要用彩色版；本機
+     `python3 -m http.server` 預覽時换成灰階，一眼就能分清楚現在看的是
+     本機還是已經部署的版本，不會對著本機的畫面誤以為是正式站（Wilson）。
+     兩組檔案都在 assets/img/ 裡，彩色是預設值（HTML 裡寫的就是彩色檔名），
+     這裡只在判斷是本機時才换成 -gray 那份，不是反過來。 */
+  var LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+  if (!location.hostname || LOCAL_HOSTS.indexOf(location.hostname) !== -1) {
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(function (l) {
+      l.href = l.href.replace(/(favicon-\d+|logo-180)\.png$/, '$1-gray.png');
+    });
+    document.querySelectorAll('img.brand-logo').forEach(function (img) {
+      img.src = img.src.replace(/logo-512\.png$/, 'logo-512-gray.png');
+    });
+  }
+
   /* ---------- 導覽列：標出目前頁面 ---------- */
   var here = location.pathname.replace(/\/index\.html$/, '/').replace(/\/$/, '/index.html');
   document.querySelectorAll('nav.site a').forEach(function (a) {
