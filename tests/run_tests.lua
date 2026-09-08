@@ -464,6 +464,28 @@ do
   h.checkAt("`k → 部件 扌 排在掃表高頻字（的）之前", compOrder, 1, "扌")
   h.checkAt("`k → 部件 爿 緊跟其後", compOrder, 2, "爿")
 
+  -- 防呆：沒打 ` 前綴（打純 K），部件字若因舊碼表殘留／使用者詞典冒出來，壓到候選最後
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local leaked = h.run{
+      schema = schema, code = "k",
+      cands = {
+        { text = "扌" },                                   -- 殘留的部件字
+        { text = "水" },                                   -- 正字
+        { text = "大", type = "ap_pool", comment = "偏旁碼" },
+      },
+    }
+    h.check(schema .. " · 打 K：部件字 扌 被壓到 水／偏旁碼 之後",
+      (function()
+        local pShou, pShui, pDa
+        for i, c in ipairs(leaked) do
+          if c.text == "扌" then pShou = i end
+          if c.text == "水" then pShui = i end
+          if c.text == "大" then pDa = i end
+        end
+        return pShou and pShui and pDa and pShou > pShui and pShou > pDa
+      end)(), "扌 should sink below 水 and 大   |  " .. h.fmt(leaked))
+  end
+
   -- 實測回報的 bug（2026-08-27）：punct_translator 也認反引號，搶先生出「`」符號本身
   -- 這個候選，排在 translators: 清單裡萬用鍵前面——重複上字排到第二個去了。這裡模擬
   -- 那個排序（punct_translator 的候選先到），過完 order.lua 後：

@@ -753,6 +753,9 @@ def main():
     dl += ["}", "M.component_only = {"]   # 部件字：碼（縮短、小寫）→ [字]，只有打「`碼」才由 aiphabi_wildcard 撈出來，不進碼表
     for code, chs in sorted(component_only.items()):
         dl.append(f'  [{lua_str(code)}]={lua_arr(chs)},')
+    dl += ["}", "M.component_chars = {"]  # 部件字集合：萬一沒打 ` 前綴卻還是冒出來（舊碼表殘留／使用者詞典），aiphabi_order 把它壓到候選最後
+    for ch in sorted({c for chs in component_only.values() for c in chs}):
+        dl.append(f'  [{lua_str(ch)}]=true,')
     dl += ["}", "M.t2s = {"]
     for c, vs in sorted(t2s_map.items()):
         dl.append(f'  [{lua_str(c)}]={lua_arr(vs)},')
