@@ -415,6 +415,55 @@ do
   h.check("有帶字母的萬用鍵（W`）完全不受影響，不會混進重複上字",
     not has_repeat_in_prefixed, "expected no ap_repeat candidate in w` output")
 
+  -- 反引號第四種用法「部件字」：`k 撈出以 K 為主碼、被標 componentOnly 的部件字根。
+  h.check("部件字不進碼表：code2chars[k] 沒有 扌（只剩正字 水）",
+    (function()
+      for _, ch in ipairs(data.code2chars["k"] or {}) do
+        if ch == "扌" then return false end
+      end
+      return true
+    end)(), "扌 should not be a normal dict entry under k")
+  h.check("部件字：component_only[k] = {扌, 爿, 丬}（依常用度）",
+    (data.component_only["k"] or {})[1] == "扌"
+      and (data.component_only["k"] or {})[2] == "爿"
+      and (data.component_only["k"] or {})[3] == "丬",
+    "expected 扌/爿/丬, got " .. table.concat(data.component_only["k"] or {}, "/"))
+  h.check("部件字：提示碼帶 ` 前綴（char2code[扌] = `k）",
+    data.char2code["扌"] == "`k", "expected `k, got " .. tostring(data.char2code["扌"]))
+
+  local compK = run_wildcard("`k")
+  h.check("打 `k：第一個候選是 扌（type=ap_component）",
+    compK[1] and compK[1].type == "ap_component" and compK[1].text == "扌",
+    "expected 扌 (ap_component) first, got " .. h.fmt(compK):sub(1, 60))
+  h.check("打 `k：爿／丬 也撈出來，排在 扌 之後",
+    compK[2] and compK[2].text == "爿" and compK[3] and compK[3].text == "丬",
+    "expected 爿 then 丬, got " .. h.fmt(compK):sub(1, 60))
+
+  local compMulti = run_wildcard("`qr")  -- 多碼部件（疒 主碼 QR）
+  h.check("打 `qr：多碼部件 疒 也撈得到",
+    compMulti[1] and compMulti[1].text == "疒" and compMulti[1].type == "ap_component",
+    "expected 疒 (ap_component), got " .. h.fmt(compMulti):sub(1, 40))
+
+  h.check("打 k（純主碼、沒有 ` 前綴）：萬用鍵不動作，撈不到任何部件字",
+    (function()
+      for _, c in ipairs(run_wildcard("k")) do
+        if c.text == "扌" or c.text == "爿" or c.text == "丬" then return false end
+      end
+      return true
+    end)(), "扌/爿/丬 must not appear for bare k")
+
+  -- order.lua：`k 走萬用鍵分支，ap_component 釘在標點之後、掃表雜訊之前
+  local compOrder = h.run{
+    code = "`k",
+    cands = {
+      { text = "的" },                                       -- 掃表高頻雜訊
+      { text = "扌", type = "ap_component", comment = "部件" },
+      { text = "爿", type = "ap_component", comment = "部件" },
+    },
+  }
+  h.checkAt("`k → 部件 扌 排在掃表高頻字（的）之前", compOrder, 1, "扌")
+  h.checkAt("`k → 部件 爿 緊跟其後", compOrder, 2, "爿")
+
   -- 實測回報的 bug（2026-08-27）：punct_translator 也認反引號，搶先生出「`」符號本身
   -- 這個候選，排在 translators: 清單裡萬用鍵前面——重複上字排到第二個去了。這裡模擬
   -- 那個排序（punct_translator 的候選先到），過完 order.lua 後：

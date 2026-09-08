@@ -148,12 +148,15 @@ local function filter(input, env)
   if not code or code == "" or code:find("[^a-z]") then
     local repeatCand = nil
     local puncts = {}
+    local comps = {}          -- 部件字（`k 撈出來的，type=ap_component）：釘在萬用鍵掃表結果之前
     local rest = {}
     for _, c in ipairs(cands) do
       if not repeatCand and c.type == "ap_repeat" then
         repeatCand = c
       elseif c.type == "punct" then
         puncts[#puncts + 1] = c
+      elseif c.type == "ap_component" then
+        comps[#comps + 1] = c
       else
         rest[#rest + 1] = { c = c }
       end
@@ -172,6 +175,7 @@ local function filter(input, env)
     end)
     if repeatCand then yield(repeatCand) end
     for _, c in ipairs(puncts) do yield(c) end
+    for _, c in ipairs(comps) do yield(c) end
     for _, e in ipairs(head) do yield(e.c) end
     if tail then for _, e in ipairs(tail) do yield(e.c) end end
     return
