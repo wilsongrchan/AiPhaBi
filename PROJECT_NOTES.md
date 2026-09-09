@@ -846,6 +846,18 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-09**, after Side A's 水旁 recode (462 字改碼) + 50 new chars pushed
+  字 8018→8068 and 碼 10746→10817. `N=17000` (the 2026-09-05 value) now **crashes**. Bisected
+  fresh: 16,500 passes, 16,650 fails — narrower margin than before but not dead-on-the-wall this
+  time. Shipped at **`N=16500`**. Verified both ways: `luajit -e "dofile(...)"` on the stripped
+  file, and end-to-end against the literal bytes extracted back out of the shipped zip — ran
+  `aiphabi_charset.lua`'s filter with the switch forced on (殳 passes, 収/夼/蕖/苤/陧/哿 all
+  blocked) and spot-checked several of the newly-recoded 水旁 chars (沒/法/海/流/活/清/治/準/滿/
+  源/深/決) actually resolve to their new codes in `M.char2code`. The two small new tables from
+  the componentOnly feature (`M.component_only`, `M.component_chars`, ~89 lines combined) are not
+  a budget concern and don't need stripping — confirmed intact in the shipped build.
+  **Re-bisect every time, don't reuse a prior N** — this is now the third time the cliff has moved
+  purely from Side A's ordinary character/recode growth, with no new large table involved.
 - **Cliff re-checked 2026-09-05**, after merging Side A/C's `M.common` (a new ~6,464-entry
   whitelist table for the `aiphabi_common_only` switch, 只打常用字): `N=18000` now **crashes**
   (`M.common` alone doesn't fit in the margin that used to be there). Bisected fresh with
