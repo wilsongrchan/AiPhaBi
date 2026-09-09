@@ -2790,6 +2790,16 @@ def _drift_blame(drift, ship, pc):
     return sorted(count.items(), key=lambda kv: -kv[1])
 
 
+# 意圖的顯示順序：優等先、次等再來、三等最後——跟 editor.html 的 TIERS
+# 常數（取碼編輯器畫面上「優等字根／次等·孤立字根／三等·保全字根」三個區塊
+# 的順序）一致。zigen.json 的 intentions 陣列本身是**加入順序**，不是顯示
+# 順序：Side A 後來加的意圖不管是哪一等，都是加在陣列尾端，跟前面同等的
+# 意圖並不相鄰——如果直接照陣列順序印，畫面就會插進一個「三等」意圖，
+# 中斷後面一路都是「優等」的視覺順序。要跟編輯器看到的畫面一致，就得先
+# 分等、同等內再維持陣列原順序（Python 的 sort 是 stable sort，天然做到）。
+TIER_ORDER = {"primary": 0, "secondary": 1, "tertiary": 2}
+
+
 def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, notes=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
@@ -2859,10 +2869,14 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
         # 字根表看起來就像同一個字母下同一個字重複了兩次（Wilson 2026-08-24
         # 抓到：K 底下衣出現兩次——手挑 K 蜃＝衣…是其一，另一個是「還」那組的
         # 自動選字，兩邊互不知情）。這裡記錄「這個字母已經用掉的代表字」，
-        # 撞到的那一個維持原本的代表字，不搶（誰先處理到誰留著，字根表裡的
-        # 順序跟 zigen.json 一致，所以是自然而然、不必額外排序的先來後到）。
+        # 撞到的那一個維持原本的代表字，不搶（誰先處理到誰留著——處理順序
+        # 是下面按等第排過的 ordered_intentions，不是 zigen.json 原始順序，
+        # 但一樣是自然而然的先來後到，不必再另外排序決定「誰算先」）。
         used_reps = set()
-        for it in L.get("intentions", []):
+        ordered_intentions = sorted(
+            L.get("intentions", []),
+            key=lambda it: TIER_ORDER.get(it.get("tier") or "primary", 0))
+        for it in ordered_intentions:
             shapes = []
             for sh in it.get("shapes", []):
                 g = sh.get("glyph") or {}
