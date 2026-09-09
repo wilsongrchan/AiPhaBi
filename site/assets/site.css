@@ -5625,3 +5625,18 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .totop, .hlink { transition: none; }
 }
+
+/* 〈字根表〉PDF——site/tools/build_pdf.py 用 headless Chrome 對這頁本身列印，
+   不是另外做一份靜態表。字根圖是 SVG（zigen.js 現畫的，含高亮筆畫），複刻一份
+   純文字表會失去這個表最有用的部分；直接印真正的頁面，圖跟資料才不會跟網站
+   版本分岔。只藏掉「跟紙面無關」的互動元件：頁首導覽、找字框、字母跳轉列、
+   回頂鈕、上下頁。深色模式的變數也強制换回淺色——印表機不該吃使用者的主題
+   選擇，而且深底在紙上費墨、掃描也不好認。 */
+@media print {
+  :root { color-scheme: light; }
+  .topbar, .crumbs, .zg-tools, .zg-jump, .totop, .pagenav, footer { display: none !important; }
+  body { background: #fff; }
+  main.wrap { max-width: none; margin: 0; padding: 0; }
+  .zg-table { break-inside: auto; }
+  .zg-table tr { break-inside: avoid; }
+}

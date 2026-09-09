@@ -26,10 +26,12 @@ import json
 import pathlib
 import re
 import sys
+import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
 OUT = ROOT / "site" / "assets"
+RIME = ROOT / "rime"
 
 
 def shorten(code, rule):
@@ -3053,6 +3055,49 @@ def build_charset():
     return {"common": "".join(common), "simp": "".join(simp)}
 
 
+# 〈下載〉頁的兩個 IME 安裝包——內容跟 rime/README.md「macOS」「iOS（仓／Hamster）」
+# 兩節列的檔案一字不差，這裡只是把 Side B 已經建置好、已經進 git 的檔案打包，
+# **不會**也不能自己跑 build_rime.py（那是 Side B 專屬的指令，Side C 只准讀
+# rime/**，不准寫、更不准執行它的建置腳本）。碼表／schema 更新了，這裡下次
+# build 就自動抓到新內容，不會有另外一份手動維護、可能過期的 zip。
+_RIME_COMMON = ["aiphabi.schema.yaml", "aiphabi.dict.yaml", "rime.lua", "default.custom.yaml"]
+_RIME_LUA_DIR = "lua"
+
+def build_downloads(warn):
+    """把 rime/ 底下已經建置好的檔案打包成兩個 zip，供〈下載〉頁連結。
+
+    zip 裡**不包一層外層資料夾**——Hamster 的方案匯入、以及使用者手動把檔案
+    拖進 ~/Library/Rime／iOS「檔案」App 時，都要求這幾個檔案本身就在 zip
+    最外層，包了資料夾反而讀不到（rime/README.md 的「iOS」一節實測過）。
+    macOS 也照同一個規則包，兩邊解壓縮之後的操作講法才能一致。
+    """
+    dl_dir = OUT / "downloads"
+    dl_dir.mkdir(exist_ok=True)
+
+    def pack(zip_name, extra_file):
+        missing = [f for f in _RIME_COMMON + [extra_file] if not (RIME / f).exists()]
+        lua_dir = RIME / _RIME_LUA_DIR
+        lua_files = sorted(lua_dir.glob("*.lua")) if lua_dir.is_dir() else []
+        if missing or not lua_files:
+            warn.append(f"下載頁：{zip_name} 缺檔——{missing or ''}"
+                        f"{'、lua/ 目錄是空的或不存在' if not lua_files else ''}，這個 zip 沒有產生")
+            return None
+        path = dl_dir / zip_name
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            for f in _RIME_COMMON + [extra_file]:
+                z.write(RIME / f, f)
+            for f in lua_files:
+                z.write(f, f"{_RIME_LUA_DIR}/{f.name}")
+        return path
+
+    macos = pack("aiphabi-macos.zip", "squirrel.custom.yaml")
+    ios = pack("aiphabi-ios.zip", "hamster.custom.yaml")
+    return {
+        "macos": {"bytes": macos.stat().st_size} if macos else None,
+        "ios": {"bytes": ios.stat().st_size} if ios else None,
+    }
+
+
 def main():
     codes = load("codes.json")
     rules = load("rules.json")
@@ -3448,6 +3493,7 @@ def main():
     if pyphrase:
         (OUT / "pyphrase.json").write_text(
             json.dumps(pyphrase, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    downloads = build_downloads(warn)
 
     print(f"dict.json  {len(dict_out['codes'])} 碼 / {len(codes)} 字 / {len(short)} 簡碼")
     if charset:
@@ -3539,6 +3585,12 @@ def main():
         mb = (OUT / "pyphrase.json").stat().st_size / 1024 / 1024
         print(f"pyphrase.json {len(pyphrase)} 串拼音 → 詞 / {mb:.1f} MB"
               f"（〈拆碼查詢〉用，打了拼音才抓）")
+    dl_bits = []
+    if downloads.get("macos"):
+        dl_bits.append(f"macOS {downloads['macos']['bytes'] / 1024:.0f} KB")
+    if downloads.get("ios"):
+        dl_bits.append(f"iOS {downloads['ios']['bytes'] / 1024:.0f} KB")
+    print(f"downloads/ {'、'.join(dl_bits) if dl_bits else '⚠️ 兩個安裝包都沒產生，見上面的警告'}")
 
 
 if __name__ == "__main__":

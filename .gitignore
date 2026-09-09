@@ -94,6 +94,16 @@ site/assets/charset.json
 # 建置時產生，跟其他資料檔一樣不進版控）
 site/assets/nav.json
 
+# 〈下載〉頁的兩個 IME 安裝包，build_downloads() 把 rime/ 裡 Side B 已經建置好、
+# 已進版控的檔案打包成 zip——內容跟 rime/ 一樣新，不該再收第二份（收了就是又一份
+# 會跟 rime/ 脫鉤過期的複本）。
+# ⚠️ 同一個資料夾裡的 zigen-chart.pdf **不**在這個規則裡、**要**進版控：那份是
+# site/tools/build_pdf.py 用 headless Chrome 手動跑一次產生的（CI 沒裝 Chromium，
+# 部署時不會重新產生），沒進版控的話正式站會 404。字根表大改之後要記得手動重跑
+# 那支腳本、重新提交這個檔案。
+site/assets/downloads/aiphabi-macos.zip
+site/assets/downloads/aiphabi-ios.zip
+
 # 內部審查用的對照頁（site/tools/review_sources.py 產生），不進版控也不發佈
 site/_review/
 
