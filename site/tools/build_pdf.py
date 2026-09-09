@@ -54,7 +54,9 @@ def main():
             path=str(OUT),
             format="A4",
             print_background=True,
-            margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"},
+            # 頁邊縮到還算好裝訂的最小值——字根表是查閱用的參考表，不是要
+            # 拿去在邊上寫筆記的講義，省下的邊距直接換成少幾頁。
+            margin={"top": "8mm", "bottom": "8mm", "left": "7mm", "right": "7mm"},
         )
         browser.close()
     kb = OUT.stat().st_size / 1024

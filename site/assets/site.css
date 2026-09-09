@@ -5651,6 +5651,55 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
   main.wrap { max-width: none; margin: 0; padding: 0; }
   .zg-table { break-inside: auto; }
   .zg-table tr { break-inside: avoid; }
+
+  /* 362 個字根、每個字母都要跨頁——原始大小（螢幕上讀著舒服的字級）印出來
+     要 34 頁，Wilson 嫌太厚。html 的 font-size 是全站唯一的縮放旋鈕
+     （見 --zg-scale，小／中／大字級都靠它），rem 全部跟著它走，所以印表機
+     專用的縮小**只在這裡改一個值**就對全表生效，不必逐條規則改字級／間距，
+     也不會跟使用者在畫面上選的字級（他印的時候看到的是這頁，不是印出來
+     那份）打架——print 這個規則寫在後面、選擇器一樣，天然贏過上面那條
+     calc(100% * var(--zg-scale))。欄寬（表頭 th 的 3.2rem／20rem／11.5rem）
+     也是 rem，會一起縮小；table-layout:fixed 加總小於整列寬度的差額，
+     table-layout 規則會自動分給唯一 width:auto 的「字例」欄，不會留白。 */
+  html { font-size: 58%; }
+
+  /* 表頭黏頂在印出來的紙上沒有意義（紙不會捲動），維持 sticky 反而可能讓
+     瀏覽器在分頁計算時多算一層堆疊環境；改回 static，跟手機版那條
+     （≤40rem 寬度）同一個修法、不同理由。 */
+  .zg-table .zg-tbl thead th { position: static; }
+
+  /* 字母分段的留白（is-letter-start 那條 padding-top: .45rem）在螢幕上是
+     用來跟上一個字母的最後一列拉開視覺呼吸空間，印出來大多數情況下這一列
+     本來就會落在新的一頁開頭（break-inside: avoid 加上前面的列被推到下一頁），
+     額外留白等於白白多佔紙。壓到最低但不是 0——完全貼齊會讓人一時看不出
+     換了字母。 */
+  .zg-tbl tbody tr.is-letter-start > td { padding-top: .2rem; }
+
+  /* 字根欄「日 整個字」「旦 第 1–4 筆」那行小字（.zg-span 是「整個字／第
+     X 筆」，.zg-src.is-ref 是畫出圖之後縮小當註記的來源字）在紙本上是
+     重複資訊——字例欄已經用同一個圖示系統，在真正的字裡把同一組筆畫塗深，
+     看那邊就知道是哪幾筆。只藏掉「圖已經畫出來、這行純粹是補充」的情況；
+     沒畫出圖（沒有字形資料）時 .zg-src 沒有 .is-ref，是唯一的線索，維持
+     顯示，不然那一列的字根欄會整個空白。 */
+  .zg-tbl .zg-span,
+  .zg-tbl .zg-src.is-ref { display: none; }
+
+  /* 排成兩欄——字根欄的描述砍掉、字級也縮小了，一欄還是比紙寬窄很多，
+     不如切兩欄印，同樣頁數塞兩倍內容。表頭跟字母欄的黏頂在直式捲動的
+     畫面上才有意義，這裡整段是印表機那套字級／間距，不影響螢幕。
+     ⚠️ 表格本身是一張跨 26 個字母的大表（一個 thead、一個 tbody），不是
+     每個字母各自一張——column-count 是切給 .tablewrap 這個容器的，讓
+     Chrome 的分頁／分欄引擎自己把 tbody 的列塞進兩欄，欄與欄之間天然
+     不共用表頭（右欄接著左欄印到一半的字母往下印，不會重印一次表頭），
+     這是切兩欄無可避免的代價，換來的是頁數砍半。 */
+  .zg-table .tablewrap { column-count: 2; column-gap: .9rem; column-rule: 1px solid var(--line); }
+  .zg-tbl { break-inside: auto; }
+
+  /* 〈相近字形辨析〉整節不進 PDF——這是「已經背熟主表之後，另外挑幾組
+     常搞混的形狀比較」，跟主表本身不是同一種查閱情境，PDF 是拿來查表用的
+     參考文件，不需要連進階單元一起印。授權出處（#zg-credit）不受影響、
+     繼續顯示——那行講的是主表字根圖的字形資料來源，跟這節去留無關。 */
+  #zg-similar { display: none !important; }
 }
 
 /* 〈下載〉頁 macOS 安裝步驟裡插在文字中間的小圖示（蘋果選單／鍵盤設定／＋鈕，
@@ -5706,4 +5755,55 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
   margin-top: .35rem;
   font-size: .78rem;
   color: var(--ink-faint);
+}
+
+/* 〈字根表 PDF〉頁的預覽——不用另外拉一個 PDF.js 進來畫頁面，瀏覽器自己
+   內建的 PDF 檢視器塞進 iframe 就有（Chrome／Safari／Edge／Firefox 都支援），
+   效果接近 Google Drive 那種「點開檔案先預覽，不用先下載」。#toolbar=0 是
+   Chrome 的 PDF 檢視器認的網址片段，把它內建的工具列（也有下載鈕）藏起來——
+   我們自己在上面那條 bar 已經放了一顆下載鈕，兩個工具列疊在一起會很奇怪；
+   不支援這個片段的瀏覽器就當作沒事，自己的工具列照常顯示，不會壞掉。 */
+.pdf-preview {
+  margin: 1.1rem 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.pdf-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  padding: .55rem .8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--code-bg);
+}
+.pdf-preview-name {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdf-preview-bar .btn {
+  flex: 0 0 auto;
+  font-size: .82rem;
+  padding: .4rem 1rem;
+}
+.pdf-preview iframe {
+  display: block;
+  width: 100%;
+  height: 75vh;
+  min-height: 26rem;
+  max-height: 54rem;
+  border: 0;
+  /* 手機瀏覽器大多不內嵌畫 PDF（直接跳出下載或另開分頁），與其留一塊空白
+     鐵框，不如乾脆藏起來——.pdf-preview-bar 的下載鈕跟下面的說明文字在
+     手機上一樣夠用。斷點跟 site.css 其他手機規則同一個 40rem。 */
+}
+@media (max-width: 40rem) {
+  .pdf-preview iframe { display: none; }
+  .pdf-preview-bar { border-bottom: 0; }
 }
