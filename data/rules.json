@@ -1360,7 +1360,14 @@
             "嬴"
           ],
           "no": "瀛",
-          "members": []
+          "members": [
+            "贏",
+            "赢",
+            "嬴",
+            "羸",
+            "蠃"
+          ],
+          "pos": "top"
         }
       ],
       "members_note": "members 是人工核可過的家族名單，build_rime.py 直接照這份做，不必自己推導 —— 推導要用 data/dictionary.txt（IDS 部件拆分），那是 gitignored 而且 Side B 的 worktree 根本沒有。名單只存字，不存左簡碼：碼由 codes.json 現算，存了會在某個字改碼時默默過期。簡體字（跃践跻酿等）照收 —— 不想要重碼的人開「不打簡體」即可。"
