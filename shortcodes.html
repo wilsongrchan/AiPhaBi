@@ -442,13 +442,18 @@ function lsDerive(en) {
 }
 /* 碼表長出新字（或偏旁的碼改了）之後，名單就會跟推導結果對不上。
    與其默默跟著變，不如把差異攤開來讓人審：
-     待審 = 推導有、名單沒有   失效 = 名單有、但現在已經不符合 */
+     待審 = 推導有、名單沒有   失效 = 名單有、但現在已經不符合
+   前提是 lsDerive 認得這個偏旁的位置——它只看得懂 ⿰／⿲（左右結構）。
+   贏字頭這種頂部字頭（IDS 開頭是 ⿱／⿳／⿵）永遠推導不出任何字，於是
+   名單「全部」被判失效，不是真的失效，是這條檢查對頂部字頭沒轍。
+   `pos: 'top'` 的偏旁直接跳過推導比對，名單照人工核可的信。 */
 function lsPending(en) {
+  if (en.pos === 'top') return [];
   const have = new Set(lsMembers(en));
   return lsDerive(en).filter(ch => !have.has(ch));
 }
 function lsStale(en) {
-  if (!en.members) return [];
+  if (!en.members || en.pos === 'top') return [];
   const ok = new Set(lsDerive(en));
   return en.members.filter(ch => !ok.has(ch));
 }
