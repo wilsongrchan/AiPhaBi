@@ -159,7 +159,7 @@ local order_mod_for_caps = require("aiphabi_order")
 local RAW_CAP, MAX_SORT = hint_mod_for_caps._RAW_CAP, order_mod_for_caps._MAX_SORT
 -- 「是」要落在「超過 MAX_SORT、但還在 RAW_CAP 之內」這個區間——用相對位置算，
 -- 不用寫死的絕對數字，RAW_CAP 再怎麼調整這個測試都還站得住。
-local midPos = MAX_SORT + math.max(1, (RAW_CAP - MAX_SORT) // 2)
+local midPos = MAX_SORT + math.max(1, math.floor((RAW_CAP - MAX_SORT) / 2))
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 兩萬個雜訊候選，混進三個真實字：「的」在第 10（兩層之內，該排到最前）；「是」在
   -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
