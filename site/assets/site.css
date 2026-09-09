@@ -3385,6 +3385,19 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .lg-body { transition: padding-inline-start .55s cubic-bezier(.22, .61, .36, 1); }
 .lg-body.lg-navhide { padding-inline-start: 0; }
 
+/* ⚠️ 上面那段註解說「正文要置中在整個視窗」，但只把 body 的 padding 歸零還不夠：
+   main.wrap／footer.wrap 平常是 margin-inline-start: 0（見上面 main.wrap 那條，
+   靠 body 的 padding 讓開側邊欄、自己不用再置中一次），側邊欄躲起來、body 那條
+   padding 也跟著歸零之後，flush-left 這條規則沒人抵銷，正文就貼著視窗左緣
+   （Wilson 回報「animation 播放時整頁偏左」）。這裡把 margin-inline-start 也
+   跟著 padding 一起變回 auto，兩條一起走同一條 transition，看起來是同一個
+   置中動作。 */
+.lg-body.lg-navhide main.wrap,
+.lg-body.lg-navhide footer.wrap {
+  margin-inline-start: auto;
+  transition: margin-inline-start .55s cubic-bezier(.22, .61, .36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .topbar, .lg-body { transition: none; }
 }
