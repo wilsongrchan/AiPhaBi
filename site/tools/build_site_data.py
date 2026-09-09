@@ -3069,7 +3069,9 @@ def main():
     for bucket in table.values():
         bucket.sort(key=lambda c: rank.get(c, far))
 
-    # 約定簡碼：60 個手挑的常用字。這是網站要示範的核心設計，所以一起輸出。
+    # 約定簡碼：手挑的常用字捷徑，條數會隨取碼調整而變。這是網站要示範的核心設計，
+    # 所以一起輸出；條數另外記進 stats["shortcode"]，供〈簡介〉頁的行文引用，
+    # 不要在那邊的文案裡手抄數字（shortcode.md 早就提醒過這個坑）。
     short, short_rev = {}, {}
     sc = next((r for r in rules.get("rules", []) if r["id"] == "short_code"), None)
     if sc:
@@ -3082,7 +3084,7 @@ def main():
 
     # 官方字表覆蓋率：網站首頁的數字由這裡算，不手抄。手抄的數字每次取碼都會過期，
     # 而過期的進度數字在對外網站上比沒有數字更糟。
-    stats = {"chars": len(codes)}
+    stats = {"chars": len(codes), "shortcode": {"count": len(short_rev)}}
     for sid, label, fname in [("tw4808", "教育部常用國字", "tw_common_4808.txt"),
                               ("gb2312", "GB 2312", "gb2312.txt")]:
         path = DATA / "standards" / fname
