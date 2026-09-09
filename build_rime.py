@@ -438,9 +438,14 @@ def main():
     _keep_surname = set(_load_standard("baijiaxing.txt"))
     _keep_canton = set(_load_standard("canton_common.txt"))
     _keep_manual = set(_load_standard("common_extra.txt"))   # 手動強制留（GB 二級擋過頭時補這裡）
-    _keep_component = {ch for ch, rec in codes.items() if rec.get("componentOnly")}
     _keep |= (_keep_variant | _keep_phrase | _keep_name | _keep_surname
-              | _keep_canton | _keep_manual | _keep_component)
+              | _keep_canton | _keep_manual)
+    # 部件字（扌艹氵疒衤礻…）：只有打「`k」反引號前綴才叫得出來，那已經是「我就是要這個」
+    # 的明確手勢——只打常用字不該再把它擋掉（不然 ` 這條逃生路在開關開著時形同斷掉）。
+    # 一律放行；它們本來就是結構部件，不是要藏的生僻字。缺 data/standards/ 時照樣不塞
+    # （否則白名單只剩這幾十個部件，開關會誤判成「有名單」把候選全濾光）。
+    _keep_component = {c for chs in component_only.values() for c in chs} if _common_core else set()
+    _keep |= _keep_component
     common = set(_keep)                                # 白名單：常用字＝回填集合本身
 
     by_len = defaultdict(list)
