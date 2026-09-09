@@ -428,6 +428,12 @@ def main():
     _keep_manual = set(_load_standard("common_extra.txt"))   # 手動強制留（GB 二級擋過頭時補這裡）
     _keep |= (_keep_variant | _keep_phrase | _keep_name | _keep_surname
               | _keep_canton | _keep_manual)
+    # 部件字（扌艹氵疒衤礻…）：只有打「`k」反引號前綴才叫得出來，那已經是「我就是要這個」
+    # 的明確手勢——只打常用字不該再把它擋掉（不然 ` 這條逃生路在開關開著時形同斷掉）。
+    # 一律放行；它們本來就是結構部件，不是要藏的生僻字。缺 data/standards/ 時照樣不塞
+    # （否則白名單只剩這幾十個部件，開關會誤判成「有名單」把候選全濾光）。
+    _keep_component = {c for chs in component_only.values() for c in chs} if _common_core else set()
+    _keep |= _keep_component
     common = set(_keep)                                # 白名單：常用字＝回填集合本身
 
     by_len = defaultdict(list)
@@ -1132,7 +1138,7 @@ Weasel／fcitx5-rime 多半內建）：
               f"{len(_gb_level1)} ∪ 回填：異體 {len(_keep_variant)}／"
               f"詞庫 {len(_keep_phrase & set(codes))}／名字 {len(_keep_name & set(codes))}／"
               f"百家姓 {len(_keep_surname & set(codes))}／粵語 {len(_keep_canton & set(codes))}／"
-              f"手動 {len(_keep_manual & set(codes))}）；"
+              f"手動 {len(_keep_manual & set(codes))}／部件 {len(_keep_component)}）；"
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
         print("  ⚠ data/standards/ 缺檔 —— M.common 為空，只打常用字開關會自動失效")
