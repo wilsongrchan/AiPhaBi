@@ -369,6 +369,10 @@ def main():
     #          ∪ 常用粵語字（data/standards/canton_common.txt）
     #          ∪ data/standards/common_extra.txt（手動補的，甲表／GB 一級沒收又漏了
     #            回填、但其實很常見的字，如 佼 亵 兖 幺）
+    #          ∪ 部件字（codes.json componentOnly：扌 氵 艹 忄…）——這些字本來就要打
+    #            「`碼」反引號前綴才挑得到（見 aiphabi_wildcard／M.component_only），backtick
+    #            本身已經是唯一的存取門檻；常用字白名單若不放行，等於對同一件事設兩層
+    #            門檻，只打常用字一開，這 50 個部件字就整組打不出來，不是漏做而是雙重擋。
     #
     # 台灣乙／丙／丁表刻意不當額外資料來源：拿它們去反過來「證明某字真的罕見」，
     # 頂多再篩掉一批本來就不在上面任何一份清單裡的字，為此另外抓 ~28000 字的三張表
@@ -434,8 +438,9 @@ def main():
     _keep_surname = set(_load_standard("baijiaxing.txt"))
     _keep_canton = set(_load_standard("canton_common.txt"))
     _keep_manual = set(_load_standard("common_extra.txt"))   # 手動強制留（GB 二級擋過頭時補這裡）
+    _keep_component = {ch for ch, rec in codes.items() if rec.get("componentOnly")}
     _keep |= (_keep_variant | _keep_phrase | _keep_name | _keep_surname
-              | _keep_canton | _keep_manual)
+              | _keep_canton | _keep_manual | _keep_component)
     common = set(_keep)                                # 白名單：常用字＝回填集合本身
 
     by_len = defaultdict(list)
@@ -1180,12 +1185,12 @@ Weasel／fcitx5-rime 多半內建）：
         # 名單跟碼表對不上：Side A 改了這個字的碼，左簡碼家族名單要跟著更新。
         print(f"  ⚠ 左簡碼略過 {comp} 家族的 {ch}：主碼 {full} 不是以偏旁碼開頭")
     if _common_core:
-        _common_coded = sum(1 for c in codes if c in common)
+        _common_coded = sum(1 for c in codes if c in common and not codes[c].get("componentOnly"))
         print(f"只打常用字：白名單 {len(common)} 字（甲表 {len(_tw_common)} ∪ GB 一級 "
               f"{len(_gb_level1)} ∪ 回填：異體 {len(_keep_variant)}／"
               f"詞庫 {len(_keep_phrase & set(codes))}／名字 {len(_keep_name & set(codes))}／"
               f"百家姓 {len(_keep_surname & set(codes))}／粵語 {len(_keep_canton & set(codes))}／"
-              f"手動 {len(_keep_manual & set(codes))}）；"
+              f"手動 {len(_keep_manual & set(codes))}／部件 {len(_keep_component)}）；"
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
         print("  ⚠ data/standards/ 缺檔 —— M.common 為空，只打常用字開關會自動失效")

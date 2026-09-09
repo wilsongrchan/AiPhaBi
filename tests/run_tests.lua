@@ -808,4 +808,28 @@ do
   end
 end
 
+print()
+print("== 部件字全體都在只打常用字白名單裡：backtick 前綴本身已是存取門檻，不設雙重擋 ==")
+do
+  h.check("部件字在白名單裡（扌／氵／艹／忄）",
+    data.common["扌"] and data.common["氵"] and data.common["艹"] and data.common["忄"],
+    "expected common 扌/氵/艹/忄 = true")
+  local all_in = true
+  for code, chs in pairs(data.component_only) do
+    for _, ch in ipairs(chs) do
+      if not data.common[ch] then all_in = false end
+    end
+  end
+  h.check("50 個部件字（M.component_only 收的全部）都在白名單裡，一個都沒漏",
+    all_in, "expected every component_only char to be in data.common")
+
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    -- 模擬打 `k：aiphabi_wildcard 撈出來的部件候選（type=ap_component）
+    local cands = { { text = "扌", type = "ap_component" }, { text = "爿", type = "ap_component" } }
+    local on = h.run{ schema = schema, code = "`k", options = { aiphabi_common_only = true }, cands = cands }
+    h.checkPresent(schema .. " · 只打常用字開 → `k 撈出來的部件 扌 不被雙重擋掉", on, "扌", true)
+    h.checkPresent(schema .. " · 只打常用字開 → `k 撈出來的部件 爿 不被雙重擋掉", on, "爿", true)
+  end
+end
+
 os.exit(h.report() == 0 and 0 or 1)
