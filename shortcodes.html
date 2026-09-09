@@ -544,7 +544,7 @@ function renderLeftShort(box, r) {
     const stacked = ls.length >= 4 ? ls[0] + ls[1] + ls[ls.length - 1] : '';
     if (three && stacked) rows.push(['三簡＋左簡',
       `<code class="no" style="text-decoration:line-through">${stacked}</code>` +
-      `<span class="no"> ✗</span>`, '只能選擇一種簡化方式取碼（條件五）']);
+      `<span class="no"> ✕</span>`, '只能選擇一種簡化方式取碼（條件五）']);
     const t = el('table');
     for (const [lab, val, why] of rows) {
       const tr = el('tr');
@@ -623,7 +623,7 @@ function renderLeftShort(box, r) {
       if (revCells[i]) {
         revCells[i].innerHTML = (pending.length || stale.length)
           ? [pending.length ? `<span class="add">＋${pending.length}</span>` : '',
-             stale.length ? `<span class="gone">✗${stale.length}</span>` : ''].filter(Boolean).join(' ')
+             stale.length ? `<span class="gone">✕${stale.length}</span>` : ''].filter(Boolean).join(' ')
           : '<span class="clean">—</span>';
         revCells[i].title = (pending.length || stale.length)
           ? '點開逐字加入／移除' : '名單跟部件拆分一致';
@@ -794,7 +794,7 @@ function renderLeftShort(box, r) {
        一模一樣，光看碼分不出來，只有「在不在左邊」能分。 */
     const t8 = el('td'); t8.className = 'ls-eg';
     const okTxt = (en.ok || []).join('');
-    t8.innerHTML = okTxt + (en.no ? ` <span class="no">✗${en.no}</span>` : '');
+    t8.innerHTML = okTxt + (en.no ? ` <span class="no">✕${en.no}</span>` : '');
     if (en.no && codes[en.no]) t8.title =
       `${en.no}：${(ids[en.no] || '')} —— 偏旁不在最左邊，所以不適用（碼 ${finalOf(codes[en.no].code).toUpperCase()} 一樣是 ${en.code} 開頭）`;
     tr.append(t8);
