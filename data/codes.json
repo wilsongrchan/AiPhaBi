@@ -2120,10 +2120,7 @@
       }
     ],
     "code": "NVVEM",
-    "final": "NVVEM",
-    "overrides": [
-      "merge:4-5"
-    ]
+    "final": "NVVEM"
   },
   "那": {
     "segments": [
@@ -2467,7 +2464,7 @@
     ],
     "code": "EDJL",
     "final": "EDJL",
-    "overrides": [
+    "compliant": [
       "merge:2-3"
     ]
   },
@@ -6998,9 +6995,6 @@
         ],
         "skipped": []
       }
-    ],
-    "overrides": [
-      "comp:耂:0"
     ]
   },
   "厂": {
@@ -11347,7 +11341,7 @@
         "skipped": []
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:忍:7"
     ]
   },
@@ -12388,7 +12382,8 @@
     ],
     "code": "OTVN",
     "compliant": [
-      "merge:2-3"
+      "merge:2-3",
+      "comp:介:5"
     ],
     "compliantWhy": {
       "merge:2-3": "偏旁。"
@@ -12429,10 +12424,7 @@
         ]
       }
     ],
-    "final": "OTVN",
-    "overrides": [
-      "comp:介:5"
-    ]
+    "final": "OTVN"
   },
   "傳": {
     "segments": [
@@ -39525,7 +39517,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:真:8"
     ]
   },
@@ -43275,7 +43267,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:角:0"
     ]
   },
@@ -84321,10 +84313,10 @@
         ]
       }
     ],
-    "overrides": [
+    "final": "TZPQT",
+    "compliant": [
       "comp:梁:4"
-    ],
-    "final": "TZPQT"
+    ]
   },
   "殖": {
     "segments": [
@@ -90051,10 +90043,7 @@
       }
     ],
     "code": "HVM",
-    "final": "HVM",
-    "overrides": [
-      "comp:共:0"
-    ]
+    "final": "HVM"
   },
   "葛": {
     "segments": [
@@ -96722,7 +96711,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:真:0"
     ]
   },
@@ -108296,10 +108285,7 @@
       }
     ],
     "code": "VENVSY",
-    "final": "VENVY",
-    "overrides": [
-      "comp:兼:0"
-    ]
+    "final": "VENVY"
   },
   "瓷": {
     "segments": [
@@ -131703,9 +131689,6 @@
           }
         ]
       }
-    ],
-    "overrides": [
-      "comp:开:2"
     ]
   },
   "羈": {
@@ -133170,9 +133153,6 @@
     "final": "FM"
   },
   "广": {
-    "conventional": [
-      "merge:0-1"
-    ],
     "segments": [
       {
         "strokes": [
@@ -137191,7 +137171,7 @@
         "skipped": []
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:刃:9"
     ]
   },
@@ -148778,8 +148758,8 @@
         ]
       }
     ],
-    "overrides": [
-      "comp:儿:5"
+    "compliant": [
+      "merge:2-3"
     ]
   },
   "秃": {
@@ -154246,7 +154226,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:产:0"
     ]
   },
@@ -160231,9 +160211,6 @@
       }
     ],
     "code": "WVH",
-    "overrides": [
-      "comp:兴:0"
-    ],
     "final": "WVH"
   },
   "风": {
@@ -213250,7 +213227,7 @@
     ],
     "code": "TOJLTOJL",
     "final": "TOJLL",
-    "overrides": [
+    "compliant": [
       "merge:6-7"
     ]
   },
@@ -216928,7 +216905,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:真:4"
     ]
   },
@@ -224354,7 +224331,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:氐:4"
     ]
   },
@@ -243160,7 +243137,7 @@
           9,
           10
         ],
-        "letter": "Z"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -243171,7 +243148,7 @@
         "letter": "E"
       }
     ],
-    "code": "IOJZE",
+    "code": "IOJEE",
     "skipped": [
       11
     ],
@@ -243219,10 +243196,10 @@
         ]
       }
     ],
-    "overrides": [
+    "final": "IOJEE",
+    "compliant": [
       "comp:非:7"
-    ],
-    "final": "IOJZE"
+    ]
   },
   "呤": {
     "segments": [
@@ -272144,7 +272121,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:卂:0"
     ]
   },
@@ -276717,7 +276694,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:角:0"
     ]
   },
@@ -334356,7 +334333,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "comp:真:5"
     ]
   },
@@ -334784,9 +334761,6 @@
         ]
       }
     ],
-    "overrides": [
-      "comp:咎:6"
-    ],
     "segments": [
       {
         "strokes": [
@@ -334829,7 +334803,10 @@
       }
     ],
     "code": "GMXYO",
-    "final": "GMXYO"
+    "final": "GMXYO",
+    "compliant": [
+      "comp:咎:6"
+    ]
   },
   "槭": {
     "segments": [
@@ -348959,16 +348936,11 @@
       {
         "strokes": [
           10,
-          11
-        ],
-        "letter": "N"
-      },
-      {
-        "strokes": [
+          11,
           12,
           13
         ],
-        "letter": "I"
+        "letter": "D"
       },
       {
         "strokes": [
@@ -348988,11 +348960,8 @@
         "letter": "V"
       }
     ],
-    "code": "IYPKNIDV",
-    "final": "IYPKV",
-    "overrides": [
-      "comp:齊:0"
-    ]
+    "code": "IYPKDDV",
+    "final": "IYPKV"
   },
   "櫸": {
     "segments": [
