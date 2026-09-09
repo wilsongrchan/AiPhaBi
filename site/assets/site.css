@@ -49,6 +49,11 @@
   --zg-on-3: #06413c;
   --zg-off:  #c4c4c4;
   --radius: 10px;
+  /* 〈下載〉頁那顆蘋果選單小圖示是純黑色（Apple 官方素材本來就沒分深淺色版），
+     深色主題下黑圖示疊在深色底上幾乎看不見——用這個變數在深色主題翻成白色，
+     淺色維持原樣。跟 --bg／--ink 那組同樣的「淺色定義在這裡、深色在下面兩處
+     覆寫」寫法，見 .step-icon-dark-invert。 */
+  --icon-invert: none;
   /* 正文行寬上限。原本 34rem 在桌機上只佔中間一條，像手機版。
      現在設成跟版面內容寬一樣（.wrap 58rem 減去左右各 1.6rem），
      等於不再另外限制，正文與標題、分隔線同寬。 */
@@ -132,9 +137,11 @@
        只剩 4.47，低於 4.5 就不收。 */
     --warn: #ee4653;
     --warn-soft: #3a1f22;
+    --icon-invert: invert(1);
   }
 }
 :root[data-theme="dark"] {
+    --icon-invert: invert(1);
     --bg:      #141717;
     --surface: #1b2020;
     --line:    #2d3534;
@@ -3623,6 +3630,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
 .btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+/* 〈下載〉頁 Windows 那顆「尚未提供」——跟 .xz-nav/.xz-acts 那組停用鈕同一套
+   語言（原本只在〈字根練習〉頁範圍內，這裡改成不分頁面通用），停用的外框鈕
+   不該對 hover 有反應，看起來像還能點。 */
+.btn-ghost:disabled { opacity: .4; cursor: default; }
+.btn-ghost:disabled:hover { border-color: var(--line); color: var(--ink); }
 
 /* 猜猜看——動畫播完一輪，接手 .lg-box 同一個位置（見 assets/landing.js 的
    showGuess()），不是另一個獨立區塊，所以不需要自己的上邊界／大段留白，
@@ -5640,3 +5652,18 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
   .zg-table { break-inside: auto; }
   .zg-table tr { break-inside: avoid; }
 }
+
+/* 〈下載〉頁 macOS 安裝步驟裡插在文字中間的小圖示（蘋果選單／鍵盤設定／＋鈕，
+   取自 Apple 官方說明文件的圖示素材，不是截圖）——沒有真的裝了鼠鬚管的螢幕
+   可以截，這三個小圖示至少讓人一眼認出要點的是哪個按鈕，比純文字「點 + 號」
+   具體。跟著文字基線對齊，不要比字大太多，不然一行字忽高忽低。 */
+.step-icon {
+  height: 1.3em;
+  width: auto;
+  vertical-align: -.3em;
+  margin: 0 .15em;
+}
+/* 蘋果選單那顆是純黑圖示，深色主題下幾乎融進底色——見 --icon-invert
+   （定義在 :root，深色主題兩處都覆寫成 invert(1)）。鍵盤／＋鈕圖示本來就是
+   灰階，兩種主題都看得清楚，不需要這個 class。 */
+.step-icon-dark-invert { filter: var(--icon-invert); }
