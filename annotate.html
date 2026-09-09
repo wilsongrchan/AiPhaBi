@@ -794,6 +794,10 @@ let queueSort = localStorage.getItem('aiphabi-qsort');
 if (!QSORTS.includes(queueSort)) queueSort = 'tw4808';
 let lenFilter = localStorage.getItem('aiphabi-lenfilter') || 'all';  /* 已取碼依碼長篩選：all｜1..5｜5+ */
 let cur = '', strokes = [], medians = [], sel = [], segs = [], skipped = [], showNums = false;
+/* 主碼改用台灣／香港字形時（見「兼容字型」的⇄設為主碼）：那份資料只有輪廓、沒有中線，
+   所以 strokes 照樣填（點擊、畫圖都靠它），medians 留空——沒中線就沒字根建議／訓練，
+   跟「這個字沒有 makemeahanzi 資料」的手動模式是兩回事，這裡還是有圖可點，只是不自動比對形狀。 */
+let regionForm = '', regionOffsets = [], regionViewBox = '0 0 2048 2048';
 let filter = 'todo', shown = 120, dirty = false, zigenDirty = false, stamp = null;
 let opencc = { t2s: {}, s2t: {} };      /* 繁簡對照（右上小面板用） */
 
@@ -821,7 +825,9 @@ const maxLen = () => (rule('max_code_length')?.params?.max) || zigen.meta.max_co
 
 /* ---------- 畫字 ---------- */
 function drawGlyph() {
+  if (regionForm) return drawRegionGlyph();
   const g = $('#glyph');
+  g.setAttribute('viewBox', '0 0 1024 1024');   /* 上一個字若是台灣／香港字形，viewBox 會被換過，換回來 */
   g.innerHTML = '<rect class="grid" x="2" y="2" width="1020" height="1020" rx="20"/>' +
     '<line class="grid" x1="512" y1="2" x2="512" y2="1022"/>' +
     '<line class="grid" x1="2" y1="512" x2="1022" y2="512"/>';
@@ -862,6 +868,58 @@ function drawGlyph() {
     t.setAttribute('text-anchor', 'middle'); t.textContent = i + 1;
     g.append(t);
   });
+}
+/* 主碼是台灣／香港字形時的畫法：跟兼容字型編輯器（vfDraw）同一套——輪廓路徑本身可以
+   直接吃 SVG 的點擊命中判定，不用像大陸字形那樣算「離哪條中線最近」（那需要中線，這裡沒有）。
+   沿用 segs/skipped/sel 這幾個跟大陸模式共用的全域狀態，所以指派、鍵盤快捷鍵都不用另外寫。 */
+function drawRegionGlyph() {
+  const g = $('#glyph');
+  g.setAttribute('viewBox', regionViewBox);
+  g.onclick = null;
+  const segOf = i => segs.findIndex(s => s.strokes.includes(i));
+  let html = '';
+  strokes.forEach((d, i) => {
+    const si = segOf(i);
+    const cls = si >= 0 ? 'asg' : skipped.includes(i) ? 'skip' : sel.includes(i) ? 'sel' : 'un';
+    const fill = si >= 0 ? ` fill="${hue(si)}"` : '';
+    const off = regionOffsets[i] || {};
+    const path = `<path class="${cls}"${fill} d="${d}" data-i="${i}"></path>`;
+    html += off.tx != null ? `<g transform="translate(${off.tx},${off.ty})">${path}</g>` : path;
+  });
+  if (showNums) strokes.forEach((d, i) => {
+    const c = pathCenter(d);
+    const off = regionOffsets[i] || {};
+    const fs = (parseFloat(regionViewBox.split(/\s+/)[2]) || 2048) / 28;
+    html += `<text x="${c.x + (off.tx || 0)}" y="${c.y + (off.ty || 0)}" font-size="${fs}"` +
+      ` text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
+  });
+  g.innerHTML = html;
+  g.querySelectorAll('path[data-i]').forEach(p => { p.onclick = ev => { ev.stopPropagation(); regionClickStroke(+p.dataset.i); }; });
+}
+function regionClickStroke(i) {
+  if (segs.some(s => s.strokes.includes(i))) return;
+  const sk = skipped.indexOf(i);
+  if (sk >= 0) { skipped.splice(sk, 1); touch(); drawGlyph(); renderCode(); return; }
+  const k = sel.indexOf(i);
+  k < 0 ? sel.push(i) : sel.splice(k, 1);
+  sel.sort((a, b) => a - b);
+  drawGlyph();
+}
+/* 抓台灣／香港字形的輪廓資料，回傳跟 Zigen.getGlyph 同形狀的 {strokes, medians:[]}，
+   這樣 load() 不用為了主碼來源多寫一套載入流程。 */
+async function loadRegionGlyph(c, form) {
+  regionOffsets = [];
+  if (form === 'hk') {
+    const hk = await fetch('/api/hk?c=' + encodeURIComponent(c)).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (!hk) return null;
+    regionViewBox = hk.viewBox;
+    regionOffsets = hk.strokes.map(s => ({ tx: s.tx, ty: s.ty }));
+    return { strokes: hk.strokes.map(s => s.d), medians: [] };
+  }
+  const tw = await fetch('/api/tw?c=' + encodeURIComponent(c)).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!tw) return null;
+  regionViewBox = '0 0 2048 2048';
+  return { strokes: tw.strokes, medians: [] };
 }
 /* 把點擊位置換算到筆畫座標系，回傳中線最近的那一筆 */
 function nearestStroke(ev) {
@@ -1019,6 +1077,30 @@ function subSvg(list) {
     on.map(d => `<path class="on" d="${d}"/>`).join('') +
     '</g></svg>';
 }
+/* 台灣／香港字形版：座標系跟大陸不同（不是 900 那一套翻轉），但一樣用抓數字座標的土法，
+   不用 getBBox——那個要把元素真的掛到 DOM 上量，逼瀏覽器重排，在這種大頁面上一量就卡。 */
+function subSvgRegion(list) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const i of list) {
+    const off = regionOffsets[i] || {};
+    const tx = off.tx || 0, ty = off.ty || 0;
+    for (const m of strokes[i].matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)) {
+      const x = +m[1] + tx, y = +m[2] + ty;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  const vw = parseFloat(regionViewBox.split(/\s+/)[2]) || 2048;
+  const p = vw / 14.6, w = x1 - x0 + p * 2, h = y1 - y0 + p * 2, m = Math.max(w, h);
+  const box = x1 < x0 ? regionViewBox : `${x0 - p - (m - w) / 2} ${y0 - p - (m - h) / 2} ${m} ${m}`;
+  const on = [], off2 = [];
+  strokes.forEach((d, i) => (list.includes(i) ? on : off2).push(i));
+  const draw = i => {
+    const off = regionOffsets[i] || {};
+    const path = `<path class="${list.includes(i) ? 'on' : 'off'}" d="${strokes[i]}"/>`;
+    return off.tx != null ? `<g transform="translate(${off.tx},${off.ty})">${path}</g>` : path;
+  };
+  return `<svg viewBox="${box}">` + off2.map(draw).join('') + on.map(draw).join('') + '</svg>';
+}
 
 /* ---------- 選取中的筆畫：既有字根建議 ---------- */
 /* 建議字母：不是只看「最像的那一個字根」，而是拿你過去所有的指派來投票。
@@ -1027,6 +1109,7 @@ function subSvg(list) {
 function suggest() {
   const box = $('#sugg'), nz = $('#newz');
   box.innerHTML = ''; nz.textContent = '';
+  if (regionForm) { nz.textContent = '台灣／香港字形沒有中線資料，不建議字根——點筆、按字母手動指派即可。'; return; }
   if (!sel.length) { box.innerHTML = '<span class="newz">先點選筆畫…</span>'; return; }
   const vec = Shape.strokeVec(sel.map(i => medians[i]));
   if (!vec) return;
@@ -1096,7 +1179,7 @@ function renderSegs() {
     const no = el('div', 'no', String(i + 1));       /* 序號＝警告訊息裡的「第 N 個字根」 */
     no.style.background = hue(i);
     d.append(no);
-    const sv = el('div'); sv.innerHTML = subSvg(s.strokes);
+    const sv = el('div'); sv.innerHTML = regionForm ? subSvgRegion(s.strokes) : subSvg(s.strokes);
     d.append(sv);
     const inp = el('input'); inp.value = s.letter; inp.maxLength = 1;
     inp.oninput = () => { s.letter = inp.value.toUpperCase(); touch(); renderCode(); };
@@ -1981,10 +2064,15 @@ function renderVariants() {
   }
   for (const v of vs) {
     const row = el('div', 'vrow');
+    const label = v.form === 'hk' ? '香港字形' : v.form === 'tw' ? '台灣字形' : '大陸字形（原主碼）';
     row.innerHTML = `<span class="vc">${v.display}</span><b>${finalOf(v.code)}</b>` +
-      `<span class="vf">${v.form === 'hk' ? '香港字形' : '台灣字形'}</span>`;
-    row.title = '點一下改這個兼容字型';
-    row.onclick = () => vfOpen(v);
+      `<span class="vf">${label}</span>`;
+    const reopenable = v.form === 'tw' || v.form === 'hk';
+    row.title = reopenable ? '點一下改這個兼容字型' : '大陸字形另存的舊拆法，這裡不能重新編輯——用⇄換回它即可';
+    row.onclick = () => { if (reopenable) vfOpen(v); };
+    const swap = el('button', 'vx', '⇄');
+    swap.title = '把這筆設為主碼（現在的主碼會變成一筆兼容字型）';
+    swap.onclick = e => { e.stopPropagation(); promoteVariant(v); };
     const x = el('button', 'vx', '✕');
     x.title = '刪掉這個兼容字型';
     x.onclick = e => {
@@ -1993,9 +2081,50 @@ function renderVariants() {
       if (!rec.variants.length) delete rec.variants;
       codes[cur] = rec; touch(); renderVariants();
     };
-    row.append(x);
+    row.append(swap, x);
     box.append(row);
   }
+}
+
+/* ⇄ 設為主碼：把兼容字型換成主碼，原本的主碼退成一筆兼容字型（原地互換，不會憑空少一筆）。
+   主碼來源（大陸／台灣／香港）也跟著換，所以要重新載入那個來源的圖＋清掉跟舊拆法綁在一起的
+   規則備註（conventional 等，位置對不上新拆法了）——實際重畫、重算靠 load() 那一路的邏輯，
+   這裡自己做一次省得使用者按兩次。 */
+async function promoteVariant(v) {
+  const rec = codes[cur];
+  if (!rec) return;
+  const labelOf = f => f === 'hk' ? '香港字形' : f === 'tw' ? '台灣字形' : '大陸字形';
+  const newLabel = labelOf(v.form), curLabel = labelOf(regionForm || 'cn');
+  if (!confirm(`把「${newLabel}」的拆法（${finalOf(v.code)}）設為主碼？\n` +
+               `現在的主碼（${curLabel}，${finalOf(rec.code)}）會變成一筆兼容字型。`)) return;
+
+  const oldMain = { display: cur, form: regionForm || 'cn', code: rec.code,
+                    segments: (rec.segments || []).map(s => ({ strokes: [...s.strokes], letter: s.letter })) };
+  if (rec.skipped && rec.skipped.length) oldMain.skipped = [...rec.skipped];
+
+  delete rec.conventional; delete rec.overrides; delete rec.compliant;   /* 綁著舊拆法的規則備註，位置對不上了 */
+  rec.variants = (rec.variants || []).filter(z => z !== v);
+  rec.variants.push(oldMain);
+  if (v.form === 'cn') delete rec.glyphForm; else rec.glyphForm = v.form;
+  codes[cur] = rec;
+
+  regionForm = v.form === 'cn' ? '' : v.form;
+  if (regionForm) {
+    const g = await loadRegionGlyph(cur, regionForm);
+    baseStrokes = g ? g.strokes : []; baseMedians = [];
+    strokes = baseStrokes; medians = [];
+  } else {
+    const g = await Zigen.getGlyph(cur);
+    baseStrokes = g ? g.strokes : []; baseMedians = g ? g.medians : [];
+    applySplits((codes[cur] && codes[cur].splits) || []);
+  }
+  segs = v.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
+  skipped = v.skipped ? [...v.skipped] : [];
+  sel = [];
+  touch();
+  renderCurHeader(); updateSplitButtons();
+  drawGlyph(); renderSegs(); renderVariants(); suggest(); predict();
+  $('#status').textContent = `主碼已換成「${newLabel}」的拆法（${finalOf(v.code)}）—— 記得存檔。`;
 }
 
 $('#newVariant').onclick = e => { e.stopPropagation(); vExpanded = true; applyVwrap(); vfOpen(); };
@@ -3237,6 +3366,10 @@ async function predict() {
     box.innerHTML = '<span class="newz">字根表還是空的 — 先手動取幾個字，我就能開始預測。</span>';
     return;
   }
+  if (regionForm) {
+    box.innerHTML = '<span class="newz">台灣／香港字形沒有中線資料，不做拆解預測——手動點筆指派即可。</span>';
+    return;
+  }
   if (!medians.length || predBusy) return;
 
   const rest = restStrokes();
@@ -3386,7 +3519,11 @@ function applyOneSegment(sg) {
 async function load(c) {
   cur = c; sel = []; segs = []; skipped = [];
   $('#altsib').innerHTML = '';                 /* 清掉上一個字的連坐／部件兼容碼建議 */
-  const g = await Zigen.getGlyph(c);
+  /* 主碼來源：預設大陸（makemeahanzi），除非這個字被「⇄ 設為主碼」換成台灣／香港字形
+     （見 promoteVariant）—— codes[c].glyphForm 記著換了哪一種。 */
+  regionForm = (codes[c] && codes[c].glyphForm) || '';
+  let g = regionForm ? await loadRegionGlyph(c, regionForm) : await Zigen.getGlyph(c);
+  if (regionForm && !g) regionForm = '';       /* 資料抓不到就別卡在台灣／香港模式出不來 */
   const forceManual = !!(codes[c] && codes[c].manual);
   if (!g || forceManual) {              /* 沒有筆畫資料（例：粵語 啲 喺 冇），或設計者強制手動
                                             （例：makemeahanzi 把 為 畫成 爲 的混淆，改走手動取碼）*/
@@ -3403,7 +3540,8 @@ async function load(c) {
   $('#manualpanel').classList.add('hide');
   splitMode = false; document.body.classList.remove('splitmode');
   baseStrokes = g.strokes; baseMedians = g.medians;
-  applySplits((codes[c] && codes[c].splits) || []);    /* 切開的字每次載入重新套用 */
+  if (regionForm) { strokes = baseStrokes; medians = []; }   /* 沒有切筆概念，不套 applySplits */
+  else applySplits((codes[c] && codes[c].splits) || []);    /* 切開的字每次載入重新套用 */
   const rec = codes[c];
   if (rec && rec.segments) segs = rec.segments.map(s => ({ strokes: [...s.strokes], letter: s.letter }));
   if (rec && rec.skipped) skipped = [...rec.skipped];
@@ -4156,15 +4294,21 @@ async function save() {
   }
   const newborn = [];                 /* 這次存檔新生的字根 */
   if (cur && segs.length) {
-    /* 先對帳：把這個字不再使用的舊字根從例字／計次裡拿掉 */
-    await primeMedians(zigen.letters.flatMap(L => L.intentions.flatMap(it =>
-      it.shapes.filter(sh => sh.glyph && (sh.seen || []).includes(cur))
-        .map(sh => sh.glyph.src))));
-    await reconcileZigen(cur);
+    /* 先對帳：把這個字不再使用的舊字根從例字／計次裡拿掉。
+       台灣／香港字形沒有中線，跟字根形狀庫完全不打交道——不學新的，也不用去對舊的帳
+       （reconcileZigen 找不到替身範例還會跳 confirm、一個個字抓 glyph 找替代，這個字若
+       曾經是好幾個字根的範例字，會連著跳好幾次、卡好幾秒，跟「不用學」的初衷正好相反）。 */
+    if (!regionForm) {
+      await primeMedians(zigen.letters.flatMap(L => L.intentions.flatMap(it =>
+        it.shapes.filter(sh => sh.glyph && (sh.seen || []).includes(cur))
+          .map(sh => sh.glyph.src))));
+      await reconcileZigen(cur);
+    }
     /* 每個確認的字根都併入字根表（同形合併計次，新形新增）。
        但「切開過的字」筆序跟 makemeahanzi 原字形對不上（字根表靠 getGlyph 拿原字形重算），
        拿它的半筆去定義字根會錯位 —— 所以切開的字只取碼、不併進字根表、不當別的字的範本。 */
-    if (!hasSplits(cur)) for (const s of segs) {
+    /* 台灣／香港字形沒有中線，沒東西可以拿去訓練字根形狀庫——跟切開過的字一樣，只取碼不建範本。 */
+    if (!hasSplits(cur) && !regionForm) for (const s of segs) {
       const vec = Shape.strokeVec(s.strokes.map(i => medians[i]));
       if (!vec) continue;
       const r = Zigen.merge(zigen, lib, { letter: s.letter, char: cur, strokeIdx: s.strokes, vec });
@@ -4176,7 +4320,8 @@ async function save() {
                    code: full,              /* 完整碼：保留拆解的全貌 */
                    final: finalOf(full),    /* 實際要按的碼：統計、重碼、匯出都用它 */
                    skipped: skipped.length ? [...skipped] : undefined,
-                   note: $('#note').value || undefined };
+                   note: $('#note').value || undefined,
+                   glyphForm: regionForm || undefined };
   } else if (cur && codes[cur]) {
     delete codes[cur].segments; delete codes[cur].code; delete codes[cur].final;
   }
@@ -4259,7 +4404,7 @@ $('#skipSel').onclick = skipSelected;
 $('#clearAll').onclick = clearAll;
 $('#unsplitBtn').onclick = undoLastSplit;
 $('#splitBtn').onclick = () => {
-  if (!strokes.length) return;
+  if (!strokes.length || regionForm) return;   /* 切筆靠中線，台灣／香港字形沒有中線可切 */
   splitMode = !splitMode;
   document.body.classList.toggle('splitmode', splitMode);
   sel = []; drawGlyph();
