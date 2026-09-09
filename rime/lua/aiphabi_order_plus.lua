@@ -169,7 +169,10 @@ local function filter(input, env)
     local form, st, en = info[i].form, info[i].st, info[i].en
     local minS = form and sForm or sPy
     local maxE = form and eForm or ePy
-    if st > minS or en < maxE then          -- 吃不滿整段（缺頭或缺尾）→ 墊底
+    -- 部件字沒打 ` 前綴卻冒出來（舊碼表殘留／使用者詞典）：壓到墊底那批，見 aiphabi_order.lua
+    if data.component_chars and data.component_chars[c.text] then
+      part[#part + 1] = { c = c, i = i, cov = -1, w = 0 }
+    elseif st > minS or en < maxE then      -- 吃不滿整段（缺頭或缺尾）→ 墊底
       part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"

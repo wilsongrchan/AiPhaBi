@@ -528,6 +528,8 @@ function cjNatural(ch) {          /* 倉頡自然碼：去掉消歧用的前導 
   return (c[0] === 'X' && _cjVals.has(c.slice(1))) ? c.slice(1) : c;
 }
 function curveList() {
+  /* 部件字（扌／爿／丬…）不算重碼，本來就沒有常用度排名（真正的文本不會單獨
+     印出一個部件），rank == null 這條篩選就已經把它們排除掉了。 */
   return Object.entries(codes).filter(([, r]) => r.code)
     .map(([ch, r]) => ({ ch, code: finalOf(r), cj: cjNatural(ch), dy: (dayi && dayi[ch]) || '', rank: rank.get(ch) }))
     .filter(x => x.rank != null)
@@ -690,6 +692,10 @@ function render() {
     codeLen += code.length;
     for (const L of code) all[L] = (all[L] || 0) + 1;
     first[code[0]] = (first[code[0]] || 0) + 1;
+    /* 部件字（如 扌／爿／丬）不算「重碼」——它們打主碼看不到，要加 ` 才打得到，
+       跟正字（水）從來不是同一個碼位；彼此之間也是各退各的部件，不是真的字
+       撞在一起。整個重碼統計（字數、組數、比率）都跳過它們，才是實話。 */
+    if (r.componentOnly) continue;
     if (!byCode.has(code)) byCode.set(code, []);
     byCode.get(code).push(ch);
   }
@@ -725,6 +731,7 @@ function render() {
     if (!withAlts.get(code).includes(ch)) withAlts.get(code).push(ch);
   };
   for (const [ch, r] of entries) {
+    if (r.componentOnly) continue;                          /* 部件字不算重碼 */
     if (r.code !== finalOf(r)) put(r.code, ch);            /* 完整碼：自動兼容 */
     for (const a of r.alts || []) {
       const f = Zigen.shorten(a.code, maxRule());
@@ -773,6 +780,7 @@ function render() {
      短碼撞得多，就表示取的碼太少，資訊被丟掉了。 */
   const lenStat = {};
   for (const [ch, r] of entries) {
+    if (r.componentOnly) continue;                          /* 部件字不算重碼 */
     const n = finalOf(r).length;
     lenStat[n] = lenStat[n] || { total: 0, dup: 0 };
     lenStat[n].total++;

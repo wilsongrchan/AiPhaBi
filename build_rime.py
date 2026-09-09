@@ -127,6 +127,7 @@ def main():
 
     per_char = {}
     main_out = {}                       # 碼位字 → 主 田字格 字形實際輸出哪個字（預設本字）
+    component_only = defaultdict(list)  # 部件字：碼（縮短、小寫）→ [字]，只靠反引號前綴打得到，見下
     for ch, rec in codes.items():
         if not rec.get("code"):
             continue
@@ -134,11 +135,19 @@ def main():
         # display 讓主字形改輸出那個字，碼位（字頻、佇列）仍是本字。
         out = rec.get("display") or ch
         main_out[ch] = out
+        full = rec["code"]
+        # 部件字（扌／艹／衤／疒…）：從來不單獨當正字用（Side A codes.json componentOnly）。
+        # 完全不進碼表——留在碼表裡（哪怕碼加 ` 前綴）Rime 的 enable_completion 還是會在
+        # 打主碼時把它們一起倒出來（回報：打 K，第 2～4 個候選是 扌／爿／丬）。改成純 Lua：
+        # 只有打「`k」這種反引號前綴才由 aiphabi_wildcard 從 M.component_only 撈出來。
+        if rec.get("componentOnly"):
+            component_only[shorten(full, max_rule).lower()].append(out)
+            per_char[ch] = []
+            continue
         seen = []
         def add(c):
             if c and c not in seen:
                 seen.append(c)
-        full = rec["code"]
         add(shorten(full, max_rule))    # 主碼
         add(full)                       # 完整碼：一律接受
         for a in rec.get("alts", []):   # 手動收的兼容碼（連它的完整碼）
@@ -147,6 +156,8 @@ def main():
         per_char[ch] = seen
         for c in seen:                  # 這些碼都是主字形（out）自己的（native）
             put(c, out, NATIVE + freq_w(out))
+    for _code in component_only:        # 同一個 `碼 撞好幾個部件（`k = 扌／爿／丬）時依常用度排
+        component_only[_code].sort(key=lambda c: -freq_w(c))
 
     # 兼容字型：另一種通行字形（為 的台灣字形 → 為）當成另一個字，與主字形輸出互通。
     # 打那個字形的碼，優先出那個字形（native 加成）；主字形的碼也接受它，但排在後面（需要選字）。
@@ -434,7 +445,8 @@ def main():
     # 的字都收（不再只收 family/comp/altcode 等有牽扯到的），因為「打的是完整碼、
     # 秀主碼」這個修正（見下面 markHints）任何一個字都可能用到，不好再一個個追蹤
     # 「誰需要」。
-    char2code = {c: shorten(rec["code"], max_rule).lower()
+    # 部件字的碼位是 `k 不是 k（見上面主迴圈）——提示（markHints／萬用鍵）要秀實際打得到的碼。
+    char2code = {c: ("`" if rec.get("componentOnly") else "") + shorten(rec["code"], max_rule).lower()
                  for c, rec in codes.items() if rec.get("code")}
 
     # alts（兼容碼）＝另一條也打得出這個字的路，跟左簡碼曾經犯過同一種錯（cca07ff）：
@@ -775,6 +787,12 @@ def main():
     dl += ["}", "M.char2code = {"]
     for c, code in sorted(char2code.items()):
         dl.append(f'  [{lua_str(c)}]={lua_str(code)},')
+    dl += ["}", "M.component_only = {"]   # 部件字：碼（縮短、小寫）→ [字]，只有打「`碼」才由 aiphabi_wildcard 撈出來，不進碼表
+    for code, chs in sorted(component_only.items()):
+        dl.append(f'  [{lua_str(code)}]={lua_arr(chs)},')
+    dl += ["}", "M.component_chars = {"]  # 部件字集合：萬一沒打 ` 前綴卻還是冒出來（舊碼表殘留／使用者詞典），aiphabi_order 把它壓到候選最後
+    for ch in sorted({c for chs in component_only.values() for c in chs}):
+        dl.append(f'  [{lua_str(ch)}]=true,')
     dl += ["}", "M.t2s = {"]
     for c, vs in sorted(t2s_map.items()):
         dl.append(f'  [{lua_str(c)}]={lua_arr(vs)},')
@@ -1171,6 +1189,10 @@ Weasel／fcitx5-rime 多半內建）：
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
         print("  ⚠ data/standards/ 缺檔 —— M.common 為空，只打常用字開關會自動失效")
+    _comp_only = sum(len(v) for v in component_only.values())
+    if _comp_only:
+        print(f"部件字 {_comp_only} 個 → {len(component_only)} 個 `碼：不進碼表，只有打「`k」這種反引號"
+              f"前綴才由萬用鍵撈出來（打主碼 k 看不到，碼位留給獨立字）")
     print(f"字 {char_count}　碼 {len(entries)}　重碼組 {len(dups)}")
     print(f"寫出：{OUT}/aiphabi.schema.yaml、aiphabi.dict.yaml、README.md")
 

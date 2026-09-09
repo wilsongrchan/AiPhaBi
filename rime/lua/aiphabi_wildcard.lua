@@ -2,6 +2,11 @@
 -- 某幾碼想不起來就按 `：單一 ` = 一碼以上（例 WJ`M → WJSTM 也找得到）；
 -- 連續 N 個 ` = 剛好 N 碼（例 WJ``M 只找剛好多兩碼的）。查全表符合的碼、把字列出。
 --
+-- 反引號第四種用法「部件字」：打「`k」（一個 ` 前綴 + 完整碼）撈出以那個碼為主碼、
+-- 但被 Side A 標成 componentOnly 的部件字根（扌／爿／丬…）。這些字不進碼表（留著的話
+-- Rime 補全會在打主碼 k 時把它們一起倒出來），只在這裡靠 M.component_only 查。撈到就
+-- 排在萬用鍵掃表結果之前——你特地打了 ` 前綴，要的就是這幾個部件。
+--
 -- 單獨 N 個 `（前後都還沒打別的字母，N=1~5）本來就是「剛好 N 碼、內容隨便」——
 -- 比對得到全表每一個 N 碼的碼，一定會把整段（N=1 時是整張表）倒出來，沒有人真的
 -- 會就停在這裡選一個。這幾個狀態借來加一個「最近上屏的最後 N 個字」排在最前面，
@@ -28,11 +33,23 @@ return function(input, seg, env)
     end
   end
 
+  local seen = {}
+
+  -- 部件字：`k（單一 ` 前綴 + 純字母碼）→ M.component_only 撈出來，排最前面
+  local compCode = input:match("^`([a-z]+)$")
+  local compChs = compCode and data.component_only[compCode]
+  if compChs then
+    for _, ch in ipairs(compChs) do
+      seen[ch] = true
+      -- ap_component：aiphabi_order 認這個 type，把它釘在萬用鍵掃表結果之前
+      yield(Candidate("ap_component", seg.start, seg._end, ch, "部件"))
+    end
+  end
+
   -- ` → 一碼以上；``…（N 個）→ 剛好 N 碼
   local pat = "^" .. input:gsub("`+", function(run)
     return #run == 1 and "[a-z]+" or string.rep("[a-z]", #run)
   end) .. "$"
-  local seen = {}
   for code, chs in pairs(data.code2chars) do
     if code:match(pat) then
       for _, ch in ipairs(chs) do

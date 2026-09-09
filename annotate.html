@@ -680,6 +680,12 @@
       <input type="checkbox" id="notcomp">
       <span>約定特例：這個字這樣拆，但不作為其他字的偏旁範本</span>
     </label>
+    <!-- 部件字：碼不變（水／扌 都還是 K），但打主碼看不到，要加反引號 ` 前綴才會出現——
+         讓一碼字的碼位讓給真正獨立使用的字，部件本身退到 `K，兩邊都打得到、不互相擋。 -->
+    <label class="convlab" id="complab">
+      <input type="checkbox" id="comptoggle">
+      <span>視為部件字：主碼不變，但單獨打主碼看不到，要在前面加 <code>`</code>（反引號）才會出現</span>
+    </label>
     <textarea id="note" placeholder="例外／約定原則…"></textarea>
     </div><!-- /.editor-only：手動取碼時整段收起（那些都要靠筆畫） -->
 
@@ -3406,6 +3412,7 @@ async function load(c) {
   updateSplitButtons();          /* 這個字切過就露出「還原切開」鈕 */
   $('#note').value = (rec && rec.note) || '';
   $('#notcomp').checked = !!(rec && rec.notComponent);
+  $('#comptoggle').checked = !!(rec && rec.componentOnly);
   renderConv();          /* 約定表上有這個字的話，備註欄改成指過去的連結 */
   /* 收合預設要在 renderSegs（會觸發 renderAlts→applyAwrap）之前設好，不然套到的是上一個字的值：
      有手動兼容碼就自動展開兼容碼欄；有兼容字型就自動展開兼容字型欄。 */
@@ -4268,6 +4275,11 @@ $('#notcomp').onchange = () => {
   if ($('#notcomp').checked) rec.notComponent = true; else delete rec.notComponent;
   compIndex = null;
   touch(); renderSegs(); renderRelated(cur);
+};
+$('#comptoggle').onchange = () => {
+  const rec = codes[cur] || (codes[cur] = {});
+  if ($('#comptoggle').checked) rec.componentOnly = true; else delete rec.componentOnly;
+  touch();
 };
 $('#search').oninput = () => { shown = 120; renderQueue(); };
 $('#more').onclick = () => { shown += 120; renderQueue(); };

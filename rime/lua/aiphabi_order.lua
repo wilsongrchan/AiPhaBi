@@ -159,12 +159,15 @@ local function filter(input, env)
   if not code or code == "" or code:find("[^a-z]") then
     local repeatCand = nil
     local puncts = {}
+    local comps = {}          -- 部件字（`k 撈出來的，type=ap_component）：釘在萬用鍵掃表結果之前
     local rest = {}
     for _, c in ipairs(cands) do
       if not repeatCand and c.type == "ap_repeat" then
         repeatCand = c
       elseif c.type == "punct" then
         puncts[#puncts + 1] = c
+      elseif c.type == "ap_component" then
+        comps[#comps + 1] = c
       else
         rest[#rest + 1] = { c = c }
       end
@@ -183,6 +186,7 @@ local function filter(input, env)
     end)
     if repeatCand then yield(repeatCand) end
     for _, c in ipairs(puncts) do yield(c) end
+    for _, c in ipairs(comps) do yield(c) end
     for _, e in ipairs(head) do yield(e.c) end
     if tail then for _, e in ipairs(tail) do yield(e.c) end end
     return
@@ -193,9 +197,15 @@ local function filter(input, env)
 
   -- 覆蓋：enable_sentence 會冒出吃前段（水[K]）或吃後段（民[CLX]）的切分候選。吃不滿整段
   -- [segStart,segEnd]（缺頭或缺尾）的一律墊底，別讓常用單字壓過打滿的詞（水瓶座＝KVRF、人民＝YCLX）。
+  -- 部件字（扌／爿／丬…）只該在打「`k」反引號前綴時出現（見 aiphabi_wildcard）。這裡的
+  -- code 不含 `（含 ` 的走上面萬用鍵分支了），卻還是冒出部件字，代表是舊碼表殘留或使用者
+  -- 詞典學來的——不擋掉會怪，但也不必消失得無影無蹤：壓到補全之後、切分候選之前。
+  local demoted = {}
   local short, exact, pool, comp, part = {}, {}, {}, {}, {}
   for _, c in ipairs(cands) do
-    if (c.start or 0) > segStart or (c._end or 0) < segEnd then
+    if data.component_chars and data.component_chars[c.text] then
+      demoted[#demoted + 1] = c
+    elseif (c.start or 0) > segStart or (c._end or 0) < segEnd then
       part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
@@ -265,7 +275,8 @@ local function filter(input, env)
   for _, c in ipairs(exact) do yield(c) end              -- 2. 主碼 exact
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
   for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
-  for _, e in ipairs(part) do yield(e.c) end             -- 5. 只吃前綴的切分候選，墊底
+  for _, c in ipairs(demoted) do yield(c) end            -- 5. 沒打 ` 前綴卻冒出來的部件字，壓到這
+  for _, e in ipairs(part) do yield(e.c) end             -- 6. 只吃前綴的切分候選，墊底
 end
 
 -- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
