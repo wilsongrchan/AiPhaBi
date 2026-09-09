@@ -5667,3 +5667,43 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
    （定義在 :root，深色主題兩處都覆寫成 invert(1)）。鍵盤／＋鈕圖示本來就是
    灰階，兩種主題都看得清楚，不需要這個 class。 */
 .step-icon-dark-invert { filter: var(--icon-invert); }
+
+/* 〈輸入法〉頁 macOS 那兩張真的螢幕截圖（鼠鬚管選單列 icon 下拉、Deploy
+   子選單）——取自網路上一份 Rime 安裝教學（kahaani.github.io，出處連結見
+   .shot-credit），不是這台機器截的（沒裝鼠鬚管、也沒開螢幕錄製權限）。
+   截圖本身裁得很緊，看起來就像整張都是「要點的地方」，所以手繪圈選
+   （跟〈功能鍵〉頁 .gj-target 同一套 mask-image 筆觸、同一個 SVG）疊在上面，
+   位置用行內 style 個別擺放，理由跟 gj-target 一樣：圈選是「頁面上的標記」，
+   不是截圖本身的一部分，換一張圖不用重畫 SVG。 */
+.step-shot {
+  position: relative;
+  display: block;
+  max-width: 22rem;
+  margin: .6rem 0 0;
+}
+.step-shot img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.shot-circle {
+  position: absolute;
+  z-index: 1;
+  opacity: .65;
+  background-color: var(--accent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  pointer-events: none;
+}
+/* 截圖出處——跟 zg-credit（字根圖出處）同一個字級／灰階慣例，放在圖片正下方。 */
+.shot-credit {
+  display: block;
+  margin-top: .35rem;
+  font-size: .78rem;
+  color: var(--ink-faint);
+}
