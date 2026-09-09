@@ -3,7 +3,7 @@
 # 完整碼一律接受；alts 是手動收的兼容碼。
 ---
 name: aiphabi
-version: "2026.09.08"
+version: "2026.09.09"
 sort: by_weight
 columns:
   - text
@@ -217,6 +217,8 @@ columns:
 餵	aegotk	100097929
 館	aegqb	100159006
 饋	aegqdv	100097287
+饢	aegqk	100094688
+饢	aegquoohjk	100094688
 饋	aegqv	100097287
 飯	aegrx	100099411
 餡	aegse	100097042
@@ -676,6 +678,7 @@ columns:
 胁	dcjv	100083325
 眠	dclx	100098062
 瞰	dcnzx	100095690
+胝	dcxq	100094794
 朋	dd	100108898
 勖	ddcj	100094216
 冒	ddi	100098782
@@ -1257,8 +1260,10 @@ columns:
 鬆	figeg	100168470
 肆	figeh	100097457
 髦	figejil	100095570
+髡	figejl	100094675
 鬟	figek	100095002
 髦	figel	100095570
+髡	figel	100094675
 鬃	figem	100095468
 鬟	figemiojk	100095002
 髻	figeo	100096242
@@ -1459,6 +1464,8 @@ columns:
 堍	fsojq	100093892
 坞	fssi	100085822
 敖	fsx	100096774
+骜	fsxji	100080260
+骜	fsxjsi	100080260
 獒	fsxkq	100095695
 熬	fsxm	100108068
 聱	fsxne	100093387
@@ -1570,7 +1577,9 @@ columns:
 勢	fvfaj	100229124
 摯	fvfaj	100096537
 摯	fvfajij	100096537
+鷙	fvfajsem	100094836
 熱	fvfam	100259666
+鷙	fvfam	100094836
 蟄	fvfaog	100096003
 贄	fvfav	100094285
 報	fvfpx	100739722
@@ -1615,7 +1624,9 @@ columns:
 给	gao	100083691
 缇	gbfy	100083552
 绅	gbj	100083752
+绠	gbx	100083667
 幻	gc	100098447
+纰	gcc	100083815
 幼	gcj	100108313
 纸	gcx	100083788
 彘	gcykc	100094489
@@ -1648,10 +1659,13 @@ columns:
 缘	ggjk	100083501
 幾	ggjqq	100209590
 幾	ggjqxq	100209590
+绐	ggo	100083715
 畿	ggotq	100095743
 畿	ggotxq	100095743
 幾	ggyxq	100209590
 弁	gh	100095067
+绀	ghi	100083768
+绁	ghl	100083765
 红	gi	100083857
 绿	giek	100083578
 纭	gig	100083822
@@ -1687,9 +1701,11 @@ columns:
 纤	gjt	100083850
 绣	gjtp	100083658
 级	gjx	100083840
+绗	gjyij	100083697
 彔	gk	100090000
 叁	gke	100086031
 参	gke	100086027
+绔	gkis	100083702
 剝	gkn	100097675
 绮	gkoj	100083628
 畚	gkot	100094311
@@ -1703,10 +1719,12 @@ columns:
 縄	gmbbl	100091056
 緹	gmbfy	100093121
 紳	gmbj	100096453
+縵	gmbmx	100094730
 縷	gmbqj	100097025
 縷	gmbqlj	100097025
 轡	gmbtgmo	100095311
 轡	gmbto	100095311
+綆	gmbx	100092399
 紕	gmcc	100094024
 纜	gmckamdjl	100096959
 纜	gmckl	100096959
@@ -1728,6 +1746,8 @@ columns:
 續	gmfmdv	100529170
 續	gmfmv	100529170
 結	gmfo	100589658
+纈	gmfojdv	100094701
+纈	gmfov	100094701
 綾	gmfvx	100093154
 緻	gmgfx	100137537
 縉	gmggb	100095379
@@ -1738,6 +1758,7 @@ columns:
 絲	gmgm	100109174
 鷥	gmgmjsem	100092112
 鷥	gmgmm	100092112
+紿	gmgo	100091958
 縹	gmhem	100095397
 紺	gmhi	100095041
 紅	gmi	100149675
@@ -1748,6 +1769,8 @@ columns:
 縹	gmihim	100095397
 縹	gmihm	100095397
 紆	gmij	100095369
+縞	gmioo	100094884
+縞	gmiouo	100094884
 紡	gmis	100097520
 織	gmivbxq	100118759
 締	gmivm	100116493
@@ -1770,9 +1793,12 @@ columns:
 綞	gmjthi	100092229
 綞	gmjti	100092229
 級	gmjx	100249738
+絎	gmjyij	100093701
+絎	gmjyj	100093701
 縱	gmjyy	100118371
 縱	gmjyyyty	100118371
 緋	gmjze	100096205
+絝	gmkis	100092174
 綺	gmkoj	100097141
 繚	gmkvbm	100095783
 繚	gmkvm	100095783
@@ -1803,6 +1829,7 @@ columns:
 紉	gmpj	100095098
 紹	gmpo	100118487
 紉	gmpq	100095098
+綰	gmqb	100093092
 繾	gmqbz	100094676
 綻	gmqfy	100096594
 綜	gmqim	100108258
@@ -1812,7 +1839,6 @@ columns:
 纏	gmqrf	100097853
 編	gmqrh	100249289
 編	gmqruh	100249289
-綰	gmqub	100093092
 縮	gmqyb	100118716
 縮	gmqyjb	100118716
 編	gmrch	100249289
@@ -1852,6 +1878,7 @@ columns:
 紛	gmvp	100097908
 縊	gmvvi	100095210
 縊	gmvvmi	100095210
+綃	gmwd	100092887
 繃	gmwdd	100096820
 緩	gmwijx	100108517
 緩	gmwix	100108517
@@ -1893,14 +1920,17 @@ columns:
 卯	gp	100096974
 貿	gpdv	100108247
 纫	gpj	100083827
+纾	gpj	100083775
 绍	gpo	100083725
 留	gpot	100189530
 遛	gpotz	100096104
 贸	gpuy	100082236
 劉	gpyfn	100269207
 劉	gpyfvn	100269207
+绾	gqb	100083581
 绽	gqfy	100083584
 综	gqim	100083587
+纩	gqr	100083834
 缠	gqrbf	100083477
 编	gqruh	100083507
 缩	gqyjb	100083447
@@ -1909,6 +1939,8 @@ columns:
 缄	groxq	100083562
 绚	gsb	100083687
 绝	gsdl	100083677
+绉	gse	100083738
+绋	gsn	100083732
 绰	gtbt	100083622
 绪	gtxb	100083638
 彙	gubt	100098021
@@ -1916,6 +1948,7 @@ columns:
 绸	gufo	100083597
 绸	guho	100083597
 纯	gul	100083818
+绌	guw	100083728
 纲	gux	100083808
 纳	guy	100083805
 缨	guyuj	100083451
@@ -1931,15 +1964,18 @@ columns:
 夋	gvx	100093580
 皴	gvxpx	100094620
 逡	gvxz	100094131
+绡	gwd	100083665
 缓	gwijx	100083517
 缓	gwix	100083517
 绥	gwlj	100083655
 缝	gxez	100083484
 绎	gxh	100083722
+绛	gxh	100083684
 终	gxi	100083742
 绕	gxjl	100083700
 络	gxo	100083681
 绦	gxt	100083652
+绂	gxxq	100083762
 绒	gxxq	100083709
 缀	gxxxx	100083575
 以	gy	100809975
@@ -2701,6 +2737,7 @@ columns:
 敷	idqix	100097714
 逋	idqz	100094796
 貢	idv	100097968
+亖	ie	100091684
 妻	ielj	100118522
 凄	ielj	100088008
 疌	iety	100092585
@@ -2739,6 +2776,8 @@ columns:
 牽	igujh	100098351
 亥	igy	100096641
 劾	igycj	100095285
+頦	igyjdv	100094743
+頦	igyjv	100094743
 刻	igyn	100169159
 运	igz	100086559
 开	ih	100087027
@@ -2858,8 +2897,10 @@ columns:
 戒	ihxq	100108422
 迺	ihz	100080530
 二	ii	100389850
+亖	ii	100091684
 貳	iidvq	100096723
 三	iii	100219898
+亖	iiii	100091684
 于	iij	100099008
 彎	iiogmgms	100098337
 彎	iiogs	100098337
@@ -3309,8 +3350,6 @@ columns:
 於	isyi	100459957
 旒	isyignl	100094242
 旒	isyil	100094242
-瓷	isyilzq	100097657
-瓷	isyiq	100097657
 旌	isyjf	100096391
 旄	isyjil	100094597
 旅	isyjk	100228795
@@ -3318,6 +3357,8 @@ columns:
 旖	isykj	100095180
 旖	isykoj	100095180
 姿	isylj	100098183
+瓷	isylq	100097657
+瓷	isylzq	100097657
 旆	isym	100094210
 盗	isymi	100084160
 咨	isyo	100094245
@@ -3515,6 +3556,8 @@ columns:
 齊	iypkd	100179069
 齋	iypkdm	100097676
 齋	iypkm	100097676
+齎	iypknidv	100094729
+齎	iypkv	100094729
 规	iyujl	100082852
 卒	iyyt	100097326
 雜	iyytf	100099199
@@ -3646,10 +3689,12 @@ columns:
 裴	jeeik	100096521
 斐	jeeix	100096782
 鬥	jeej	100119055
+鬩	jeejffjl	100094847
 鬭	jeejhrt	100092429
 鬨	jeejhv	100095769
 鬮	jeeji	100094663
 鬧	jeejim	100098842
+鬩	jeejl	100094847
 鬧	jeejm	100098842
 鬧	jeejqm	100098842
 鬮	jeejselecx	100094663
@@ -3890,6 +3935,7 @@ columns:
 硫	joigl	100097724
 硫	joignl	100097724
 研	join	100109272
+硎	joinn	100094770
 砖	joisq	100084112
 砬	joiv	100095449
 碚	joivo	100094995
@@ -4005,7 +4051,9 @@ columns:
 殷	jrcnx	100097465
 兮	jrs	100097220
 乃	js	100098380
+骊	jsaa	100080303
 验	jsaw	100080298
+骒	jsbt	100080285
 烏	jscm	100338802
 鄔	jscmp	100093167
 驱	jscx	100080374
@@ -4016,14 +4064,28 @@ columns:
 鴕	jsemqc	100095372
 梟	jset	100096226
 島	jsew	100109149
+骥	jsfcothv	100080241
+骥	jsfcv	100080241
+骖	jsgke	100080275
+骀	jsgo	100080328
+骝	jsgpot	100080257
+骝	jsgpt	100080257
 骏	jsgvx	100080295
+骠	jshem	100080250
+骐	jshev	100080292
+骠	jshim	100080250
 马	jsi	100080391
 驻	jsif	100080344
 骇	jsigy	100080310
+骧	jsiok	100080235
+骧	jsioohjk	100080235
 骄	jsjkn	100080319
 驯	jsjn	100080381
+骢	jsjow	100080246
+骢	jsjoxw	100080246
 驮	jsk	100080384
 骑	jskoj	100080289
+驷	jsmi	100080358
 骤	jsnek	100080242
 骤	jsnexyjk	100080242
 骡	jsotgm	100080248
@@ -4033,16 +4095,28 @@ columns:
 驼	jsqc	100080341
 驻	jsqe	100080344
 驴	jsqr	100080368
+骟	jsqrcici	100080253
 骗	jsqrh	100080272
+骟	jsqri	100080253
 骗	jsqruh	100080272
+骣	jsrpi	100080244
+骣	jsrpppi	100080244
+驺	jsse	100080348
 驹	jsso	100080351
+驵	jsue	100080364
 骋	jsufs	100080301
+骈	jsvh	100080307
+骈	jsvin	100080307
 驭	jsx	100080388
+驿	jsxh	100080331
 骁	jsxjl	100080326
 骆	jsxo	100080313
 骚	jsxqg	100080266
 骚	jsxqog	100080266
 驳	jsxx	100080371
+驸	jsya	100080354
+骅	jsyct	100080316
+骓	jsyif	100080282
 千	jt	100209556
 移	jtaa	100118913
 稔	jtajw	100095466
@@ -4134,6 +4208,7 @@ columns:
 秣	jtt	100095400
 穢	jttlq	100096705
 穢	jttlrmxq	100096705
+秫	jttq	100094668
 租	jtue	100138960
 稠	jtufo	100096814
 稠	jtuho	100096814
@@ -5036,7 +5111,9 @@ columns:
 嫒	ljwuxx	100085667
 奴	ljx	100098147
 努	ljxcj	100118345
+驽	ljxji	100080338
 娆	ljxjl	100085699
+驽	ljxjsi	100080338
 帑	ljxm	100094231
 孥	ljxpi	100093706
 弩	ljxs	100096654
@@ -5994,6 +6071,8 @@ columns:
 圖	ooioo	100359774
 咢	oois	100092705
 顎	ooisjdv	100096100
+鶚	ooisjsem	100094856
+鶚	ooism	100094856
 鄂	ooisp	100097282
 顎	ooisv	100096100
 呵	ooj	100099587
@@ -6282,7 +6361,9 @@ columns:
 嗽	otosy	100096089
 疊	otote	100098196
 壘	ototf	100097557
+纍	ototm	100094894
 壘	otototf	100097557
+纍	otototgm	100094894
 疊	otototuue	100098196
 畹	otqaz	100095049
 噓	otrhi	100097191
@@ -6471,8 +6552,10 @@ columns:
 鷸	pjjuvojsem	100095112
 预	pjjuy	100080670
 務	pjjxcj	100299301
+骛	pjjxi	100080263
 務	pjjxj	100299301
 鶩	pjjxjsem	100095672
+骛	pjjxjsi	100080263
 鶩	pjjxm	100095672
 騖	pjjxm	100095603
 騖	pjjxshm	100095603
@@ -6489,6 +6572,7 @@ columns:
 陝	pkyy	100097172
 也	pl	100469981
 孔	pl	100108893
+陘	pllli	100094901
 迆	plz	100088494
 尕	pm	100095262
 孙	pm	100085654
@@ -6521,6 +6605,7 @@ columns:
 闞	ppcnex	100094593
 闞	ppcnx	100094593
 閒	ppd	100098954
+闃	ppdkq	100094914
 闈	ppdoh	100095356
 閏	ppe	100095991
 閆	ppe	100093265
@@ -6584,6 +6669,8 @@ columns:
 孢	psz	100096399
 陳	ptb	100299271
 陟	ptlm	100095125
+骘	ptlmi	100080269
+骘	ptlmjsi	100080269
 阽	pto	100093226
 阻	pue	100148363
 甬	puh	100095588
@@ -6885,7 +6972,6 @@ columns:
 禛	qmtuv	100094659
 祯	qmtuy	100084051
 祖	qmue	100108721
-禮	qmuhiov	100139088
 禮	qmuhov	100139088
 禮	qmuhv	100139088
 视	qmujl	100082846
@@ -6932,6 +7018,8 @@ columns:
 疟	qre	100084255
 扉	qree	100096103
 痱	qree	100094991
+廄	qregnx	100094762
+廄	qregx	100094762
 康	qrek	100179147
 痕	qrek	100097970
 唐	qreo	100098934
@@ -7032,6 +7120,8 @@ columns:
 痿	qrjtj	100095014
 痿	qrjtlj	100095014
 痢	qrjtn	100096163
+瘢	qrjuinx	100094795
+瘢	qrjux	100094795
 癥	qrjywex	100096855
 癥	qrjyx	100096855
 庆	qrk	100085462
@@ -7694,11 +7784,15 @@ columns:
 驃	shmiem	100092512
 駐	shmif	100168281
 駭	shmigy	100096797
+驤	shmik	100094488
 驃	shmim	100092512
+驤	shmioohjk	100094488
 駭	shmiy	100096797
 驕	shmjkouo	100097485
 馴	shmjn	100096819
 驕	shmjo	100097485
+驄	shmjoxw	100092572
+驄	shmjw	100092572
 馱	shmk	100096324
 騎	shmkj	100148760
 騎	shmkoj	100148760
@@ -7718,6 +7812,8 @@ columns:
 騙	shmqruh	100098868
 騙	shmrcuh	100098868
 騙	shmrh	100098868
+驏	shmri	100087445
+驏	shmrpppi	100087445
 駅	shmrr	100092048
 駒	shmso	100096574
 驢	shmti	100097729
@@ -8090,6 +8186,8 @@ columns:
 檯	tfouf	100107589
 檯	tfougf	100107589
 樹	tfova	100109319
+櫸	tfsfh	100094725
+櫸	tfsfvh	100094725
 棱	tfvx	100096300
 走	tfy	100259755
 越	tfycq	100109690
@@ -8187,6 +8285,7 @@ columns:
 杏	tjro	100097487
 株	tjt	100097575
 栝	tjto	100093910
+楸	tjtvy	100094881
 极	tjx	100092723
 桁	tjyij	100094945
 樅	tjyyy	100095446
@@ -8590,6 +8689,7 @@ columns:
 曲	uh	100139388
 冊	uh	100138744
 冪	uhbkm	100095933
+豊	uhiov	100093678
 周	uho	100189415
 彫	uhoe	100092554
 鵰	uhojm	100096561
@@ -8655,7 +8755,7 @@ columns:
 髖	uudqq	100095517
 髂	uudqxo	100095495
 骷	uudto	100095295
-體	uuduhiov	100409807
+體	uuduhov	100409807
 體	uuduv	100409807
 髓	uudxidz	100097411
 骼	uudxo	100095615
@@ -8931,6 +9031,8 @@ columns:
 弊	vumxh	100097725
 幣	vumxm	100128982
 曾	vvb	100119294
+甑	vvblq	100094854
+甑	vvblzq	100094854
 益	vvmi	100209077
 蠲	vvmmg	100095094
 蠲	vvmmsog	100095094
@@ -8958,6 +9060,7 @@ columns:
 爆	vybhvk	100339091
 烜	vybi	100093807
 煜	vybiv	100096031
+熳	vybmx	100094746
 煬	vybsj	100095246
 炬	vycc	100096447
 炔	vycy	100095211
@@ -9104,7 +9207,9 @@ columns:
 營	vyvyuoo	100229304
 榮	vyvyut	100158942
 熒	vyvyuvy	100096488
+鎣	vyvyuyfv	100094691
 煢	vyvyuzt	100095065
+鎣	vyvyv	100094691
 焱	vyvyvy	100095009
 熒	vyvyy	100096488
 焱	vyvyy	100095009
@@ -9204,6 +9309,8 @@ columns:
 爰	wix	100094413
 済	wixni	100092129
 必	wj	100189463
+櫱	wjbit	100094883
+櫱	wjbivft	100094883
 嵬	wjbjg	100094665
 嵬	wjbjlg	100094665
 溴	wjdiq	100096398
@@ -9243,7 +9350,9 @@ columns:
 峽	wkyy	100097815
 妥	wlj	100147866
 爵	wmega	100097665
+嶧	wmevf	100094806
 澤	wmfvf	100158633
+嶧	wmfvf	100094806
 濡	wmikjm	100096062
 濡	wmikm	100096062
 岿	wne	100085543
@@ -9919,6 +10028,8 @@ columns:
 鐐	yfvkm	100095073
 鈦	yfvkq	100096439
 鐐	yfvkvbm	100095073
+錙	yfvlllot	100094672
+錙	yfvlt	100094672
 鐸	yfvmevf	100093134
 鑼	yfvmf	100096936
 鐸	yfvmf	100093134
@@ -10948,6 +11059,7 @@ columns:
 浍	zyig	100084656
 涂	zyim	100096706
 塗	zyimf	100098550
+漵	zyimx	100094674
 溆	zyimx	100084545
 濮	zynvvey	100095861
 濮	zynvy	100095861
@@ -48613,10 +48725,6 @@ columns:
 次要的	isyijja	988
 於心	isyijlq	877
 於心	isyijlqq	877
-瓷磚	isyiqjoa	1670
-瓷磚	isyiqjobga	1670
-瓷器	isyiqookqo	1124
-瓷器	isyiqooo	1124
 次次	isyisy	979
 於此	isyitlc	2808
 方位	isyiv	1483
@@ -48657,6 +48765,10 @@ columns:
 姿勢	isyljfvj	10069
 姿態	isyljgdccw	6960
 姿態	isyljgdw	6960
+瓷磚	isylqjoa	1670
+瓷磚	isylqjobga	1670
+瓷器	isylqookqo	1124
+瓷器	isylqooo	1124
 旋風	isynjg	1271
 旋風	isynjog	1271
 施加	isyplcjo	1763
@@ -61469,7 +61581,7 @@ columns:
 碰頭	joviovjv	1020
 碰巧	jovis	1286
 碰瓷	jovisq	2110
-碰瓷	jovisyiq	2110
+碰瓷	jovisylq	2110
 礦產	jovixf	1077
 礦產資源	jovixfisvzrm	1161
 礦產	jovixrjf	1077
@@ -61493,7 +61605,7 @@ columns:
 碰頭	jovnviovjv	1020
 碰巧	jovnvis	1286
 碰瓷	jovnvisq	2110
-碰瓷	jovnvisyiq	2110
+碰瓷	jovnvisylq	2110
 碰上	jovnvjii	2608
 碰面	jovnvjoi	889
 碰面	jovnvjoni	889
@@ -85403,7 +85515,7 @@ columns:
 陶醉	pswihiit	1352
 陶醉	pswiht	1352
 陶瓷	pswisq	2121
-陶瓷	pswisyiq	2121
+陶瓷	pswisylq	2121
 陶大宇	pswiyqij	12000
 陶哲	pswkro	12000
 陶哲	pswkrto	12000
@@ -85416,7 +85528,7 @@ columns:
 陶醉	psywihiit	1352
 陶醉	psywiht	1352
 陶瓷	psywisq	2121
-陶瓷	psywisyiq	2121
+陶瓷	psywisylq	2121
 陶大宇	psywiyqij	12000
 陶哲	psywkro	12000
 陶哲	psywkrto	12000
