@@ -1563,16 +1563,22 @@ def build_jianma(codes, rules):
     }
 
 
-def build_gongnengjian(codes):
-    """〈功能鍵〉頁第 4 節（部件）的資料：哪些碼被「獨立成字」跟「純部件、
-    不能單獨成字」兩批字共用。Side A 用 codes.json 的 componentOnly 旗標標記
-    後面那批（2026-09-08 commit 5aee6b9 起始，之後 d083814／8032d00／ef9f1f1
+def component_only_groups(codes):
+    """codes.json 的 componentOnly 旗標分組：哪條碼底下有哪些「只能當部件、
+    不能單獨成字」的字（扌／爿／丬…），哪些是「同一條碼、沒被標 componentOnly」
+    的正常字。build_gongnengjian()（〈功能鍵〉頁第 4 節）跟 dict.json 的
+    "component" 欄（自由試打頁的反引號部件字查詢，見下面組 dict_out 那邊的
+    說明）共用這一份邏輯，不要各自重複寫一次分組規則——兩邊各自呼叫一次
+    這個函式沒關係（掃一次 codes.json 是微秒等級），但規則本身只能有一份，
+    不然日後 Side A 改旗標定義時很容易只顧到一邊、兩邊分岔。
+
+    旗標本身從 2026-09-08 commit 5aee6b9 起始，之後 d083814／8032d00／ef9f1f1
     陸續擴到 2、3 碼——一開始只有一碼字，這裡**不能**假設 final 一定是單一
-    字母，按整條碼分組，不是按字母），這裡只是照旗標分組——不手抄清單，
-    因為 Wilson 說了這批字以後還會再增加（見 CLAUDE.md 附的 memory）。main
-    是「同一條碼、沒被標 componentOnly」的字：目前每條碼最多一個，但不
-    保證——有幾條碼現在完全沒有 main（純部件，見下面印出的警告），
-    components 是被標 componentOnly 的那些。
+    字母，按整條碼分組，不是按字母。這裡也不手抄清單，因為 Wilson 說了這批字
+    以後還會再增加（見 CLAUDE.md 附的 memory）。
+
+    回傳 (main_by_code, comp_by_code)，碼一律小寫——跟 dict.json 其餘的碼
+    一致，也是 try.js 的 buf 本來就會小寫化之後比對的格式。
     """
     main_by_code, comp_by_code = {}, {}
     for ch, rec in codes.items():
@@ -1581,17 +1587,32 @@ def build_gongnengjian(codes):
         f = rec.get("final") or rec.get("code")
         if not f:
             continue
+        f = f.lower()
         (comp_by_code if rec.get("componentOnly") else main_by_code).setdefault(f, []).append(ch)
+    return main_by_code, comp_by_code
 
+
+def build_gongnengjian(codes):
+    """〈功能鍵〉頁第 4 節（部件）的資料：哪些碼被「獨立成字」跟「純部件、
+    不能單獨成字」兩批字共用，見 component_only_groups() 的說明。main
+    是「同一條碼、沒被標 componentOnly」的字：目前每條碼最多一個，但不
+    保證——有幾條碼現在完全沒有 main（純部件，見下面印出的警告），
+    components 是被標 componentOnly 的那些。
+    """
+    main_by_code, comp_by_code = component_only_groups(codes)
+
+    # 頁面上碼一律顯示大寫（跟站上其餘每一處碼的展示習慣一致）；上面共用的分組
+    # 是小寫鍵（給 dict.json 的 component 查詢用），這裡顯示前轉回大寫。
     codes_out = []
     warn = []
     for f in sorted(comp_by_code, key=lambda f: (len(f), f)):
         main = main_by_code.get(f, [])
+        disp = f.upper()
         if not main:
-            warn.append(f"功能鍵頁：碼「{f}」目前沒有獨立成字的字，"
-                        f"打「{f}」本身查不到字，只有 `{f}` 查得到部件"
+            warn.append(f"功能鍵頁：碼「{disp}」目前沒有獨立成字的字，"
+                        f"打「{disp}」本身查不到字，只有 `{disp}` 查得到部件"
                         f"（{'、'.join(comp_by_code[f])}）")
-        codes_out.append({"code": f, "main": main, "components": comp_by_code[f]})
+        codes_out.append({"code": disp, "main": main, "components": comp_by_code[f]})
 
     for w in warn:
         print(f"  ⚠️ {w}")
@@ -3182,6 +3203,11 @@ def main():
         #            但桶跟桶之間沒有順序，所以那個排序救不了萬用鍵。
         "main": main,
         "order": "".join(c for c in freq_order if c in codes),
+        # 反引號部件字（自由試打頁第四種用法，見 gongnengjian.html〈功能鍵〉頁）：
+        # 碼(小寫) → 只能當部件、不能單獨成字的那幾個字（扌／爿／丬…）。
+        # 跟 build_gongnengjian() 共用同一份分組（component_only_groups()），
+        # 不要在這裡另外掃一次 —— 見那個函式開頭的說明。
+        "component": component_only_groups(codes)[1],
     }
 
     # 值是候選陣列，取第一個（標準簡化字）；51 個多候選字的其餘寫法用不到。

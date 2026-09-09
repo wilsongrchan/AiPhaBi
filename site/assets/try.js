@@ -83,8 +83,41 @@
   /* 萬用鍵 —— 鍵盤左上角那一顆。語意照 rime/lua/aiphabi_wildcard.lua：
    *   單一個 `  = 一碼以上（wj`m 找得到 wjstm）
    *   連按 N 個 = 剛好補 N 碼（wj``m 只找剛好多兩碼的）
-   * 而且是**整串比對**，不是前綴 —— 打 `d 找的是「剛好兩碼、第二碼是 D」的字。 */
+   * 而且是**整串比對**，不是前綴 —— 打 `d 找的是「剛好兩碼、第二碼是 D」的字。
+   *
+   * 這顆鍵其實有四種用法（見 gongnengjian.html〈功能鍵〉頁），這裡的 wildLookup
+   * 一次處理全部四種，順序照 rime/lua/aiphabi_order.lua 那條「code 含 ` 或是空」
+   * 分支排：重複上字 → 標點（punctuator，aiphabi.schema.yaml 的 '`' 那條） →
+   * 部件字（`k 前綴）→ 萬用鍵掃表本身。四種各自獨立觸發，觸發不到的就不出現，
+   * 不是每次都四種全上。 */
   var WILD = '`';
+
+  /* 重複上字：連續按 N 個 `（N=1~5，前後都沒打別的字母）代表「重複最近上屏的
+   * 最後 N 個字接成一串」。跟 rime/lua/aiphabi_order.lua 的 push_history／
+   * get_last_n 對應——那邊掛在 commit_notifier 上收所有上屏文字（含標點），
+   * 這裡對應的鉤子是 insert()，同一個函式底下手動選字（commit）跟直接插入的
+   * 標點（typeKey 的 PUNCT 分支）都會經過。 */
+  var HISTORY_MAX = 5;
+  var COMMIT_HISTORY = [];
+
+  function pushHistory(text) {
+    for (var i = 0; i < text.length; i++) {
+      COMMIT_HISTORY.push(text.charAt(i));
+      if (COMMIT_HISTORY.length > HISTORY_MAX) COMMIT_HISTORY.shift();
+    }
+  }
+
+  // 記不到 n 個（剛開始打／才打過一兩個字）就回 null，讓呼叫端退回純萬用鍵，
+  // 不要硬湊一個不完整的答案——跟 aiphabi_order.lua 的 get_last_n 同一條規矩。
+  function lastNChars(n) {
+    if (COMMIT_HISTORY.length < n) return null;
+    return COMMIT_HISTORY.slice(COMMIT_HISTORY.length - n).join('');
+  }
+
+  /* 符號：選字框空的時候按一個 `，除了萬用鍵掃表跟重複上字，還會多出這三個
+   * 符號候選——照抄 rime/aiphabi.schema.yaml 的 punctuator 設定
+   * `'`': [ '·', '`', '~' ]`，順序也要一樣（間隔號、` 本身、~）。 */
+  var WILD_PUNCT = ['·', '`', '~'];
 
   /* 提示鍵。本來用 '/'，Wilson 改成 '='：/ 是頓號原本的鍵，佔著它等於為了提示
      犧牲一顆標點；= 在打字時完全用不到，讓出來沒有代價。 */
@@ -220,15 +253,57 @@
     return [start, lowerBound(keys, end, start)];
   }
 
-  /* 萬用鍵：把 buf 轉成整串比對的 regex，掃過碼表所有的碼。
-     7993 個碼，每按一鍵掃一次，實測 1ms 以內，不值得為它建索引。 */
+  /* 反引號的四種用法，一次處理完，順序照 rime/lua/aiphabi_order.lua 那條
+     「code 含 ` 或是空」分支排：重複上字 → 標點 → 部件字 → 萬用鍵掃表本身。
+     萬用鍵掃表：把 buf 轉成整串比對的 regex，掃過碼表所有的碼——7993 個碼，
+     每按一鍵掃一次，實測 1ms 以內，不值得為它建索引。 */
   function wildLookup(buf) {
     var d = state.data;
+    var results = [], seen = {};
+
+    // 1. 重複上字：buf 從頭到尾全部都是 `，1~5 個（見 rime/lua/aiphabi_wildcard.lua
+    //    的 MAX_REPEAT）。記不到那麼多個上屏字就沒有這個候選，退回純萬用鍵。
+    var allBackticks = /^`+$/.test(buf);
+    if (allBackticks && buf.length <= HISTORY_MAX) {
+      var last = lastNChars(buf.length);
+      if (last) {
+        results.push({ ch: last, exact: true,
+                       tag: buf.length === 1 ? '重複上字' : '重複上' + buf.length + '字' });
+        seen[last] = 1;
+      }
+    }
+
+    // 2. 標點：punctuator 只認確切一顆 `（選字框空的時候按下的那一下），不是
+    //    任何長度的全 ` —— 連按第二個 ` 已經是「重複上 2 字」的地盤，符號不
+    //    會再冒出來一次（跟 gongnengjian.html 第 2、3 節的示範一致）。
+    if (buf === WILD) {
+      WILD_PUNCT.forEach(function (s) {
+        if (seen[s]) return;
+        seen[s] = 1;
+        results.push({ ch: s, exact: true });
+      });
+    }
+
+    // 3. 部件字：單一個 ` 前綴＋純字母碼（不能再夾別的 `），查 dict.json 的
+    //    component 表——那些字只能當部件、不進主碼表，打整條碼本身查不到。
+    var compMatch = /^`([a-z]+)$/.exec(buf);
+    var comps = compMatch && d.component && d.component[compMatch[1]];
+    if (comps) {
+      comps.forEach(function (ch) {
+        if (seen[ch]) return;
+        seen[ch] = 1;
+        results.push({ ch: ch, exact: true, tag: '部件' });
+      });
+    }
+
+    // 4. 萬用鍵掃表本身：上面三種各自獨立觸發，觸發不到就是空的，這一段永遠
+    //    照舊跑一次墊底——單一個 ` 沒有別的字母時（重複／標點都可能同時觸發
+    //    的那個狀態）也一樣會落到這裡，掃出全表當候選，跟真正的輸入法一致。
     var pat = '^' + buf.replace(/`+|[a-z]+/g, function (run) {
       if (run[0] !== WILD) return run;
       return run.length === 1 ? '[a-z]+' : '[a-z]{' + run.length + '}';
     }) + '$';
-    var re = new RegExp(pat), hits = [], seen = {};
+    var re = new RegExp(pat), hits = [];
     for (var i = 0; i < d.keys.length; i++) {
       if (!re.test(d.keys[i])) continue;
       var chs = d.codes[d.keys[i]];
@@ -242,12 +317,16 @@
     hits.sort(function (a, b) {
       return (d.rank[a] == null ? far : d.rank[a]) - (d.rank[b] == null ? far : d.rank[b]);
     });
-    return hits.slice(0, MAX_CANDS).map(function (ch) {
-      // 標的是主碼，不是比對到的那個碼 —— 萬用鍵很常比對到長得看不完的完整碼。
-      // 加圓括號表示「這是拿來看的參考碼」，不是叫你改打它（跟 IME 那邊同一套規矩）。
-      return { ch: ch, exact: true,
-               code: d.main[ch] ? '(' + d.main[ch].toUpperCase() + ')' : '' };
-    });
+    var remain = MAX_CANDS - results.length;
+    if (remain > 0) {
+      hits.slice(0, remain).forEach(function (ch) {
+        // 標的是主碼，不是比對到的那個碼 —— 萬用鍵很常比對到長得看不完的完整碼。
+        // 加圓括號表示「這是拿來看的參考碼」，不是叫你改打它（跟 IME 那邊同一套規矩）。
+        results.push({ ch: ch, exact: true,
+                       code: d.main[ch] ? '(' + d.main[ch].toUpperCase() + ')' : '' });
+      });
+    }
+    return results;
   }
 
   function lookup(buf) {
@@ -1803,6 +1882,7 @@
     var s = out.selectionStart, e = out.selectionEnd, v = out.value;
     out.value = v.slice(0, s) + text + v.slice(e);
     out.selectionStart = out.selectionEnd = s + text.length;
+    pushHistory(text);   // 重複上字（見 WILD_PUNCT 上面那段）要用的上屏紀錄
   }
 
   /* 選中的候選可能是一個詞（詞組連打／四碼快打）。整串一次進試打框，進度則
