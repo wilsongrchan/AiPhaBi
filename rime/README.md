@@ -55,7 +55,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 `"` 與 `'` 是成對的：連按會輪流出「」與『』的左右半邊。
 
-## 目前的重碼（518 組）
+## 目前的重碼（519 組）
 
 裝之前先知道哪些字要多按一次選字鍵：
 
@@ -78,12 +78,12 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `bf` → 里旱旰
 * `bsj` → 易昜畅
 * `bt` → 果早杲
-* `cj` → 力刀尸
 * `cl` → 已乜巳
 * `ej` → 尹丰玎
 * `ek` → 艮隶录
 * `ekz` → 退逮逯
 * `ga` → 纣约纨
+* `gma` → 約紂紈
 
 ## iOS（仓／Hamster）
 

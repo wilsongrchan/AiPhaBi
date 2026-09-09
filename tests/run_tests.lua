@@ -130,6 +130,35 @@ do
 end
 
 print()
+print("== 左簡碼：贏字頭（ILOD→ID，左上方偏旁）把 iloda 五方重碼拆成單一碼 ==")
+do
+  -- 贏赢嬴羸蠃 五個字主碼都壓成 iloda（七碼超上限）。贏字頭左簡碼 ID+尾 三碼還是五碼，
+  -- 沒省鍵，但每個字各有獨一的碼：iddva 只出 贏。
+  h.check("M.leftshort iddva → 只有 贏",
+    data.leftshort["iddva"] and data.leftshort["iddva"][1] == "贏"
+      and #data.leftshort["iddva"] == 1,
+    "got " .. tostring(data.leftshort["iddva"] and table.concat(data.leftshort["iddva"], "／")))
+  h.check("M.leftshort idvfa → 只有 羸",
+    data.leftshort["idvfa"] and data.leftshort["idvfa"][1] == "羸",
+    "got " .. tostring(data.leftshort["idvfa"] and data.leftshort["idvfa"][1]))
+  local out = h.run{
+    schema = "aiphabi", code = "iddva", options = ALL_ON,
+    cands = { { text = "的" } },   -- 高頻雜訊，不該壓過打滿的左簡碼
+  }
+  h.checkAt("打滿 IDDVA → 贏 排第一", out, 1, "贏")
+  -- iloda（主碼）跟左簡碼一樣長 → 不提「左簡」
+  local out2 = h.run{
+    schema = "aiphabi", code = "iloda", options = ALL_ON,
+    cands = { { text = "贏" } },
+  }
+  local cc
+  for _, x in ipairs(out2) do if x.text == "贏" then cc = x.comment end end
+  h.check("打 贏 主碼 iloda → 不提左簡（一樣五碼）",
+    cc == nil or not tostring(cc):find("左簡"),
+    string.format("got %q", tostring(cc)))
+end
+
+print()
 print("== 開關關掉就完全不作用 ==")
 do
   local out = h.run{
