@@ -1352,6 +1352,18 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .rail.gj-demo .buf, .rail.gj-demo .hint, .rail.gj-demo .cands { flex-shrink: 0; }
 .rail.gj-demo .cand { cursor: default; }
 .rail.gj-demo .cand:hover { background: transparent; }
+/* 〈選字列設定〉的候選列範例圖——跟 .gj-demo 同樣「看起來像真的候選列，但
+   不能點」，差別是這裡沒有 gongnengjian.js 那套量寬度裁切的邏輯（每組最多
+   六、七個候選，寬度算得準，不需要），所以**不**覆寫 overflow：萬一某個
+   視窗真的窄到擠不下，交回 .rail 原本的 overflow-x:auto 捲動，不要讓內容
+   直接溢出頁面。 */
+.rail.xz-demo { cursor: default; }
+.rail.xz-demo .cand { cursor: default; }
+.rail.xz-demo .cand:hover { background: transparent; }
+/* 開關總覽表最後一欄是完整句子，不是碼——.jm-tbl 預設 white-space:nowrap
+   是為了碼／字這種短內容設計的，這裡照樣 nowrap 會逼一整句擠成一條橫線，
+   非捲不可才看得完。只放寬這一欄。 */
+#xz-overview td:last-child { white-space: normal; }
 .gj-demo-stack .rail { margin-top: .5rem; }
 .gj-demo-stack .rail:first-child { margin-top: 0; }
 .gj-demo-pair {
@@ -1367,8 +1379,10 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    框疊在一起白邊就多到不像話（Wilson）。改成框內自己控制：第一組緊貼著框，
    後面每一組的說明文字往上留一點。 */
 .ac-demo .ac-demo-cap { margin-top: 0; }
-.ac-demo .rail.gj-demo + .ac-demo-cap { margin-top: 1.1rem; }
-.ac-demo .rail.gj-demo + .ac-caveat { margin-top: .6rem; }
+.ac-demo .rail.gj-demo + .ac-demo-cap,
+.ac-demo .rail.xz-demo + .ac-demo-cap { margin-top: 1.1rem; }
+.ac-demo .rail.gj-demo + .ac-caveat,
+.ac-demo .rail.xz-demo + .ac-caveat { margin-top: .6rem; }
 .ac-demo .ac-caveat + .ac-demo-cap { margin-top: 1.1rem; }
 /* 事後補充的說明（打錯碼數會漏掉目標之類）要讀起來比情境描述輕，不是同一
    層級的東西——情境描述在教「打法」，這幾句只是補一句提醒（Wilson）。 */
