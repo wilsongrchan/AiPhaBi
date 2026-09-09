@@ -5061,6 +5061,22 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
      關掉它 sticky 才有意義。表格自己有 max-width: 100%，不會撐爆版面。 */
   .cv-page .jm-cols, .jm-page .jm-cols { overflow-x: visible; }
 
+  /* 同一頁裡另外幾張表（三簡碼示範、部件字表）不屬於上面 .jm-cols 那組，
+     用的是一般的 .tablewrap，一樣帶著 overflow-x: auto，一樣會撞進同一個坑
+     ——sticky 黏在這層自己身上、不是視窗，捲下去表頭就從畫面上消失，不是
+     停在頁首底下（390px 實測：捲 400px 後 rect.top 變成 -298px，早就捲出
+     螢幕）。這幾張窄螢幕本來就塞得下（390px 實測 339px＝可用寬度，剛好不
+     溢出），關掉 overflow-x 就好，跟 .jm-cols 同一個道理。
+     ⚠️ 左簡碼表例外：六欄在 390px 會溢出（實測 445px，多出 106px），是真的
+     需要橫向捲，捲動容器跟「黏在視窗頂端」兩者沒辦法並存——照抄字根表表頭
+     那條的做法（見〈手機版修正〉第 1 節），窄螢幕乾脆放棄這張表的 sticky，
+     保留橫向捲，總比表頭捲出畫面消失、或黏在小小的捲動框裡沒意義好。 */
+  .cv-page .tablewrap:not(:has(.jm-leftshort)),
+  .jm-page .tablewrap:not(:has(.jm-leftshort)) { overflow-x: visible; }
+
+  .cv-page .tablewrap:has(.jm-leftshort) thead th,
+  .jm-page .tablewrap:has(.jm-leftshort) thead th { position: static; }
+
   /* 組名／節名黏在頁首底下。3.7rem 是收起來的頁首那一列。
      ⚠️ 底色要不透明，不然捲過去的內容會透出來疊在字上。 */
   .cv-page #cv-groups > div > h2,
