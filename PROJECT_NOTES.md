@@ -846,6 +846,20 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-09 (second time same day)**, after Side A's 88+52+36 new chars and
+  41+27+14 recodes pushed 字 8068→8156, 碼 10817→10950, and the `M.common` whitelist grew
+  6463→6513 (Side B also merged in the componentOnly-whitelist fix — the 50 部件字 now count
+  toward the whitelist, independently discovered and fixed by two different sessions the same
+  day; build_rime.py had a real merge conflict resolving the two implementations, took origin's
+  version since it whitelists via the built `component_only` map's `out` chars rather than raw
+  `codes.json` keys — more correct if a componentOnly char ever gets a `display` override).
+  `N=16500` (this morning's value) now **crashes**. Re-bisected: 16,100 passes, 16,250 fails.
+  Shipped at **`N=16000`**. Same verification pattern as always: `luajit` load check + end-to-end
+  filter run against the literal bytes extracted from the shipped zip (殳/収/夼/蕖/苤/陧/哿 plus
+  扌/氵/艹/忄, and a full sweep confirming 0 of the 50 component_only chars are missing from
+  `data.common`).
+  **This is now the fourth cliff move in four days, every time from ordinary character growth —
+  budget: re-bisect on every mobile ship, don't reuse the last number, ever.**
 - **Cliff re-checked 2026-09-09**, after Side A's 水旁 recode (462 字改碼) + 50 new chars pushed
   字 8018→8068 and 碼 10746→10817. `N=17000` (the 2026-09-05 value) now **crashes**. Bisected
   fresh: 16,500 passes, 16,650 fails — narrower margin than before but not dead-on-the-wall this
