@@ -434,7 +434,14 @@ def main():
     # （否則白名單只剩這幾十個部件，開關會誤判成「有名單」把候選全濾光）。
     _keep_component = {c for chs in component_only.values() for c in chs} if _common_core else set()
     _keep |= _keep_component
-    common = set(_keep)                                # 白名單：常用字＝回填集合本身
+    # 手動強制擋（common_extra.txt 的反向）：異體回填靠 OpenCC t2s 邊放行，一堆只活在單一
+    # 冷僻詞裡的變體字（衕＝衚衕、榘＝矩、査＝查…）也一起進來——沒有乾淨的自動判準，逐字
+    # 由 Wilson 認可後列在 common_exclude.txt，這裡從白名單扣掉。
+    _keep_exclude = set(_load_standard("common_exclude.txt")) if _common_core else set()
+    if _keep_exclude & _common_core:
+        print(f"  ⚠ common_exclude.txt 擋掉了甲表／GB 一級的字："
+              f"{''.join(sorted(_keep_exclude & _common_core))}（確定要擋？）")
+    common = set(_keep) - _keep_exclude               # 白名單：回填集合本身，再扣掉強制擋的
 
     by_len = defaultdict(list)
     for code in code2chars:
@@ -1138,7 +1145,8 @@ Weasel／fcitx5-rime 多半內建）：
               f"{len(_gb_level1)} ∪ 回填：異體 {len(_keep_variant)}／"
               f"詞庫 {len(_keep_phrase & set(codes))}／名字 {len(_keep_name & set(codes))}／"
               f"百家姓 {len(_keep_surname & set(codes))}／粵語 {len(_keep_canton & set(codes))}／"
-              f"手動 {len(_keep_manual & set(codes))}／部件 {len(_keep_component)}）；"
+              f"手動 {len(_keep_manual & set(codes))}／部件 {len(_keep_component)}"
+              f"／強制擋 −{len(_keep_exclude & set(codes))}）；"
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
         print("  ⚠ data/standards/ 缺檔 —— M.common 為空，只打常用字開關會自動失效")
