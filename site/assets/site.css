@@ -48,6 +48,9 @@
   --zg-on-2: #09625a;
   --zg-on-3: #06413c;
   --zg-off:  #c4c4c4;
+  --neutral-bg: #ededec;   /* 真正的中性灰，不帶青——〈常用字表〉非常用字格用 */
+  --neutral-line: #dcdcdb;
+  --neutral-ink: #97999a;
   --radius: 10px;
   /* 〈下載〉頁那顆蘋果選單小圖示是純黑色（Apple 官方素材本來就沒分深淺色版），
      深色主題下黑圖示疊在深色底上幾乎看不見——用這個變數在深色主題翻成白色，
@@ -124,6 +127,9 @@
     --zg-on-2: #22aa9b;
     --zg-on-3: #197e74;
     --zg-off:  #6f6f6f;
+    --neutral-bg: #262726;
+    --neutral-line: #363736;
+    --neutral-ink: #7a7c7c;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
@@ -158,6 +164,9 @@
     --zg-on-2: #22aa9b;
     --zg-on-3: #197e74;
     --zg-off:  #6f6f6f;
+    --neutral-bg: #262726;
+    --neutral-line: #363736;
+    --neutral-ink: #7a7c7c;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
@@ -1310,6 +1319,11 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   border-radius: 6px;
   background: var(--bg);
   overflow-x: auto;
+  /* ⚠️ 只留橫向捲軸。CSS 規則：overflow-x 設了非 visible、overflow-y 沒設，
+     overflow-y 會**自動變成 auto**——候選字的碼標籤讓某個 .cand 比框高一點點
+     時，就冒出一條直向捲軸（Wilson 在同類字那排 9 個候選抓到）。明寫 hidden
+     擋掉：框是固定高度的一條，本來就不該上下捲。 */
+  overflow-y: hidden;
 }
 
 .rail .buf {
@@ -5904,6 +5918,65 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
 .pdf-switch button[aria-pressed="true"] {
   background: var(--accent);
   color: #fff;
+}
+
+/* 〈常用字表 PDF〉頁的「把字貼進來看哪些是常用字」小工具 —— 見 changyongzi.js。
+   版面借〈拆碼查詢〉的貼字牆，只是每格不畫拆碼圖、改用底色分常用／非常用。 */
+.cy-check { margin: 1.6rem 0; }
+.cy-label { display: block; font-size: .92rem; color: var(--ink-dim); margin-bottom: .45rem; }
+.cy-check .cm-in { max-width: 34rem; }
+
+.cy-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin-top: .7rem; font-size: .82rem; color: var(--ink-dim); }
+.cy-key { display: inline-flex; align-items: center; gap: .35rem; }
+.cy-key::before {
+  content: ""; width: .85rem; height: .85rem; border-radius: 3px; border: 1px solid var(--line);
+}
+.cy-key-yes::before { background: var(--accent-soft); border-color: var(--accent); }
+.cy-key-no::before { background: var(--neutral-bg); border-color: var(--neutral-line); }
+.cy-key-simp::before { display: none; }
+.cy-key-simp .cy-tag { position: static; }
+
+.cy-wall { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1rem 0 .3rem; }
+.cy-cell {
+  position: relative;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+.cy-cell.is-yes { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.cy-cell.is-no {
+  background: var(--neutral-bg);
+  border-color: var(--neutral-line);
+  color: var(--neutral-ink);
+}
+.cy-tag {
+  position: absolute;
+  top: -.4rem;
+  inset-inline-end: -.4rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 .12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  color: var(--surface);
+  font-family: inherit;
+  font-size: .58rem;
+  line-height: 1;
+}
+.cy-summary { margin-top: .5rem; font-size: .9rem; color: var(--ink-dim); }
+
+@media (max-width: 40rem) {
+  .cy-cell { width: 2rem; height: 2rem; font-size: 1.2rem; }
 }
 
 .pdf-preview {
