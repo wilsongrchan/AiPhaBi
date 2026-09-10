@@ -846,6 +846,16 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-10**, after merging origin/main's batch of `[rebuild]` commits (贏字頭
+  左簡碼 fix + several rounds of new chars/recodes, including a dupe-count bug fix unrelated to the
+  cliff) pushed 字 8156→8383, 碼 10950→11270. `N=16000` (2026-09-09's value) now **crashes**.
+  Re-bisected: 15,300 passes, 15,400 fails — narrower margin than the last three rounds. Shipped at
+  **`N=15250`** for a bit of headroom. Same verification pattern as always: `luajit` load check +
+  end-to-end filter run against the literal bytes extracted from the shipped zip (殳/収/夼/蕖/苤/
+  陧/哿 plus 扌/氵/艹/忄, and a full sweep confirming 0 of the (now 56) component_only chars are
+  missing from `data.common`).
+  **Fifth cliff move — the margin is shrinking (16,650→16,250→15,400 fail points across the last
+  three re-bisections), so budget more aggressively for the next ship, not less.**
 - **Cliff re-checked 2026-09-09 (second time same day)**, after Side A's 88+52+36 new chars and
   41+27+14 recodes pushed 字 8068→8156, 碼 10817→10950, and the `M.common` whitelist grew
   6463→6513 (Side B also merged in the componentOnly-whitelist fix — the 50 部件字 now count
