@@ -1794,6 +1794,10 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 /* 三欄之後每欄變窄，左右內距跟著收，不然表頭會折行 */
 .jm-compact th, .jm-compact td { padding: .28rem 1rem; }
 
+/* 〈功能鍵〉的部件字表只有 38 列，切三欄每欄才十幾列、右邊留一大截白；
+   切兩欄剛好（Wilson）。窄螢幕的退欄規則（62rem→2、40rem→1）照舊沿用。 */
+.jm-cols-2 { grid-template-columns: repeat(2, 1fr); }
+
 /* ⚠️〈約定字表〉裡整條寬度的組（土／甲字類）自己拆欄時借用 .jm-cols，但那條規則是
    〈簡碼〉頁的**三欄**（約定簡碼表用的）。三欄裡只放兩張表，第二張就落在整條寬度的
    三分之一處，而並排的兩組（大｜目）是各佔一半、第二組落在二分之一處 —— 兩種機制
