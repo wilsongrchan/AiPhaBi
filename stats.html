@@ -725,7 +725,8 @@ function render() {
      兩種來源：(1) 完整碼（被縮短的字自動兼容）(2) 你手動收的另一種拆法。 */
   const altN = entries.reduce((n, [, r]) => n + (r.alts || []).length, 0);
   const altChars = entries.filter(([, r]) => (r.alts || []).length).length;
-  const withAlts = new Map(byCode);            /* 所有打得出字的碼一起佔的碼空間 */
+  const withAlts = new Map([...byCode].map(([k, v]) => [k, [...v]]));  /* 深copy陣列，
+    不然 put() 會直接往 byCode 的陣列 push，把後面 lenStat 重算的重碼數污染變大 */
   const put = (code, ch) => {
     if (!withAlts.has(code)) withAlts.set(code, []);
     if (!withAlts.get(code).includes(ch)) withAlts.get(code).push(ch);

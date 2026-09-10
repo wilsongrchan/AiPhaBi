@@ -49,6 +49,11 @@
   --zg-on-3: #06413c;
   --zg-off:  #c4c4c4;
   --radius: 10px;
+  /* 〈下載〉頁那顆蘋果選單小圖示是純黑色（Apple 官方素材本來就沒分深淺色版），
+     深色主題下黑圖示疊在深色底上幾乎看不見——用這個變數在深色主題翻成白色，
+     淺色維持原樣。跟 --bg／--ink 那組同樣的「淺色定義在這裡、深色在下面兩處
+     覆寫」寫法，見 .step-icon-dark-invert。 */
+  --icon-invert: none;
   /* 正文行寬上限。原本 34rem 在桌機上只佔中間一條，像手機版。
      現在設成跟版面內容寬一樣（.wrap 58rem 減去左右各 1.6rem），
      等於不再另外限制，正文與標題、分隔線同寬。 */
@@ -132,9 +137,11 @@
        只剩 4.47，低於 4.5 就不收。 */
     --warn: #ee4653;
     --warn-soft: #3a1f22;
+    --icon-invert: invert(1);
   }
 }
 :root[data-theme="dark"] {
+    --icon-invert: invert(1);
     --bg:      #141717;
     --surface: #1b2020;
     --line:    #2d3534;
@@ -942,6 +949,15 @@ tbody tr:last-child td { border-bottom: 0; }
   border: 1px solid var(--line);      /* 完整格線，不是只有底線 */
 }
 
+/* 字母鍵現在是每一列各自一個儲存格（不是 rowspan——見 letterRows() 的
+   註解，rowspan 太大會讓印表機引擎把整個字母當成不能斷開的一塊）。
+   .zg-tbl td 給的預設格線因此會在同一個字母的連續幾列之間也畫出橫線，
+   看起來像斷成一截一截，不像原本一整片連續的色塊。拿掉上下框線，只留
+   .zg-letterkey 自己的右框線——真的換字母的那一列改靠下面
+   tr.is-letter-start 那條「粗上框線」規則分隔，選擇器比這裡多一層
+   （tr.is-letter-start），不用 !important 就贏得過這裡，兩條規則不會打架。 */
+.zg-tbl .zg-letterkey { border-top: none; border-bottom: none; }
+
 .zg-desc {
   color: var(--ink);
   overflow-wrap: break-word;
@@ -1012,6 +1028,33 @@ tbody tr:last-child td { border-bottom: 0; }
   fill: var(--ink);
   stroke: none;
 }
+
+/* 精簡表（?view=compact，見 zigen.js 的 COMPACT）——沒有例字欄，字根欄裡
+   的形狀從左到右排開，一列＝一個取形意圖。跟主表共用 .zg-tbl／
+   .zg-letterkey／.zg-desc／.zg-tier 那套底色與字體，只多這三條處理
+   「一排形狀」的排版，不重複整套表格樣式。 */
+.zg-ctbl thead th:nth-child(1) { width: 3.2rem; }
+.zg-ctbl thead th:nth-child(2) { width: 20rem; }
+.zg-ctbl thead th:nth-child(3) { width: auto; }
+.zg-cshapes { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
+/* rootIconSvg() 吐出來的 SVG 本身已經帶 .zg-svg（glyphbox.js 沒傳 cls 參數
+   時的預設值），大小照 .zg-svg 既有的規則走（螢幕 1.55rem，印表機專用區
+   會再放大到 2.3rem）——這裡不用再開一條 .zg-cglyph svg 選到同一顆 SVG，
+   `.zg-cglyph svg` 的優先度（class+tag）比單純的 `.zg-svg`（class）高，
+   兩邊都想管大小的話後者永遠打不贏，印表機那條放大規則就會失效。 */
+.zg-cglyph { display: inline-flex; align-items: center; justify-content: center; }
+/* 沒有字形資料時的退路——直接印那個字本身，字級跟畫出來的圖大致相稱，
+   不會忽然冒出一個特別大或特別小的字打斷整排的節奏。 */
+.zg-cglyph.is-text { font-family: "Noto Serif TC", "Songti TC", serif; font-size: 1.3rem;
+  color: var(--ink-dim); line-height: 1; }
+
+/* 精簡表用不到搜尋、字母跳轉、〈相近字形辨析〉——那些是互動查詢功能，
+   精簡表本身就是「整張攤開來掃過去」，跟搜尋要解決的問題不是同一件事。
+   授權出處（#zg-credit）不受影響：精簡表一樣畫 Arphic 衍生的字形圖，
+   義務照樣要盡。 */
+.zg-compact-view .zg-tools,
+.zg-compact-view .zg-jump,
+.zg-compact-view #zg-similar { display: none; }
 
 .zg-src.is-ref {
   font-size: .84rem;
@@ -1352,6 +1395,18 @@ footer p { max-width: none; margin: 0 0 .4rem; }
 .rail.gj-demo .buf, .rail.gj-demo .hint, .rail.gj-demo .cands { flex-shrink: 0; }
 .rail.gj-demo .cand { cursor: default; }
 .rail.gj-demo .cand:hover { background: transparent; }
+/* 〈選字列設定〉的候選列範例圖——跟 .gj-demo 同樣「看起來像真的候選列，但
+   不能點」，差別是這裡沒有 gongnengjian.js 那套量寬度裁切的邏輯（每組最多
+   六、七個候選，寬度算得準，不需要），所以**不**覆寫 overflow：萬一某個
+   視窗真的窄到擠不下，交回 .rail 原本的 overflow-x:auto 捲動，不要讓內容
+   直接溢出頁面。 */
+.rail.xz-demo { cursor: default; }
+.rail.xz-demo .cand { cursor: default; }
+.rail.xz-demo .cand:hover { background: transparent; }
+/* 開關總覽表最後一欄是完整句子，不是碼——.jm-tbl 預設 white-space:nowrap
+   是為了碼／字這種短內容設計的，這裡照樣 nowrap 會逼一整句擠成一條橫線，
+   非捲不可才看得完。只放寬這一欄。 */
+#xz-overview td:last-child { white-space: normal; }
 .gj-demo-stack .rail { margin-top: .5rem; }
 .gj-demo-stack .rail:first-child { margin-top: 0; }
 .gj-demo-pair {
@@ -1367,8 +1422,10 @@ footer p { max-width: none; margin: 0 0 .4rem; }
    框疊在一起白邊就多到不像話（Wilson）。改成框內自己控制：第一組緊貼著框，
    後面每一組的說明文字往上留一點。 */
 .ac-demo .ac-demo-cap { margin-top: 0; }
-.ac-demo .rail.gj-demo + .ac-demo-cap { margin-top: 1.1rem; }
-.ac-demo .rail.gj-demo + .ac-caveat { margin-top: .6rem; }
+.ac-demo .rail.gj-demo + .ac-demo-cap,
+.ac-demo .rail.xz-demo + .ac-demo-cap { margin-top: 1.1rem; }
+.ac-demo .rail.gj-demo + .ac-caveat,
+.ac-demo .rail.xz-demo + .ac-caveat { margin-top: .6rem; }
 .ac-demo .ac-caveat + .ac-demo-cap { margin-top: 1.1rem; }
 /* 事後補充的說明（打錯碼數會漏掉目標之類）要讀起來比情境描述輕，不是同一
    層級的東西——情境描述在教「打法」，這幾句只是補一句提醒（Wilson）。 */
@@ -3609,6 +3666,11 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
 .btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+/* 〈下載〉頁 Windows 那顆「尚未提供」——跟 .xz-nav/.xz-acts 那組停用鈕同一套
+   語言（原本只在〈字根練習〉頁範圍內，這裡改成不分頁面通用），停用的外框鈕
+   不該對 hover 有反應，看起來像還能點。 */
+.btn-ghost:disabled { opacity: .4; cursor: default; }
+.btn-ghost:disabled:hover { border-color: var(--line); color: var(--ink); }
 
 /* 猜猜看——動畫播完一輪，接手 .lg-box 同一個位置（見 assets/landing.js 的
    showGuess()），不是另一個獨立區塊，所以不需要自己的上邊界／大段留白，
@@ -5610,4 +5672,237 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .totop, .hlink { transition: none; }
+}
+
+/* 〈字根表〉PDF——site/tools/build_pdf.py 用 headless Chrome 對這頁本身列印，
+   不是另外做一份靜態表。字根圖是 SVG（zigen.js 現畫的，含高亮筆畫），複刻一份
+   純文字表會失去這個表最有用的部分；直接印真正的頁面，圖跟資料才不會跟網站
+   版本分岔。只藏掉「跟紙面無關」的互動元件：頁首導覽、找字框、字母跳轉列、
+   回頂鈕、上下頁。深色模式的變數也強制换回淺色——印表機不該吃使用者的主題
+   選擇，而且深底在紙上費墨、掃描也不好認。 */
+@media print {
+  :root { color-scheme: light; }
+  .topbar, .crumbs, .zg-tools, .zg-jump, .totop, .pagenav, footer { display: none !important; }
+  body { background: #fff; }
+  main.wrap { max-width: none; margin: 0; padding: 0; }
+  .zg-table { break-inside: auto; }
+  .zg-table tr { break-inside: avoid; }
+
+  /* 362 個字根、每個字母都要跨頁——原始大小（螢幕上讀著舒服的字級）印出來
+     要 34 頁，Wilson 嫌太厚。html 的 font-size 是全站唯一的縮放旋鈕
+     （見 --zg-scale，小／中／大字級都靠它），rem 全部跟著它走，所以印表機
+     專用的縮小**只在這裡改一個值**就對全表生效，不必逐條規則改字級／間距，
+     也不會跟使用者在畫面上選的字級（他印的時候看到的是這頁，不是印出來
+     那份）打架——print 這個規則寫在後面、選擇器一樣，天然贏過上面那條
+     calc(100% * var(--zg-scale))。欄寬（表頭 th 的 3.2rem／20rem／11.5rem）
+     也是 rem，會一起縮小；table-layout:fixed 加總小於整列寬度的差額，
+     table-layout 規則會自動分給唯一 width:auto 的「字例」欄，不會留白。 */
+  html { font-size: 58%; }
+
+  /* 表頭黏頂在印出來的紙上沒有意義（紙不會捲動），維持 sticky 反而可能讓
+     瀏覽器在分頁計算時多算一層堆疊環境；改回 static，跟手機版那條
+     （≤40rem 寬度）同一個修法、不同理由。 */
+  .zg-table .zg-tbl thead th { position: static; }
+
+  /* 字母分段的留白（is-letter-start 那條 padding-top: .45rem）在螢幕上是
+     用來跟上一個字母的最後一列拉開視覺呼吸空間，印出來大多數情況下這一列
+     本來就會落在新的一頁開頭（break-inside: avoid 加上前面的列被推到下一頁），
+     額外留白等於白白多佔紙。壓到最低但不是 0——完全貼齊會讓人一時看不出
+     換了字母。 */
+  .zg-tbl tbody tr.is-letter-start > td { padding-top: .2rem; }
+
+  /* 字根欄「日 整個字」「旦 第 1–4 筆」那行小字（.zg-span 是「整個字／第
+     X 筆」，.zg-src.is-ref 是畫出圖之後縮小當註記的來源字）在紙本上是
+     重複資訊——字例欄已經用同一個圖示系統，在真正的字裡把同一組筆畫塗深，
+     看那邊就知道是哪幾筆。只藏掉「圖已經畫出來、這行純粹是補充」的情況；
+     沒畫出圖（沒有字形資料）時 .zg-src 沒有 .is-ref，是唯一的線索，維持
+     顯示，不然那一列的字根欄會整個空白。 */
+  .zg-tbl .zg-span,
+  .zg-tbl .zg-src.is-ref { display: none; }
+
+  /* 排成兩欄——字根欄的描述砍掉、字級也縮小了，一欄還是比紙寬窄很多，
+     不如切兩欄印，同樣頁數塞兩倍內容。表頭跟字母欄的黏頂在直式捲動的
+     畫面上才有意義，這裡整段是印表機那套字級／間距，不影響螢幕。
+     ⚠️ 表格本身是一張跨 26 個字母的大表（一個 thead、一個 tbody），不是
+     每個字母各自一張——column-count 是切給 .tablewrap 這個容器的，讓
+     Chrome 的分頁／分欄引擎自己把 tbody 的列塞進兩欄，欄與欄之間天然
+     不共用表頭（右欄接著左欄印到一半的字母往下印，不會重印一次表頭），
+     這是切兩欄無可避免的代價，換來的是頁數砍半。 */
+  /* 不畫 column-rule：兩欄的表格本身每格都有格線，天生就是兩個帶框的方塊，
+     中間再加一條直線反而多餘（Wilson）。欄距原本 .9rem 偏窄，兩欄的格線
+     幾乎要貼在一起，加大到 1.6rem 讓兩欄真的分得開。 */
+  .zg-table .tablewrap { column-count: 2; column-gap: 1.6rem; }
+  .zg-tbl { break-inside: auto; }
+
+  /* 表頭（字母／取形意圖／字根／字例）原本螢幕字級是 .84rem，印表機這邊
+     全表都縮小過，表頭反而顯得比內文還不起眼——放大成比內文（.zg-desc
+     的 .82rem）明顯大一截，一眼就認得出這是表頭，不用瞇眼睛找。 */
+  .zg-tbl th { font-size: 1.05rem; }
+
+  /* Wilson 直接在畫面上圈出來的調法：取形意圖欄是給螢幕上整句散文排的
+     20rem 寬版面，印出來、切成兩欄之後這個寬度反而是主要的擠壓來源——
+     欄寬照原樣縮小，字根／字例那兩欄的圖跟著一起變小，但取形意圖那些
+     完整句子本來就沒有一定要一行印完，縮窄欄寬、讓它自己多繞兩行，
+     省下來的寬度全部讓給字根／字例——換回大一點、看得清楚的字形圖，
+     不是整張表一起等比縮小。跟 ≤40rem 手機斷點那條 8rem 是同一個數字，
+     那條已經證明窄欄照樣讀得下去。 */
+  .zg-tbl thead th:nth-child(2) { width: 8rem; }
+  .zg-tbl .zg-desc { font-size: .82rem; line-height: 1.3; }
+
+  /* 字根欄的字形圖是 .zg-svg，字例欄的是 .zg-exsvg——兩個class，不是同一個
+     （字例那邊要疊筆畫顏色分深淺，走 exampleGlyph() 另一條路徑，見
+     zigen.js）。只放大 .zg-svg 會變成字根欄的圖比字例欄大一截，兩者要給
+     同一個值兩欄看起來才是同一套系統，不是兩種字級。不跟著 html 的 58%
+     一起等比縮——用比縮放後的預設值明顯大的絕對 rem，圖跟旁邊縮小的
+     說明文字比起來才真的「變大」，不是全部等比例縮小到看不出差別。 */
+  .zg-svg, .zg-exsvg { width: 2.3rem; height: 2.3rem; }
+  .zg-shape > .zg-icon { flex: 0 0 2.3rem; }
+
+  /* 〈相近字形辨析〉整節不進 PDF——這是「已經背熟主表之後，另外挑幾組
+     常搞混的形狀比較」，跟主表本身不是同一種查閱情境，PDF 是拿來查表用的
+     參考文件，不需要連進階單元一起印。授權出處（#zg-credit）不受影響、
+     繼續顯示——那行講的是主表字根圖的字形資料來源，跟這節去留無關。 */
+  #zg-similar { display: none !important; }
+}
+
+/* 〈下載〉頁 macOS 安裝步驟裡插在文字中間的小圖示（蘋果選單／鍵盤設定／＋鈕，
+   取自 Apple 官方說明文件的圖示素材，不是截圖）——沒有真的裝了鼠鬚管的螢幕
+   可以截，這三個小圖示至少讓人一眼認出要點的是哪個按鈕，比純文字「點 + 號」
+   具體。跟著文字基線對齊，不要比字大太多，不然一行字忽高忽低。 */
+.step-icon {
+  height: 1.3em;
+  width: auto;
+  vertical-align: -.3em;
+  margin: 0 .15em;
+}
+/* 蘋果選單那顆是純黑圖示，深色主題下幾乎融進底色——見 --icon-invert
+   （定義在 :root，深色主題兩處都覆寫成 invert(1)）。鍵盤／＋鈕圖示本來就是
+   灰階，兩種主題都看得清楚，不需要這個 class。 */
+.step-icon-dark-invert { filter: var(--icon-invert); }
+
+/* 〈安裝包〉頁 macOS 那兩張真的螢幕截圖（鼠鬚管選單列 icon 下拉、Deploy
+   子選單）——取自網路上一份 Rime 安裝教學（kahaani.github.io，出處連結見
+   .shot-credit），不是這台機器截的（沒裝鼠鬚管、也沒開螢幕錄製權限）。
+   截圖本身裁得很緊，看起來就像整張都是「要點的地方」，所以手繪圈選
+   （跟〈功能鍵〉頁 .gj-target 同一套 mask-image 筆觸、同一個 SVG）疊在上面，
+   位置用行內 style 個別擺放，理由跟 gj-target 一樣：圈選是「頁面上的標記」，
+   不是截圖本身的一部分，換一張圖不用重畫 SVG。 */
+/* ⚠️ 這七張 iOS 截圖原始長寬差很多（158～900px 高，同一支手機、同一個寬度，
+   純粹是每張裁得多緊）——直接照原生比例縮到同一個寬度的話，矮的那幾張
+   （加號鈕、重新部署、導入方案選單）會變成一條細細的窄帶，跟又高又完整的
+   那幾張（全部輸入方案清單）擺在一起，一眼看起來忽大忽小、像是裁壞了
+   （Wilson 2026-09-09 回報）。改成固定高度的卡片＋object-fit: contain 置中：
+   矮的那幾張在卡片裡有呼吸空間、不再貼著文字擠成一條線；最高的那張等比例
+   縮到卡片高度，維持清晰。卡片本身統一有底色與邊框，看起來是「同一種尺寸
+   的卡片」，不是每張各自一個大小的圖。 */
+.step-shot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 22rem;
+  height: 11rem;
+  margin: .6rem 0 0;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.step-shot img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.shot-circle {
+  position: absolute;
+  z-index: 1;
+  opacity: .5;
+  background-color: var(--accent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  pointer-events: none;
+}
+/* 圈選的另一種畫法：手繪箭頭，指向一個點狀目標（一顆按鈕），跟 .shot-circle
+   圈一整排／一整塊字的情境不同——箭頭比較適合「就指這一顆」，圈選比較適合
+   「這一整條、這一整列都是」。同一種 mask-image 手法、同一個 stroke 粗細，
+   只是路徑換成一條帶弧度的線加一個開口箭頭，維持手繪筆觸的味道。
+   ⚠️ mask-size 是 100% 100%（非等比例縮放），箭頭角度會跟著容器的長寬比跑掉，
+   放的框盡量接近正方形或稍寬，不要塞進極端長寬比的框，不然箭頭會被拉得很扁。 */
+.shot-arrow {
+  position: absolute;
+  z-index: 1;
+  opacity: .55;
+  background-color: var(--accent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3Cpath%20d='M6,52%20C18,42%2027,32%2038,18%20M38,18%20L28,22%20M38,18%20L34,8'%20fill='none'%20stroke='black'%20stroke-width='4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3Cpath%20d='M6,52%20C18,42%2027,32%2038,18%20M38,18%20L28,22%20M38,18%20L34,8'%20fill='none'%20stroke='black'%20stroke-width='4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  pointer-events: none;
+}
+/* 截圖出處——跟 zg-credit（字根圖出處）同一個字級／灰階慣例，放在圖片正下方。 */
+.shot-credit {
+  display: block;
+  margin-top: .35rem;
+  font-size: .78rem;
+  color: var(--ink-faint);
+}
+
+/* 〈字根表 PDF〉頁的預覽——不用另外拉一個 PDF.js 進來畫頁面，瀏覽器自己
+   內建的 PDF 檢視器塞進 iframe 就有（Chrome／Safari／Edge／Firefox 都支援），
+   效果接近 Google Drive 那種「點開檔案先預覽，不用先下載」。#toolbar=0 是
+   Chrome 的 PDF 檢視器認的網址片段，把它內建的工具列（也有下載鈕）藏起來——
+   我們自己在上面那條 bar 已經放了一顆下載鈕，兩個工具列疊在一起會很奇怪；
+   不支援這個片段的瀏覽器就當作沒事，自己的工具列照常顯示，不會壞掉。 */
+.pdf-preview {
+  margin: 1.1rem 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.pdf-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  padding: .55rem .8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--code-bg);
+}
+.pdf-preview-name {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: .82rem;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdf-preview-bar .btn {
+  flex: 0 0 auto;
+  font-size: .82rem;
+  padding: .4rem 1rem;
+}
+.pdf-preview iframe {
+  display: block;
+  width: 100%;
+  height: 75vh;
+  min-height: 26rem;
+  max-height: 54rem;
+  border: 0;
+  /* 手機瀏覽器大多不內嵌畫 PDF（直接跳出下載或另開分頁），與其留一塊空白
+     鐵框，不如乾脆藏起來——.pdf-preview-bar 的下載鈕跟下面的說明文字在
+     手機上一樣夠用。斷點跟 site.css 其他手機規則同一個 40rem。 */
+}
+@media (max-width: 40rem) {
+  .pdf-preview iframe { display: none; }
+  .pdf-preview-bar { border-bottom: 0; }
 }

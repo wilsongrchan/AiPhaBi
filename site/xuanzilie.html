@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選字列設定 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="候選列旁邊可以個別開關的提示與篩選功能：打繁出簡、打簡出繁、不打簡體、只打常用字、同類字、偏旁碼、輸入容錯，以及簡碼／詞組連打／自動上屏的預設狀態一覽。">
+<link rel="canonical" href="https://www.aiphabi.com/xuanzilie.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="愛發筆輸入法">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://www.aiphabi.com/xuanzilie.html">
+<meta property="og:title" content="選字列設定 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="候選列旁邊可以個別開關的提示與篩選功能：打繁出簡、打簡出繁、不打簡體、只打常用字、同類字、偏旁碼、輸入容錯，以及簡碼／詞組連打／自動上屏的預設狀態一覽。">
+<meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+<link rel="apple-touch-icon" href="assets/img/logo-180.png">
+<script>try{var t=localStorage.getItem('aiphabi-site-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img class="brand-logo" src="assets/img/logo-512.png" alt="" width="512" height="512"><span class="brand-text">愛發筆<span class="en" data-keep>AiPhaBi</span></span></a>
+    <div class="topbar-controls">
+      <div class="langtoggle" role="group" aria-label="字體切換">
+        <button type="button" data-lang="trad" aria-pressed="true" data-keep>繁</button>
+        <button type="button" data-lang="simp" aria-pressed="false" data-keep>简</button>
+      </div>
+
+      <div class="zg-size" role="group" aria-label="字級">
+        <span>字級</span>
+        <div class="zg-size-btns">
+          <button type="button" data-size="small" aria-pressed="false">小</button>
+          <button type="button" data-size="normal" aria-pressed="true">中</button>
+          <button type="button" data-size="large" aria-pressed="false">大</button>
+        </div>
+      </div>
+    </div>
+    <nav class="site">
+      <a href="jieshao.html">簡介</a>
+      <div class="nav-sec">
+        <span class="nav-sec-t">基礎學習</span>
+        <a href="zigen.html">字根表</a>
+        <a href="lianxi.html">字根練習</a>
+        <a href="yuanze.html">取碼原則</a>
+        <a href="yueding.html">約定字表</a>
+        <a href="jianma.html">簡碼</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">流暢模式</span>
+        <a href="cizu.html">詞組連打</a>
+        <a href="shangping.html">自動上屏</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">更多功能</span>
+        <a href="gongnengjian.html">功能鍵</a>
+        <a href="xuanzilie.html">選字列設定</a>
+        <ul class="pr-sidenav">
+          <li><a href="#xz-1">1. 打繁出簡／打簡出繁</a></li>
+          <li><a href="#xz-2">2. 不打簡體</a></li>
+          <li><a href="#xz-3">3. 只打常用字</a></li>
+          <li><a href="#xz-4">4. 同類字</a></li>
+          <li><a href="#xz-5">5. 偏旁碼</a></li>
+          <li><a href="#xz-6">6. 輸入容錯</a></li>
+          <li><a href="#xz-7">7. 其他開關</a></li>
+        </ul>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">體驗工具</span>
+        <a href="shida.html">線上試打</a>
+        <a href="chaima.html">拆碼查詢</a>
+      </div>
+      <div class="nav-sec">
+        <span class="nav-sec-t">下載</span>
+        <a href="zigenpdf.html">字根表 PDF</a>
+        <a href="anzhuangbao.html">安裝包</a>
+      </div>
+      <a href="houji.html">後記</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap doc-prose jm-page">
+
+  <p class="eyebrow">愛發筆輸入法</p>
+  <h1>選字列設定</h1>
+
+  <p class="lede">
+    除了字根取碼本身，愛發筆在選字列旁邊還有一整組可以個別開關的提示與篩選功能。開關都在鼠鬚管選單裡（點選單列的鼠鬚管圖示，或按 <kbd>Control</kbd>+<kbd>`</kbd>／<kbd>F4</kbd> 叫出方案選單），每項獨立一行，想開哪個就勾哪個；切換過的狀態會被記住，不會因為重開輸入法或切換到其他程式而跑掉。
+  </p>
+
+  <div class="tablewrap">
+    <table class="jm-tbl" id="xz-overview">
+      <thead><tr><th>開關</th><th>預設</th><th>做什麼</th></tr></thead>
+      <tbody>
+        <tr><td>打繁出簡</td><td>關</td><td>候選字順便帶出簡體版，標「簡」——見<a href="#xz-1">下文</a></td></tr>
+        <tr><td>打簡出繁</td><td>關</td><td>候選字順便帶出繁體版，標「繁」——見<a href="#xz-1">下文</a></td></tr>
+        <tr><td>不打簡體</td><td>關</td><td>簡體專屬字／簡體詞整個濾掉——見<a href="#xz-2">下文</a></td></tr>
+        <tr><td>只打常用字</td><td>關</td><td>候選只留常用字，生僻字整個濾掉——見<a href="#xz-3">下文</a></td></tr>
+        <tr><td>同類字</td><td>開</td><td>打中形近字家族其一，整組一起帶出，標「同類」——見<a href="#xz-4">下文</a></td></tr>
+        <tr><td>偏旁碼</td><td>開</td><td>打了某字作為偏旁時的碼，提醒你那個字，標「偏旁碼」——見<a href="#xz-5">下文</a></td></tr>
+        <tr><td>輸入容錯</td><td>開</td><td>漏碼、多碼、隔壁鍵、打反也找得到——見<a href="#xz-6">下文</a></td></tr>
+        <tr><td>約定簡碼</td><td>開</td><td>見<a href="jianma.html#jm-1">簡碼</a>頁</td></tr>
+        <tr><td>三簡碼</td><td>關</td><td>見<a href="jianma.html#jm-2">簡碼</a>頁</td></tr>
+        <tr><td>左簡碼</td><td>關</td><td>見<a href="jianma.html#jm-3">簡碼</a>頁</td></tr>
+        <tr><td>詞組連打</td><td>開</td><td>見<a href="cizu.html">詞組連打</a>頁</td></tr>
+        <tr><td>自動上屏</td><td>關</td><td>跟詞組連打二選一，見<a href="shangping.html">自動上屏</a>頁</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="xz-1">1. 打繁出簡／打簡出繁</h2>
+  <p>
+    這兩個開關各自獨立、方向相反：打繁出簡替候選字附上它的簡體版，標「簡」；打簡出繁附上繁體版，標「繁」。標籤旁邊的括號是那個字自己的主碼，給你對照——你剛打出來的不是它的碼，只是順便帶出來讓你看到有這個字。兩個都預設關，開哪邊、開幾個都行。
+  </p>
+  <div class="ac-demo">
+    <p class="ac-demo-cap">打繁出簡：打「語」的碼 <code data-keep>IODO</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>IODO</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>語</span></span>
+      </span>
+    </div>
+    <p class="ac-demo-cap">開了打繁出簡之後——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>IODO</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>語</span></span>
+        <span class="cand"><span class="n">2</span><span class="g" data-keep>语</span><span class="c"><span class="tag">簡 (QZDO)</span></span></span>
+      </span>
+    </div>
+    <p class="ac-demo-cap">打簡出繁：打「国」的碼 <code data-keep>OEQ</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>OEQ</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>国</span></span>
+      </span>
+    </div>
+    <p class="ac-demo-cap">開了打簡出繁之後——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>OEQ</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>国</span></span>
+        <span class="cand"><span class="n">2</span><span class="g" data-keep>國</span><span class="c"><span class="tag">繁 (OOXQ)</span></span></span>
+      </span>
+    </div>
+    <p class="ac-caveat">
+      開了「不打簡體」的話會順便把打簡出繁關掉——碼表裡已經沒有簡體本字可以打，那個提示用不到。
+    </p>
+  </div>
+
+  <h2 id="xz-2">2. 不打簡體</h2>
+  <p>
+    把候選裡的簡體專屬字整個濾掉，只留繁體字／傳承字，正選、補全、提示、詞組全部算。「簡體專屬字」是純一對一簡化的字，如「馬→马」「魚→鱼」；「歸併字」不算——像「后」「干」「里」這些字本身就是獨立的傳承字，只是剛好也被拿來簡化別的字，不會被濾掉。連帶效果：同一個開關也會濾掉精選詞庫裡逐字簡化的簡體詞。
+  </p>
+  <div class="ac-demo">
+    <p class="ac-demo-cap">預設（關）：打「马」的碼 <code data-keep>JSI</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>JSI</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>马</span></span>
+      </span>
+    </div>
+    <p class="ac-demo-cap">開了不打簡體之後——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>JSI</span>
+      <span class="empty">濾掉了，這個碼沒有字可選</span>
+    </div>
+    <p class="ac-caveat">
+      「马」的碼在碼表裡只對到這一個字，濾掉之後這條碼暫時沒有字可選——這不是壞掉，是「不打簡體」真的把它擋下來了。
+    </p>
+  </div>
+
+  <h2 id="xz-3">3. 只打常用字</h2>
+  <p>
+    候選只留「常用字」——教育部甲表 4808 字∪GB 2312 一級 3755 字∪常見異體∪精選詞庫用字∪常見姓氏人名用字，以外的生僻字（不管是正選、補全，還是同類／偏旁提示、容錯猜測、詞組帶出來的）整個濾掉。多字候選只要有一個字不在名單裡，整條濾掉。部件字（<code data-keep>`</code> 前綴才叫得出來的扌艹氵…）不受影響——那已經是明確手勢，不用再擋。
+  </p>
+  <div class="ac-demo">
+    <p class="ac-demo-cap">預設（關）：打 <code data-keep>TLC</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>TLC</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>此</span></span>
+        <span class="cand"><span class="n">2</span><span class="g" data-keep>丏</span></span>
+      </span>
+    </div>
+    <p class="ac-demo-cap">開了只打常用字之後——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>TLC</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>此</span></span>
+      </span>
+    </div>
+    <p class="ac-caveat">
+      「丏」不在甲表也不在常用字名單裡，開了這個開關就整個消失，只留「此」。
+    </p>
+  </div>
+
+  <h2 id="xz-4">4. 同類字</h2>
+  <p>
+    約定字表裡有幾組形近字家族——同一組字彼此外型相近、容易認錯，也常常用來互相聯想記憶。打中其中一個字的碼，就把整組同類字一起帶出來，標「同類」，括號裡是那個字自己的主碼。以「土字類」為例，共 8 字：土 士 工 干 于 丁 上 生。
+  </p>
+  <div class="ac-demo">
+    <p class="ac-demo-cap">預設（開）：打「土」的碼 <code data-keep>TI</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>TI</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>土</span></span>
+        <span class="cand"><span class="n">2</span><span class="g" data-keep>杠</span></span>
+        <span class="cand"><span class="n">3</span><span class="g" data-keep>士</span><span class="c"><span class="tag">同類 (IJI)</span></span></span>
+      </span>
+      <span class="hint">共 8 個</span>
+    </div>
+    <p class="ac-caveat">
+      「杠」不屬於這個家族，正常排在「土」後面；同類字提示只加在「土」自己身上，不會因為打的碼恰好也對到「杠」而多長一份。
+    </p>
+  </div>
+
+  <h2 id="xz-5">5. 偏旁碼</h2>
+  <p>
+    有些字獨立成字時是一種碼，當「偏旁」被別的字借用拆碼時卻是另一種（通常更短）碼——例如「二」單獨打是<code data-keep>II</code>，但當偏旁只算<code data-keep>I</code>一碼。打了某字「作為偏旁時」的碼，就提醒你那個字，標「偏旁碼」，括號裡是它自己的主碼，方便你確認要不要真的打它。
+  </p>
+  <div class="ac-demo">
+    <p class="ac-demo-cap">預設（開）：打 <code data-keep>I</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>I</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>一</span></span>
+        <span class="cand"><span class="n">2</span><span class="g" data-keep>二</span><span class="c"><span class="tag">偏旁碼 (II)</span></span></span>
+      </span>
+    </div>
+    <p class="ac-caveat">
+      「二」沒有消失，只是排在後面、多附一句提醒——選了它照樣打出「二」，跟正常候選一樣。
+    </p>
+  </div>
+
+  <h2 id="xz-6">6. 輸入容錯</h2>
+  <p>
+    漏打一碼、多打一碼、某一碼打成鍵盤上的隔壁鍵、相鄰兩碼打反——這幾種常見手誤，容錯猜測都照樣找得到對應的字，標「[ 猜測的碼 ]」讓你看出這是猜的，不是你真正打出來的碼。
+  </p>
+  <div class="ac-demo">
+    <p class="ac-demo-cap">預設（開）：本來想打「去」（碼 <code data-keep>FG</code>），但兩碼打反成 <code data-keep>GF</code>——</p>
+    <div class="rail xz-demo">
+      <span class="buf" data-keep>GF</span>
+      <span class="cands">
+        <span class="cand"><span class="n">1</span><span class="g" data-keep>至</span></span>
+        <span class="cand"><span class="n">2</span><span class="g" data-keep>去</span><span class="c"><span class="tag">[ FG ]</span></span></span>
+      </span>
+    </div>
+    <p class="ac-caveat">
+      「至」是 <code data-keep>GF</code> 真正打中的字，排第一；「去」是容錯猜出來的（你可能想打的是反過來的 <code data-keep>FG</code>），標了方括號提醒你這是猜測，選對了照樣能打出字，不用刪掉重打。
+    </p>
+  </div>
+
+  <h2 id="xz-7">7. 其他開關</h2>
+  <p>
+    以下幾個開關各自有專屬頁面詳細介紹，這裡只列出預設狀態：<a href="jianma.html#jm-1">約定簡碼</a>（預設開）、<a href="jianma.html#jm-2">三簡碼</a>（預設關）、<a href="jianma.html#jm-3">左簡碼</a>（預設關）三種縮短取碼的方式，見〈<a href="jianma.html">簡碼</a>〉頁；<a href="cizu.html">詞組連打</a>（預設開）與<a href="shangping.html">自動上屏</a>（預設關）是兩種互斥的流暢打字模式，只能二選一同時生效——預設用詞組連打。
+  </p>
+
+</main>
+
+
+<footer class="wrap">
+  <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
+    <span class="en-note" data-keep>All Rights Reserved</span></p>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

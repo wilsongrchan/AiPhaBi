@@ -21,6 +21,14 @@
   var DATA = null;
   var lastFilter = '';
 
+  /* 精簡表：?view=compact 才會走這條路——沒有例字欄，字根欄裡的形狀從左到右
+     排開（一列＝一個取形意圖，不是一個形狀），給 build_pdf.py 印第二份
+     PDF 用（zigen-chart-compact.pdf）。畫面上沒有按鈕切過去，純粹靠網址
+     參數；搜尋框、字母跳轉、〈相近字形辨析〉這些互動功能在精簡表下沒有
+     意義，用 body 的 class 整批藏起來（見 site.css .zg-compact-view）。 */
+  var COMPACT = /(^|[?&])view=compact(&|$)/.test(location.search);
+  if (COMPACT) document.body.classList.add('zg-compact-view');
+
   /* 查字時順便把那個字的**碼**講出來。原本只回答「這個字有沒有被選為某個字根的
      例字」，答案常常是零 —— 例字每個字根只挑四個，`seen` 也只是抽樣（實測某個
      字根 count=81 但 seen 只有 24 個）。所以 屦（RJYVJ）查出來是「0 個字根」，
@@ -173,6 +181,75 @@
     return wrap;
   }
 
+  /* 精簡表——一列＝一個取形意圖（跟 editor.html 的〈字根總表〉renderChart()
+     同一張表、同一份分組邏輯，Side A 確認過對應關係），字根欄裡的形狀從
+     左到右排開，不像主表一個形狀一列。字母鍵同樣不用 rowspan（理由跟
+     letterRows() 那邊一樣：rowspan 太大會讓 Chrome 印表機引擎把整個字母
+     當成不能斷開的一塊）。
+     只畫純 SVG（rootIconSvg），不接 chip() 那套——chip 是編輯器裡可以拖曳
+     排序、多選、inline 編輯的重互動元件，公開站的精簡表用不到，硬接只會
+     多出一堆死代碼。沒有字形資料（GLYPHS 還沒載到，或這個形狀本來就沒有
+     s.src 可畫）時退回純文字，不會留空格。 */
+  function renderCompactTable() {
+    box.textContent = '';
+    var tw = el('div', 'tablewrap');
+    var table = el('table', 'zg-tbl zg-ctbl');
+    var thead = el('thead'), hr = el('tr');
+    ['字母', '取形意圖', '字根'].forEach(function (label) {
+      hr.appendChild(el('th', null, label));
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    var tb = el('tbody');
+    DATA.letters.forEach(function (L) {
+      var rows = L.groups.filter(function (g) { return g.shapes && g.shapes.length; });
+      if (!rows.length) return;
+      rows.forEach(function (g, ri) {
+        var tr = el('tr');
+        var kd = el('td', 'zg-letterkey');
+        if (ri === 0) {
+          tr.id = 'L' + L.letter;
+          tr.classList.add('is-letter-start');
+          var key = el('span', 'zg-key', L.letter);
+          key.setAttribute('data-keep', '');
+          kd.appendChild(key);
+        }
+        tr.appendChild(kd);
+
+        var desc = g.desc || (g.desc === '' ? '（取形意圖待補）' : '');
+        var td = el('td', 'zg-desc');
+        if (g.tier && g.tier !== 'primary') {
+          td.appendChild(el('span', 'zg-tier', DATA.tiers[g.tier] || g.tier));
+        }
+        td.appendChild(el('span', null, desc || '（取形意圖待補）'));
+        tr.appendChild(td);
+
+        var tdShapes = el('td', 'zg-cshapes');
+        g.shapes.forEach(function (sh) {
+          var holder = el('span', 'zg-cglyph');
+          var drew = false;
+          if (GLYPHS && GLYPHS[sh.src] && sh.st && sh.st.length) {
+            var svg = rootIconSvg(GLYPHS[sh.src], sh.st);
+            if (svg) { holder.innerHTML = svg; drew = true; }
+          }
+          if (!drew) {
+            holder.classList.add('is-text');
+            holder.appendChild(glyph(sh.src));
+          }
+          holder.setAttribute('data-keep', '');
+          tdShapes.appendChild(holder);
+        });
+        tr.appendChild(tdShapes);
+
+        tb.appendChild(tr);
+      });
+    });
+    table.appendChild(tb);
+    tw.appendChild(table);
+    box.appendChild(tw);
+  }
+
   /* 一個字母的所有列。字母本身放在最左邊一欄、跨滿該字母的所有列
    * （倉頡的〈輔助字形列表〉也是這樣），不再每個字母上面掛一條標題——
    * 26 條標題各佔一行加留白，是這一頁最浪費的垂直空間。 */
@@ -194,16 +271,26 @@
     groups.forEach(function (g, gi) {
       g.shapes.forEach(function (sh, i) {
         var tr = el('tr');
+        // 字母鍵**不**用 rowspan 跨滿整個字母——曾經是 kd.rowSpan = total，
+        // 印表機分兩欄／分頁時，瀏覽器會把「跨很多列的同一個儲存格」當成
+        // 不能從中間斷開的一整塊，於是整個字母（F 22 個字根）除非左欄還
+        // 塞得下全部，不然乾脆整組擠去右欄，浪費一大截（Wilson 2026-09-09
+        // 截圖抓到）。改成每一列各自一個 zg-letterkey 儲存格、只有字母的
+        // 第一列真的填字——同一欄照樣連成一片底色（CSS 顧），但每一列都是
+        // 獨立儲存格，瀏覽器就能在任兩列中間斷開，字母可以自然跨欄接下去。
+        // 意圖那格（.zg-desc）還是用 rowspan——那個只跨一個意圖底下的幾列
+        // 形狀，不會被切開，正是「意圖內不斷、意圖之間可以斷」要的效果。
+        var kd = el('td', 'zg-letterkey');
         if (gi === 0 && i === 0) {
           tr.id = 'L' + L.letter;
-          tr.className = 'is-letter-start';   // 字母之間留一道視覺分隔，見 site.css
-          var kd = el('td', 'zg-letterkey');
-          kd.rowSpan = total;
           var key = el('span', 'zg-key', L.letter);
           key.setAttribute('data-keep', '');
           kd.appendChild(key);
           kd.appendChild(el('span', 'zg-n', total + ' 個'));
-          tr.appendChild(kd);
+        }
+        tr.appendChild(kd);
+        if (gi === 0 && i === 0) {
+          tr.classList.add('is-letter-start');   // 字母之間留一道視覺分隔，見 site.css
         }
 
         if (i === 0) {
@@ -245,6 +332,7 @@
   }
 
   function render(filter) {
+    if (COMPACT) { renderCompactTable(); return; }
     lastFilter = filter || '';
     box.textContent = '';
 
