@@ -5780,32 +5780,68 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
    灰階，兩種主題都看得清楚，不需要這個 class。 */
 .step-icon-dark-invert { filter: var(--icon-invert); }
 
-/* 〈輸入法〉頁 macOS 那兩張真的螢幕截圖（鼠鬚管選單列 icon 下拉、Deploy
+/* 〈安裝包〉頁 macOS 那兩張真的螢幕截圖（鼠鬚管選單列 icon 下拉、Deploy
    子選單）——取自網路上一份 Rime 安裝教學（kahaani.github.io，出處連結見
    .shot-credit），不是這台機器截的（沒裝鼠鬚管、也沒開螢幕錄製權限）。
    截圖本身裁得很緊，看起來就像整張都是「要點的地方」，所以手繪圈選
    （跟〈功能鍵〉頁 .gj-target 同一套 mask-image 筆觸、同一個 SVG）疊在上面，
    位置用行內 style 個別擺放，理由跟 gj-target 一樣：圈選是「頁面上的標記」，
    不是截圖本身的一部分，換一張圖不用重畫 SVG。 */
+/* ⚠️ 這七張 iOS 截圖原始長寬差很多（158～900px 高，同一支手機、同一個寬度，
+   純粹是每張裁得多緊）——直接照原生比例縮到同一個寬度的話，矮的那幾張
+   （加號鈕、重新部署、導入方案選單）會變成一條細細的窄帶，跟又高又完整的
+   那幾張（全部輸入方案清單）擺在一起，一眼看起來忽大忽小、像是裁壞了
+   （Wilson 2026-09-09 回報）。改成固定高度的卡片＋object-fit: contain 置中：
+   矮的那幾張在卡片裡有呼吸空間、不再貼著文字擠成一條線；最高的那張等比例
+   縮到卡片高度，維持清晰。卡片本身統一有底色與邊框，看起來是「同一種尺寸
+   的卡片」，不是每張各自一個大小的圖。 */
 .step-shot {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   max-width: 22rem;
+  height: 11rem;
   margin: .6rem 0 0;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 .step-shot img {
   display: block;
   max-width: 100%;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 .shot-circle {
   position: absolute;
   z-index: 1;
-  opacity: .65;
+  opacity: .5;
   background-color: var(--accent);
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%2050'%3E%3Cpath%20d='M10,30%20C6,14%2024,4%2052,4%20C82,3%2097,13%2094,27%20C91,43%2072,47%2046,46%20C21,45%207,39%2011,27'%20fill='none'%20stroke='black'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  pointer-events: none;
+}
+/* 圈選的另一種畫法：手繪箭頭，指向一個點狀目標（一顆按鈕），跟 .shot-circle
+   圈一整排／一整塊字的情境不同——箭頭比較適合「就指這一顆」，圈選比較適合
+   「這一整條、這一整列都是」。同一種 mask-image 手法、同一個 stroke 粗細，
+   只是路徑換成一條帶弧度的線加一個開口箭頭，維持手繪筆觸的味道。
+   ⚠️ mask-size 是 100% 100%（非等比例縮放），箭頭角度會跟著容器的長寬比跑掉，
+   放的框盡量接近正方形或稍寬，不要塞進極端長寬比的框，不然箭頭會被拉得很扁。 */
+.shot-arrow {
+  position: absolute;
+  z-index: 1;
+  opacity: .55;
+  background-color: var(--accent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3Cpath%20d='M6,52%20C18,42%2027,32%2038,18%20M38,18%20L28,22%20M38,18%20L34,8'%20fill='none'%20stroke='black'%20stroke-width='4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2060%2060'%3E%3Cpath%20d='M6,52%20C18,42%2027,32%2038,18%20M38,18%20L28,22%20M38,18%20L34,8'%20fill='none'%20stroke='black'%20stroke-width='4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
