@@ -127,19 +127,61 @@
 
   <h2 id="sf-2">2. iOS 安裝包（仓／Hamster）</h2>
   <p>
-    給 iOS 的「仓輸入法」（App Store 搜「仓」，開發者 imfuxiao，先照一般 App 的方式下載安裝）。這個安裝包另外附了一份鍵盤佈局：萬用鍵獨立成一顆真的鍵（Q 正下方、A 左邊），符號鍵也換成一頁排滿的數字符號表，不是「仓」原生那種要先選類別的清單。整個過程都在手機上完成，不需要電腦。
+    給 iOS 的「仓輸入法」（英文介面顯示 Hamster）。這個安裝包另外附了一份鍵盤佈局：萬用鍵獨立成一顆真的鍵（Q 正下方、A 左邊），符號鍵也換成一頁排滿的數字符號表，不是「仓」原生那種要先選類別的清單。整個過程都在手機上完成，不需要電腦。
   </p>
+  <!-- 下面七張都是 Wilson 自己手機上截的圖（跟 macOS 那兩張借來的教學截圖不同，
+       不需要 .shot-credit 出處那一行）——每一步該點哪裡都是真的畫面，不是拿
+       Apple 官方圖示湊合。iOS「設定」加鍵盤那一步跟下載 zip 那一步沒有對應
+       截圖（前者是系統設定畫面、後者是瀏覽器下載，都跟「仓」自己的介面無關），
+       維持純文字，跟 macOS 段落裡沒有螢幕可截的步驟同一個處理方式。 -->
   <ol>
-    <li>裝好「仓」之後，先到 iOS「設定」→「一般」→「鍵盤」→「鍵盤」→「新增鍵盤⋯」，把「仓」加進去——這是每一個第三方鍵盤 App 都需要的系統設定，不是愛發筆特有的步驟。</li>
+    <li>還沒裝「仓」的話：App Store 搜「仓」（開發者 imfuxiao），確認圖示與名稱是這個再安裝。
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-appstore.png" alt="App Store 裡的「仓輸入法」App，圖示是手寫的「倉」字">
+      </span>
+    </li>
+    <li>到 iOS「設定」→「一般」→「鍵盤」→「鍵盤」→「新增鍵盤⋯」，把「仓」加進去——這是每一個第三方鍵盤 App 都需要的系統設定，不是愛發筆特有的步驟。</li>
     <li>下載下面這個安裝包，存到手機的「檔案」App。</li>
-    <li>在「檔案」App 長按這個 zip →〈分享〉→「仓」（會自動解壓到 Rime 目錄）；或在「仓」內「輸入方案設置」→ 右上角「+」→「導入方案」選這個 zip。</li>
-    <li>到「仓」的「RIME」頁籤，按〈重新部署〉——這一步一定要做，且要在「RIME」頁籤裡直接按，不能只靠匯入方案那一步順便觸發，不然鍵盤佈局不會生效。</li>
-    <li>「輸入方案設置」裡確認「愛發筆」已勾選。</li>
-    <li>「鍵盤設置」→「鍵盤佈局」，選「自訂-愛發筆26鍵」。</li>
+    <li>
+      打開「仓」，進「輸入方案設定」，按右上角「+」，選「導入方案」，挑剛剛下載的 zip（也可以在「檔案」App 長按這個 zip →〈分享〉→「仓」，效果一樣，會自動解壓到 Rime 目錄）。
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-home.png" alt="「仓」App 首頁，「輸入方案」底下的「輸入方案設定」那一列">
+        <span class="shot-circle" style="top:66%; left:4%; width:75%; height:20%;"></span>
+      </span>
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-plus.png" alt="「輸入方案設定」頁面，右上角的「＋」按鈕">
+        <span class="shot-circle" style="top:15%; left:82%; width:15%; height:65%;"></span>
+      </span>
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-importmenu.png" alt="按下「＋」之後跳出的選單，「導入方案」在「方案下載」上面">
+        <span class="shot-circle" style="top:15%; left:38%; width:38%; height:32%;"></span>
+      </span>
+    </li>
+    <li>
+      到「仓」的「RIME」頁籤，按〈重新部署〉——這一步一定要做，且要在「RIME」頁籤裡直接按，不能只靠匯入方案那一步順便觸發，不然鍵盤佈局不會生效。
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-redeploy.png" alt="「RIME」頁籤裡的「重新部署」按鈕">
+        <span class="shot-circle" style="top:45%; left:5%; width:90%; height:40%;"></span>
+      </span>
+    </li>
+    <li>
+      「輸入方案設定」裡確認「愛發筆」已勾選。
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-selected.png" alt="全部輸入方案清單，「愛發筆」那一列打勾選取">
+        <span class="shot-circle" style="top:70%; left:6%; width:30%; height:18%;"></span>
+      </span>
+    </li>
+    <li>
+      「鍵盤設定」→「鍵盤佈局」，選「自訂-愛發筆26鍵」。
+      <span class="step-shot">
+        <img src="assets/img/shot-hamster-layout.png" alt="鍵盤佈局清單，「自訂-愛發筆26鍵」打勾選取，上面還有一項「自訂-AiPhaBiSymbols_more」">
+        <span class="shot-circle" style="top:50%; left:4%; width:55%; height:38%;"></span>
+      </span>
+    </li>
     <li>打字時，點鍵盤右下角的地球圖示（🌐）切到「仓」。</li>
   </ol>
   <p class="ac-caveat">
-    這個安裝包還多定義了兩顆鍵盤（供符號鍵切換用），也會各自出現在「鍵盤佈局」清單裡——這是「仓」的正常行為，不要選它們、也不要刪它們，刪掉會連帶讓整組自訂鍵盤從清單消失。
+    這個安裝包還多定義了兩顆鍵盤（供符號鍵切換用），也會各自出現在「鍵盤佈局」清單裡（就是上面截圖裡「自訂-愛發筆26鍵」上方那一項）——這是「仓」的正常行為，不要選它們、也不要刪它們，刪掉會連帶讓整組自訂鍵盤從清單消失。
   </p>
   <p>
     <a class="btn btn-primary" href="assets/downloads/aiphabi-ios.zip">下載 iOS 安裝包</a>
