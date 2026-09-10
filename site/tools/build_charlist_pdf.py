@@ -319,17 +319,22 @@ class Flow:
         if col:
             self.y += ROW_H
 
-    def grid_units(self, units, per_row=5, unit_gap=None):
-        """一個 unit（1–4 個字）當一個不可切的整體畫。《百家姓》用：單姓四字一組
-        （原文四字一句的韻文），複姓兩字一組，組跟組之間留半格。一列 per_row 組。"""
+    def grid_units(self, units, per_row=5, unit_gap=None, tight=False):
+        """一個 unit（1–4 個字）當一個不可切的整體畫。《百家姓》用。
+        tight=False：unit 內每字佔一格（單姓四字一句照原文韻腳）。
+        tight=True：unit 內兩字緊貼、不留格（複姓「司馬」不寫成「司　馬」，省寬）。"""
         gap = CELL * 0.55 if unit_gap is None else unit_gap
+        step = CHAR_SIZE * 1.04 if tight else CELL
         for r in range(0, len(units), per_row):
             self._room(ROW_H)
             x = ML
             for u in units[r:r + per_row]:
                 for ch in u:
-                    self._cell(x, self.y, ch)
-                    x += CELL
+                    off = 0 if tight else (CELL - CHAR_SIZE) / 2
+                    fn = FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT
+                    self.page.insert_text((x + off, self.y + CHAR_SIZE), ch, fontname=fn,
+                                          fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
+                    x += step
                 x += gap
             self.y += ROW_H
 
@@ -423,7 +428,6 @@ def build():
     baijia_all = set(baijia) | {c for u in BAIJIA_COMPOUND for c in u if c in common}
     covered = set(jiabiao) | set(gb1) | set(canton) | baijia_all | set(names)
     rest = sorted(common - covered - DROP_CHARS)
-    dropped = sorted((common - covered) & DROP_CHARS)
 
     # 注音分組
     def by_bopo(chars):
@@ -534,7 +538,7 @@ def build():
         flow.section(f"四、百家姓（{uniq} 字，宋本；單姓四字一句照原文韻腳，複姓兩字一組）")
         flow.grid_units([singles[i:i + 4] for i in range(0, len(singles), 4)], per_row=6)
         flow.subhead(f"複姓（{len(comp)} 個）")
-        flow.grid_units(comp, per_row=11, unit_gap=CELL * 0.8)
+        flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
 
     def other_section():
         restset = set(rest)
@@ -544,11 +548,9 @@ def build():
         if leftover:
             groups.append(leftover)
             print(f"  ⚠️ 其他：{len(leftover)} 個字沒排進 OTHER_GROUPS，補最後：{''.join(leftover)}")
-        extra = ""
-        if dropped:
-            extra = f"；另有 {len(dropped)} 個罕見部件字內建字型顯示不出、未列入"
+        # DROP_CHARS（㠯 龹 龺）：內建字型畫不出、擺著像簡體字反而誤導，直接不列。
         flow.section(f"六、其他（{len(rest)} 字，前五類未收、但仍在名單裡的字，"
-                     f"約略依部首分堆{extra}）")
+                     f"約略依部首分堆）")
         flow.multi_col([g for g in groups if g], ncols=2)
 
     bopo_section("一、教育部《常用國字標準字體表》甲表", jiabiao)
