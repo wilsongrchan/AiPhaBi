@@ -181,66 +181,80 @@
     return wrap;
   }
 
-  /* 精簡表——一列＝一個取形意圖（跟 editor.html 的〈字根總表〉renderChart()
-     同一張表、同一份分組邏輯，Side A 確認過對應關係），字根欄裡的形狀從
-     左到右排開，不像主表一個形狀一列。字母鍵同樣不用 rowspan（理由跟
+  /* 精簡表——不畫取形意圖文字，一個字母**一個等級一列**（優等／次等／三等，
+     最多三列，除非某一列的形狀多到要繞行），該等級底下所有意圖的形狀從左
+     到右排開，意圖與意圖之間用一條豎線隔開（.zg-cdiv）。跟 editor.html 的
+     〈字根總表〉renderChart() 同一份分組邏輯（Side A 確認過對應關係），
+     只是再把同等級的意圖併成一列。字母鍵同樣不用 rowspan（理由跟
      letterRows() 那邊一樣：rowspan 太大會讓 Chrome 印表機引擎把整個字母
      當成不能斷開的一塊）。
      只畫純 SVG（rootIconSvg），不接 chip() 那套——chip 是編輯器裡可以拖曳
      排序、多選、inline 編輯的重互動元件，公開站的精簡表用不到，硬接只會
      多出一堆死代碼。沒有字形資料（GLYPHS 還沒載到，或這個形狀本來就沒有
      s.src 可畫）時退回純文字，不會留空格。 */
+  var TIER_SEQ = ['primary', 'secondary', 'tertiary'];
+
   function renderCompactTable() {
     box.textContent = '';
     var tw = el('div', 'tablewrap');
     var table = el('table', 'zg-tbl zg-ctbl');
     var thead = el('thead'), hr = el('tr');
-    ['字母', '取形意圖', '字根'].forEach(function (label) {
+    ['字母', '字根'].forEach(function (label) {
       hr.appendChild(el('th', null, label));
     });
     thead.appendChild(hr);
     table.appendChild(thead);
 
+    function shapeIcon(sh) {
+      var holder = el('span', 'zg-cglyph');
+      var drew = false;
+      if (GLYPHS && GLYPHS[sh.src] && sh.st && sh.st.length) {
+        var svg = rootIconSvg(GLYPHS[sh.src], sh.st);
+        if (svg) { holder.innerHTML = svg; drew = true; }
+      }
+      if (!drew) {
+        holder.classList.add('is-text');
+        holder.appendChild(glyph(sh.src));
+      }
+      holder.setAttribute('data-keep', '');
+      return holder;
+    }
+
     var tb = el('tbody');
     DATA.letters.forEach(function (L) {
-      var rows = L.groups.filter(function (g) { return g.shapes && g.shapes.length; });
-      if (!rows.length) return;
-      rows.forEach(function (g, ri) {
+      var groups = L.groups.filter(function (g) { return g.shapes && g.shapes.length; });
+      if (!groups.length) return;
+
+      // 依等級分堆，等級順序固定 優→次→三（不靠 zigen.json 的排列）
+      var tiers = TIER_SEQ.map(function (tier) {
+        return { tier: tier, groups: groups.filter(function (g) { return (g.tier || 'primary') === tier; }) };
+      }).filter(function (t) { return t.groups.length; });
+
+      tiers.forEach(function (t, ti) {
         var tr = el('tr');
         var kd = el('td', 'zg-letterkey');
-        if (ri === 0) {
+        // 字母鍵放在**每一個等級列**（最多三列），不是只放第一列——精簡表
+        // 一個字母最多三列，重複三次不算吵，而且這樣字母跨欄時（M 的三等
+        // 列被擠到右欄開頭）那一列本身就帶著瀏覽器畫的字母鍵，跟左欄完全
+        // 同一個樣子，不用事後用 PyMuPDF 補一個對不太準的（Wilson 盯著看）。
+        var key = el('span', 'zg-key', L.letter);
+        key.setAttribute('data-keep', '');
+        kd.appendChild(key);
+        tr.appendChild(kd);
+        if (ti === 0) {
           tr.id = 'L' + L.letter;
           tr.classList.add('is-letter-start');
-          var key = el('span', 'zg-key', L.letter);
-          key.setAttribute('data-keep', '');
-          kd.appendChild(key);
         }
-        tr.appendChild(kd);
 
-        var desc = g.desc || (g.desc === '' ? '（取形意圖待補）' : '');
-        var td = el('td', 'zg-desc');
-        if (g.tier && g.tier !== 'primary') {
-          td.appendChild(el('span', 'zg-tier', DATA.tiers[g.tier] || g.tier));
+        var cell = el('td', 'zg-cshapes');
+        if (t.tier !== 'primary') {
+          cell.appendChild(el('span', 'zg-tier', DATA.tiers[t.tier] || t.tier));
         }
-        td.appendChild(el('span', null, desc || '（取形意圖待補）'));
-        tr.appendChild(td);
-
-        var tdShapes = el('td', 'zg-cshapes');
-        g.shapes.forEach(function (sh) {
-          var holder = el('span', 'zg-cglyph');
-          var drew = false;
-          if (GLYPHS && GLYPHS[sh.src] && sh.st && sh.st.length) {
-            var svg = rootIconSvg(GLYPHS[sh.src], sh.st);
-            if (svg) { holder.innerHTML = svg; drew = true; }
-          }
-          if (!drew) {
-            holder.classList.add('is-text');
-            holder.appendChild(glyph(sh.src));
-          }
-          holder.setAttribute('data-keep', '');
-          tdShapes.appendChild(holder);
+        t.groups.forEach(function (g, gi) {
+          if (gi > 0) cell.appendChild(el('span', 'zg-cdiv'));
+          g.shapes.forEach(function (sh) { cell.appendChild(shapeIcon(sh)); });
         });
-        tr.appendChild(tdShapes);
+        tr.appendChild(cell);
 
         tb.appendChild(tr);
       });

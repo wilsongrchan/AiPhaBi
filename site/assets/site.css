@@ -1029,14 +1029,25 @@ tbody tr:last-child td { border-bottom: 0; }
   stroke: none;
 }
 
-/* 精簡表（?view=compact，見 zigen.js 的 COMPACT）——沒有例字欄，字根欄裡
-   的形狀從左到右排開，一列＝一個取形意圖。跟主表共用 .zg-tbl／
-   .zg-letterkey／.zg-desc／.zg-tier 那套底色與字體，只多這三條處理
-   「一排形狀」的排版，不重複整套表格樣式。 */
+/* 精簡表（?view=compact，見 zigen.js 的 COMPACT）——沒有例字欄、沒有取形
+   意圖文字，一個字母一個等級一列（最多三列），該等級底下所有意圖的形狀
+   從左到右排開，意圖之間用一條豎線（.zg-cdiv）隔開。跟主表共用 .zg-tbl／
+   .zg-letterkey／.zg-tier 那套底色與字體，只多這幾條處理「一排形狀」的
+   排版，不重複整套表格樣式。 */
 .zg-ctbl thead th:nth-child(1) { width: 3.2rem; }
-.zg-ctbl thead th:nth-child(2) { width: 20rem; }
-.zg-ctbl thead th:nth-child(3) { width: auto; }
-.zg-cshapes { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
+.zg-ctbl thead th:nth-child(2) { width: auto; }
+.zg-cshapes { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; padding-block: .35rem; }
+/* 等級標籤在這裡是一列的開頭、跟形狀同一排——主表那邊的 display:block ＋
+   下外距是給「自成一行、排在意圖上面」用的，精簡表要它靠左內嵌。 */
+.zg-ctbl .zg-tier { align-self: center; margin: 0 .45rem 0 0; }
+/* 意圖邊界的豎線：夾在兩個意圖的形狀之間，隨該視覺行的高度撐滿。 */
+.zg-cdiv {
+  align-self: stretch;
+  width: 1px;
+  min-height: 1.5rem;
+  margin: 0 .15rem;
+  background: var(--line);
+}
 /* rootIconSvg() 吐出來的 SVG 本身已經帶 .zg-svg（glyphbox.js 沒傳 cls 參數
    時的預設值），大小照 .zg-svg 既有的規則走（螢幕 1.55rem，印表機專用區
    會再放大到 2.3rem）——這裡不用再開一條 .zg-cglyph svg 選到同一顆 SVG，
@@ -5746,8 +5757,14 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
      省下來的寬度全部讓給字根／字例——換回大一點、看得清楚的字形圖，
      不是整張表一起等比縮小。跟 ≤40rem 手機斷點那條 8rem 是同一個數字，
      那條已經證明窄欄照樣讀得下去。 */
-  .zg-tbl thead th:nth-child(2) { width: 8rem; }
+  .zg-tbl:not(.zg-ctbl) thead th:nth-child(2) { width: 8rem; }
   .zg-tbl .zg-desc { font-size: .82rem; line-height: 1.3; }
+
+  /* 精簡表：形狀圖比完整版的 2.3rem 小一點——精簡表一列就攤開一整個等級的
+     形狀，用完整版的尺寸一列會繞到三四行，失去「精簡」的意義。 */
+  .zg-ctbl .zg-svg { width: 2rem; height: 2rem; }
+  .zg-ctbl .zg-cglyph.is-text { font-size: 1.3rem; }
+  .zg-ctbl .zg-cshapes { gap: .32rem; padding-block: .3rem; }
 
   /* 字根欄的字形圖是 .zg-svg，字例欄的是 .zg-exsvg——兩個class，不是同一個
      （字例那邊要疊筆畫顏色分深淺，走 exampleGlyph() 另一條路徑，見
@@ -5862,6 +5879,29 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
    Chrome 的 PDF 檢視器認的網址片段，把它內建的工具列（也有下載鈕）藏起來——
    我們自己在上面那條 bar 已經放了一顆下載鈕，兩個工具列疊在一起會很奇怪；
    不支援這個片段的瀏覽器就當作沒事，自己的工具列照常顯示，不會壞掉。 */
+/* 完整版／精簡版切換——同一塊預覽面板換內容，不用往下捲（Wilson）。
+   外觀沿用頁首 .langtoggle 那顆藥丸分段控制，只是字級放大到正文尺寸。 */
+.pdf-switch {
+  display: inline-flex;
+  margin: 1.1rem 0 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pdf-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  padding: .34rem 1.1rem;
+  font: inherit;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.pdf-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
 .pdf-preview {
   margin: 1.1rem 0;
   border: 1px solid var(--line);

@@ -99,12 +99,68 @@ def _letter_badges(page):
     return out
 
 
-def _col_tops(page):
-    """這一頁左／右欄，各自第一塊內容（不分是不是字母鍵）的 {欄: (y, x)}。
-    用來判斷「這一欄最上面那一小塊有沒有字母鍵」——沒有的話就是接著
-    上一欄／上一頁還沒印完的字母；x 順便記下來，補接續標時直接貼著那欄
-    實際的內容邊界，不用另外猜兩欄各自的 x 座標。"""
+# 表頭那一列的文字——Chromium 把整張表放進兩欄容器時，每一欄的開頭都會
+# 重印一次 <thead>，那不是內容。_col_tops 要把它連同頁首品牌字一起跳過，
+# 不然「這一欄開頭沒有字母鍵」永遠成立（表頭不是字母鍵），就會在每一頁
+# 每一欄的最上面亂補一個接續小標——就是頁首左右冒出來的那兩個怪字母。
+_HEAD_LABELS = ("字母", "取形意圖", "字例")
+_HEADER_BAND = 40   # 這個 y 以上是頁首留白（MARGIN top 15mm ≈ 42.5pt）
+
+
+def _badge_x(page):
+    """這一頁左／右欄的字母鍵 x 座標 {欄: x}——補接續標時對齊真正的字母欄，
+    不是對齊量到的內容左緣（那會落在取形意圖欄的文字上）。"""
+    out = {}
     d = page.get_text("dict")
+    for block in d["blocks"]:
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                t = span["text"].strip()
+                if len(t) == 1 and t in string.ascii_uppercase and span["font"] == "Menlo-Bold":
+                    col = "L" if span["bbox"][0] < COL_SPLIT_X else "R"
+                    out.setdefault(col, span["bbox"][0])
+    return out
+
+
+# 真字母鍵印出來的量測值（兩份 PDF 一致）：8pt 的字，外面一個 13.5×13.5pt、
+# 圓角、淡綠底、重點色描邊的藥丸。接續標要一模一樣（Wilson），不是隨手寫個字。
+_ACCENT = (0x0e / 255, 0x7c / 255, 0x73 / 255)
+_KEY_FILL = (0.933, 0.965, 0.961)
+_KEY_PILL = 13.5
+_KEY_CX = {"L": 42.2, "R": 315.2}   # 沒有真字母鍵可抄 x 時的預設欄中心
+
+
+def _stamp_key_badge(page, cx, top_y, letter):
+    """在 (cx, top_y) 補一個跟真字母鍵同款的藥丸標——字母跨欄／跨頁時，
+    接續的那一欄開頭本來沒有字母鍵，補這個讓它看起來就像原本就在那。"""
+    import fitz
+
+    y0 = top_y - 2.0
+    r = fitz.Rect(cx - _KEY_PILL / 2, y0, cx + _KEY_PILL / 2, y0 + _KEY_PILL)
+    # 真字母鍵是 border-radius: 6px（.zg-key）÷ 印出來約 13.5pt 的框 ≈ 0.38
+    page.draw_rect(r, color=_ACCENT, fill=_KEY_FILL, width=0.75, radius=0.38)
+    tl = fitz.get_text_length(letter, fontname="hebo", fontsize=8)
+    page.insert_text((cx - tl / 2, y0 + 11.3), letter,
+                     fontname="hebo", fontsize=8, color=_ACCENT)
+
+
+def _col_tops(page):
+    """這一頁左／右欄，各自第一塊**內容**（跳過重印的表頭與頁首文字）的
+    {欄: (y, x)}。用來判斷「這一欄最上面那一小塊有沒有字母鍵」——沒有的話
+    就是接著上一欄／上一頁還沒印完的字母；x 順便記下來，補接續標時直接
+    貼著那欄實際的內容邊界，不用另外猜兩欄各自的 x 座標。"""
+    d = page.get_text("dict")
+
+    head_ys = []
+    for block in d["blocks"]:
+        for line in block.get("lines", []):
+            joined = "".join(s["text"] for s in line.get("spans", []))
+            if any(lbl in joined for lbl in _HEAD_LABELS):
+                head_ys.append(line["bbox"][1])
+
+    def skip(y0):
+        return y0 < _HEADER_BAND or any(abs(y0 - hy) < 12 for hy in head_ys)
+
     tops = {}
     for block in d["blocks"]:
         for line in block.get("lines", []):
@@ -112,6 +168,8 @@ def _col_tops(page):
                 if not span["text"].strip():
                     continue
                 x0, y0 = span["bbox"][0], span["bbox"][1]
+                if skip(y0):
+                    continue
                 col = "L" if x0 < COL_SPLIT_X else "R"
                 if col not in tops or y0 < tops[col][0]:
                     tops[col] = (y0, x0)
@@ -144,10 +202,17 @@ def find_page_splits(pdf_path):
     return bad
 
 
-def stamp_pdf(path):
+def stamp_pdf(path, show_letter_list=True, stamp_continuation=True):
     """讀回剛印出來的 PDF（已經沒有跨頁字母了），補三件事：頁首品牌、
     頁首字母清單、頁尾頁碼；另外把「這一欄開頭沒有字母鍵」（此時只會是
     跨欄，不會是跨頁）的地方補一個接續小標。
+
+    show_letter_list=False：精簡版只有一頁，右上角再列一次「這頁有哪些
+    字母」＝整個字母表，純粹是雜訊，關掉（Wilson）。
+
+    stamp_continuation=False：精簡表已經在每一個等級列都畫了字母鍵
+    （見 zigen.js renderCompactTable），跨欄那一列本身就帶著瀏覽器畫的
+    字母鍵，不需要（也不該）再用 PyMuPDF 補一個對不太準的。
 
     字母鍵的簽名很乾淨：.zg-key 是 `font: 650 ... ui-monospace` 印出來就是
     Menlo-Bold，不管實際字級是多少，兩份 PDF（完整版字級不同、精簡版又不
@@ -160,6 +225,11 @@ def stamp_pdf(path):
     current_letter = None   # 一路往下讀，記住「目前印到哪個字母」
     for i, page in enumerate(doc, start=1):
         badges = _letter_badges(page)
+        # ⚠️ 量欄頂**要在補任何頁首文字之前**——不然 _col_tops 會抓到我們自己
+        # 剛寫上去的品牌字（y≈20、x≈40，落在左欄）跟右上角的字母清單，把它們
+        # 當成「這一欄開頭沒有字母鍵」，於是又在頁首左右各補一個接續小標，
+        # 就是左上／右上冒出來的那兩個怪字母。
+        tops = _col_tops(page)
         letters_here = sorted({t for (_, _, t) in badges})
         w, h = page.rect.width, page.rect.height
 
@@ -177,27 +247,31 @@ def stamp_pdf(path):
         # 這種範圍——縮寫要讀者自己在腦裡展開字母表才知道中間有哪些字母
         # 真的在這頁（Wilson：「H 在 G 跟 J 中間」不是一眼看得出來的事），
         # 全部列出來就不用猜。
-        if letters_here:
+        if show_letter_list and letters_here:
             label = "  ".join(letters_here)
             tw = fitz.get_text_length(label, fontname="hebo", fontsize=9)
             page.insert_text((w - 20 - tw, 20), label, fontname="hebo", fontsize=9,
                               color=(0.35, 0.35, 0.35))
 
-        # 字母跨欄：這一欄（左、然後右）開頭那一小塊如果沒有字母鍵，代表
-        # 接著上一欄還沒印完的字母（find_page_splits 已經把跨頁的情況都
-        # 用強制換頁擋掉了，所以這裡剩下的一定是同一頁內的跨欄），在這一欄
-        # 開頭補印一次那個字母，讀者才不會翻到一欄劈頭就是一排沒有名字的
-        # 字根。
-        tops = _col_tops(page)
+        # 字母跨欄／跨頁：這一欄開頭（跳過重印的表頭之後）如果沒有字母鍵，
+        # 代表接著上一欄／上一頁還沒印完的字母，在這一欄的字母欄補印一次
+        # 那個字母，讀者才不會翻到一欄劈頭就是一排沒有名字的字根。
+        # 補印的位置對齊這一欄真正的字母鍵中心：同一頁有真字母鍵就抄它的
+        # x（glyph 左緣 + 半個字寬），沒有就用實測預設欄中心。樣式（藥丸、
+        # 底色、描邊、字級、重點色）全部照真字母鍵複刻，見 _stamp_key_badge。
+        badge_x = _badge_x(page)
         for col in ("L", "R"):
             if col not in tops:
                 continue
-            top_y, top_x = tops[col]
-            fresh = any(c == col and abs(y - top_y) < 20 for (c, y, _t) in badges)
-            if not fresh and current_letter:
-                page.insert_text((top_x, top_y + 3), current_letter,
-                                  fontname="hebo", fontsize=7,
-                                  color=(0.55, 0.55, 0.55))
+            top_y, _top_x = tops[col]
+            # 「這一欄開頭就是新字母」＝字母鍵跟欄頂在同一列（差幾 pt）。
+            # 容許值要小於一列的高度，不然精簡版裡 M 的三等列（欄頂）跟它
+            # 下面那個 N 的字母鍵（差約 19pt）會被算成同一列，M 跨欄就補不到
+            # 接續標。完整版新字母落在欄頂時兩者只差約 3pt，12 綽綽有餘。
+            fresh = any(c == col and abs(y - top_y) < 12 for (c, y, _t) in badges)
+            if stamp_continuation and not fresh and current_letter:
+                cx = badge_x[col] + 2.4 if col in badge_x else _KEY_CX[col]
+                _stamp_key_badge(page, cx, top_y, current_letter)
             col_letters = sorted({t for (c, _, t) in badges if c == col})
             if col_letters:
                 current_letter = col_letters[-1]
@@ -211,7 +285,7 @@ def stamp_pdf(path):
     doc.close()
 
 
-def build_one(page, url, out_path, label):
+def build_one(page, url, out_path, label, compact=False):
     try:
         render_pdf(page, url, out_path, forced_breaks=None)
     except Exception as e:
@@ -221,7 +295,7 @@ def build_one(page, url, out_path, label):
     if splits:
         print(f"  ⚠️ {label}：{'、'.join(sorted(splits))} 被印到跨頁——已知限制，"
               f"見檔頭說明，先這樣印出來")
-    stamp_pdf(out_path)
+    stamp_pdf(out_path, show_letter_list=not compact, stamp_continuation=not compact)
     kb = out_path.stat().st_size / 1024
     print(f"寫出：{out_path.relative_to(ROOT)}（{label}，{kb:.0f} KB）")
 
@@ -239,14 +313,14 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     targets = [
-        (f"{base}/zigen.html", OUT_DIR / "zigen-chart.pdf", "完整版"),
-        (f"{base}/zigen.html?view=compact", OUT_DIR / "zigen-chart-compact.pdf", "精簡版"),
+        (f"{base}/zigen.html", OUT_DIR / "zigen-chart.pdf", "完整版", False),
+        (f"{base}/zigen.html?view=compact", OUT_DIR / "zigen-chart-compact.pdf", "精簡版", True),
     ]
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        for url, out_path, label in targets:
-            build_one(page, url, out_path, label)
+        for url, out_path, label, compact in targets:
+            build_one(page, url, out_path, label, compact=compact)
         browser.close()
 
 
