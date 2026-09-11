@@ -101,19 +101,47 @@
     <p class="cy-summary" id="cy-summary" role="status" data-keep></p>
   </div>
 
-  <div class="pdf-preview">
-    <div class="pdf-preview-bar">
-      <span class="pdf-preview-name">changyongzi.pdf</span>
-      <a class="btn btn-primary" href="assets/downloads/changyongzi.pdf" download>下載</a>
-    </div>
-    <iframe src="assets/downloads/changyongzi.pdf#toolbar=0" title="常用字表 PDF 預覽" loading="lazy"></iframe>
+  <div class="pdf-switch" role="group" aria-label="選擇版本">
+    <button type="button" data-pdf="plain" aria-pressed="true">一般版</button>
+    <button type="button" data-pdf="codes" aria-pressed="false">附碼版</button>
   </div>
+
+  <div class="pdf-preview" data-pdf-panel="plain">
+    <div class="pdf-preview-bar">
+      <span class="pdf-preview-name">AiPhaBi_ChangYongZi.pdf</span>
+      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ChangYongZi.pdf" download>下載</a>
+    </div>
+    <iframe src="assets/downloads/AiPhaBi_ChangYongZi.pdf#toolbar=0" title="常用字表 PDF 預覽" loading="lazy"></iframe>
+  </div>
+
+  <div class="pdf-preview" data-pdf-panel="codes" hidden>
+    <div class="pdf-preview-bar">
+      <span class="pdf-preview-name">AiPhaBi_ChangYongZi_Codes.pdf</span>
+      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ChangYongZi_Codes.pdf" download>下載</a>
+    </div>
+    <iframe src="assets/downloads/AiPhaBi_ChangYongZi_Codes.pdf#toolbar=0" title="常用字表（附碼版）PDF 預覽" loading="lazy"></iframe>
+  </div>
+
   <p class="ac-caveat">
+    附碼版：每個字下面多一行愛發筆碼，同一份清單、同一個順序，只是行距拉開了、頁數也因此變多。
     看不到預覽的話，是瀏覽器沒開內嵌 PDF 顯示——按〈下載〉一樣看得到完整內容。
   </p>
 
 </main>
 
+<script>
+(function () {
+  var btns = document.querySelectorAll('.pdf-switch button');
+  var panels = document.querySelectorAll('[data-pdf-panel]');
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var want = b.dataset.pdf;
+      btns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      panels.forEach(function (p) { p.hidden = p.dataset.pdfPanel !== want; });
+    });
+  });
+})();
+</script>
 
 <footer class="wrap">
   <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有

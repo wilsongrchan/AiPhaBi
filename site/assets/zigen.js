@@ -23,8 +23,8 @@
 
   /* 精簡表：?view=compact 才會走這條路——沒有例字欄，字根欄裡的形狀從左到右
      排開（一列＝一個取形意圖，不是一個形狀），給 build_pdf.py 印第二份
-     PDF 用（zigen-chart-compact.pdf）。畫面上沒有按鈕切過去，純粹靠網址
-     參數；搜尋框、字母跳轉、〈相近字形辨析〉這些互動功能在精簡表下沒有
+     PDF 用（AiPhaBi_ZigenChart_Compact.pdf）。畫面上沒有按鈕切過去，純粹靠
+     網址參數；搜尋框、字母跳轉、〈相近字形辨析〉這些互動功能在精簡表下沒有
      意義，用 body 的 class 整批藏起來（見 site.css .zg-compact-view）。 */
   var COMPACT = /(^|[?&])view=compact(&|$)/.test(location.search);
   if (COMPACT) document.body.classList.add('zg-compact-view');

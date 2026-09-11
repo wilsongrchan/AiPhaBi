@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """產生〈下載〉頁的兩份字根表 PDF：
-    site/assets/downloads/zigen-chart.pdf          完整版（取形意圖／字根／字例）
-    site/assets/downloads/zigen-chart-compact.pdf  精簡版（拿掉字例欄，字根欄裡
+    site/assets/downloads/AiPhaBi_ZigenChart.pdf          完整版（取形意圖／字根／字例）
+    site/assets/downloads/AiPhaBi_ZigenChart_Compact.pdf  精簡版（拿掉字例欄，字根欄裡
                                                     的形狀從左到右排開，一列＝
                                                     一個取形意圖，不是一個形狀）
 
@@ -313,8 +313,8 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     targets = [
-        (f"{base}/zigen.html", OUT_DIR / "zigen-chart.pdf", "完整版", False),
-        (f"{base}/zigen.html?view=compact", OUT_DIR / "zigen-chart-compact.pdf", "精簡版", True),
+        (f"{base}/zigen.html", OUT_DIR / "AiPhaBi_ZigenChart.pdf", "完整版", False),
+        (f"{base}/zigen.html?view=compact", OUT_DIR / "AiPhaBi_ZigenChart_Compact.pdf", "精簡版", True),
     ]
     with sync_playwright() as p:
         browser = p.chromium.launch()

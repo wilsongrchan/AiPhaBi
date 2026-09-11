@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""產生〈常用字表 PDF〉頁（changyongzi.html）內嵌／可下載的那份 PDF：
-    site/assets/downloads/changyongzi.pdf
+"""產生〈常用字表 PDF〉頁（changyongzi.html）內嵌／可下載的兩份 PDF：
+    site/assets/downloads/AiPhaBi_ChangYongZi.pdf        一般版
+    site/assets/downloads/AiPhaBi_ChangYongZi_Codes.pdf  附碼版——同一份清單、
+        同一個順序，每個字下面多印一行灰色的愛發筆碼（codes.json 的 final，
+        全碼、未套簡碼），行距／字級都是為了塞下這行碼另外調過的（Wilson）。
+        碼字型走 Menlo（系統等寬字型，__init__ 找不到就退回 helv）：無襯線，
+        但大寫 I 上下有短橫，全大寫字母碼裡才不會跟 l／1 分不清。碼太寬塞不
+        下格子的（5 碼、剛好都是 W／M 這種胖字母）用 morph 矩陣只橫向壓扁、
+        不動字級，同一行的碼才會高度一致。
 
 「只打常用字」開啟時選字列會保留的那批字，分門別類列一遍。刻意樸素——
 一個字一格、內建 sans 字型——給想確認「我要打的字會不會被濾掉」的人一份
@@ -35,7 +42,12 @@ common 變了、甲表清單更新了、或 try.js 的名字清單改了，就�
 
     pip3 install pymupdf pypinyin
     python3 site/tools/build_site_data.py       # 先確保 charset.json 是新的
-    python3 site/tools/build_charlist_pdf.py
+    python3 site/tools/build_charlist_pdf.py    # 兩份都產（一般版＋附碼版）
+
+跑的時候可以加參數：
+    --with-code             只產附碼版（不動一般版那份）
+    --preview-code-page1    只印附碼版的第一頁到 site/tools/_preview_page1.pdf，
+                            排版對不對先看這張、不用等完整 18 頁跑完
 """
 import io
 import json
@@ -49,14 +61,26 @@ STD = ROOT / "data" / "standards"
 TRY_JS = ROOT / "site" / "assets" / "try.js"
 CODES_JSON = ROOT / "data" / "codes.json"            # 讀取用：部件字旗標＋愛發筆碼
 FOURCORNER = ROOT / "site" / "tools" / "fourcorner.json"   # gen_fourcorner.py 產
-OUT = ROOT / "site" / "assets" / "downloads" / "changyongzi.pdf"
+OUT = ROOT / "site" / "assets" / "downloads" / "AiPhaBi_ChangYongZi.pdf"
+OUT_CODE = ROOT / "site" / "assets" / "downloads" / "AiPhaBi_ChangYongZi_Codes.pdf"
 
 PAGE_W, PAGE_H = 595.0, 842.0
 ML, MR, MT, MB = 42.0, 42.0, 46.0, 30.0
 COLS = 26
 CELL = (PAGE_W - ML - MR) / COLS
 ROW_H = 18.0
+CODE_ROW_H = 27.0     # 附碼版：字身下面多一行愛發筆碼，列距要拉開才不會疊字
 CHAR_SIZE = 12.5
+CODE_SIZE = 5.2
+CODE_FONT = "menlo"   # Wilson：想要無襯線，但 I 要看得出上下橫槓（跟 l／1 分
+                       # 得開）——這正是等寬「程式字型」的老設計，Menlo 全字無
+                       # 襯線，只有大寫 I 上下加短橫。build_pdf.py 頁首字母鍵也
+                       # 是走這顆字型（Menlo-Bold），算是站內既有選擇。
+MENLO_FILE = "/System/Library/Fonts/Menlo.ttc"
+CODE_FONT_FALLBACK = "helv"   # 上面那個字型檔不存在時（非 macOS）退回 helv
+CODE_TRACK = 0.5   # 字母間額外加的間距（pt）——Menlo 本身瘦，字距不用像 helv
+                    # 那樣擠在一起，鬆一點更好認（Wilson）；碼太長要壓縮時，
+                    # 這份間距跟字身一起被壓，不會撐破格子寬度
 BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
 
@@ -185,16 +209,32 @@ def _logo_stream(px):
 class Flow:
     """從上到下擺內容的簡單版面引擎：section 標題、注音小標、一格一個字的方陣。"""
 
-    def __init__(self, doc):
+    def __init__(self, doc, code_map=None):
         import pymupdf as fitz
         self.fitz = fitz
         self.doc = doc
         self.page = None
         self.y = 0.0
         self._fb = pathlib.Path(FALLBACK_FILE).exists()
+        self._menlo = pathlib.Path(MENLO_FILE).exists()
+        self.code_font = CODE_FONT if self._menlo else CODE_FONT_FALLBACK
+        # fitz.get_text_length() 只認內建 14 顆字型的名字，量不了 Menlo 這種另外
+        # 內嵌的字型（會直接丟 ValueError）；量寬得改用 fitz.Font 物件自己的
+        # text_length()，所以這裡另外存一份 Font 物件（跟 insert_text() 畫字那條
+        # 走 insert_font() 登記的路是兩回事，各管各的）。
+        self._code_font_obj = None
+        if self._menlo:
+            try:
+                self._code_font_obj = self.fitz.Font(fontfile=MENLO_FILE)
+            except Exception:
+                self._menlo = False
+                self.code_font = CODE_FONT_FALLBACK
         self._cat = None          # 目前所在的分類短名
         self._marks = []          # (頁碼, 分類, 小標) —— 給頁首右上角的範圍標籤
         self._breaks = set()      # 用 page_break() 硬換頁、頂端不接上一頁內容的頁
+        self.code_map = code_map  # 附碼版：字 -> 愛發筆碼（codes.json 的 final）；
+                                   # None＝一般版，不畫碼
+        self.row_h = CODE_ROW_H if code_map is not None else ROW_H
         self._new_page()
 
     def _new_page(self):
@@ -204,6 +244,12 @@ class Flow:
                 self.page.insert_font(fontname=FALLBACK, fontfile=FALLBACK_FILE)
             except Exception:
                 pass
+        if self.code_map is not None and self._menlo:
+            try:
+                self.page.insert_font(fontname=CODE_FONT, fontfile=MENLO_FILE)
+            except Exception:
+                self._menlo = False
+                self.code_font = CODE_FONT_FALLBACK
         self.y = MT
 
     def _room(self, h):
@@ -302,28 +348,69 @@ class Flow:
 
     def section(self, text):
         self._room(40)
+        at_top = self.y <= MT + 1   # 這節剛好從整頁開頭起（page_break() 換過頁，
+                                     # 或前一節剛好印到滿頁）——上面沒東西可分隔，
+                                     # 那條灰線畫了也是浮著，不畫（Wilson：GB 那節）
         self._cat = SECTION_CATS.get(text[:1], text[:1])
         self._marks.append((len(self.doc) - 1, self._cat, None))
         self.y += 14
-        self.page.draw_line((ML, self.y), (PAGE_W - MR, self.y),
-                            color=(0.75, 0.75, 0.75), width=0.6)
+        if not at_top:
+            self.page.draw_line((ML, self.y), (PAGE_W - MR, self.y),
+                                color=(0.75, 0.75, 0.75), width=0.6)
         self.y += 4
         self._text((ML, self.y + 11), text, 12, (0.055, 0.486, 0.451), bold=True)
         self.y += 20
 
     def subhead(self, text, sub=None):
-        self._room(ROW_H + 16)
+        self._room(self.row_h + 16)
         if sub:
             self._marks.append((len(self.doc) - 1, self._cat, sub))
         self.y += 6
         self._text((ML, self.y + 8.5), text, 9, (0.055, 0.486, 0.451))
         self.y += 13
 
+    def _code_label(self, x, y_top, w, code):
+        """在寬 w、左緣 x 的格子裡，字身下方置中印一行愛發筆碼（純 ASCII，走
+        self.code_font＝Menlo：無襯線，但大寫 I 上下特地加了短橫——全大寫字母
+        碼裡的 I 不然只是一豎，跟 l／1 分不開；Menlo 是等寬「程式字型」的老
+        設計，這裡不等寬用也沒差，就是借它 I 的畫法。系統上真的沒有這顆字型
+        檔（非 macOS）就退回 helv，見 __init__ 的 self.code_font。）字級固定
+        不變（CODE_SIZE）——高度統一，不然有的碼縮小字級、有的不用，同一頁
+        高矮不一致（Wilson）。太寬塞不下的（5 碼、又剛好都是 W／M 這種胖字母）
+        改用水平方向的 morph 矩陣把字**橫向壓扁**，高度不動，跟旁邊沒被壓的碼
+        站在同一條基準線上、字身一樣高，只是這幾個瘦一點。"""
+        size = CODE_SIZE
+        fn = self.code_font
+        gw = ((lambda s: self._code_font_obj.text_length(s, fontsize=size))
+              if self._code_font_obj is not None else
+              (lambda s: self.fitz.get_text_length(s, fontname=fn, fontsize=size)))
+        widths = [gw(ch) for ch in code]
+        avail = w - 6.0     # 兩邊各留 3pt，不然兩個滿版的格子會黏在一起
+        natural = sum(widths) + CODE_TRACK * max(0, len(code) - 1)
+        hscale = min(1.0, avail / natural) if natural > 0 else 1.0
+        draw_w = natural * hscale
+        cx = x + (w - draw_w) / 2
+        by = y_top + CHAR_SIZE + 8.4
+        # 逐字元分開畫（不是一次 insert_text 整串）才能塞進字距；squish 用同一個
+        # 錨點、同一個 morph 矩陣套在每一次插入上——效果等同先排好整串字再整體
+        # 壓扁，錨點固定住，字距也會跟著等比例縮，不會撐破格子寬度。
+        morph = (self.fitz.Point(cx, by), self.fitz.Matrix(hscale, 1)) if hscale < 0.999 else None
+        cur = cx
+        for ch, cw in zip(code, widths):
+            if morph:
+                self.page.insert_text((cur, by), ch, fontname=fn, fontsize=size,
+                                      color=(0.5, 0.5, 0.5), morph=morph)
+            else:
+                self.page.insert_text((cur, by), ch, fontname=fn, fontsize=size,
+                                      color=(0.5, 0.5, 0.5))
+            cur += cw + CODE_TRACK
+
     def _cell(self, x, y_top, ch, anno=None, dup=False):
         """在 (x, y_top) 這一格畫一個字，x 是格子左緣。
         anno＝右上角一個小綠字母，指這個多音字另一個讀音落在哪一組。
         dup=True＝這格是同一個多音字在該讀音組的「重出」（本尊、字數都算在
-        anno 指的那組）：字母下面點一個小點。"""
+        anno 指的那組）：字母下面點一個小點。
+        code_map 有給（附碼版）的話，字身下面再印一行愛發筆碼。"""
         fn = FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT
         self.page.insert_text((x + (CELL - CHAR_SIZE) / 2, y_top + CHAR_SIZE), ch,
                               fontname=fn, fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
@@ -336,6 +423,10 @@ class Flow:
                 aw = self.fitz.get_text_length(anno, fontname="hebo", fontsize=5.6)
                 self.page.draw_circle((ax + aw / 2, ay + 1.7), 0.72,
                                       color=green, fill=green, width=0.3)
+        if self.code_map is not None:
+            code = self.code_map.get(ch)
+            if code:
+                self._code_label(x, y_top, CELL, code)
 
     def grid(self, chars, annos=None):
         annos = annos or {}
@@ -346,14 +437,14 @@ class Flow:
         col = 0
         for ch, anno, dup in items:
             if col == 0:
-                self._room(ROW_H)
+                self._room(self.row_h)
             self._cell(ML + col * CELL, self.y, ch, anno, dup)
             col += 1
             if col == COLS:
                 col = 0
-                self.y += ROW_H
+                self.y += self.row_h
         if col:
-            self.y += ROW_H
+            self.y += self.row_h
 
     def grid_labeled(self, label, chars):
         """跟 grid 一樣，但第一列留一格放標籤（四角號碼第一碼）；換行後的接續列
@@ -361,7 +452,7 @@ class Flow:
         不會退到最左邊、跟上一列的字對不齊。"""
         indent = 1 if label else 0
         col = indent
-        self._room(ROW_H)
+        self._room(self.row_h)
         if label:
             green = (0.055, 0.486, 0.451)
             self.page.insert_text((ML + (CELL - CHAR_SIZE * 0.8) / 2, self.y + CHAR_SIZE),
@@ -370,12 +461,12 @@ class Flow:
         for ch in chars:
             if col == COLS:
                 col = indent
-                self.y += ROW_H
-                self._room(ROW_H)
+                self.y += self.row_h
+                self._room(self.row_h)
             self._cell(ML + col * CELL, self.y, ch)
             col += 1
         if col > indent:
-            self.y += ROW_H
+            self.y += self.row_h
 
     def grid_cols(self, groups, ncols=2, gutter=22.0):
         """把一串「一行一組」的字堆排成 ncols 直欄，欄間留 gutter 寬的溝——不
@@ -388,7 +479,7 @@ class Flow:
                      for g in groups if g]
         total = sum(len(r) for r in grouprows)
         per_col = max(1, -(-total // ncols))
-        self._room(per_col * ROW_H)
+        self._room(per_col * self.row_h)
         y0 = self.y
         col, yrow = 0, 0
         for rows in grouprows:
@@ -398,11 +489,11 @@ class Flow:
             for r in rows:
                 x = ML + col * (colw + gutter)
                 for ch in r:
-                    self._cell(x, y0 + yrow * ROW_H, ch)
+                    self._cell(x, y0 + yrow * self.row_h, ch)
                     x += CELL
                 yrow += 1
         last = yrow if col == ncols - 1 else per_col
-        self.y = y0 + max(1, last) * ROW_H
+        self.y = y0 + max(1, last) * self.row_h
 
     def two_lists(self, left, right, gutter=22.0):
         """左右各排一份獨立清單（〈常見人名用字〉男／女），中間留 gutter 寬的
@@ -413,32 +504,46 @@ class Flow:
         rows_l = -(-len(left) // subcols) if left else 0
         rows_r = -(-len(right) // subcols) if right else 0
         rows = max(rows_l, rows_r, 1)
-        self._room(rows * ROW_H)
+        self._room(rows * self.row_h)
         y0 = self.y
         for lst, cx in ((left, ML), (right, ML + colw + gutter)):
             for i, ch in enumerate(lst):
                 r, c = divmod(i, subcols)
-                self._cell(cx + c * CELL, y0 + r * ROW_H, ch)
-        self.y = y0 + rows * ROW_H
+                self._cell(cx + c * CELL, y0 + r * self.row_h, ch)
+        self.y = y0 + rows * self.row_h
 
     def grid_units(self, units, per_row=5, unit_gap=None, tight=False):
         """一個 unit（1–4 個字）當一個不可切的整體畫。《百家姓》用。
-        tight=False：unit 內每字佔一格（單姓四字一句照原文韻腳）。
-        tight=True：unit 內兩字緊貼、不留格（複姓「司馬」不寫成「司　馬」，省寬）。"""
+        tight=False：unit 內每字佔一格（單姓四字一句照原文韻腳）——附碼版一樣
+        每字底下印自己的碼，跟 _cell 那套一致。
+        tight=True：unit 內兩字緊貼、不留格（複姓「司馬」不寫成「司　馬」，省寬）
+        ——附碼版擠不出兩個獨立小格，改成整個 unit 底下印一行合併的碼（兩字碼
+        中間用半形「-」隔開；helv 這顆內建字型沒有全形間隔號的字身，插了會被
+        默默換成別的符號，見 site-cjk-html-typography 那類 china-s 字型陷阱，
+        這裡索性直接用 ASCII 連字號，不賭字型有沒有這個字）。"""
         gap = CELL * 0.55 if unit_gap is None else unit_gap
         step = CHAR_SIZE * 1.04 if tight else CELL
         for r in range(0, len(units), per_row):
-            self._room(ROW_H)
+            self._room(self.row_h)
             x = ML
             for u in units[r:r + per_row]:
+                x0 = x
                 for ch in u:
                     off = 0 if tight else (CELL - CHAR_SIZE) / 2
                     fn = FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT
                     self.page.insert_text((x + off, self.y + CHAR_SIZE), ch, fontname=fn,
                                           fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
+                    if self.code_map is not None and not tight:
+                        code = self.code_map.get(ch)
+                        if code:
+                            self._code_label(x, self.y, CELL, code)
                     x += step
+                if self.code_map is not None and tight:
+                    codes = [self.code_map.get(ch) for ch in u]
+                    if all(codes):
+                        self._code_label(x0, self.y, x - gap - x0, "-".join(codes))
                 x += gap
-            self.y += ROW_H
+            self.y += self.row_h
 
     def running_header(self, text):
         """第 2 頁起，頁首放一行小小的「愛發筆輸入法　常用字表」。第 1 頁有大標題
@@ -547,7 +652,7 @@ class Flow:
                              fontname="helv", fontsize=8, color=(0.5, 0.5, 0.5))
 
 
-def build():
+def build(with_code=False, preview_page1=False):
     try:
         import pymupdf as fitz
     except ImportError:
@@ -596,15 +701,24 @@ def build():
             buckets[k].sort(key=lambda c: (_bopo(pinyin_fn, c), c))
         return buckets, other
 
+    code_map = None
+    if with_code:
+        try:
+            cj_raw = json.loads(CODES_JSON.read_text("utf-8"))
+        except Exception:
+            sys.exit("沒讀到 data/codes.json，附碼版做不出來")
+        code_map = {c: rec.get("final") for c, rec in cj_raw.items()
+                    if isinstance(rec, dict) and rec.get("final")}
+
     doc = fitz.open()
-    flow = Flow(doc)
+    flow = Flow(doc, code_map=code_map)
     n = len(common)
-    flow.title(BRAND, TITLE_REST,
-               f"「只打常用字」開啟時選字列保留的為此表內的常用字，共 {n} 個。\n"
-               f"注意各表各類內字不互斥，即同一個字可能重複出現在不同表內；如「高」"
-               f"字，作為傳承字（未被簡化的字），同時被收入台灣甲表和大陸 GB 一級字"
-               f"內，而且亦是百家姓之一，所以出現三次。所以雖然常用字共 {n} 個，但各"
-               f"表各類字數總和多於此數，正是因為某些字重複收錄。")
+    subtitle = (f"「只打常用字」開啟時選字列保留的為此表內的常用字，共 {n} 個。\n"
+                f"注意各表各類內字不互斥，即同一個字可能重複出現在不同表內；如「高」"
+                f"字，作為傳承字（未被簡化的字），同時被收入台灣甲表和大陸 GB 一級字"
+                f"內，而且亦是百家姓之一，所以出現三次。所以雖然常用字共 {n} 個，但各"
+                f"表各類字數總和多於此數，正是因為某些字重複收錄。")
+    flow.title(BRAND, TITLE_REST + ("（附碼版）" if with_code else ""), subtitle)
 
     def bopo_section(title, chars):
         flow.section(f"{title}（{len(chars)} 字）")
@@ -741,7 +855,13 @@ def build():
         flow.section(f"四、百家姓（{uniq} 字）")
         flow.grid_units([singles[i:i + 4] for i in range(0, len(singles), 4)], per_row=6)
         flow.subhead(f"複姓（{len(comp)} 個）")
-        flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
+        # 附碼版：兩字緊貼（tight）沒有獨立小格可以各放一行碼，硬擠成合併碼會
+        # 擠到認不出來（兩個 5 碼字接在一起快 10 個字母寬）——改回跟單字一樣
+        # 每字一格、各自印自己的碼，犧牲一點密度（12→7 個一行）換可讀性。
+        if flow.code_map is None:
+            flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
+        else:
+            flow.grid_units(comp, per_row=7, unit_gap=CELL * 0.7, tight=False)
 
     def other_section():
         # 部件字（codes.json 標 componentOnly 的）擺前面，依愛發筆碼排——一碼
@@ -789,6 +909,17 @@ def build():
                 flow.grid_labeled(k, chars)
 
     bopo_section("一、教育部《常用國字標準字體表》甲表", jiabiao)
+
+    if preview_page1:
+        # 只看第一頁排版對不對，不用跑完整份清單、也不動正式檔案——存到旁邊
+        # 一個暫存檔（Write 到版控外的地方，跑完看一眼就能刪）。
+        doc.select([0])
+        prev = ROOT / "site" / "tools" / "_preview_page1.pdf"
+        doc.save(str(prev))
+        doc.close()
+        print(f"預覽（僅第一頁）：{prev.relative_to(ROOT)}")
+        return
+
     pinyin_section("二、GB 2312 一級漢字", gb1, note="拼音序")
     grouped_section("三、常用粵語字", canton_groups, note="約略依部首分組", ncols=2)
     baijia_section()
@@ -805,15 +936,22 @@ def build():
         doc.subset_fonts()
     except Exception as e:
         print(f"  ⚠️ subset_fonts 失敗（{e}）——檔案會偏大")
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(OUT), deflate=True, garbage=4)
+    out_path = OUT_CODE if with_code else OUT
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(out_path), deflate=True, garbage=4)
     doc.close()
-    kb = OUT.stat().st_size / 1024
-    print(f"寫出：{OUT.relative_to(ROOT)}"
+    kb = out_path.stat().st_size / 1024
+    print(f"寫出：{out_path.relative_to(ROOT)}"
           f"（{len(common):,} 字 / {pages} 頁 / {kb:.0f} KB）")
     print(f"  甲表 {len(jiabiao)}、GB一級 {len(gb1)}、粵語 {len(canton)}、"
           f"百家姓 {len(baijia)}、取名 {len(names)}、其他 {len(rest)}")
 
 
 if __name__ == "__main__":
-    build()
+    if "--preview-code-page1" in sys.argv:
+        build(with_code=True, preview_page1=True)
+    elif "--with-code" in sys.argv:
+        build(with_code=True)
+    else:
+        build()
+        build(with_code=True)
