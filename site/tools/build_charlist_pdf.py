@@ -462,9 +462,9 @@ class Flow:
             page.draw_line((ML, 33), (PAGE_W - MR, 33), color=(0.86, 0.86, 0.86), width=0.4)
 
     def _fmt_coverage(self, seq):
-        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄍ·ㄎ·ㄏ ｜ GB表 A·B·C」
-        這種標籤——把本頁涵蓋的每個小標都列出來（不用 X-Y 區間，中間隔了誰不
-        直覺），分類之間用｜隔開。"""
+        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄍ·ㄎ·ㄏ」「GB表 A·B·C」
+        這種字串的 list，每個元素一個分類。分類之間頁首畫一條短豎線隔開（不用
+        全形｜這個字元——china-s 底下 U+FF5C 會被換成別的字，見 coverage_labels）。"""
         out, i = [], 0
         while i < len(seq):
             cat = seq[i][0]
@@ -478,11 +478,41 @@ class Flow:
                 out.append(f"{cat} " + "·".join(subs))
             elif cat:
                 out.append(cat)
-        return " ｜ ".join(out)
+        return out
+
+    _COV_DOT_PAD = 1.3    # ・兩邊留白，不然 china-s 把它畫成全形、字都黏在一起
+    _COV_DIV_GAP = 5.0    # 分類之間豎線兩邊留白
+
+    def _cov_width(self, s):
+        w = 0.0
+        for ch in s:
+            if ch == "·":
+                w += self._COV_DOT_PAD * 2 + self.fitz.get_text_length(
+                    "·", fontname="helv", fontsize=7.5)
+            else:
+                fn = "helv" if ord(ch) <= 0x7E else FONT
+                w += self.fitz.get_text_length(ch, fontname=fn, fontsize=7.5)
+        return w
+
+    def _cov_draw(self, page, x, y, s, color):
+        for ch in s:
+            if ch == "·":
+                x += self._COV_DOT_PAD
+                page.insert_text((x, y), ch, fontname="helv", fontsize=7.5, color=color)
+                x += self.fitz.get_text_length("·", fontname="helv", fontsize=7.5)
+                x += self._COV_DOT_PAD
+                continue
+            fn = "helv" if ord(ch) <= 0x7E else (
+                FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT)
+            page.insert_text((x, y), ch, fontname=fn, fontsize=7.5, color=color)
+            x += self.fitz.get_text_length(
+                ch, fontname=("helv" if ord(ch) <= 0x7E else FONT), fontsize=7.5)
+        return x
 
     def coverage_labels(self):
         """每頁右上角標一行「本頁涵蓋範圍」（仿〈字根表〉PDF）。範圍＝這頁開頭
-        還在延續的那段，加上這頁裡新起的每個 section／小標。"""
+        還在延續的那段，加上這頁裡新起的每個 section／小標；分類之間畫一條
+        短豎線（不是文字字元），同一分類內的小標用「·」隔開。"""
         by_page = {}
         for pg, cat, sub in self._marks:
             by_page.setdefault(pg, []).append((cat, sub))
@@ -494,20 +524,19 @@ class Flow:
             seq = ([carry] if carry else []) + here
             if here:
                 carry = here[-1]
-            label = self._fmt_coverage(seq)
-            if not label:
+            runs = self._fmt_coverage(seq)
+            if not runs:
                 continue
-            tw = sum(self.fitz.get_text_length(
-                ch, fontname=("helv" if ord(ch) <= 0x7E else FONT), fontsize=7.5)
-                for ch in label)
-            x = PAGE_W - MR - tw
-            for ch in label:
-                fn = "helv" if ord(ch) <= 0x7E else (
-                    FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT)
-                page.insert_text((x, 28), ch, fontname=fn, fontsize=7.5,
-                                 color=(0.5, 0.5, 0.5))
-                x += self.fitz.get_text_length(
-                    ch, fontname=("helv" if ord(ch) <= 0x7E else FONT), fontsize=7.5)
+            color = (0.5, 0.5, 0.5)
+            gap = self._COV_DIV_GAP
+            total = sum(self._cov_width(r) for r in runs) + gap * 2 * (len(runs) - 1)
+            x = PAGE_W - MR - total
+            for i, r in enumerate(runs):
+                x = self._cov_draw(page, x, 28, r, color)
+                if i < len(runs) - 1:
+                    x += gap
+                    page.draw_line((x, 24), (x, 30), color=(0.72, 0.72, 0.72), width=0.6)
+                    x += gap
 
     def footers(self):
         total = len(self.doc)
