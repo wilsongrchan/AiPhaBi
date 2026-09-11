@@ -81,6 +81,10 @@ CODE_FONT_FALLBACK = "helv"   # 上面那個字型檔不存在時（非 macOS）
 CODE_TRACK = 0.5   # 字母間額外加的間距（pt）——Menlo 本身瘦，字距不用像 helv
                     # 那樣擠在一起，鬆一點更好認（Wilson）；碼太長要壓縮時，
                     # 這份間距跟字身一起被壓，不會撐破格子寬度
+CODE_HSCALE_MIN = 0.85   # 橫向壓扁最多壓到這個比例（Wilson 試 85%）——5 碼的字
+                          # 全部一樣寬（Menlo 等寬），不設下限會統一壓到 77% 左右；
+                          # 85% 讓字身沒那麼瘦，代價是格子兩邊留白從 3pt 縮到
+                          # 約 2.3pt，還是分得開，沒有黏在一起
 BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
 
@@ -387,7 +391,7 @@ class Flow:
         widths = [gw(ch) for ch in code]
         avail = w - 6.0     # 兩邊各留 3pt，不然兩個滿版的格子會黏在一起
         natural = sum(widths) + CODE_TRACK * max(0, len(code) - 1)
-        hscale = min(1.0, avail / natural) if natural > 0 else 1.0
+        hscale = max(CODE_HSCALE_MIN, min(1.0, avail / natural)) if natural > 0 else 1.0
         draw_w = natural * hscale
         cx = x + (w - draw_w) / 2
         by = y_top + CHAR_SIZE + 8.4
@@ -857,11 +861,11 @@ def build(with_code=False, preview_page1=False):
         flow.subhead(f"複姓（{len(comp)} 個）")
         # 附碼版：兩字緊貼（tight）沒有獨立小格可以各放一行碼，硬擠成合併碼會
         # 擠到認不出來（兩個 5 碼字接在一起快 10 個字母寬）——改回跟單字一樣
-        # 每字一格、各自印自己的碼，犧牲一點密度（12→7 個一行）換可讀性。
+        # 每字一格、各自印自己的碼，犧牲一點密度（12→9 個一行）換可讀性。
         if flow.code_map is None:
             flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
         else:
-            flow.grid_units(comp, per_row=7, unit_gap=CELL * 0.7, tight=False)
+            flow.grid_units(comp, per_row=9, unit_gap=CELL * 0.7, tight=False)
 
     def other_section():
         # 部件字（codes.json 標 componentOnly 的）擺前面，依愛發筆碼排——一碼
@@ -912,10 +916,16 @@ def build(with_code=False, preview_page1=False):
 
     if preview_page1:
         # 只看第一頁排版對不對，不用跑完整份清單、也不動正式檔案——存到旁邊
-        # 一個暫存檔（Write 到版控外的地方，跑完看一眼就能刪）。
+        # 一個暫存檔（Write 到版控外的地方，跑完看一眼就能刪）。doc.select() 只
+        # 挑頁面，字型還是整包 Menlo.ttc／STHeiti 原封不動嵌在裡面——沒經過
+        # subset_fonts() 砍到只留用到的字身，單頁檔案曾經因此炸到 60MB+。
         doc.select([0])
+        try:
+            doc.subset_fonts()
+        except Exception as e:
+            print(f"  ⚠️ subset_fonts 失敗（{e}）——預覽檔會偏大")
         prev = ROOT / "site" / "tools" / "_preview_page1.pdf"
-        doc.save(str(prev))
+        doc.save(str(prev), deflate=True, garbage=4)
         doc.close()
         print(f"預覽（僅第一頁）：{prev.relative_to(ROOT)}")
         return
