@@ -71,7 +71,7 @@ BOPO_INITIALS = list("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗ�
 # 排，不重排。data/standards/canton_common.txt（餵輸入法白名單那份）比這裡多
 # 收幾個更生僻的（嚡 攋 嗮 掕 咔 呦），那幾個會落到「其他」節。
 CANTON_GROUPS = [
-    list("吖呃呔咗咁咩咧咯唞啲啡啋喎啩喵啵喏㗎喺喇喔嘅嗰嗌嗒嗲嘥嗟嘢嘞嘈嘜嘑嘟嘛噏嘭嚟嚫嚦嚹嚿囉"),
+    list("吖呃呔咗咁咩咧咯唞啲啡啋喎啩喵啵喏㗎喺喇喔嘅嗰嗌嗒嗲嘥嗟嘢嘞嘈嘜嘑嘟嘛噏嘭嚟嚫嚦嚹嚿囉嗮嚡"),
     list("佢冇冚冧攰"),
     list("睇瞓諗"),
     list("拎拗拃掂掗揸揀揈搲揦搣撩撳揗摷攞"),
@@ -637,7 +637,8 @@ def build():
         flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
 
     def other_section():
-        # 部件字（codes.json 標 componentOnly 的）擺前面、依愛發筆碼排；其餘的
+        # 部件字（codes.json 標 componentOnly 的）擺前面，依愛發筆碼排——一碼
+        # 部件（J、K、M…）先，多碼部件（JY、JI…）後，碼內再照字母序；其餘的
         # 常見異體、詞庫用字…依四角號碼排（Wilson）。四角碼查 fourcorner.json
         # （gen_fourcorner.py 從 Unihan 產），查無的擺該區塊最後。
         # DROP_CHARS（㠯 龹 龺）內建字型畫不出、擺著像簡體字反而誤導，已不在 rest。
@@ -652,7 +653,8 @@ def build():
             except Exception:
                 fc = {}
         comp = [c for c in rest if isinstance(cj.get(c), dict) and cj[c].get("componentOnly")]
-        comp.sort(key=lambda c: (cj.get(c, {}).get("code") or "~", c))
+        comp.sort(key=lambda c: (len(cj.get(c, {}).get("code") or "~"),
+                                 cj.get(c, {}).get("code") or "~", c))
         compset = set(comp)
         others = [c for c in rest if c not in compset]
         miss = [c for c in others if c not in fc]
@@ -663,11 +665,22 @@ def build():
 
         flow.section(f"六、其他常用字（{len(rest)} 字，包括部件字、常見的異體字等）")
         if comp:
-            flow.subhead(f"部件字（{len(comp)} 個，依愛發筆碼序）", sub="部件字")
+            flow.subhead(f"部件字（{len(comp)} 個，一碼在前、多碼在後，碼序）", sub="部件字")
             flow.grid(comp)
         if others:
             flow.subhead(f"其他（{len(others)} 字，四角號碼序）", sub="四角碼")
-            flow.grid(others)
+            # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行（Wilson）；查無四角碼
+            # 的幾個字沒有第一碼可分，自成一行擺最末。
+            first = lambda c: fc.get(c, "")[:1] or "?"
+            cur, row = None, []
+            for c in others:
+                k = first(c)
+                if row and k != cur:
+                    flow.grid(row)
+                    row = []
+                cur, row = k, row + [c]
+            if row:
+                flow.grid(row)
 
     bopo_section("一、教育部《常用國字標準字體表》甲表", jiabiao)
     pinyin_section("二、GB 2312 一級漢字", gb1, note="拼音序")
