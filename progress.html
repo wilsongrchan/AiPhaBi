@@ -80,10 +80,11 @@
   .stdhead:hover .chev{color:var(--accent);}
   /* 收合：只剩兩條長條，一個字都不留。整張卡片可點，點了就展開回來。 */
   .std.collapsed{padding:11px 18px;cursor:pointer;}
-  .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot{display:none;}
+  .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot,.std.collapsed .stsegline{display:none;}
   .std.collapsed .strow{margin:0 0 6px;}
   .std.collapsed .strow:last-child{margin-bottom:0;}
   .std.collapsed .stbar{height:7px;}
+  .std.collapsed .stsplit{top:-2px;bottom:-2px;}
   .strow{margin:0 0 16px;}
   .strow:last-child{margin-bottom:0;}
   .sthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 7px;flex-wrap:wrap;}
@@ -91,9 +92,27 @@
   .stname small{color:var(--faint);font-size:11px;margin-left:7px;letter-spacing:0;}
   .stnum{font-size:13px;color:var(--muted);white-space:nowrap;}
   .stnum b{color:var(--accent);font-weight:600;font-size:16px;}
-  .stbar{height:9px;border-radius:5px;background:var(--grid);overflow:hidden;}
-  .stbar i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width .3s;}
+  .stbar{position:relative;height:9px;border-radius:5px;background:var(--grid);overflow:hidden;}
+  /* position:absolute 讓分段的表（甲乙表、GB 一二級、CJK 各段）可以每段自己在
+     自己的區段裡填，不是整條表的完成度從頭填到一個點——分段圓角靠 .stbar 本
+     身的 overflow:hidden 去裁，.i 自己不用畫圓角，不然段跟段中間會多一道圓弧。 */
+  .stbar i{position:absolute;top:0;height:100%;background:var(--accent);transition:width .3s;}
   .strow.b .stbar i{background:var(--s2);} .strow.b .stnum b{color:var(--s2);}
+  .strow.c .stbar i{background:var(--s3);} .strow.c .stnum b{color:var(--s3);}
+  .strow.d .stbar i{background:var(--s4);} .strow.d .stnum b{color:var(--s4);}
+  /* 表中的分段線（甲表／乙表、GB 一級／二級）：蓋在長條圖上，不管填色填到哪都看得到。
+     淺色線芯＋深色外框（box-shadow 當描邊），淺底／深底、填色／未填色都吃得住對比，
+     不用照主題另外配色。 */
+  .stsplit{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px;
+    background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:.95;pointer-events:none;}
+  /* 分段線下面的段名：對齊分段線，甲表在線左、乙表在線右（各自置中在自己的
+     那一段），不是隨便排一列——這樣線在標什麼一眼就懂。 */
+  .stsegline{position:relative;height:15px;margin:5px 0 0;font-size:11.5px;color:var(--muted);}
+  .stsegline span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;}
+  .stsegline b{color:var(--ink);font-weight:600;}
+  /* 一組（如 CJK 上半／下半）疊在一起：緊貼的間距，跟收合視圖那種「兩條長條
+     疊著」的密度一樣，不是一般 strow 之間的 16px。 */
+  .stbargrp{margin:0 0 10px;} .stbargrp:last-child{margin-bottom:0;}
   .stfoot{margin-top:7px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;}
   .stfoot a{color:var(--s2);text-decoration:none;}
   .stfoot a:hover{text-decoration:underline;}
@@ -447,25 +466,94 @@ function renderStandards(data){
   const list=data.standards||[];
   const box=$('#stdcard');
   if(!list.length){ box.innerHTML=''; return; }
-  box.innerHTML=`<div class="std${stdCollapsed?' collapsed':''}" id="stdbox"${
-      stdCollapsed?' title="展開官方字表覆蓋率"':''}>`+
-    '<div class="stdhead"><h2>官方字表覆蓋率</h2><span class="chev">收起 ▴</span></div>'+
-    list.map((s,i)=>{
-    const pct=s.total?s.done/s.total*100:0;
-    const left=s.missing.length;
-    const head=s.missing.slice(0,LINK_CAP).join('');
-    const foot=left
+  // 同一個 group（目前只有 CJK 上半／下半）併成一疊：一個標題＋兩條緊貼、同色
+  // 的長條，不是兩個各自獨立、各佔一整條寬度的表格區塊——兩條寬度統一用整疊
+  // 的合計字數去對 refTotal，不各自對，才會等寬疊在一起。沒有 group 的維持
+  // 原樣（單獨一條）。
+  const units=[];
+  for(const s of list){
+    const last=units[units.length-1];
+    if(s.group && last && last.group===s.group) last.members.push(s);
+    else units.push(s.group?{group:s.group,groupName:s.groupName,members:[s]}:s);
+  }
+  // 長條的「絕對長度」跟著字表大小走，不是每條都畫滿：以這裡最大的一條長條
+  // （不是一整疊的合計）當 100% 寬的基準——目前最大的是甲乙表合計 11151。疊在
+  // 一起的兩條（CJK 上／下半）各自照自己的字數（10752／10240）對這把尺，兩條
+  // 因此幾乎但不完全一樣寬；標題那排的合計數字（20992）只用來顯示，不能拿來
+  // 當長度基準，不然兩條都會被拉到跟合計數字一樣寬，比甲乙表還長。
+  const refTotal=Math.max(1,...list.map(s=>s.total));
+
+  // 一張表可能由幾段拼起來（甲表＋乙表、GB 一級＋二級）：splits 在長條上畫分隔線，
+  // segs 底下把段名對齊擺在分隔線左右——每段的名字置中在「自己那一段」的範圍
+  // 內，兩段時剛好就是線左一個、線右一個，不是隨便排一列。barw 是這條長條要畫
+  // 到全卡寬的百分之幾，跟自己的 pct（填色比例）是兩把不同的尺。
+  const barHTML=(s,barw)=>{
+    const splits=(s.splits||[]).map(v=>
+      `<span class="stsplit" style="left:${(v/s.total*100).toFixed(3)}%"></span>`).join('');
+    let fill,segs='';
+    if(s.segments&&s.segments.length>1){
+      // 每段的完成度只填在「自己那一段」的範圍裡，不是整條表的完成度從左邊
+      // 一路填到一個點——CJK 的字不是照碼位順序取的，某一段填多少跟它前後那
+      // 段有沒有取完全沒關係，兩段各自算才不會讓一段看起來像完全沒取（明明有
+      // 取，只是取的字散在整段裡，不是從段頭連續排到某個點）。
+      let prev=0;
+      fill=s.segments.map(g=>{
+        const start=prev/s.total*100, end=g.split/s.total*100; prev=g.split;
+        const segPct=g.total?g.done/g.total*100:0;
+        return `<i style="left:${start.toFixed(3)}%;width:${((end-start)*segPct/100).toFixed(3)}%"></i>`;
+      }).join('');
+      let prev2=0;
+      const spans=s.segments.map(g=>{
+        const center=(prev2+g.split)/2/s.total*100; prev2=g.split;
+        return `<span style="left:${center.toFixed(2)}%" title="${g.label}：${g.done.toLocaleString()} / ${g.total.toLocaleString()}"><b>${g.label}</b></span>`;
+      }).join('');
+      segs=`<div class="stsegline" style="width:${barw}%">${spans}</div>`;
+    }else{
+      const pct=s.total?s.done/s.total*100:0;
+      fill=`<i style="left:0;width:${pct.toFixed(2)}%"></i>`;
+    }
+    return `<div class="stbar" style="width:${barw}%">${fill}${splits}</div>${segs}`;
+  };
+  const footHTML=missing=>{
+    const left=missing.length;
+    const head=missing.slice(0,LINK_CAP).join('');
+    return left
       ? `<span>還缺 <b>${left.toLocaleString()}</b> 字</span>`+
         `<a href="/annotate?q=${encodeURIComponent(head)}">照字表順序接著取${
           left>LINK_CAP?`（前 ${LINK_CAP} 個）`:''} →</a>`
       : '<span class="stdone">✓ 這張表全部取完了</span>';
-    return `<div class="strow ${i?'b':'a'}">
+  };
+
+  box.innerHTML=`<div class="std${stdCollapsed?' collapsed':''}" id="stdbox"${
+      stdCollapsed?' title="展開官方字表覆蓋率"':''}>`+
+    '<div class="stdhead"><h2>官方字表覆蓋率</h2><span class="chev">收起 ▴</span></div>'+
+    units.map((u,i)=>{
+    const cls='abcd'[i%4];
+    if(u.members){
+      const total=u.members.reduce((a,m)=>a+m.total,0);
+      const done=u.members.reduce((a,m)=>a+m.done,0);
+      const pct=total?done/total*100:0;
+      // 標題顯示兩段合計，長條寬度各自照自己的字數對 refTotal（見上面的說明），
+      // 不是共用合計數字的寬度。
+      const bars=u.members.map((m,j)=>
+        `<div class="stbargrp${j?' stacked':''}">${barHTML(m,(m.total/refTotal*100).toFixed(3))}</div>`).join('');
+      return `<div class="strow ${cls}">
+        <div class="sthead">
+          <span class="stname">${u.groupName}</span>
+          <span class="stnum"><b>${done.toLocaleString()}</b> / ${total.toLocaleString()}　${pct.toFixed(1)}%</span>
+        </div>
+        ${bars}
+        <div class="stfoot">${footHTML(u.members.flatMap(m=>m.missing))}</div>
+      </div>`;
+    }
+    const s=u, pct=s.total?s.done/s.total*100:0, barw=(s.total/refTotal*100).toFixed(3);
+    return `<div class="strow ${cls}">
       <div class="sthead">
         <span class="stname">${s.name}<small>${s.full}</small></span>
         <span class="stnum"><b>${s.done.toLocaleString()}</b> / ${s.total.toLocaleString()}　${pct.toFixed(1)}%</span>
       </div>
-      <div class="stbar"><i style="width:${pct.toFixed(2)}%"></i></div>
-      <div class="stfoot">${foot}</div>
+      ${barHTML(s,barw)}
+      <div class="stfoot">${footHTML(s.missing)}</div>
     </div>`;
   }).join('')+'</div>';
 

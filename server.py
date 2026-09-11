@@ -223,12 +223,38 @@ def _everyday_coverage(coded, textfreq, suspect_values):
 # ——那是字形資料的涵蓋範圍，不是任何國家的標準。清單本身在 data/standards/，
 # 每個檔頭都寫了出處。
 STANDARDS = [
-    {"id": "tw4808", "name": "教育部常用國字",
-     "full": "中華民國教育部《常用國字標準字體表》甲表",
-     "file": "tw_common_4808.txt", "expect": 4808},
+    {"id": "tw", "name": "教育部常用／次常用國字",
+     "full": "中華民國教育部《常用國字標準字體表》甲表 ＋ 《次常用國字標準字體表》乙表",
+     "segments": [
+         {"label": "甲表", "file": "tw_common_4808.txt", "expect": 4808},
+         {"label": "乙表", "file": "tw_common_yi_6343.txt", "expect": 6343},
+     ]},
     {"id": "gb2312", "name": "GB 2312",
      "full": "GB 2312—80 基本集漢字（一級 3755 ＋ 二級 3008）",
-     "file": "gb2312.txt", "expect": 6763},
+     "segments": [
+         {"label": "一級", "file": "gb2312.txt", "expect": 3755, "slice": [0, 3755]},
+         {"label": "二級", "file": "gb2312.txt", "expect": 3008, "slice": [3755, 6763]},
+     ]},
+    # CJK 統一表意文字整個區段（U+4E00–U+9FFF），不是某個機構的常用字清單，是
+    # Unicode 碼位本身——Unicode 14.0 起這個區段已經填滿，20992 個碼位每個都有
+    # 對應字元，所以直接照碼位算，不用另外找字表檔。四段碼位範圍平分
+    # （20992 / 4 ≈ 5248→5376，最後一段扣掉餘數變 4864），拆成兩條「疊在一起」
+    # 的長條各兩段（`group` 相同就是同一疊，頁面會畫成一個標題＋兩條緊貼的長
+    # 條，不是兩個各自獨立、各自佔一整條寬度的表——不然一條 20992 字會把甲乙表
+    # （11151）、GB2312（6763）那兩條長條相對擠成一小段）。
+    {"id": "cjk1", "group": "cjk", "groupName": "CJK 統一表意文字", "name": "上半",
+     "full": "中日韓統一表意文字 U+4E00–U+77FF（全區段 U+4E00–U+9FFF 共 20992 字，"
+             "Unicode 14.0 起已完整填滿）",
+     "segments": [
+         {"label": "4E00–62FF", "range": [0x4E00, 0x62FF], "expect": 5376},
+         {"label": "6300–77FF", "range": [0x6300, 0x77FF], "expect": 5376},
+     ]},
+    {"id": "cjk2", "group": "cjk", "groupName": "CJK 統一表意文字", "name": "下半",
+     "full": "中日韓統一表意文字 U+7800–U+9FFF",
+     "segments": [
+         {"label": "7800–8CFF", "range": [0x7800, 0x8CFF], "expect": 5376},
+         {"label": "8D00–9FFF", "range": [0x8D00, 0x9FFF], "expect": 4864},
+     ]},
 ]
 
 
@@ -244,22 +270,53 @@ def _load_standard(name):
         if line.startswith("#"):
             continue
         for ch in line.strip():
-            if ch not in seen and ("一" <= ch <= "鿿" or 0x20000 <= ord(ch) < 0xF0000):
+            if ch not in seen and ("㐀" <= ch <= "鿿" or 0x20000 <= ord(ch) < 0xF0000):
                 seen.add(ch)
                 out.append(ch)
     return out
 
 
+def _standard_segment_chars(seg):
+    """單一段落（如「乙表」或 GB 的「二級」）展開成字元清單。多數段落是從
+    data/standards/ 的檔案讀（可選 slice，切同一個檔案的一段）；`range` 這種
+    是直接照 Unicode 碼位算，不必有檔案（見 CJK 統一表意文字那條）。"""
+    if "range" in seg:
+        a, b = seg["range"]
+        return [chr(c) for c in range(a, b + 1)]
+    chars = _load_standard(seg["file"])
+    if "slice" in seg:
+        a, b = seg["slice"]
+        chars = chars[a:b]
+    return chars
+
+
 def _standards_coverage(coded):
     """每張字表取了多少、還缺哪些。缺的字照字表原順序給，頁面直接照排就有意義
-    （教育部表是筆畫序、GB2312 一級是拼音序），不必再排一次。"""
+    （教育部表是筆畫序、GB2312 一級是拼音序），不必再排一次。
+
+    一張「表」現在可以由幾段拼起來（甲表＋乙表、GB 一級＋二級）：`segments` 逐段
+    列 file（可選 slice，同一個檔案切兩段，如 gb2312.txt 前 3755 是一級）。缺字佇列
+    按段落順序串接（先甲表缺的、再乙表缺的），跟「照字表順序接著取」的語意一致
+    ——甲表沒取完不會叫你先去取乙表。`splits` 記每段的累計字數（不是累計完成
+    數），頁面拿來在長條圖上畫分隔線：第一段的右緣＝splits[0]，以此類推，最後
+    一段的右緣＝total，不必畫線。"""
     out = []
     for spec in STANDARDS:
-        chars = _load_standard(spec["file"])
-        missing = [c for c in chars if c not in coded]
+        segs, missing, cum = [], [], 0
+        for seg in spec["segments"]:
+            chars = _standard_segment_chars(seg)
+            seg_missing = [c for c in chars if c not in coded]
+            cum += len(chars)
+            segs.append({"label": seg["label"], "total": len(chars), "expect": seg["expect"],
+                         "done": len(chars) - len(seg_missing), "split": cum})
+            missing.extend(seg_missing)
+        total = sum(s["total"] for s in segs)
+        splits = [s["split"] for s in segs[:-1]]
         out.append({"id": spec["id"], "name": spec["name"], "full": spec["full"],
-                    "total": len(chars), "expect": spec["expect"],
-                    "done": len(chars) - len(missing), "missing": missing})
+                    "group": spec.get("group"), "groupName": spec.get("groupName"),
+                    "total": total, "expect": sum(s["expect"] for s in segs),
+                    "done": total - len(missing), "missing": missing,
+                    "segments": segs, "splits": splits})
     return out
 
 
@@ -537,8 +594,11 @@ class Handler(BaseHTTPRequestHandler):
                 ords = json.loads(ORDERINGS.read_text("utf-8")) if ORDERINGS.exists() else {}
             except json.JSONDecodeError:
                 ords = {}
-            for spec in STANDARDS:
-                ords[spec["id"]] = _load_standard(spec["file"])
+            # 〈逐字取碼〉的「國字表」排序按鈕：甲表排完接著排乙表（跟進度頁的合併
+            # 口徑一致），排序鍵沿用 tw4808 這個舊名不改，避免動到前端。
+            ords["tw4808"] = _standard_segment_chars({"file": "tw_common_4808.txt"}) + \
+                _standard_segment_chars({"file": "tw_common_yi_6343.txt"})
+            ords["gb2312"] = _load_standard("gb2312.txt")
             try:
                 ords["pin"] = json.loads(TODO_PIN.read_text("utf-8")).get("order", []) \
                     if TODO_PIN.exists() else []
