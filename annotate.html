@@ -62,8 +62,18 @@
   .filters button { flex:1; padding:4px; font-size:12px; }
   .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
   .sortby, .lenfilter { display:flex; gap:4px; align-items:center; margin-bottom:8px; }
+  .sortby { container-type:inline-size; container-name:sortby; }
   .sortby button, .lenfilter button { flex:1; padding:3px; font-size:11px; }
   .sortby button.on, .lenfilter button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* 「GB表」「CJK」是拉丁字母，擠的時候不像中文字每個字自己就是一個換行點，
+     只會整串溢出或硬切一半——欄位窄到一定程度就轉成直書，拉丁字母在直書裡本
+     來就會自動側轉 90 度（text-orientation:mixed 是直書預設值，寫出來只是明講）
+     ，中文的「表」還是照樣正立，跟「國字表」擠的時候一個字一行是同一種效果。 */
+  @container sortby (max-width:300px) {
+    .sortby button[data-sort="gb2312"], .sortby button[data-sort="cjk"] {
+      writing-mode:vertical-rl; text-orientation:mixed; padding:4px 1px;
+    }
+  }
   /* 動作鈕：直排在字圖右邊。放在預測底下的話，預測一長就得捲下去才按得到。 */
   .glyphrow { display:flex; gap:8px; align-items:flex-start; }
   .actbar { display:flex; flex-direction:column; gap:5px; width:118px; flex:0 0 auto; }
