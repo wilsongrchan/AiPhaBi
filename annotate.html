@@ -619,10 +619,14 @@
         <span>視為部件字：主碼不變，但單獨打主碼看不到，要在前面加 <code>`</code>（反引號）才會出現</span>
       </label>
       <div class="mp-bar">
+        <button id="mpSaveOnly" title="只儲存這個字，不跳下一字">儲存 ⌘S</button>
         <button class="primary" id="mpSave">儲存並下一字 ⏎</button>
         <button id="mpClear">清掉此字的碼</button>
         <span id="mpStatus" class="mp-status"></span>
       </div>
+      <!-- 存檔後才報重碼：跟有筆畫時的 #clash 同一套判斷（clashesFor/paintClash），
+           只是手動取碼沒有「拆到一半」這回事，不必等 complete，存下去就是定案 -->
+      <div class="clash" id="mpClash" style="display:none;margin-top:12px"></div>
     </div>
 
     <div class="pred">
@@ -1256,11 +1260,16 @@ function renderCode() {
      而且要等整個字拆完才報 —— 拆到一半的碼本來就是殘碼，跟人家撞在一起
      是必然的，這時候跳出來只是噪音。 */
   const complete = strokes.length > 0 && left === 0;
-  /* 別的字的兼容碼（含自動兼容的完整碼）一樣佔碼位 —— 撞到它，打字時照樣要多選一次 */
-  const clash = (fin && complete)
-    ? Object.keys(codes).filter(ch => ch !== cur && codesFor(ch).includes(fin))
-    : [];
-  const w = $('#clash');
+  const clash = (fin && complete) ? clashesFor(fin) : [];
+  paintClash($('#clash'), fin, clash);
+}
+/* 別的字的兼容碼（含自動兼容的完整碼）一樣佔碼位 —— 撞到它，打字時照樣要多選一次。
+   手動取碼（沒有筆畫、沒有 segs/complete 概念）也要用同一套判斷，所以拆出來共用。 */
+function clashesFor(fin) {
+  return fin ? Object.keys(codes).filter(ch => ch !== cur && codesFor(ch).includes(fin)) : [];
+}
+function paintClash(w, fin, clash) {
+  if (!w) return;
   if (clash.length) {
     w.style.display = 'block';
     w.innerHTML = `⚠ <b>重碼</b>：<code>${fin}</code> 已經是 ` +
@@ -3603,6 +3612,7 @@ function showManual(c) {
   const box = $('#mpAlts'); box.innerHTML = '';
   for (const a of (rec.alts || [])) box.append(mpAltRow(a.code));
   $('#mpStatus').textContent = '';
+  $('#mpClash').style.display = 'none';   /* 重碼提醒只在「存過」之後才報，換字先收起 */
   $('#manualpanel').classList.remove('hide');
 }
 async function manualSave(goNext) {
@@ -3633,6 +3643,9 @@ async function manualSave(goNext) {
   if (r && r.reloaded) return;
   if (!r.ok) return bad('儲存失敗');
   dirty = false; st.style.color = 'var(--ok)'; st.textContent = '已儲存 ✓';
+  /* 手動取碼沒有「拆到一半」，存下去就是定案的碼，直接報重碼即可 */
+  const fin = rec.final || '';
+  paintClash($('#mpClash'), fin, clashesFor(fin));
   renderQueue();
   if (goNext) {
     const p = pool();
@@ -3641,6 +3654,7 @@ async function manualSave(goNext) {
   }
 }
 $('#mpAddAlt').onclick = () => { $('#mpAlts').append(mpAltRow('')); dirty = true; };
+$('#mpSaveOnly').onclick = () => manualSave(false);   /* 只存，不跳下一字（同 ⌘/Ctrl+S） */
 $('#mpSave').onclick = () => manualSave(true);
 $('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; $('#mpCompToggle').checked = false; updateMpFinal(); dirty = true; };
 $('#mpCompToggle').onchange = () => { dirty = true; };
@@ -3657,6 +3671,9 @@ $('#mpCode').oninput = () => { dirty = true; updateMpFinal(); };
 $('#mpNote').oninput = () => { dirty = true; };
 for (const id of ['#mpCode', '#mpNote']) $(id).addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); manualSave(true); }
+  /* 全域鍵盤處理看到 target 是 INPUT 就整段放行（見下方 document keydown），
+     所以 ⌘/Ctrl+S 要在這裡自己接 —— 跟 #mpSaveOnly 按鈕同一件事：只存不跳字 */
+  else if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); manualSave(false); }
 });
 
 /* ---------- 官方倉頡對照 ----------
