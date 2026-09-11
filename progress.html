@@ -194,6 +194,17 @@
     <p class="lede" id="lede">讀取中…</p>
   </header>
 
+  <div id="stdcard"></div>
+
+  <div class="legend" id="chartlegend"></div>
+  <div class="card" id="chartcard">
+    <div class="plabel"><span>累計取碼（疊加）· 右軸為覆蓋率 %</span><span class="r" id="cumr"></span></div>
+    <div class="plabel" style="margin-top:12px"><span>每天新增（疊加）</span><span class="r">依取碼提交</span></div>
+    <figure><svg id="chart" viewBox="0 0 820 470" role="img" aria-label="逐日累計取碼曲線與每日新增長條圖。"></svg></figure>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
   <div class="card">
     <div class="plabel"><span>三個字集合的關係</span><span class="r">示意圖，非按比例</span></div>
     <figure><svg class="venn" viewBox="0 0 600 420" role="img"
@@ -228,17 +239,6 @@
       <text class="rnone" x="300" y="325" text-anchor="middle">（幾乎不存在——常用字必屬於某套字表）</text>
     </svg></figure>
   </div>
-
-  <div id="stdcard"></div>
-
-  <div class="legend" id="chartlegend"></div>
-  <div class="card" id="chartcard">
-    <div class="plabel"><span>累計取碼（疊加）· 右軸為覆蓋率 %</span><span class="r" id="cumr"></span></div>
-    <div class="plabel" style="margin-top:12px"><span>每天新增（疊加）</span><span class="r">依取碼提交</span></div>
-    <figure><svg id="chart" viewBox="0 0 820 470" role="img" aria-label="逐日累計取碼曲線與每日新增長條圖。"></svg></figure>
-  </div>
-
-  <div class="stats" id="stats"></div>
 
   <footer>
     資料由 git 提交歷史即時重建（每個有取碼提交的日子）· 目前數字含尚未提交的取碼<br>
