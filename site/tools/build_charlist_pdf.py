@@ -58,7 +58,7 @@ BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
 
 # 頁首右上角那個「本頁涵蓋範圍」標籤用的短分類名（仿〈字根表〉PDF）
-SECTION_CATS = {"一": "甲表", "二": "GB", "三": "粵語", "四": "百家姓", "五": "取名", "六": "其他"}
+SECTION_CATS = {"一": "甲表", "二": "GB表", "三": "粵語", "四": "百家姓", "五": "取名", "六": "其他"}
 
 # 注音起首符號的標準排序
 BOPO_INITIALS = list("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ")
@@ -290,6 +290,28 @@ class Flow:
         self.y = top + 26 + 8
         self._wrap(ML, subtitle, 7.6, (0.42, 0.42, 0.42), lead=9.8)
         self.y += 6
+
+    def dup_example(self, x, y):
+        """多音字說明右邊的小圖例：同一個「长」在 C 組（標 Z）與在 Z 組（標 C
+        加點）長什麼樣。x＝左緣，y＝字身頂端。回傳圖例底部 y。"""
+        green = (0.055, 0.486, 0.451)
+        cs = 13.5
+        step = 46
+        for k, (letter, dot, cap) in enumerate(
+                [("Z", False, "「长」在 C 組"), ("C", True, "「长」在 Z 組")]):
+            cx = x + k * step
+            self.page.insert_text((cx, y + cs), "长", fontname=FONT, fontsize=cs,
+                                  color=(0.13, 0.13, 0.13))
+            lx = cx + self.fitz.get_text_length("长", fontname=FONT, fontsize=cs) - 1.4
+            ly = y + 3.2
+            self.page.insert_text((lx, ly), letter, fontname="hebo",
+                                  fontsize=5.8, color=green)
+            if dot:
+                lw = self.fitz.get_text_length(letter, fontname="hebo", fontsize=5.8)
+                self.page.draw_circle((lx + lw / 2, ly + 1.8), 0.75,
+                                      color=green, fill=green, width=0.3)
+            self._text((cx - 2, y + cs + 8.5), cap, 6.0, (0.42, 0.42, 0.42))
+        return y + cs + 12
 
     def page_break(self):
         """除非已在頁頂，否則換新頁（讓某一節從整頁開頭起）。"""
@@ -613,16 +635,19 @@ def build():
 
         flow.page_break()          # GB 這節從整頁開頭起（Wilson）
         flow.section(f"{title}（{len(chars)} 字{('，' + note) if note else ''}）")
-        flow._room(ROW_H + 12)
-        flow.y += 6
+        flow._room(40)
+        gx = PAGE_W - MR - 92       # 右邊留給小圖例
+        y0 = flow.y + 6
+        flow.y = y0
         flow._wrap(ML,
                    "多音字：右上標字母者，代表此字有另一常見讀音——如 C 組內的「长」"
                    "右上標 Z，因其另一常見讀音為 zhang。右上標字母下再加一點者，代表"
                    "該字已在另一讀音組計算過，在此組不再重複計算——如 Z 組內的「长」"
                    "右上標 C，因其另一常見讀音為 chang，但 C 下加點，表示此字已在 C 組"
                    "字數中計算過，不再在 Z 組重複統計。",
-                   6.8, (0.42, 0.42, 0.42), lead=8.6)
-        flow.y += 3
+                   6.8, (0.42, 0.42, 0.42), lead=8.6, maxw=gx - ML - 14)
+        ey = flow.dup_example(gx, y0 - 3)
+        flow.y = max(flow.y, ey) + 3
         for L in AZ:
             base = groups.get(L, [])
             ex = extras.get(L, [])
