@@ -14,7 +14,8 @@
      的全部，不是「扣掉前面的」——只有最後「其他」那節是收尾用的差集。
   2. 甲表與 GB 一級兩節再依**注音**（ㄅㄆㄇ…）分小節，仿台灣甲表的編排習慣。
      注音由 pypinyin 取。GB 一級那節的多音字，另一讀音那組會多一格「重出」
-     （右上角字母加圈、依讀音插在該到的位置），不計字數。
+     （右上角字母加圈、依讀音插在該到的位置），不計字數。每頁右上角列出本頁
+     涵蓋的注音／字母（仿〈字根表〉PDF）。
 
 分類清單來源：
     甲表          data/standards/tw_common_4808.txt
@@ -411,7 +412,9 @@ class Flow:
             page.draw_line((ML, 33), (PAGE_W - MR, 33), color=(0.86, 0.86, 0.86), width=0.4)
 
     def _fmt_coverage(self, seq):
-        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄉ-ㄏ　GB A」這種標籤。"""
+        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄍ ㄎ ㄏ ㄐ ㄑ　GB A B C」
+        這種標籤——把本頁涵蓋的每個小標都列出來（不用 X-Y 區間，中間隔了誰不
+        直覺）。"""
         out, i = [], 0
         while i < len(seq):
             cat = seq[i][0]
@@ -421,10 +424,8 @@ class Flow:
                 if s and (not subs or subs[-1] != s):
                     subs.append(s)
                 i += 1
-            if len(subs) >= 2:
-                out.append(f"{cat} {subs[0]}-{subs[-1]}")
-            elif subs:
-                out.append(f"{cat} {subs[0]}")
+            if subs:
+                out.append(f"{cat} " + " ".join(subs))
             elif cat:
                 out.append(cat)
         return "　".join(out)
