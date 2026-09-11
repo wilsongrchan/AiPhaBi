@@ -577,8 +577,8 @@ def build():
         flow.section(f"{title}（{len(chars)} 字{('，' + note) if note else ''}）")
         flow._room(ROW_H)
         flow._text((ML, flow.y + 6),
-                   "多音字：右上角綠字母指另一讀音所在組；字母加圈者為該字在此組的"
-                   "重出，不計字數。", 7, (0.42, 0.42, 0.42))
+                   "多音字：右上角綠字母指另一讀音所在組；字母加圈者代表該字已在"
+                   "另一讀音計算過，在此處不再重複計算。", 7, (0.42, 0.42, 0.42))
         flow.y += 11
         for L in AZ:
             base = groups.get(L, [])
