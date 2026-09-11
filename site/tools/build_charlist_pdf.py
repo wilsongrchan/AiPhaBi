@@ -13,7 +13,8 @@
      各自一節、標出字數。分類**不互斥**（大部分姓氏也在甲表），每節列出該類
      的全部，不是「扣掉前面的」——只有最後「其他」那節是收尾用的差集。
   2. 甲表與 GB 一級兩節再依**注音**（ㄅㄆㄇ…）分小節，仿台灣甲表的編排習慣。
-     注音由 pypinyin 取（多音字取第一個讀音）。
+     注音由 pypinyin 取。GB 一級那節的多音字，另一讀音那組會多一格「重出」
+     （右上角字母加圈、依讀音插在該到的位置），不計字數。
 
 分類清單來源：
     甲表          data/standards/tw_common_4808.txt
@@ -55,6 +56,9 @@ CHAR_SIZE = 12.5
 BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
 
+# 頁首右上角那個「本頁涵蓋範圍」標籤用的短分類名（仿〈字根表〉PDF）
+SECTION_CATS = {"一": "甲表", "二": "GB", "三": "粵語", "四": "百家姓", "五": "取名", "六": "其他"}
+
 # 注音起首符號的標準排序
 BOPO_INITIALS = list("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ")
 
@@ -78,7 +82,9 @@ CANTON_GROUPS = [
 # 某個核心字的簡化形，經「常見異體」那條規則收進來的）。Wilson 手挑、依部首
 # 分堆的定稿（2026-09-10），每堆在 PDF 裡另起一行。名單裡漏掉、但 rest 實際有
 # 的字，就近塞進同部首那一行，塞不進去的（㠯 龹 龺）擺最後一行。build() 會再對
-# rest 做一次差集當防呆，真有遺漏會補在最末行。
+# rest 做一次差集當防呆，真有遺漏會補在最末行。Side B 若把某字列進
+# common_exclude.txt（薹 鄖 榘 彔 査 輥…），它就不在 rest 裡，這裡列著也會被
+# 濾掉——順手從下面拿掉即可。
 OTHER_GROUPS = [
     list("丂丄丌丨丬丶丼丿乂乛亠"),
     list("亵亻亼仝仨佈佼侷兖"),
@@ -88,11 +94,11 @@ OTHER_GROUPS = [
     list("埗埼墘"),
     list("夂婭媧嫚嫺嬅孃"),
     list("宀崗幺廄廴廾"),
-    list("彐彔彡彳"),
+    list("彐彡彳"),
     list("忄忐忑忒忡"),
     list("扌扞掕掰搧摁摳摻撣撾擯攢攋"),
     list("攵旻昱曇曬"),
-    list("査柾栃栢榘槿樑檯"),
+    list("柾栃栢槿樑檯"),
     list("氵汶洩洵淦淩淼滷漚潟澇濕濰"),
     list("灬烴煲熒燁燼"),
     list("爲爿犭猢猻獼"),
@@ -104,16 +110,16 @@ OTHER_GROUPS = [
     list("罒翦"),
     list("耂肽腓腩舖"),
     list("舘艷"),
-    list("艹芷芸苷荃蒨薦薹"),
+    list("艹芷芸苷荃蒨薦"),
     list("虍蟄衆衊衕"),
     list("衤衹裏"),
     list("讠誹謅謾譭讕"),
     list("蹟躥"),
-    list("辶邨鄖鄲"),
+    list("辶邨鄲"),
     list("钅釒釩釺鈎鉅鉉鉚銑銹鋇鋌鎬鐐"),
     list("阝陞"),
     list("飠饣餚餬饋"),
-    list("輥酯閹歎殭氈竈筲粿糰覈顥顴馗鰂鵰鷄鹵齧"),
+    list("酯閹歎殭氈竈筲粿糰覈顥顴馗鰂鵰鷄鹵齧"),
 ]
 
 # 《百家姓》宋本的複姓（雙字姓）。baijiaxing.txt 的複姓段把共用的首字（公冶／
@@ -138,11 +144,12 @@ FONT = "china-s"
 
 # china-s 畫不出來的字（實測：字碼有進去、欄位照移，但完全沒有墨）：
 #   㗎 U+35CE  粵語句末助詞，Wilson 粵語表裡就有，不能空 → 內嵌 STHeiti 補畫
+#   ㄧ U+3127  注音符號「一」，甲表 y 起首那節的小標會用到 → 同樣走 STHeiti
 #   㠯 U+382F、龹 U+9FB9、龺 U+9FBA  三個罕見部件；STHeiti 有字身但畫出來像
 #     「巳 / 关 / 卓」，簡體樣子擺在繁體表裡反而誤導 → 直接不列，另在節末註明
 FALLBACK = "STHeiti"
 FALLBACK_FILE = "/System/Library/Fonts/STHeiti Medium.ttc"
-FALLBACK_CHARS = set("㗎")
+FALLBACK_CHARS = set("㗎ㄧ")
 DROP_CHARS = set("㠯龹龺")
 
 
@@ -225,6 +232,8 @@ class Flow:
         self.page = None
         self.y = 0.0
         self._fb = pathlib.Path(FALLBACK_FILE).exists()
+        self._cat = None          # 目前所在的分類短名
+        self._marks = []          # (頁碼, 分類, 小標) —— 給頁首右上角的範圍標籤
         self._new_page()
 
     def _new_page(self):
@@ -282,6 +291,8 @@ class Flow:
 
     def section(self, text):
         self._room(40)
+        self._cat = SECTION_CATS.get(text[:1], text[:1])
+        self._marks.append((len(self.doc) - 1, self._cat, None))
         self.y += 14
         self.page.draw_line((ML, self.y), (PAGE_W - MR, self.y),
                             color=(0.75, 0.75, 0.75), width=0.6)
@@ -289,29 +300,41 @@ class Flow:
         self._text((ML, self.y + 11), text, 12, (0.12, 0.12, 0.12))
         self.y += 20
 
-    def subhead(self, text):
+    def subhead(self, text, sub=None):
         self._room(ROW_H + 16)
+        if sub:
+            self._marks.append((len(self.doc) - 1, self._cat, sub))
         self.y += 6
         self._text((ML, self.y + 8.5), text, 9, (0.055, 0.486, 0.451))
         self.y += 13
 
-    def _cell(self, x, y_top, ch, anno=None):
-        """在 (x, y_top) 這一格畫一個字，x 是格子左緣。anno＝右上角一個小綠字
-        （多音字：標它另一個讀音落在哪個字母組）。"""
+    def _cell(self, x, y_top, ch, anno=None, dup=False):
+        """在 (x, y_top) 這一格畫一個字，x 是格子左緣。
+        anno＝右上角一個小綠字母，指這個多音字另一個讀音落在哪一組。
+        dup=True＝這格是同一個多音字在該讀音組的「重出」（本尊、字數都算在
+        anno 指的那組）：右上角那個字母加一個圈。"""
         fn = FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT
-        self.page.insert_text((x + (CELL - CHAR_SIZE) / 2, y_top + CHAR_SIZE),
-                              ch, fontname=fn, fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
+        self.page.insert_text((x + (CELL - CHAR_SIZE) / 2, y_top + CHAR_SIZE), ch,
+                              fontname=fn, fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
         if anno:
-            self.page.insert_text((x + CELL - 3.4, y_top + 4.6), anno, fontname="hebo",
-                                  fontsize=5.6, color=(0.055, 0.486, 0.451))
+            green = (0.055, 0.486, 0.451)
+            ax = x + CELL - (4.8 if dup else 3.4)
+            ay = y_top + 4.6
+            self.page.insert_text((ax, ay), anno, fontname="hebo", fontsize=5.6, color=green)
+            if dup:
+                self.page.draw_circle((ax + 1.4, ay - 1.7), 3.0, color=green, width=0.45)
 
     def grid(self, chars, annos=None):
         annos = annos or {}
+        self.grid_cells([(c, annos.get(c), False) for c in chars])
+
+    def grid_cells(self, items):
+        """items＝(字, anno 或 None, dup 布林) 的序列，26 格一列。"""
         col = 0
-        for ch in chars:
+        for ch, anno, dup in items:
             if col == 0:
                 self._room(ROW_H)
-            self._cell(ML + col * CELL, self.y, ch, annos.get(ch))
+            self._cell(ML + col * CELL, self.y, ch, anno, dup)
             col += 1
             if col == COLS:
                 col = 0
@@ -338,16 +361,18 @@ class Flow:
                 x += gap
             self.y += ROW_H
 
-    def multi_col(self, groups, ncols=2, subcols=13):
+    def multi_col(self, groups, ncols=2, subcols=13, row_h=None):
         """把一串「部首堆」排成 ncols 直欄（每欄 subcols 格寬），高度盡量均分。
-        〈其他〉節用，塞得進一頁。堆內滿 subcols 換行，每堆一定另起一行。"""
+        〈其他〉節用，塞得進一頁——這節是密排的檢索表，行距收一點（row_h 預設
+        比一般列矮 2pt）才擠得下同一頁。堆內滿 subcols 換行，每堆一定另起一行。"""
+        rh = ROW_H - 2.0 if row_h is None else row_h
         grouprows = []
         for g in groups:
             rows = [g[i:i + subcols] for i in range(0, len(g), subcols)] or [[]]
             grouprows.append(rows)
         total = sum(len(r) for r in grouprows)
         per_col = max(1, math.ceil(total / ncols))
-        self._room(per_col * ROW_H)
+        self._room(per_col * rh)
         y0 = self.y
         colw = (PAGE_W - ML - MR) / ncols
         col, yrow = 0, 0
@@ -358,11 +383,11 @@ class Flow:
             for r in rows:
                 x = ML + col * colw
                 for ch in r:
-                    self._cell(x, y0 + yrow * ROW_H, ch)
+                    self._cell(x, y0 + yrow * rh, ch)
                     x += CELL
                 yrow += 1
         last = yrow if col == ncols - 1 else per_col
-        self.y = y0 + max(1, last) * ROW_H
+        self.y = y0 + max(1, last) * rh
 
     def running_header(self, text):
         """第 2 頁起，頁首放一行小小的「愛發筆輸入法　常用字表」。第 1 頁有大標題
@@ -384,6 +409,52 @@ class Flow:
                                  color=(0.55, 0.55, 0.55))
                 x += self.fitz.get_text_length(ch, fontname=FONT, fontsize=7.5)
             page.draw_line((ML, 33), (PAGE_W - MR, 33), color=(0.86, 0.86, 0.86), width=0.4)
+
+    def _fmt_coverage(self, seq):
+        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄉ-ㄏ　GB A」這種標籤。"""
+        out, i = [], 0
+        while i < len(seq):
+            cat = seq[i][0]
+            subs = []
+            while i < len(seq) and seq[i][0] == cat:
+                s = seq[i][1]
+                if s and (not subs or subs[-1] != s):
+                    subs.append(s)
+                i += 1
+            if len(subs) >= 2:
+                out.append(f"{cat} {subs[0]}-{subs[-1]}")
+            elif subs:
+                out.append(f"{cat} {subs[0]}")
+            elif cat:
+                out.append(cat)
+        return "　".join(out)
+
+    def coverage_labels(self):
+        """每頁右上角標一行「本頁涵蓋範圍」（仿〈字根表〉PDF）。範圍＝這頁開頭
+        還在延續的那段，加上這頁裡新起的每個 section／小標。"""
+        by_page = {}
+        for pg, cat, sub in self._marks:
+            by_page.setdefault(pg, []).append((cat, sub))
+        carry = None
+        for n, page in enumerate(self.doc):
+            here = by_page.get(n, [])
+            seq = ([carry] if carry else []) + here
+            if here:
+                carry = here[-1]
+            label = self._fmt_coverage(seq)
+            if not label:
+                continue
+            tw = sum(self.fitz.get_text_length(
+                ch, fontname=("helv" if ord(ch) <= 0x7E else FONT), fontsize=7.5)
+                for ch in label)
+            x = PAGE_W - MR - tw
+            for ch in label:
+                fn = "helv" if ord(ch) <= 0x7E else (
+                    FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT)
+                page.insert_text((x, 28), ch, fontname=fn, fontsize=7.5,
+                                 color=(0.5, 0.5, 0.5))
+                x += self.fitz.get_text_length(
+                    ch, fontname=("helv" if ord(ch) <= 0x7E else FONT), fontsize=7.5)
 
     def footers(self):
         total = len(self.doc)
@@ -452,10 +523,10 @@ def build():
         buckets, other = by_bopo(chars)
         for k in BOPO_INITIALS:
             if buckets[k]:
-                flow.subhead(f"{k}（{len(buckets[k])} 字）")
+                flow.subhead(f"{k}（{len(buckets[k])} 字）", sub=k)
                 flow.grid(buckets[k])
         if other:
-            flow.subhead(f"查無注音（{len(other)} 字）")
+            flow.subhead(f"查無注音（{len(other)} 字）", sub="查無注音")
             flow.grid(other)
 
     def pinyin_section(title, chars, note=""):
@@ -463,10 +534,12 @@ def build():
         # 只在拼音首字母往前推進時（A→B→C…）插一個小標當索引。字身用 china-s。
         #
         # 每個字的「主小標」＝它前後共 5 個字的 pypinyin 首字母多數決——用鄰居
-        # 蓋掉單字誤判，early-in-a-run 的字也不會被往後拉。多音字（畜 xù／chù、
-        # 厦 shà／xià、长 cháng／zhǎng…）除了排在它 GB 位置的主小標，另一個常用
-        # 讀音的首字母那一節也**再收一次**（Wilson），該節字數標「其中 N 字為
-        # 多音字重複收錄」。
+        # 蓋掉單字誤判，early-in-a-run 的字也不會被往後拉。字數就算在這一組、
+        # 算一次。多音字（畜 xù／chù、厦 shà／xià、曾 zēng／céng…）另一個常用
+        # 讀音的首字母那一節會**再出現一格**（Wilson）：
+        #  ・本尊那格：右上角小綠字母，指向另一讀音所在組。
+        #  ・重出那格：那個字母加一個圈，依讀音插進該到的位置（曾 céng 排在
+        #    层 蹭 中間，不再丟到組末），不計入字數。
         AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         rank = lambda k: AZ.index(k) if k and k in AZ else -1
         letters = [_pyletter(c) for c in chars]
@@ -474,6 +547,15 @@ def build():
         def stable(i):
             win = [x for x in letters[max(0, i - 2):i + 3] if x]
             return max(win, key=win.count) if win else None
+
+        def reading_in(ch, L):
+            # ch 以字母 L 起首的那個讀音（帶調號數字），拿來替重出字排位
+            try:
+                rs = pinyin_fn(ch, heteronym=True, style=Style.TONE3, errors="ignore")
+                cand = sorted(r for r in (rs[0] if rs else []) if r[:1].upper() == L)
+                return cand[0] if cand else None
+            except Exception:
+                return None
 
         groups = {}        # 主小標 -> [字]（檔案順序）
         extras = {}        # 小標 -> [多音字]（另一讀音落在這裡）
@@ -492,20 +574,34 @@ def build():
                 char_alt[c] = alt
 
         flow.section(f"{title}（{len(chars)} 字{('，' + note) if note else ''}）")
+        flow._room(ROW_H)
+        flow._text((ML, flow.y + 6),
+                   "多音字：右上角綠字母指另一讀音所在組；字母加圈者為該字在此組的"
+                   "重出，不計字數。", 7, (0.42, 0.42, 0.42))
+        flow.y += 11
         for L in AZ:
             base = groups.get(L, [])
             ex = extras.get(L, [])
             if not base and not ex:
                 continue
-            head = f"{L}（{len(base) + len(ex)} 字"
+            # base 照 GB 序；ex（多音字重出）依讀音插進該到的位置
+            items = [[c, char_alt.get(c), False] for c in base]
+            keys = [reading_in(c, L) or "" for c in base]
+            for c in ex:
+                kc = reading_in(c, L) or ""
+                pos = len(items)
+                for j, kj in enumerate(keys):
+                    if kc and kj and kc < kj:
+                        pos = j
+                        break
+                items.insert(pos, [c, char_primary[c], True])
+                keys.insert(pos, kc)
+            head = f"{L}（{len(base)} 字"
             if ex:
-                head += f"，其中 {len(ex)} 字為多音字重複收錄"
+                head += f"＋{len(ex)} 個多音字重出"
             head += "）"
-            flow.subhead(head)
-            # 多音字兩邊都出現，右上角標一個小綠字指向它另一個讀音的組
-            annos = {c: char_alt[c] for c in base if c in char_alt}
-            annos.update({c: char_primary[c] for c in ex})
-            flow.grid(base + ex, annos)
+            flow.subhead(head, sub=L)
+            flow.grid_cells([tuple(it) for it in items])
 
     def flat_section(title, chars, note=""):
         label = f"{title}（{len(chars)} 字{('，' + note) if note else ''}）"
@@ -537,7 +633,7 @@ def build():
         uniq = len(set(singles) | set("".join(comp)))
         flow.section(f"四、百家姓（{uniq} 字，宋本；單姓四字一句照原文韻腳，複姓兩字一組）")
         flow.grid_units([singles[i:i + 4] for i in range(0, len(singles), 4)], per_row=6)
-        flow.subhead(f"複姓（{len(comp)} 個）")
+        flow.subhead(f"複姓（{len(comp)} 個）", sub="複姓")
         flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
 
     def other_section():
@@ -549,7 +645,7 @@ def build():
             groups.append(leftover)
             print(f"  ⚠️ 其他：{len(leftover)} 個字沒排進 OTHER_GROUPS，補最後：{''.join(leftover)}")
         # DROP_CHARS（㠯 龹 龺）：內建字型畫不出、擺著像簡體字反而誤導，直接不列。
-        flow.section(f"六、其他（{len(rest)} 字，前五類未收、但仍在名單裡的字，"
+        flow.section(f"六、其他常用字（{len(rest)} 字，包括部件字、常見的異體字等，"
                      f"約略依部首分堆）")
         flow.multi_col([g for g in groups if g], ncols=2)
 
@@ -561,6 +657,7 @@ def build():
     other_section()
 
     flow.running_header(f"{BRAND}　{TITLE_REST}")
+    flow.coverage_labels()
     flow.footers()
     pages = len(doc)
     # 每頁都 insert_font 一次同一個 CJK 檔，不 subset 的話整份會 10 MB 以上。
