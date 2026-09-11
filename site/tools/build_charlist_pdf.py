@@ -93,6 +93,11 @@ SECTION_CATS = {"一": "甲表", "二": "GB表", "三": "粵語字", "四": "百
 
 # 注音起首符號的標準排序
 BOPO_INITIALS = list("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ")
+# 韻母（不當聲母用、掛在字尾的那批）——每組通常只有個位數到二三十字，各自
+# 獨佔一整列會把版面拉得很長，甚至白白多印一頁（Wilson：附碼版行距拉開後，
+# ㄚ～ㄦ 這幾組加起來真的會多擠出一頁幾乎全空、GB 那節又是強制換頁起頭，
+# 前一頁的空白就浪費掉了）。這幾組改用 bopo_finals_block() 兩欄併排印。
+BOPO_FINALS = set("ㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ")
 
 # 常用粵語字——Wilson 手挑、手分組的定稿（2026-09-10）。大致依部首歸堆
 # （口／人／目・言／手／水／火／…），每一堆在 PDF 裡另起一行。用這份的順序
@@ -499,6 +504,49 @@ class Flow:
         last = yrow if col == ncols - 1 else per_col
         self.y = y0 + max(1, last) * self.row_h
 
+    def bopo_finals_block(self, items, ncols=2, gutter=22.0):
+        """把好幾個很小的注音組（韻母 ㄚ～ㄦ，通常個位數到二三十字）併成
+        ncols 欄印，不然每組各自佔一整列、版面拉得很長，附碼版行距又比一般
+        版寬，這幾組加起來真的會多擠出一頁幾乎全空（Wilson）。items＝
+        [(小標文字, 字list, 小標對應的字母), …]；每組還是自己的小標＋方陣，
+        只是跟別組並排、不再獨佔一整列寬度。用貪婪法把各組塞進累積高度
+        最低的那一欄——組數不多（最多 13 個韻母），不需要更複雜的排法。"""
+        if not items:
+            return
+        colw = (PAGE_W - ML - MR - gutter * (ncols - 1)) / ncols
+        subcols = max(1, int(colw // CELL))
+        blocks = []
+        for label, chars, sub in items:
+            rows = -(-len(chars) // subcols) if chars else 0
+            blocks.append((label, chars, sub, 13 + rows * self.row_h))
+        col_h = [0.0] * ncols
+        col_items = [[] for _ in range(ncols)]
+        for b in blocks:
+            c = col_h.index(min(col_h))
+            col_items[c].append(b)
+            col_h[c] += b[3]
+        self._room(max(col_h) if col_h else 0)
+        y0 = self.y
+        green = (0.055, 0.486, 0.451)
+        for c in range(ncols):
+            x = ML + c * (colw + gutter)
+            y = y0
+            for label, chars, sub, h in col_items[c]:
+                if sub:
+                    self._marks.append((len(self.doc) - 1, self._cat, sub))
+                self._text((x, y + 8.5), label, 9, green)
+                y += 13
+                col_ = 0
+                for ch in chars:
+                    if col_ == subcols:
+                        col_ = 0
+                        y += self.row_h
+                    self._cell(x + col_ * CELL, y, ch)
+                    col_ += 1
+                if col_:
+                    y += self.row_h
+        self.y = y0 + (max(col_h) if col_h else 0)
+
     def two_lists(self, left, right, gutter=22.0):
         """左右各排一份獨立清單（〈常見人名用字〉男／女），中間留 gutter 寬的
         溝；兩邊各自照自己的字數換行，同一個字兩邊都出現也沒關係（男女名字
@@ -727,10 +775,18 @@ def build(with_code=False, preview_page1=False):
     def bopo_section(title, chars):
         flow.section(f"{title}（{len(chars)} 字）")
         buckets, other = by_bopo(chars)
+        finals_items = []
         for k in BOPO_INITIALS:
-            if buckets[k]:
+            if not buckets[k]:
+                continue
+            if k in BOPO_FINALS:
+                # 韻母排到最後才一起兩欄併排印，不是漏掉——見 bopo_finals_block。
+                finals_items.append((f"{k}（{len(buckets[k])} 字）", buckets[k], k))
+            else:
                 flow.subhead(f"{k}（{len(buckets[k])} 字）", sub=k)
                 flow.grid(buckets[k])
+        if finals_items:
+            flow.bopo_finals_block(finals_items, ncols=2)
         if other:
             flow.subhead(f"查無注音（{len(other)} 字）", sub="查無注音")
             flow.grid(other)
@@ -894,6 +950,8 @@ def build(with_code=False, preview_page1=False):
             print(f"  ⚠️ 其他：四角號碼查無 {len(miss)} 字，排在該區塊最後："
                   f"{''.join(miss)}（名單有變動就重跑 gen_fourcorner.py）")
 
+        if flow.code_map is not None:
+            flow.page_break()      # 附碼版：六、其他 從整頁開頭起（Wilson）
         flow.section(f"六、其他常用字（{len(rest)} 字，包括部件字、常見的異體字等）")
         if comp:
             flow.subhead(f"部件字（{len(comp)} 個，一碼在前、多碼在後，碼序）")
