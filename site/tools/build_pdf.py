@@ -69,6 +69,25 @@ _LETTER_LIST_GRAY = (0.5, 0.5, 0.5)
 _FOOT_GRAY = (0.5, 0.5, 0.5)
 _DOT_PAD = 1.3   # 點號兩邊留白，字母才不會跟點號黏在一起
 
+# 大標題區（logo＋品牌＋標題＋說明段）跟〈常用字表 PDF〉title() 同一套版面
+# 數字：logo 19pt 見方、品牌字級 17、說明段 7.6。這裡的座標系統是印出來的
+# PDF 絕對座標（跟 stamp_pdf() 其他標記一樣），不是 CSS px；TITLE_BLOCK_TOP
+# 是內容區實際開始的 y（頁邊距 15mm≈42.5pt），TITLE_BLOCK_RESERVE_PX 是要
+# 藏起來的原生 <h1> 等元素讓出多少 CSS px 空間（render_pdf() 用），兩個要
+# 大概對得上，數字是量出來的（見檔頭改動說明），不是巧合。
+TITLE_BLOCK_TOP = 42.5
+TITLE_BLOCK_RESERVE_PX = 108
+_TITLE_DARK = (0.1, 0.1, 0.1)
+_TITLE_GRAY = (0.28, 0.28, 0.28)
+_TITLE_NOTE_GRAY = (0.42, 0.42, 0.42)
+_NO_LINE_START = set("。，、；：！？」』】）～·,.;:!?)")
+# 跟 zigen.html 頁面上第一段 .zg-intro 逐字一樣——這裡照抄，不是另外寫一份，
+# 網站那句話改了要記得這裡也要跟著改（gen_fourcorner.py 那類「兩份手動同步」
+# 的老問題，暫時沒有更好的辦法，兩支腳本各自獨立、沒有共用 import）。
+ZG_NOTE = ("以下列出26個英文字母下納的所有字根。絕大多數字根在外型上與所屬的英文"
+           "字母大寫字形相近，一目了然，但有個別取形意圖有額外解釋，以便加強理解"
+           "和記憶。")
+
 _LOGO_CACHE = {}
 
 
@@ -115,6 +134,19 @@ def render_pdf(page, url, out_path, forced_breaks=None):
     # 切換用的是同一個屬性（localStorage 那套，這裡直接寫 DOM 就夠，不用存）。
     page.evaluate("document.documentElement.dataset.theme = 'light'")
     page.emulate_media(media="print")
+    # 頁首那顆「字根表」大標題、下面的說明段，原本是這頁自己的 <h1>／.eyebrow／
+    # .zg-intro，字型（Noto Sans TC）、顏色都跟〈常用字表 PDF〉自己畫出來的
+    # 標題區不是同一套——兩份 PDF 擺在一起看得出是兩種風格（Wilson）。這裡
+    # 直接把這三個元素藏起來，留一塊固定高度的空白（TITLE_BLOCK_RESERVE_PX），
+    # stamp_pdf() 再用跟常用字表 title() 一模一樣的 PyMuPDF 畫法把標題區畫
+    # 進這塊空白——字型引擎都一樣，才會是真的同一套樣式，不是兩邊各自逼近。
+    # 只藏第一個 .zg-intro（main.wrap 的直接子元素）：〈相近字形辨析〉那節
+    # 自己也有一段 .zg-intro，那個不是標題區的一部分，要留著。
+    page.add_style_tag(content=(
+        "main.wrap > .eyebrow, main.wrap > h1, main.wrap > .zg-intro "
+        "{ display: none !important; } "
+        f"main.wrap {{ padding-top: {TITLE_BLOCK_RESERVE_PX}px !important; }}"
+    ))
     if forced_breaks:
         # letterRows()／renderCompactTable() 給每個字母的第一列一個 #L<字母>
         # 錨點，強制換頁只需要選到那一列本身。
@@ -182,6 +214,81 @@ def _stamp_key_badge(page, cx, top_y, letter):
                      fontname="hebo", fontsize=8, color=_ACCENT)
 
 
+def _mixed_font(ch):
+    """ASCII（數字、半形標點、空格）走 helv，china-s 會把它們畫成全形，數字
+    之間就多出一大塊空白（跟 build_charlist_pdf.py Flow._text() 同一個坑：
+    「26」曾經被畫成「2　6」，中間卡一格全形空白）。其餘 CJK 走 china-s。"""
+    return "helv" if 0x20 <= ord(ch) <= 0x7E else "china-s"
+
+
+def _mixed_width(s, size):
+    import fitz
+    return sum(fitz.get_text_length(ch, fontname=_mixed_font(ch), fontsize=size) for ch in s)
+
+
+def _draw_mixed(page, x, y, s, size, color):
+    import fitz
+    for ch in s:
+        fn = _mixed_font(ch)
+        page.insert_text((x, y), ch, fontname=fn, fontsize=size, color=color)
+        x += fitz.get_text_length(ch, fontname=fn, fontsize=size)
+    return x
+
+
+def _wrap_print_text(page, x, y, s, size, color, lead, maxw):
+    """跟 build_charlist_pdf.py 的 Flow._wrap() 同一套邏輯（含避頭點：標點
+    不落到下一行開頭；ASCII／CJK 分字型見 _mixed_font），這裡是獨立函式版
+    ——兩支腳本沒有共用 import，複製一份省得為了一個小工具去搭橋。回傳
+    最後印完那一行的 y（給呼叫端接著往下排）。"""
+    line = ""
+    for ch in s:
+        if ch == "\n":
+            _draw_mixed(page, x, y, line, size, color)
+            y += lead
+            line = ""
+            continue
+        if (line and ch not in _NO_LINE_START
+                and _mixed_width(line + ch, size) > maxw):
+            _draw_mixed(page, x, y, line, size, color)
+            y += lead
+            line = ""
+        line += ch
+    if line:
+        _draw_mixed(page, x, y, line, size, color)
+        y += lead
+    return y
+
+
+def _draw_title_block(page, title_rest, note):
+    """畫一份跟〈常用字表 PDF〉title() 同一套樣式的大標題：logo＋「愛發筆
+    輸入法」＋標題（灰）一行，底下再印一段說明文字（同一個字級／顏色／
+    行距）。字型引擎（china-s）、顏色數值都直接照抄，不是另外調近似值——
+    兩份 PDF 的標題區才會是真的同一套樣式，不是碰巧像（Wilson）。
+    「愛發筆輸入法」要用粗體，但 china-s 這顆內建 CJK 字型沒有粗體版本、
+    Helvetica-Bold（hebo）裡又沒有中文字身——用 build_charlist_pdf.py
+    Flow._text(bold=True) 同一招：同一個字疊印兩次、橫向錯開 0.3pt，
+    肉眼看起來就是粗體。"""
+    import fitz
+    top = TITLE_BLOCK_TOP
+    x = 20.0
+    s = 19.0
+    logo = _logo_stream(round(s * 4))
+    if logo is not None:
+        try:
+            page.insert_image(fitz.Rect(x, top, x + s, top + s), stream=logo)
+            x += s + 7
+        except Exception:
+            pass
+    for ch in "愛發筆輸入法":
+        page.insert_text((x, top + 15.5), ch, fontname="china-s", fontsize=17, color=_TITLE_DARK)
+        page.insert_text((x + 0.3, top + 15.5), ch, fontname="china-s", fontsize=17, color=_TITLE_DARK)
+        x += fitz.get_text_length(ch, fontname="china-s", fontsize=17)
+    page.insert_text((x + 6, top + 15.5), title_rest, fontname="china-s",
+                     fontsize=17, color=_TITLE_GRAY)
+    y = top + 26 + 8
+    _wrap_print_text(page, 20.0, y, note, 7.6, _TITLE_NOTE_GRAY, 9.8, 555.0 - 20.0)
+
+
 def _col_tops(page):
     """這一頁左／右欄，各自第一塊**內容**（跳過重印的表頭與頁首文字）的
     {欄: (y, x)}。用來判斷「這一欄最上面那一小塊有沒有字母鍵」——沒有的話
@@ -240,7 +347,8 @@ def find_page_splits(pdf_path):
     return bad
 
 
-def stamp_pdf(path, show_letter_list=True, stamp_continuation=True):
+def stamp_pdf(path, show_letter_list=True, stamp_continuation=True,
+              title_rest="字根表", note=""):
     """讀回剛印出來的 PDF（已經沒有跨頁字母了），補三件事：頁首品牌、
     頁首字母清單、頁尾頁碼；另外把「這一欄開頭沒有字母鍵」的地方補一個
     接續小標。
@@ -274,27 +382,27 @@ def stamp_pdf(path, show_letter_list=True, stamp_continuation=True):
         letters_here = sorted({t for (_, _, t) in badges})
         w, h = page.rect.width, page.rect.height
 
-        # 頁首左邊：小標誌＋品牌名，每一頁都有，讀者單獨列印某幾頁時也認得出
-        # 是哪份文件。樣式（標誌大小、灰色、字級、china-s、底下那條分隔線）
-        # 照抄〈常用字表 PDF〉的 running_header()——兩份 PDF 頁首看起來才像
-        # 同一個品牌印的，不是各自一套（Wilson）。中文走 PyMuPDF 內建的 CJK
-        # 對應字型（china-s，Droid Sans Fallback），不依賴這台機器裝了哪些
-        # 系統字型，其他人重跑這支腳本也一樣印得出來（china-s 不是 china-ts：
-        # 後者會把將近一千個簡化字默默印成空白，見 build_charlist_pdf.py 檔頭）。
-        x = 20
-        logo = _logo_stream(36)
-        if logo is not None:
-            try:
-                page.insert_image(fitz.Rect(x, 20, x + 9, 29), stream=logo)
-                x += 12
-            except Exception:
-                pass
-        brand = "愛發筆輸入法　字根表"
-        for ch in brand:
-            page.insert_text((x, 28), ch, fontname="china-s", fontsize=_HDR_SIZE,
-                              color=_HDR_GRAY)
-            x += fitz.get_text_length(ch, fontname="china-s", fontsize=_HDR_SIZE)
-        page.draw_line((20, 33), (w - 20, 33), color=_HDR_LINE_GRAY, width=0.4)
+        # 頁首左邊：第一頁印大標題（跟〈常用字表 PDF〉title() 同一套樣式，見
+        # _draw_title_block），不疊印那行小小的品牌字——常用字表也是這樣，
+        # 第一頁只有大標題，小標誌＋品牌名的跑馬頁首留給第 2 頁起（Wilson：
+        # 兩份 PDF 風格要一致）。
+        if i == 1:
+            _draw_title_block(page, title_rest, note)
+        else:
+            x = 20
+            logo = _logo_stream(36)
+            if logo is not None:
+                try:
+                    page.insert_image(fitz.Rect(x, 20, x + 9, 29), stream=logo)
+                    x += 12
+                except Exception:
+                    pass
+            brand = "愛發筆輸入法　字根表"
+            for ch in brand:
+                page.insert_text((x, 28), ch, fontname="china-s", fontsize=_HDR_SIZE,
+                                  color=_HDR_GRAY)
+                x += fitz.get_text_length(ch, fontname="china-s", fontsize=_HDR_SIZE)
+            page.draw_line((20, 33), (w - 20, 33), color=_HDR_LINE_GRAY, width=0.4)
 
         # 頁首右邊：這一頁出現的每一個字母，逐個列出來，不縮寫成「A–D」
         # 這種範圍——縮寫要讀者自己在腦裡展開字母表才知道中間有哪些字母
@@ -362,7 +470,9 @@ def build_one(page, url, out_path, label, compact=False):
     if splits:
         print(f"  ⚠️ {label}：{'、'.join(sorted(splits))} 被印到跨頁——已知限制，"
               f"見檔頭說明，先這樣印出來")
-    stamp_pdf(out_path, show_letter_list=not compact, stamp_continuation=True)
+    title_rest = "字根表（精簡版）" if compact else "字根表"
+    stamp_pdf(out_path, show_letter_list=not compact, stamp_continuation=True,
+              title_rest=title_rest, note=ZG_NOTE)
     kb = out_path.stat().st_size / 1024
     print(f"寫出：{out_path.relative_to(ROOT)}（{label}，{kb:.0f} KB）")
 

@@ -88,6 +88,15 @@ CODE_HSCALE_MIN = 0.85   # 橫向壓扁最多壓到這個比例（Wilson 試 85%
 BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
 
+# 第一頁右上角小目錄的行距——單倍行高，印得緊湊，不要比左邊說明文字（改窄
+# 成兩欄後）自然的高度多撐出一截，害後面章節被擠到多印一頁（Wilson）。
+TOC_HEAD_GAP = 12.0    # 「目錄」標題到第一行類別的距離
+TOC_ROW_LEAD = 9.6     # 類別跟類別之間的行距
+
+# _wrap() 的「避頭點」名單：這些標點自己斷到下一行開頭很怪（如「三次」後面
+# 的句號），寧可讓上一行超寬也要黏住上一個字。
+NO_LINE_START_PUNCT = set("。，、；：！？」』】）～·,.;:!?)")
+
 # 頁首右上角那個「本頁涵蓋範圍」標籤用的短分類名（仿〈字根表〉PDF）
 SECTION_CATS = {"一": "甲表", "二": "GB表", "三": "粵語字", "四": "百家姓", "五": "人名字", "六": "其他常用字"}
 
@@ -240,6 +249,7 @@ class Flow:
                 self.code_font = CODE_FONT_FALLBACK
         self._cat = None          # 目前所在的分類短名
         self._marks = []          # (頁碼, 分類, 小標) —— 給頁首右上角的範圍標籤
+        self._toc = []            # (短標題, 頁碼 1-based) —— 給第一頁右上角那份小目錄
         self._breaks = set()      # 用 page_break() 硬換頁、頂端不接上一頁內容的頁
         self.code_map = code_map  # 附碼版：字 -> 愛發筆碼（codes.json 的 final）；
                                    # None＝一般版，不畫碼
@@ -290,6 +300,7 @@ class Flow:
 
     def title(self, brand, rest, subtitle):
         top = self.y
+        self._title_top = top     # 目錄的「目錄」兩字要跟這一行標題頂對頂
         x = ML
         s = 19.0
         logo = _logo_stream(round(s * 4))       # 先在白底攤平＋高品質縮到 4×
@@ -302,8 +313,33 @@ class Flow:
         x = self._text((x, top + 15.5), brand, 17, (0.1, 0.1, 0.1), bold=True)
         self._text((x + 6, top + 15.5), rest, 17, (0.28, 0.28, 0.28))
         self.y = top + 26 + 8
-        self._wrap(ML, subtitle, 7.6, (0.42, 0.42, 0.42), lead=9.8)
-        self.y += 6
+        # 說明文字佔左邊、目錄佔右邊，但不是對半分——目錄六行都很短，67%／
+        # 33% 就綽綽有餘，說明文字分到的寬度越大，能少換幾行（Wilson：目錄
+        # 沒那麼寬，分隔線往右挪，讓說明文字一行塞得下更多字）。67% 這個
+        # 數字順便解決了另一個毛病：66% 以下最後一行會只剩「收錄。」三個字
+        # 孤伶伶一行（Wilson 盯到了），67% 剛好跟上一行併在一起、還少繞一行。
+        # 目錄內容要等全書印完、頁碼都確定了才畫（見 toc()），這裡先把位置／
+        # 寬度／高度算好、幫它把 self.y 撐開，不然後面章節內容會蓋到還沒
+        # 畫出來的目錄。
+        gutter = 18.0
+        avail = PAGE_W - ML - MR - gutter
+        left_w = avail * 0.67
+        self._toc_x = ML + left_w + gutter
+        # 「目錄」兩字頂對頂對齊大標題（跟「常用字表」那行同一條頂線，不是
+        # 對齊底下說明文字第一行——Wilson）。CJK 字身幾乎填滿整個 em 框、
+        # ascent≈字級本身（實測：17pt 基準線再往上量 17pt 剛好摸到字頂，
+        # 7.6pt 同理），兩個字級要頂對頂，基準線差就是兩個字級的差：
+        # (top+15.5-17) 是大標題字頂，7.6pt 版本基準線＝那個字頂 +7.6。
+        self._toc_header_y = self._title_top + 15.5 - 17 + 7.6
+        # 六大類固定六行、單倍行高（1.25× 字級，目錄本來就該印得緊湊）——這兩
+        # 個數字要跟 toc() 實際畫的時候用的間距一致，六行印得越緊，self.y
+        # 就不用往下撐越多，後面章節越不容易被擠到多印一頁（Wilson）。
+        toc_reserve_bottom = self._toc_header_y + TOC_HEAD_GAP + 6 * TOC_ROW_LEAD
+        self._wrap(ML, subtitle, 7.6, (0.42, 0.42, 0.42), lead=9.8, maxw=left_w)
+        self.y = max(self.y, toc_reserve_bottom)
+        # 不額外多墊一截——section() 自己在畫分隔線前就會留 14pt（每一節換節
+        # 時都靠這個，不是靠上一塊內容自己多留），這裡疊上去等於雙重留白，
+        # 那條線離標題區太遠（Wilson）。
 
     def dup_example(self, x, y):
         """多音字說明右邊的小圖例：同一個「长」在 C 組（標 Z）與在 Z 組（標 C
@@ -335,7 +371,9 @@ class Flow:
 
     def _wrap(self, x, s, size, color, lead=None, maxw=None):
         """把 s 依寬度斷成多行畫出來，逐行推進 self.y（畫在 self.y 的基線上）。
-        s 裡的 \\n 當硬斷行。"""
+        s 裡的 \\n 當硬斷行。標點不能落到下一行開頭（Wilson：「三次」後面
+        的句號自己斷到下一行開頭很奇怪）——遇到這種標點，寧可讓這一行超寬
+        一個字，也要把它留在上一行尾巴，這是 CJK 排版常見的「避頭點」規則。"""
         maxw = (PAGE_W - MR - x) if maxw is None else maxw
         lead = size + 2.0 if lead is None else lead
         line = ""
@@ -345,8 +383,9 @@ class Flow:
                 self.y += lead
                 line = ""
                 continue
-            if line and self.fitz.get_text_length(
-                    line + ch, fontname=FONT, fontsize=size) > maxw:
+            if (line and ch not in NO_LINE_START_PUNCT
+                    and self.fitz.get_text_length(
+                        line + ch, fontname=FONT, fontsize=size) > maxw):
                 self._text((x, self.y), line, size, color)
                 self.y += lead
                 line = ""
@@ -355,13 +394,18 @@ class Flow:
             self._text((x, self.y), line, size, color)
             self.y += lead
 
-    def section(self, text):
+    def section(self, text, toc=None):
+        """toc＝目錄要印的短標題，跟正式標題（text）分開——正式標題保留全名
+        （如「一、教育部《常用國字標準字體表》甲表」），目錄那行嫌長的話
+        呼叫端可以另外給一個更短的版本（Wilson：官方全名留著，目錄簡稱
+        就好）。不給就退回舊規則：正式標題砍到第一個「（」之前。"""
         self._room(40)
         at_top = self.y <= MT + 1   # 這節剛好從整頁開頭起（page_break() 換過頁，
                                      # 或前一節剛好印到滿頁）——上面沒東西可分隔，
                                      # 那條灰線畫了也是浮著，不畫（Wilson：GB 那節）
         self._cat = SECTION_CATS.get(text[:1], text[:1])
         self._marks.append((len(self.doc) - 1, self._cat, None))
+        self._toc.append((toc or text.split("（")[0], len(self.doc)))   # 目錄：短標題＋頁碼
         self.y += 14
         if not at_top:
             self.page.draw_line((ML, self.y), (PAGE_W - MR, self.y),
@@ -695,6 +739,47 @@ class Flow:
                     page.draw_line((x, 24), (x, 30), color=(0.72, 0.72, 0.72), width=0.6)
                     x += gap
 
+    def toc(self):
+        """第一頁標題區右半印一份小目錄：六大類各自第一次出現的頁碼。「目錄」
+        基準線是 title() 已經算好、存在 self._toc_header_y（跟大標題頂對頂
+        ——Wilson）；左緣 x 這裡才用實際內容現算——等全書印完、標題文字、
+        頁碼都確定了才畫，跟 coverage_labels()／footers() 一樣是最後一道
+        手續，所以直接對 doc[0] 下手，不透過 self.page／self._text（那兩個
+        這時候已經指向最後一頁，不是第一頁）。"""
+        if not self._toc:
+            return
+        page = self.doc[0]
+        green = (0.055, 0.486, 0.451)
+        gray = (0.42, 0.42, 0.42)
+        seen, entries = set(), []
+        for label, pageno in self._toc:
+            if label in seen:      # 理論上不會重複（六大類各印一次 section()），
+                continue           # 保險擋一下，不然目錄裡出現兩行一樣的字。
+            seen.add(label)
+            entries.append((label, str(pageno)))
+        if not entries:
+            return
+        # 目錄兩字跟六個類別標題**同一個左緣**（Wilson：不要參差不齊），這個
+        # 左緣不是 title() 那時候用 67／33 分寬算出來的 _toc_x——那個只是
+        # 用來幫說明文字留夠空間，跟目錄實際多寬沒關係。這裡看最長的那行
+        # 標題有多寬，往回推左緣，讓整塊貼著頁碼、又貼著頁面右邊界（Wilson：
+        # 頁碼要貼右邊界；標題離頁碼別太遠）。
+        right = PAGE_W - MR
+        gap = 8.0
+        label_w = max(self._cov_width(lb) for lb, _ in entries)
+        num_w = max(self.fitz.get_text_length(n, fontname="helv", fontsize=7.5)
+                    for _, n in entries)
+        label_x = right - num_w - gap - label_w
+        baseline = self._toc_header_y
+        page.insert_text((label_x, baseline), "目錄", fontname=FONT, fontsize=7.6, color=green)
+        baseline += TOC_HEAD_GAP
+        for label, num in entries:
+            self._cov_draw(page, label_x, baseline, label, gray)
+            nw = self.fitz.get_text_length(num, fontname="helv", fontsize=7.5)
+            page.insert_text((right - nw, baseline), num, fontname="helv",
+                             fontsize=7.5, color=gray)
+            baseline += TOC_ROW_LEAD
+
     def footers(self):
         total = len(self.doc)
         for n, page in enumerate(self.doc, start=1):
@@ -772,8 +857,8 @@ def build(with_code=False, preview_page1=False):
                 f"表各類字數總和多於此數，正是因為某些字重複收錄。")
     flow.title(BRAND, TITLE_REST + ("（附碼版）" if with_code else ""), subtitle)
 
-    def bopo_section(title, chars):
-        flow.section(f"{title}（{len(chars)} 字）")
+    def bopo_section(title, chars, toc=None):
+        flow.section(f"{title}（{len(chars)} 字）", toc=toc)
         buckets, other = by_bopo(chars)
         finals_items = []
         for k in BOPO_INITIALS:
@@ -970,7 +1055,7 @@ def build(with_code=False, preview_page1=False):
             for k, chars in buckets:
                 flow.grid_labeled(k, chars)
 
-    bopo_section("一、教育部《常用國字標準字體表》甲表", jiabiao)
+    bopo_section("一、台灣教育部《常用國字標準字體表》甲表", jiabiao, toc="一、台灣教育部國字甲表")
 
     if preview_page1:
         # 只看第一頁排版對不對，不用跑完整份清單、也不動正式檔案——存到旁邊
@@ -988,7 +1073,7 @@ def build(with_code=False, preview_page1=False):
         print(f"預覽（僅第一頁）：{prev.relative_to(ROOT)}")
         return
 
-    pinyin_section("二、GB 2312 一級漢字", gb1, note="拼音序")
+    pinyin_section("二、大陸 GB 2312 一級漢字", gb1, note="拼音序")
     grouped_section("三、常用粵語字", canton_groups, note="約略依部首分組", ncols=2)
     baijia_section()
     mingzi_section()
@@ -996,6 +1081,7 @@ def build(with_code=False, preview_page1=False):
 
     flow.running_header(f"{BRAND}　{TITLE_REST}")
     flow.coverage_labels()
+    flow.toc()
     flow.footers()
     pages = len(doc)
     # 每頁都 insert_font 一次同一個 CJK 檔，不 subset 的話整份會 10 MB 以上。
