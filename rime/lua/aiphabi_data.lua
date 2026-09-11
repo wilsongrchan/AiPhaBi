@@ -27978,7 +27978,6 @@ M.simp = {
   ["岘"]=true,
   ["岚"]=true,
   ["岛"]=true,
-  ["岩"]=true,
   ["岭"]=true,
   ["岽"]=true,
   ["岿"]=true,
