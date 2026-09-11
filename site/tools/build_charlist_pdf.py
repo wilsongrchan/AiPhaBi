@@ -287,9 +287,9 @@ class Flow:
                 pass
         x = self._text((x, top + 15.5), brand, 17, (0.1, 0.1, 0.1), bold=True)
         self._text((x + 6, top + 15.5), rest, 17, (0.28, 0.28, 0.28))
-        self.y = top + 26
-        self._text((ML, self.y + 9), subtitle, 8.5, (0.42, 0.42, 0.42))
-        self.y += 24
+        self.y = top + 26 + 8
+        self._wrap(ML, subtitle, 7.6, (0.42, 0.42, 0.42), lead=9.8)
+        self.y += 6
 
     def page_break(self):
         """除非已在頁頂，否則換新頁（讓某一節從整頁開頭起）。"""
@@ -298,11 +298,17 @@ class Flow:
             self._breaks.add(len(self.doc) - 1)
 
     def _wrap(self, x, s, size, color, lead=None, maxw=None):
-        """把 s 依寬度斷成多行畫出來，逐行推進 self.y（畫在 self.y 的基線上）。"""
+        """把 s 依寬度斷成多行畫出來，逐行推進 self.y（畫在 self.y 的基線上）。
+        s 裡的 \\n 當硬斷行。"""
         maxw = (PAGE_W - MR - x) if maxw is None else maxw
         lead = size + 2.0 if lead is None else lead
         line = ""
         for ch in s:
+            if ch == "\n":
+                self._text((x, self.y), line, size, color)
+                self.y += lead
+                line = ""
+                continue
             if line and self.fitz.get_text_length(
                     line + ch, fontname=FONT, fontsize=size) > maxw:
                 self._text((x, self.y), line, size, color)
@@ -542,9 +548,13 @@ def build():
 
     doc = fitz.open()
     flow = Flow(doc)
+    n = len(common)
     flow.title(BRAND, TITLE_REST,
-               f"「只打常用字」開啟時選字列保留的字，共 {len(common)} 個。分類不互斥"
-               f"（多數姓氏亦在甲表），各節列出該類全部。")
+               f"「只打常用字」開啟時選字列保留的為此表內的常用字，共 {n} 個。\n"
+               f"注意各表各類內字不互斥，即同一個字可能重複出現在不同表內；如「高」"
+               f"字，作為傳承字（未被簡化的字），同時被收入台灣甲表和大陸 GB 一級字"
+               f"內，而且亦是百家姓之一，所以出現三次。所以雖然常用字共 {n} 個，但各"
+               f"表各類字數總和多於此數，正是因為某些字重複收錄。")
 
     def bopo_section(title, chars):
         flow.section(f"{title}（{len(chars)} 字）")
