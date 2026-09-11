@@ -612,6 +612,12 @@
       <button id="mpAddAlt" class="mp-add">＋ 加一個兼容碼</button>
       <label class="mp-row"><span>備註</span>
         <input id="mpNote" spellcheck="false" placeholder="選填"></label>
+      <!-- 手動取碼也可能是部件字（例：粵語用字裡有些只當偏旁），道理跟有筆畫時的
+           #comptoggle 一樣：主碼不變，但單獨打主碼看不到，要加反引號 ` 才會出現 -->
+      <label class="convlab" id="mpComplab" style="margin:0 0 12px">
+        <input type="checkbox" id="mpCompToggle">
+        <span>視為部件字：主碼不變，但單獨打主碼看不到，要在前面加 <code>`</code>（反引號）才會出現</span>
+      </label>
       <div class="mp-bar">
         <button class="primary" id="mpSave">儲存並下一字 ⏎</button>
         <button id="mpClear">清掉此字的碼</button>
@@ -3593,6 +3599,7 @@ function showManual(c) {
   $('#mpCode').value = ((!rec.segments && rec.code) || '').toUpperCase();
   updateMpFinal();
   $('#mpNote').value = rec.note || '';
+  $('#mpCompToggle').checked = !!rec.componentOnly;
   const box = $('#mpAlts'); box.innerHTML = '';
   for (const a of (rec.alts || [])) box.append(mpAltRow(a.code));
   $('#mpStatus').textContent = '';
@@ -3617,9 +3624,10 @@ async function manualSave(goNext) {
   if (alts.length) rec.alts = alts; else delete rec.alts;
   const note = $('#mpNote').value.trim();
   if (note) rec.note = note; else delete rec.note;
+  if ($('#mpCompToggle').checked) rec.componentOnly = true; else delete rec.componentOnly;
   /* 全空 → 這個字乾脆整筆拿掉，不留空殼 */
   if (!rec.code && !(rec.alts && rec.alts.length) && !rec.note &&
-      !(rec.variants && rec.variants.length)) delete codes[cur];
+      !rec.componentOnly && !(rec.variants && rec.variants.length)) delete codes[cur];
   st.style.color = 'var(--muted)'; st.textContent = '儲存中…';
   const r = await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
   if (r && r.reloaded) return;
@@ -3634,7 +3642,8 @@ async function manualSave(goNext) {
 }
 $('#mpAddAlt').onclick = () => { $('#mpAlts').append(mpAltRow('')); dirty = true; };
 $('#mpSave').onclick = () => manualSave(true);
-$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; updateMpFinal(); dirty = true; };
+$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; $('#mpCompToggle').checked = false; updateMpFinal(); dirty = true; };
+$('#mpCompToggle').onchange = () => { dirty = true; };
 function updateMpFinal() {
   const raw = ($('#mpCode').value || '').trim().toUpperCase();
   const box = $('#mpFinal');
