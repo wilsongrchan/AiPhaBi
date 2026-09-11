@@ -61,7 +61,7 @@ BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
 
 # 頁首右上角那個「本頁涵蓋範圍」標籤用的短分類名（仿〈字根表〉PDF）
-SECTION_CATS = {"一": "甲表", "二": "GB表", "三": "粵語", "四": "百家姓", "五": "取名", "六": "其他"}
+SECTION_CATS = {"一": "甲表", "二": "GB表", "三": "粵語字", "四": "百家姓", "五": "人名字", "六": "其他常用字"}
 
 # 注音起首符號的標準排序
 BOPO_INITIALS = list("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ")
@@ -308,7 +308,7 @@ class Flow:
         self.page.draw_line((ML, self.y), (PAGE_W - MR, self.y),
                             color=(0.75, 0.75, 0.75), width=0.6)
         self.y += 4
-        self._text((ML, self.y + 11), text, 12, (0.12, 0.12, 0.12))
+        self._text((ML, self.y + 11), text, 12, (0.055, 0.486, 0.451), bold=True)
         self.y += 20
 
     def subhead(self, text, sub=None):
@@ -462,9 +462,9 @@ class Flow:
             page.draw_line((ML, 33), (PAGE_W - MR, 33), color=(0.86, 0.86, 0.86), width=0.4)
 
     def _fmt_coverage(self, seq):
-        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄍ ㄎ ㄏ ㄐ ㄑ　GB A B C」
+        """seq＝依閱讀順序的 (分類, 小標) 串，壓成「甲表 ㄍ·ㄎ·ㄏ ｜ GB表 A·B·C」
         這種標籤——把本頁涵蓋的每個小標都列出來（不用 X-Y 區間，中間隔了誰不
-        直覺）。"""
+        直覺），分類之間用｜隔開。"""
         out, i = [], 0
         while i < len(seq):
             cat = seq[i][0]
@@ -475,10 +475,10 @@ class Flow:
                     subs.append(s)
                 i += 1
             if subs:
-                out.append(f"{cat} " + " ".join(subs))
+                out.append(f"{cat} " + "·".join(subs))
             elif cat:
                 out.append(cat)
-        return "　".join(out)
+        return " ｜ ".join(out)
 
     def coverage_labels(self):
         """每頁右上角標一行「本頁涵蓋範圍」（仿〈字根表〉PDF）。範圍＝這頁開頭
@@ -711,7 +711,7 @@ def build():
         uniq = len(set(singles) | set("".join(comp)))
         flow.section(f"四、百家姓（{uniq} 字）")
         flow.grid_units([singles[i:i + 4] for i in range(0, len(singles), 4)], per_row=6)
-        flow.subhead(f"複姓（{len(comp)} 個）", sub="複姓")
+        flow.subhead(f"複姓（{len(comp)} 個）")
         flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
 
     def other_section():
@@ -743,10 +743,10 @@ def build():
 
         flow.section(f"六、其他常用字（{len(rest)} 字，包括部件字、常見的異體字等）")
         if comp:
-            flow.subhead(f"部件字（{len(comp)} 個，一碼在前、多碼在後，碼序）", sub="部件字")
+            flow.subhead(f"部件字（{len(comp)} 個，一碼在前、多碼在後，碼序）")
             flow.grid(comp)
         if others:
-            flow.subhead(f"其他（{len(others)} 字，四角號碼序）", sub="四角碼")
+            flow.subhead(f"其他（{len(others)} 字，四角號碼序）")
             # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行（Wilson）；查無四角碼
             # 的幾個字沒有第一碼可分，自成一行擺最末。
             first = lambda c: fc.get(c, "")[:1] or "?"
