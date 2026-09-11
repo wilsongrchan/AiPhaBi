@@ -20,7 +20,7 @@
 分類清單來源：
     甲表          data/standards/tw_common_4808.txt
     GB 2312 一級  data/standards/gb2312.txt 的前 3755 字（拼音序那一段）
-    常用粵語字     本檔的 CANTON_GROUPS（Wilson 手挑、依部首分堆的定稿；
+    常用粵語字     本檔的 CANTON_GROUPS（Wilson 手挑、依部首分組的定稿；
                   比 data/standards/canton_common.txt 少幾個生僻字）
     百家姓        data/standards/baijiaxing.txt
     常用取名用字   site/assets/try.js 的 NAME_MALE ／ NAME_FEMALE（跟〈線上試打〉
@@ -355,6 +355,72 @@ class Flow:
         if col:
             self.y += ROW_H
 
+    def grid_labeled(self, label, chars):
+        """跟 grid 一樣，但第一列留一格放標籤（四角號碼第一碼）；換行後的接續列
+        仍空出同一格，讓字一路對齊到標籤右邊那一欄——不會跟標籤疊在一起，也
+        不會退到最左邊、跟上一列的字對不齊。"""
+        indent = 1 if label else 0
+        col = indent
+        self._room(ROW_H)
+        if label:
+            green = (0.055, 0.486, 0.451)
+            self.page.insert_text((ML + (CELL - CHAR_SIZE * 0.8) / 2, self.y + CHAR_SIZE),
+                                  str(label), fontname="hebo",
+                                  fontsize=CHAR_SIZE * 0.8, color=green)
+        for ch in chars:
+            if col == COLS:
+                col = indent
+                self.y += ROW_H
+                self._room(ROW_H)
+            self._cell(ML + col * CELL, self.y, ch)
+            col += 1
+        if col > indent:
+            self.y += ROW_H
+
+    def grid_cols(self, groups, ncols=2, gutter=22.0):
+        """把一串「一行一組」的字堆排成 ncols 直欄，欄間留 gutter 寬的溝——不
+        留溝的話兩欄之間的字剛好隔一格，看起來就像一整排 26 欄硬被切兩半，
+        不像真的分欄。欄寬照溝寬自動抓（塞得下幾格就算幾格）；組內超過欄寬
+        自動換行，組與組之間一定另起一行。"""
+        colw = (PAGE_W - ML - MR - gutter * (ncols - 1)) / ncols
+        subcols = max(1, int(colw // CELL))
+        grouprows = [[g[i:i + subcols] for i in range(0, len(g), subcols)]
+                     for g in groups if g]
+        total = sum(len(r) for r in grouprows)
+        per_col = max(1, -(-total // ncols))
+        self._room(per_col * ROW_H)
+        y0 = self.y
+        col, yrow = 0, 0
+        for rows in grouprows:
+            if yrow and yrow + len(rows) > per_col and col < ncols - 1:
+                col += 1
+                yrow = 0
+            for r in rows:
+                x = ML + col * (colw + gutter)
+                for ch in r:
+                    self._cell(x, y0 + yrow * ROW_H, ch)
+                    x += CELL
+                yrow += 1
+        last = yrow if col == ncols - 1 else per_col
+        self.y = y0 + max(1, last) * ROW_H
+
+    def two_lists(self, left, right, gutter=22.0):
+        """左右各排一份獨立清單（〈常見人名用字〉男／女），中間留 gutter 寬的
+        溝；兩邊各自照自己的字數換行，同一個字兩邊都出現也沒關係（男女名字
+        本來就會重疊，如「子」）。"""
+        colw = (PAGE_W - ML - MR - gutter) / 2
+        subcols = max(1, int(colw // CELL))
+        rows_l = -(-len(left) // subcols) if left else 0
+        rows_r = -(-len(right) // subcols) if right else 0
+        rows = max(rows_l, rows_r, 1)
+        self._room(rows * ROW_H)
+        y0 = self.y
+        for lst, cx in ((left, ML), (right, ML + colw + gutter)):
+            for i, ch in enumerate(lst):
+                r, c = divmod(i, subcols)
+                self._cell(cx + c * CELL, y0 + r * ROW_H, ch)
+        self.y = y0 + rows * ROW_H
+
     def grid_units(self, units, per_row=5, unit_gap=None, tight=False):
         """一個 unit（1–4 個字）當一個不可切的整體畫。《百家姓》用。
         tight=False：unit 內每字佔一格（單姓四字一句照原文韻腳）。
@@ -481,6 +547,8 @@ def build():
     canton_groups = [incommon(g) for g in CANTON_GROUPS]
     canton = [c for g in canton_groups for c in g]
     baijia = incommon(_file_chars("baijiaxing.txt"))
+    name_male = incommon(_name_chars("NAME_MALE"))
+    name_female = incommon(_name_chars("NAME_FEMALE"))
     names = incommon(_name_chars("NAME_MALE") + _name_chars("NAME_FEMALE"))
 
     baijia_all = set(baijia) | {c for u in BAIJIA_COMPOUND for c in u if c in common}
@@ -603,19 +671,29 @@ def build():
             flow.subhead(head, sub=L)
             flow.grid_cells([tuple(it) for it in items])
 
-    def flat_section(title, chars, note=""):
-        label = f"{title}（{len(chars)} 字{('，' + note) if note else ''}）"
-        flow.section(label)
-        flow.grid(chars)
+    def mingzi_section():
+        # 左男右女兩欄各自照〈線上試打〉那份字卡順序排；兩邊都出現的字（子、
+        # 安…）就顯兩次，不特別去重——這樣才看得出哪些字兩性都常用（Wilson）。
+        flow.section(f"五、常見人名用字（{len(names)} 字）")
+        flow._room(14)
+        colw = (PAGE_W - ML - MR - 22.0) / 2
+        flow._text((ML, flow.y + 8), f"男名（{len(name_male)} 字）", 8.5, (0.42, 0.42, 0.42))
+        flow._text((ML + colw + 22.0, flow.y + 8), f"女名（{len(name_female)} 字）",
+                   8.5, (0.42, 0.42, 0.42))
+        flow.y += 12
+        flow.two_lists(name_male, name_female)
 
-    def grouped_section(title, groups, note=""):
-        # 每個 group 另起一行（flow.grid 收尾一定把 y 推到列邊界），組內照排、
-        # 滿 26 格才換行。用來呈現 Wilson 依部首分好的字堆（粵語）。
+    def grouped_section(title, groups, note="", ncols=1):
+        # 每個 group 另起一行，組內照排、滿格才換行。用來呈現 Wilson 依部首
+        # 分好的字堆（粵語）。ncols>1 時改兩欄排、省版面。
         total = sum(len(g) for g in groups)
         flow.section(f"{title}（{total} 字{('，' + note) if note else ''}）")
-        for g in groups:
-            if g:
-                flow.grid(g)
+        if ncols > 1:
+            flow.grid_cols([g for g in groups if g], ncols=ncols)
+        else:
+            for g in groups:
+                if g:
+                    flow.grid(g)
 
     def baijia_section():
         raw = (STD / "baijiaxing.txt").read_text("utf-8")
@@ -631,7 +709,7 @@ def build():
         if miss:
             print(f"  ⚠️ 百家姓：複姓 {miss} 有字不在 common，跳過")
         uniq = len(set(singles) | set("".join(comp)))
-        flow.section(f"四、百家姓（{uniq} 字，宋本；單姓四字一句照原文韻腳，複姓兩字一組）")
+        flow.section(f"四、百家姓（{uniq} 字）")
         flow.grid_units([singles[i:i + 4] for i in range(0, len(singles), 4)], per_row=6)
         flow.subhead(f"複姓（{len(comp)} 個）", sub="複姓")
         flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
@@ -672,21 +750,20 @@ def build():
             # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行（Wilson）；查無四角碼
             # 的幾個字沒有第一碼可分，自成一行擺最末。
             first = lambda c: fc.get(c, "")[:1] or "?"
-            cur, row = None, []
+            buckets = []
             for c in others:
                 k = first(c)
-                if row and k != cur:
-                    flow.grid(row)
-                    row = []
-                cur, row = k, row + [c]
-            if row:
-                flow.grid(row)
+                if not buckets or buckets[-1][0] != k:
+                    buckets.append([k, []])
+                buckets[-1][1].append(c)
+            for k, chars in buckets:
+                flow.grid_labeled(k, chars)
 
     bopo_section("一、教育部《常用國字標準字體表》甲表", jiabiao)
     pinyin_section("二、GB 2312 一級漢字", gb1, note="拼音序")
-    grouped_section("三、常用粵語字", canton_groups, note="約略依部首分堆")
+    grouped_section("三、常用粵語字", canton_groups, note="約略依部首分組", ncols=2)
     baijia_section()
-    flat_section("五、常用取名用字", names, note="男名／女名，跟〈線上試打〉那一排字卡同一份")
+    mingzi_section()
     other_section()
 
     flow.running_header(f"{BRAND}　{TITLE_REST}")

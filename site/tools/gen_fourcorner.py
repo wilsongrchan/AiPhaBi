@@ -9,8 +9,9 @@
 
 只收「其他」節目前實際會用到的字（build_charlist_pdf.py 算出來的 rest 差集）。
 名單變了、build_charlist_pdf.py 印出「四角號碼查無」的警告時，就重跑這支。
-Unihan 本身查不到四角碼的少數罕見字（丂 糹 罒 耂…那種部件、或冷僻異體）
-不收，排序時擺到該區塊最後。
+Unihan 查不到的少數字，手動查好填進下面的 MANUAL（Wilson 給的）；MANUAL
+優先於 Unihan。兩邊都查無的（部件字那種、或還沒手動補的冷僻異體），排序時
+擺到該區塊最後。
 """
 import io
 import json
@@ -20,6 +21,16 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "site" / "tools" / "fourcorner.json"
+
+# Unihan 查無、Wilson 手動查好的（2026-09-10）：格式跟 Unihan 一樣，前 4 碼＋
+# 「.」＋第五碼。
+MANUAL = {
+    "掕": "5404.7",
+    "攋": "5708.6",
+    "繮": "2191.6",
+    "釺": "8214.0",
+    "鰂": "2230.0",
+}
 
 
 def _rest_chars():
@@ -49,6 +60,7 @@ def main(zip_path):
             continue
         cp, _, val = ln.split("\t")
         fc[chr(int(cp[2:], 16))] = val.split()[0]   # 第一個碼，保留 .x 第五碼
+    fc.update(MANUAL)
     rest = _rest_chars()
     sub = {c: fc[c] for c in rest if c in fc}
     miss = [c for c in rest if c not in fc]
