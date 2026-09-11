@@ -233,13 +233,18 @@
       tiers.forEach(function (t, ti) {
         var tr = el('tr');
         var kd = el('td', 'zg-letterkey');
-        // 字母鍵放在**每一個等級列**（最多三列），不是只放第一列——精簡表
-        // 一個字母最多三列，重複三次不算吵，而且這樣字母跨欄時（M 的三等
-        // 列被擠到右欄開頭）那一列本身就帶著瀏覽器畫的字母鍵，跟左欄完全
-        // 同一個樣子，不用事後用 PyMuPDF 補一個對不太準的（Wilson 盯著看）。
-        var key = el('span', 'zg-key', L.letter);
-        key.setAttribute('data-keep', '');
-        kd.appendChild(key);
+        // 字母鍵只放第一個等級列——同一個字母最多三列（優／次／三等）重複
+        // 印三次看起來像三個不同字母（Wilson）。後面兩列的儲存格留空，
+        // .zg-letterkey 的底色／無框線還是照樣連成一片，視覺上仍讀得出
+        // 「同一個字母」。真的被瀏覽器 CSS 分欄斷開（M 常常這樣）的話，
+        // 斷開後那一欄開頭沒有字母鍵——這時要靠 build_pdf.py 印完 PDF 再
+        // 讀回來補一個接續標（跟完整版同一套 _stamp_key_badge），不是靠
+        // 這裡每列都畫一次來蒙混過去。
+        if (ti === 0) {
+          var key = el('span', 'zg-key', L.letter);
+          key.setAttribute('data-keep', '');
+          kd.appendChild(key);
+        }
         tr.appendChild(kd);
         if (ti === 0) {
           tr.id = 'L' + L.letter;
