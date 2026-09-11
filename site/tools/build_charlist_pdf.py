@@ -26,7 +26,9 @@
     常用取名用字   site/assets/try.js 的 NAME_MALE ／ NAME_FEMALE（跟〈線上試打〉
                   自由試打那一排字卡同一份，_name_chars() 也讀這裡）
     其他          common 裡以上都沒收到的字（含 common_extra.txt、常見異體、
-                  精選詞庫用字…那些沒有獨立清單檔的來源）
+                  精選詞庫用字…那些沒有獨立清單檔的來源）。分兩塊：部件字
+                  （codes.json 的 componentOnly）依愛發筆碼排，其餘依四角號碼排
+                  （查 site/tools/fourcorner.json，見 gen_fourcorner.py）
 
 ⚠️ 跟 build_pdf.py 一樣：**手動跑、產出直接進版控**（CI 不跑這支）。
 common 變了、甲表清單更新了、或 try.js 的名字清單改了，就要重跑、重新提交。
@@ -37,7 +39,6 @@ common 變了、甲表清單更新了、或 try.js 的名字清單改了，就�
 """
 import io
 import json
-import math
 import pathlib
 import re
 import sys
@@ -46,6 +47,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 CHARSET = ROOT / "site" / "assets" / "charset.json"
 STD = ROOT / "data" / "standards"
 TRY_JS = ROOT / "site" / "assets" / "try.js"
+CODES_JSON = ROOT / "data" / "codes.json"            # 讀取用：部件字旗標＋愛發筆碼
+FOURCORNER = ROOT / "site" / "tools" / "fourcorner.json"   # gen_fourcorner.py 產
 OUT = ROOT / "site" / "assets" / "downloads" / "changyongzi.pdf"
 
 PAGE_W, PAGE_H = 595.0, 842.0
@@ -77,50 +80,6 @@ CANTON_GROUPS = [
     list("嬲郁慳錫"),
     list("埞孭罅窿"),
     list("靚餸髀齙"),
-]
-
-# 「其他」節——前五類沒收、但仍在 M.common 名單裡的字（多半是 codes.json 裡
-# 某個核心字的簡化形，經「常見異體」那條規則收進來的）。Wilson 手挑、依部首
-# 分堆的定稿（2026-09-10），每堆在 PDF 裡另起一行。名單裡漏掉、但 rest 實際有
-# 的字，就近塞進同部首那一行，塞不進去的（㠯 龹 龺）擺最後一行。build() 會再對
-# rest 做一次差集當防呆，真有遺漏會補在最末行。Side B 若把某字列進
-# common_exclude.txt（薹 鄖 榘 彔 査 輥…），它就不在 rest 裡，這裡列著也會被
-# 濾掉——順手從下面拿掉即可。
-OTHER_GROUPS = [
-    list("丂丄丌丨丬丶丼丿乂乛亠"),
-    list("亵亻亼仝仨佈佼侷兖"),
-    list("冂冎冖冪冫"),
-    list("凵刂剉剮劊勹匚卩厶叻"),
-    list("呦咔唑唭啓喆嗮噁噌噻嚡囗圜"),
-    list("埗埼墘"),
-    list("夂婭媧嫚嫺嬅孃"),
-    list("宀崗幺廄廴廾"),
-    list("彐彡彳"),
-    list("忄忐忑忒忡"),
-    list("扌扞掕掰搧摁摳摻撣撾擯攢攋"),
-    list("攵旻昱曇曬"),
-    list("柾栃栢槿樑檯"),
-    list("氵汶洩洵淦淩淼滷漚潟澇濕濰"),
-    list("灬烴煲熒燁燼"),
-    list("爲爿犭猢猻獼"),
-    list("珅甯町"),
-    list("疒癟癡癰"),
-    list("眈硤碁磡"),
-    list("礻禛禰"),
-    list("糹纟絛綫緹繮繳纍纔"),
-    list("罒翦"),
-    list("耂肽腓腩舖"),
-    list("舘艷"),
-    list("艹芷芸苷荃蒨薦"),
-    list("虍蟄衆衊衕"),
-    list("衤衹裏"),
-    list("讠誹謅謾譭讕"),
-    list("蹟躥"),
-    list("辶邨鄲"),
-    list("钅釒釩釺鈎鉅鉉鉚銑銹鋇鋌鎬鐐"),
-    list("阝陞"),
-    list("飠饣餚餬饋"),
-    list("酯閹歎殭氈竈筲粿糰覈顥顴馗鰂鵰鷄鹵齧"),
 ]
 
 # 《百家姓》宋本的複姓（雙字姓）。baijiaxing.txt 的複姓段把共用的首字（公冶／
@@ -415,34 +374,6 @@ class Flow:
                 x += gap
             self.y += ROW_H
 
-    def multi_col(self, groups, ncols=2, subcols=13, row_h=None):
-        """把一串「部首堆」排成 ncols 直欄（每欄 subcols 格寬），高度盡量均分。
-        〈其他〉節用，塞得進一頁——這節是密排的檢索表，行距收一點（row_h 預設
-        比一般列矮 2pt）才擠得下同一頁。堆內滿 subcols 換行，每堆一定另起一行。"""
-        rh = ROW_H - 2.0 if row_h is None else row_h
-        grouprows = []
-        for g in groups:
-            rows = [g[i:i + subcols] for i in range(0, len(g), subcols)] or [[]]
-            grouprows.append(rows)
-        total = sum(len(r) for r in grouprows)
-        per_col = max(1, math.ceil(total / ncols))
-        self._room(per_col * rh)
-        y0 = self.y
-        colw = (PAGE_W - ML - MR) / ncols
-        col, yrow = 0, 0
-        for rows in grouprows:
-            if yrow and yrow + len(rows) > per_col and col < ncols - 1:
-                col += 1
-                yrow = 0
-            for r in rows:
-                x = ML + col * colw
-                for ch in r:
-                    self._cell(x, y0 + yrow * rh, ch)
-                    x += CELL
-                yrow += 1
-        last = yrow if col == ncols - 1 else per_col
-        self.y = y0 + max(1, last) * rh
-
     def running_header(self, text):
         """第 2 頁起，頁首放一行小小的「愛發筆輸入法　常用字表」。第 1 頁有大標題
         就不放。"""
@@ -706,17 +637,37 @@ def build():
         flow.grid_units(comp, per_row=12, unit_gap=CELL * 0.7, tight=True)
 
     def other_section():
-        restset = set(rest)
-        groups = [[c for c in g if c in restset] for g in OTHER_GROUPS]
-        placed = {c for g in groups for c in g}
-        leftover = [c for c in rest if c not in placed]
-        if leftover:
-            groups.append(leftover)
-            print(f"  ⚠️ 其他：{len(leftover)} 個字沒排進 OTHER_GROUPS，補最後：{''.join(leftover)}")
-        # DROP_CHARS（㠯 龹 龺）：內建字型畫不出、擺著像簡體字反而誤導，直接不列。
-        flow.section(f"六、其他常用字（{len(rest)} 字，包括部件字、常見的異體字等，"
-                     f"約略依部首分堆）")
-        flow.multi_col([g for g in groups if g], ncols=2)
+        # 部件字（codes.json 標 componentOnly 的）擺前面、依愛發筆碼排；其餘的
+        # 常見異體、詞庫用字…依四角號碼排（Wilson）。四角碼查 fourcorner.json
+        # （gen_fourcorner.py 從 Unihan 產），查無的擺該區塊最後。
+        # DROP_CHARS（㠯 龹 龺）內建字型畫不出、擺著像簡體字反而誤導，已不在 rest。
+        try:
+            cj = json.loads(CODES_JSON.read_text("utf-8"))
+        except Exception:
+            cj = {}
+        fc = {}
+        if FOURCORNER.is_file():
+            try:
+                fc = json.loads(FOURCORNER.read_text("utf-8"))
+            except Exception:
+                fc = {}
+        comp = [c for c in rest if isinstance(cj.get(c), dict) and cj[c].get("componentOnly")]
+        comp.sort(key=lambda c: (cj.get(c, {}).get("code") or "~", c))
+        compset = set(comp)
+        others = [c for c in rest if c not in compset]
+        miss = [c for c in others if c not in fc]
+        others.sort(key=lambda c: (fc.get(c, "99999"), c))
+        if miss:
+            print(f"  ⚠️ 其他：四角號碼查無 {len(miss)} 字，排在該區塊最後："
+                  f"{''.join(miss)}（名單有變動就重跑 gen_fourcorner.py）")
+
+        flow.section(f"六、其他常用字（{len(rest)} 字，包括部件字、常見的異體字等）")
+        if comp:
+            flow.subhead(f"部件字（{len(comp)} 個，依愛發筆碼序）", sub="部件字")
+            flow.grid(comp)
+        if others:
+            flow.subhead(f"其他（{len(others)} 字，四角號碼序）", sub="四角碼")
+            flow.grid(others)
 
     bopo_section("一、教育部《常用國字標準字體表》甲表", jiabiao)
     pinyin_section("二、GB 2312 一級漢字", gb1, note="拼音序")
