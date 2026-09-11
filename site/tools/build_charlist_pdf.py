@@ -14,7 +14,7 @@
      的全部，不是「扣掉前面的」——只有最後「其他」那節是收尾用的差集。
   2. 甲表與 GB 一級兩節再依**注音**（ㄅㄆㄇ…）分小節，仿台灣甲表的編排習慣。
      注音由 pypinyin 取。GB 一級那節的多音字，另一讀音那組會多一格「重出」
-     （右上角字母加圈、依讀音插在該到的位置），不計字數。每頁右上角列出本頁
+     （字母下點一個小點、依讀音插在該到的位置），不計字數。每頁右上角列出本頁
      涵蓋的注音／字母（仿〈字根表〉PDF）。
 
 分類清單來源：
@@ -313,17 +313,18 @@ class Flow:
         """在 (x, y_top) 這一格畫一個字，x 是格子左緣。
         anno＝右上角一個小綠字母，指這個多音字另一個讀音落在哪一組。
         dup=True＝這格是同一個多音字在該讀音組的「重出」（本尊、字數都算在
-        anno 指的那組）：右上角那個字母加一個圈。"""
+        anno 指的那組）：字母下面點一個小點。"""
         fn = FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT
         self.page.insert_text((x + (CELL - CHAR_SIZE) / 2, y_top + CHAR_SIZE), ch,
                               fontname=fn, fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
         if anno:
             green = (0.055, 0.486, 0.451)
-            ax = x + CELL - (4.8 if dup else 3.4)
+            ax = x + CELL - 3.4
             ay = y_top + 4.6
             self.page.insert_text((ax, ay), anno, fontname="hebo", fontsize=5.6, color=green)
             if dup:
-                self.page.draw_circle((ax + 1.4, ay - 1.7), 3.0, color=green, width=0.45)
+                self.page.draw_circle((ax + 1.5, ay + 1.7), 0.72,
+                                      color=green, fill=green, width=0.3)
 
     def grid(self, chars, annos=None):
         annos = annos or {}
@@ -539,7 +540,7 @@ def build():
         # 算一次。多音字（畜 xù／chù、厦 shà／xià、曾 zēng／céng…）另一個常用
         # 讀音的首字母那一節會**再出現一格**（Wilson）：
         #  ・本尊那格：右上角小綠字母，指向另一讀音所在組。
-        #  ・重出那格：那個字母加一個圈，依讀音插進該到的位置（曾 céng 排在
+        #  ・重出那格：那個字母下點一個小點，依讀音插進該到的位置（曾 céng 排在
         #    层 蹭 中間，不再丟到組末），不計入字數。
         AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         rank = lambda k: AZ.index(k) if k and k in AZ else -1
@@ -577,7 +578,7 @@ def build():
         flow.section(f"{title}（{len(chars)} 字{('，' + note) if note else ''}）")
         flow._room(ROW_H)
         flow._text((ML, flow.y + 6),
-                   "多音字：右上角綠字母指另一讀音所在組；字母加圈者代表該字已在"
+                   "多音字：右上角綠字母指另一讀音所在組；字母下帶一點者代表該字已在"
                    "另一讀音計算過，在此處不再重複計算。", 7, (0.42, 0.42, 0.42))
         flow.y += 11
         for L in AZ:
