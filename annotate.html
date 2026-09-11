@@ -522,9 +522,9 @@
       <span style="font-size:10px;color:var(--muted)">排序</span>
       <button data-sort="tw4808" class="on" title="教育部《常用國字標準字體表》甲表＋《次常用國字標準字體表》乙表，共 11151 字：還沒取碼的照字表原順序排前，甲表排完接著排乙表。取完這批就能說「涵蓋教育部常用＋次常用字」">國字表</button>
       <button data-sort="gb2312" title="GB 2312—80 基本集 6763 字（一級 3755 拼音序＋二級 3008 部首序）：還沒取碼的照字表原順序排前">GB表</button>
-      <button data-sort="name" title="兩岸三地常見姓氏＋人名（名字）用字">姓名</button>
+      <button data-sort="cjk" title="中日韓統一表意文字整個區段（U+4E00–U+9FFF）20992 字，Unicode 14.0 起已完整填滿：還沒取碼的照碼位序排前">CJK</button>
+      <button data-sort="baijiaxing" title="百家姓：還沒取碼的姓氏照百家姓原順序排前">百家姓</button>
       <button data-sort="place" title="地名用字：國家與首都、香港／台北／北上廣深地鐵站名、中台日韓大城市與一級行政區、香港台北市區與主要街道、東京地鐵站名（含日漢字）">地名</button>
-      <button data-sort="binom" title="連綿詞用字：寂寞、葡萄這種字，通常要兩個字一起出現才有意義，單獨那一個字字頻不高、容易被排到很後面——這裡手動列出常見連綿詞，把還沒取碼的那些字排前面優先取">連綿詞</button>
     </div>
     <div class="lenfilter" id="lenfilter" title="依碼長篩選已取碼的字（5＝剛好五碼，5+＝完整碼超過五碼、被縮短）" style="display:none">
       <span style="font-size:10px;color:var(--muted)">碼長</span>
@@ -781,7 +781,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
-let orderings = { tw4808: [], gb2312: [], name: [], place: [], binom: [] };  /* 未取碼佇列的排序來源 */
+let orderings = { tw4808: [], gb2312: [], cjk: [], baijiaxing: [], place: [] };  /* 未取碼佇列的排序來源 */
 let pinOrder = [];  /* 未取碼佇列全域置頂：不分排序來源，這批字一律浮到最前（見 data/todo_pin.json） */
 let stdChars = [];   /* 官方字表聯集（教育部常用國字4808 ∪ GB2312）：跟 /progress 同一套完成目標，
                          不是 order（字頻表 9574，那是字形資料涵蓋範圍，見 server.py 的說明） */
@@ -789,7 +789,7 @@ let stdChars = [];   /* 官方字表聯集（教育部常用國字4808 ∪ GB231
    （選了某個來源，只是把那批字提到最前，其餘仍照字頻），不必再單獨列一顆；
    新聞字頻與「簡體」都併進 GB 表 —— 簡體專屬字本來就幾乎都在 GB 2312 裡。
    舊的 freq／news／simp 存在 localStorage 裡的話，落回國字表。 */
-const QSORTS = ['tw4808', 'gb2312', 'name', 'place', 'binom'];
+const QSORTS = ['tw4808', 'gb2312', 'cjk', 'baijiaxing', 'place'];
 let queueSort = localStorage.getItem('aiphabi-qsort');
 if (!QSORTS.includes(queueSort)) queueSort = 'tw4808';
 let lenFilter = localStorage.getItem('aiphabi-lenfilter') || 'all';  /* 已取碼依碼長篩選：all｜1..5｜5+ */

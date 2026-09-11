@@ -81,12 +81,15 @@
   /* 收合：只剩兩條長條，一個字都不留。整張卡片可點，點了就展開回來。 */
   .std.collapsed{padding:11px 18px;cursor:pointer;}
   .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot,.std.collapsed .stsegline{display:none;}
-  .std.collapsed .strow{margin:0 0 6px;}
+  .std.collapsed .strow{margin:0 0 6px;padding-bottom:0;border-bottom:none;}
   .std.collapsed .strow:last-child{margin-bottom:0;}
   .std.collapsed .stbar{height:7px;}
   .std.collapsed .stsplit{top:-2px;bottom:-2px;}
-  .strow{margin:0 0 16px;}
-  .strow:last-child{margin-bottom:0;}
+  /* 每個表（甲乙表／GB2312／CJK）中間畫一條淺灰分隔線，不是純靠留白分——卡片
+     一長，光靠 margin 分不太出這裡是換了一張表。收合視圖不畫（上面那條規則
+     蓋掉），密度不一樣。 */
+  .strow{margin:0 0 16px;padding-bottom:16px;border-bottom:1px solid var(--line);}
+  .strow:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
   .sthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 7px;flex-wrap:wrap;}
   .stname{font-size:14px;color:var(--ink);}
   .stname small{color:var(--faint);font-size:11px;margin-left:7px;letter-spacing:0;}
@@ -108,11 +111,19 @@
   /* 分段線下面的段名：對齊分段線，甲表在線左、乙表在線右（各自置中在自己的
      那一段），不是隨便排一列——這樣線在標什麼一眼就懂。 */
   .stsegline{position:relative;height:15px;margin:5px 0 0;font-size:11.5px;color:var(--muted);}
+  .stsegline.above{margin:0 0 5px;}
   .stsegline span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;}
   .stsegline b{color:var(--ink);font-weight:600;}
   /* 一組（如 CJK 上半／下半）疊在一起：緊貼的間距，跟收合視圖那種「兩條長條
-     疊著」的密度一樣，不是一般 strow 之間的 16px。 */
-  .stbargrp{margin:0 0 10px;} .stbargrp:last-child{margin-bottom:0;}
+     疊著」的密度一樣，不是一般 strow 之間的 16px。除了最後一條，段名都搬到
+     長條上面（.above），這裡的間距才是純粹兩條長條之間的縫，不夾一排字。 */
+  .stbargrp{margin:0 0 2px;} .stbargrp:last-child{margin-bottom:0;}
+  /* 疊起來那組的標題（sthead）跟長條之間縮短一點，段名才不會離標題數字那麼
+     開。故意不用 stbarstack 的負 margin-top 去拉：收合視圖裡 sthead 是
+     display:none，一消失，負 margin 就會直接跟上一個 .strow 的 margin-bottom
+     疊在一起（margin collapsing 穿過去了），把整條表跟上一條表的間距吃掉，
+     密度反而變得不一致。改成縮小 sthead 自己（可見時才算），乾淨也不會漏。 */
+  .sthead.tight{margin-bottom:2px;}
   .stfoot{margin-top:7px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;}
   .stfoot a{color:var(--s2);text-decoration:none;}
   .stfoot a:hover{text-decoration:underline;}
@@ -487,7 +498,7 @@ function renderStandards(data){
   // segs 底下把段名對齊擺在分隔線左右——每段的名字置中在「自己那一段」的範圍
   // 內，兩段時剛好就是線左一個、線右一個，不是隨便排一列。barw 是這條長條要畫
   // 到全卡寬的百分之幾，跟自己的 pct（填色比例）是兩把不同的尺。
-  const barHTML=(s,barw)=>{
+  const barHTML=(s,barw,segsAbove)=>{
     const splits=(s.splits||[]).map(v=>
       `<span class="stsplit" style="left:${(v/s.total*100).toFixed(3)}%"></span>`).join('');
     let fill,segs='';
@@ -507,12 +518,15 @@ function renderStandards(data){
         const center=(prev2+g.split)/2/s.total*100; prev2=g.split;
         return `<span style="left:${center.toFixed(2)}%" title="${g.label}：${g.done.toLocaleString()} / ${g.total.toLocaleString()}"><b>${g.label}</b></span>`;
       }).join('');
-      segs=`<div class="stsegline" style="width:${barw}%">${spans}</div>`;
+      // 疊在一起的那一疊裡，上面那條的段名擺到長條上面（segsAbove），不是照
+      // 預設放下面——不然兩條中間會夾一排字，看起來就分開了，不是疊在一起。
+      segs=`<div class="stsegline${segsAbove?' above':''}" style="width:${barw}%">${spans}</div>`;
     }else{
       const pct=s.total?s.done/s.total*100:0;
       fill=`<i style="left:0;width:${pct.toFixed(2)}%"></i>`;
     }
-    return `<div class="stbar" style="width:${barw}%">${fill}${splits}</div>${segs}`;
+    const bar=`<div class="stbar" style="width:${barw}%">${fill}${splits}</div>`;
+    return segsAbove?segs+bar:bar+segs;
   };
   const footHTML=missing=>{
     const left=missing.length;
@@ -534,15 +548,17 @@ function renderStandards(data){
       const done=u.members.reduce((a,m)=>a+m.done,0);
       const pct=total?done/total*100:0;
       // 標題顯示兩段合計，長條寬度各自照自己的字數對 refTotal（見上面的說明），
-      // 不是共用合計數字的寬度。
+      // 不是共用合計數字的寬度。除了最後一條，段名都擺長條上面，兩條長條之間
+      // 才不會夾一排字——不然看起來是分開的兩塊，不是疊在一起。
+      const last=u.members.length-1;
       const bars=u.members.map((m,j)=>
-        `<div class="stbargrp${j?' stacked':''}">${barHTML(m,(m.total/refTotal*100).toFixed(3))}</div>`).join('');
+        `<div class="stbargrp${j?' stacked':''}">${barHTML(m,(m.total/refTotal*100).toFixed(3),j<last)}</div>`).join('');
       return `<div class="strow ${cls}">
-        <div class="sthead">
+        <div class="sthead tight">
           <span class="stname">${u.groupName}</span>
           <span class="stnum"><b>${done.toLocaleString()}</b> / ${total.toLocaleString()}　${pct.toFixed(1)}%</span>
         </div>
-        ${bars}
+        <div class="stbarstack">${bars}</div>
         <div class="stfoot">${footHTML(u.members.flatMap(m=>m.missing))}</div>
       </div>`;
     }

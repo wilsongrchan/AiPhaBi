@@ -599,6 +599,11 @@ class Handler(BaseHTTPRequestHandler):
             ords["tw4808"] = _standard_segment_chars({"file": "tw_common_4808.txt"}) + \
                 _standard_segment_chars({"file": "tw_common_yi_6343.txt"})
             ords["gb2312"] = _load_standard("gb2312.txt")
+            # CJK：整個 CJK 統一表意文字區段照碼位序（跟進度頁的 cjk1／cjk2 合起來
+            # 同一個順序）；百家姓：獨立按鈕，不再併進「姓名」（那個併過人名用字，
+            # 排序意義不夠純粹，姓名按鈕已經拿掉）。
+            ords["cjk"] = _standard_segment_chars({"range": [0x4E00, 0x9FFF]})
+            ords["baijiaxing"] = _load_standard("baijiaxing.txt")
             try:
                 ords["pin"] = json.loads(TODO_PIN.read_text("utf-8")).get("order", []) \
                     if TODO_PIN.exists() else []
