@@ -52,7 +52,7 @@ PAGE_W, PAGE_H = 595.0, 842.0
 ML, MR, MT, MB = 42.0, 42.0, 46.0, 30.0
 COLS = 26
 CELL = (PAGE_W - ML - MR) / COLS
-ROW_H = 18.5
+ROW_H = 17.6
 CHAR_SIZE = 12.5
 BRAND = "愛發筆輸入法"
 TITLE_REST = "常用字表"
@@ -235,6 +235,7 @@ class Flow:
         self._fb = pathlib.Path(FALLBACK_FILE).exists()
         self._cat = None          # 目前所在的分類短名
         self._marks = []          # (頁碼, 分類, 小標) —— 給頁首右上角的範圍標籤
+        self._breaks = set()      # 用 page_break() 硬換頁、頂端不接上一頁內容的頁
         self._new_page()
 
     def _new_page(self):
@@ -290,6 +291,28 @@ class Flow:
         self._text((ML, self.y + 9), subtitle, 8.5, (0.42, 0.42, 0.42))
         self.y += 24
 
+    def page_break(self):
+        """除非已在頁頂，否則換新頁（讓某一節從整頁開頭起）。"""
+        if self.y > MT + 1:
+            self._new_page()
+            self._breaks.add(len(self.doc) - 1)
+
+    def _wrap(self, x, s, size, color, lead=None, maxw=None):
+        """把 s 依寬度斷成多行畫出來，逐行推進 self.y（畫在 self.y 的基線上）。"""
+        maxw = (PAGE_W - MR - x) if maxw is None else maxw
+        lead = size + 2.0 if lead is None else lead
+        line = ""
+        for ch in s:
+            if line and self.fitz.get_text_length(
+                    line + ch, fontname=FONT, fontsize=size) > maxw:
+                self._text((x, self.y), line, size, color)
+                self.y += lead
+                line = ""
+            line += ch
+        if line:
+            self._text((x, self.y), line, size, color)
+            self.y += lead
+
     def section(self, text):
         self._room(40)
         self._cat = SECTION_CATS.get(text[:1], text[:1])
@@ -323,7 +346,8 @@ class Flow:
             ay = y_top + 4.6
             self.page.insert_text((ax, ay), anno, fontname="hebo", fontsize=5.6, color=green)
             if dup:
-                self.page.draw_circle((ax + 1.5, ay + 1.7), 0.72,
+                aw = self.fitz.get_text_length(anno, fontname="hebo", fontsize=5.6)
+                self.page.draw_circle((ax + aw / 2, ay + 1.7), 0.72,
                                       color=green, fill=green, width=0.3)
 
     def grid(self, chars, annos=None):
@@ -439,6 +463,8 @@ class Flow:
             by_page.setdefault(pg, []).append((cat, sub))
         carry = None
         for n, page in enumerate(self.doc):
+            if n in self._breaks:
+                carry = None
             here = by_page.get(n, [])
             seq = ([carry] if carry else []) + here
             if here:
@@ -575,12 +601,18 @@ def build():
                 char_primary[c] = cur
                 char_alt[c] = alt
 
+        flow.page_break()          # GB 這節從整頁開頭起（Wilson）
         flow.section(f"{title}（{len(chars)} 字{('，' + note) if note else ''}）")
-        flow._room(ROW_H)
-        flow._text((ML, flow.y + 6),
-                   "多音字：右上角綠字母指另一讀音所在組；字母下帶一點者代表該字已在"
-                   "另一讀音計算過，在此處不再重複計算。", 7, (0.42, 0.42, 0.42))
-        flow.y += 11
+        flow._room(ROW_H + 12)
+        flow.y += 6
+        flow._wrap(ML,
+                   "多音字：右上標字母者，代表此字有另一常見讀音——如 C 組內的「长」"
+                   "右上標 Z，因其另一常見讀音為 zhang。右上標字母下再加一點者，代表"
+                   "該字已在另一讀音組計算過、在此組不再重複計算——如 Z 組內的「长」"
+                   "右上標 C，因其另一常見讀音為 chang，但 C 下加點，表示此字已在 C 組"
+                   "字數中計算過，不再在 Z 組重複統計。",
+                   6.8, (0.42, 0.42, 0.42), lead=8.6)
+        flow.y += 3
         for L in AZ:
             base = groups.get(L, [])
             ex = extras.get(L, [])
