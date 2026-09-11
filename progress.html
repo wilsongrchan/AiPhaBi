@@ -161,6 +161,25 @@
   .cross.on{opacity:.7;}
   .tianzi{stroke:var(--faint);stroke-dasharray:5 6;stroke-width:1;opacity:.3;fill:none;}
   .msg{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
+
+  /* 三個字集合的范氏圖：簡體方案字（簡體字＋傳承字）／傳統漢字（繁體字＋傳承字）／
+     常用字。純示意，圓圈大小、重疊面積不按實際字數比例——但相對關係是真的：
+     兩套字表本身共用的傳承字遠多於各自專屬的簡繁字，所以畫成大重疊；常用字
+     只是橫跨兩套字表挑出來的一小撮，畫成疊在中間偏下、比另外兩個圈小得多。
+     例字沿用上面 CATDEF 同一批（人天后／国鳥／國魚雲），不再另外造例字。 */
+  .venn text{font-family:-apple-system,"PingFang TC","Helvetica Neue",system-ui,sans-serif;}
+  .venn .setname{font-size:15px;font-weight:600;fill:var(--ink);}
+  .venn .setdef{font-size:11px;fill:var(--muted);}
+  /* 圈裡的區塊標籤疊在色塊上，色塊深淺隨主題／重疊層數變化——用跟卡片同色的
+     文字描邊當「光暈」，不管疊了幾層色都讀得到，不必為了對比度去反推透明度。 */
+  .venn .rname,.venn .rex,.venn .rnone{paint-order:stroke;stroke:var(--card);stroke-width:3.5px;stroke-linejoin:round;}
+  .venn .rname{font-size:13px;font-weight:600;fill:var(--ink);}
+  .venn .rex{font-size:11px;fill:var(--muted);}
+  .venn .rnone{font-size:10.5px;fill:var(--faint);font-style:italic;}
+  .venn .cA{fill:var(--s2);stroke:var(--s2);}
+  .venn .cB{fill:var(--accent);stroke:var(--accent);}
+  .venn .cC{fill:var(--s4);stroke:var(--s4);}
+  .venn circle{fill-opacity:.4;stroke-width:1.6;stroke-opacity:.9;}
   @media (prefers-reduced-motion:reduce){.tip{transition:none;}}
 </style>
 </head>
@@ -174,6 +193,41 @@
     <h1><span class="big num" id="total">—</span><span class="unit">字</span></h1>
     <p class="lede" id="lede">讀取中…</p>
   </header>
+
+  <div class="card">
+    <div class="plabel"><span>三個字集合的關係</span><span class="r">示意圖，非按比例</span></div>
+    <figure><svg class="venn" viewBox="0 0 600 420" role="img"
+      aria-label="簡體方案字、傳統漢字、常用字三個字集合的范氏圖：簡體方案字等於簡體字加傳承字，傳統漢字等於繁體字加傳承字，常用字是橫跨兩套字表挑出的一批字，主要落在傳承字與各自專屬字的交集裡。">
+      <circle class="cA" cx="250" cy="193" r="118"/>
+      <circle class="cB" cx="350" cy="193" r="118"/>
+      <circle class="cC" cx="300" cy="257" r="92"/>
+
+      <text class="setname" x="195" y="38" text-anchor="end">簡體方案字</text>
+      <text class="setdef" x="195" y="54" text-anchor="end">＝簡體字＋傳承字</text>
+      <text class="setname" x="405" y="38" text-anchor="start">傳統漢字</text>
+      <text class="setdef" x="405" y="54" text-anchor="start">＝繁體字＋傳承字</text>
+      <text class="setname" x="300" y="378" text-anchor="middle">常用字</text>
+      <text class="setdef" x="300" y="394" text-anchor="middle">依使用頻率篩出，橫跨兩套字表</text>
+
+      <text class="rname" x="175" y="133" text-anchor="middle">簡體字</text>
+      <text class="rex" x="175" y="149" text-anchor="middle">其餘專屬字，較少見</text>
+      <text class="rname" x="425" y="133" text-anchor="middle">繁體字</text>
+      <text class="rex" x="425" y="149" text-anchor="middle">其餘專屬字，較少見</text>
+
+      <text class="rname" x="300" y="137" text-anchor="middle">傳承字</text>
+      <text class="rex" x="300" y="153" text-anchor="middle">其餘傳承字，較少見</text>
+
+      <text class="rname" x="300" y="212" text-anchor="middle">傳承常用字</text>
+      <text class="rex" x="300" y="228" text-anchor="middle">如人天后</text>
+
+      <text class="rname" x="225" y="236" text-anchor="middle">簡體常用字</text>
+      <text class="rex" x="225" y="252" text-anchor="middle">如国鸟</text>
+      <text class="rname" x="375" y="236" text-anchor="middle">繁體常用字</text>
+      <text class="rex" x="375" y="252" text-anchor="middle">如國魚雲</text>
+
+      <text class="rnone" x="300" y="325" text-anchor="middle">（幾乎不存在——常用字必屬於某套字表）</text>
+    </svg></figure>
+  </div>
 
   <div id="stdcard"></div>
 
