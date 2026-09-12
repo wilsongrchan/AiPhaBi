@@ -7,7 +7,12 @@
 
   var root = document.getElementById('gj-component-tbl');
   if (!root) return;
-  var body = root.querySelector('tbody');
+  // 兩欄（見 gongnengjian.html 的 .jm-cols-2）：整份依序切一半，前半在左表、
+  // 後半在右表——不是逐列左右交錯，這樣同一欄裡的碼仍照順序連續排（跟
+  // jianma.js 的三欄約定簡碼表同一個做法）。
+  var bodies = ['#gj-component-tbl tbody', '#gj-component-tbl-2 tbody']
+    .map(function (sel) { return document.querySelector(sel); })
+    .filter(Boolean);
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -37,11 +42,14 @@
     .then(function (r) { return r.json(); })
     .then(function (d) {
       var rows = d.codes || [];
-      body.innerHTML = '';
-      rows.forEach(function (g) { body.appendChild(row(g)); });
+      bodies.forEach(function (tb) { tb.innerHTML = ''; });
+      var per = Math.ceil(rows.length / bodies.length);
+      bodies.forEach(function (tb, i) {
+        rows.slice(i * per, (i + 1) * per).forEach(function (g) { tb.appendChild(row(g)); });
+      });
     })
     .catch(function () {
-      body.innerHTML = '<tr><td colspan="3">部件表載入失敗，請重新整理。</td></tr>';
+      if (bodies[0]) bodies[0].innerHTML = '<tr><td colspan="3">部件表載入失敗，請重新整理。</td></tr>';
     });
 })();
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """產生〈下載〉頁的兩份字根表 PDF：
-    site/assets/downloads/zigen-chart.pdf          完整版（取形意圖／字根／字例）
-    site/assets/downloads/zigen-chart-compact.pdf  精簡版（拿掉字例欄，字根欄裡
+    site/assets/downloads/AiPhaBi_ZigenChart.pdf          完整版（取形意圖／字根／字例）
+    site/assets/downloads/AiPhaBi_ZigenChart_Compact.pdf  精簡版（拿掉字例欄，字根欄裡
                                                     的形狀從左到右排開，一列＝
                                                     一個取形意圖，不是一個形狀）
 
@@ -47,6 +47,7 @@ Playwright 的 header/footer template 又是「每一頁套同一份 HTML」，�
 
     pip3 install playwright pymupdf && playwright install chromium   # 第一次跑才需要
 """
+import io
 import pathlib
 import string
 import sys
@@ -56,6 +57,62 @@ OUT_DIR = ROOT / "site" / "assets" / "downloads"
 # 完整標誌（四個字母），不是分頁用的簡化版 favicon——頁首夠寬，放得下完整
 # 標誌，不必像瀏覽器分頁那樣退而求其次（Wilson：「用 icon 不要用 favicon」）。
 LOGO = ROOT / "site" / "assets" / "img" / "logo-512.png"
+
+# 頁首品牌列的樣式，跟〈常用字表 PDF〉（build_charlist_pdf.py）同一套數字——
+# 小標誌、灰色小字、字母清單改用點號隔開，兩份 PDF 的頁首頁尾看起來才像
+# 同一個品牌印出來的東西，不是兩套各自的風格（Wilson）。頁面都是 A4
+# （595×842pt），y 座標可以直接照抄，不用另外量。
+_HDR_GRAY = (0.55, 0.55, 0.55)
+_HDR_LINE_GRAY = (0.86, 0.86, 0.86)
+_HDR_SIZE = 7.5
+_LETTER_LIST_GRAY = (0.5, 0.5, 0.5)
+_FOOT_GRAY = (0.5, 0.5, 0.5)
+_DOT_PAD = 1.3   # 點號兩邊留白，字母才不會跟點號黏在一起
+
+# 大標題區（logo＋品牌＋標題＋說明段）跟〈常用字表 PDF〉title() 同一套版面
+# 數字：logo 19pt 見方、品牌字級 17、說明段 7.6。這裡的座標系統是印出來的
+# PDF 絕對座標（跟 stamp_pdf() 其他標記一樣），不是 CSS px；TITLE_BLOCK_TOP
+# 是內容區實際開始的 y（頁邊距 15mm≈42.5pt），TITLE_BLOCK_RESERVE_PX 是要
+# 藏起來的原生 <h1> 等元素讓出多少 CSS px 空間（render_pdf() 用），兩個要
+# 大概對得上，數字是量出來的（見檔頭改動說明），不是巧合。
+TITLE_BLOCK_TOP = 42.5
+TITLE_BLOCK_RESERVE_PX = 108
+_TITLE_DARK = (0.1, 0.1, 0.1)
+_TITLE_GRAY = (0.28, 0.28, 0.28)
+_TITLE_NOTE_GRAY = (0.42, 0.42, 0.42)
+_NO_LINE_START = set("。，、；：！？」』】）～·,.;:!?)")
+# 跟 zigen.html 頁面上第一段 .zg-intro 逐字一樣——這裡照抄，不是另外寫一份，
+# 網站那句話改了要記得這裡也要跟著改（gen_fourcorner.py 那類「兩份手動同步」
+# 的老問題，暫時沒有更好的辦法，兩支腳本各自獨立、沒有共用 import）。
+ZG_NOTE = ("以下列出26個英文字母下納的所有字根。絕大多數字根在外型上與所屬的英文"
+           "字母大寫字形相近，一目了然，但有個別取形意圖有額外解釋，以便加強理解"
+           "和記憶。")
+
+_LOGO_CACHE = {}
+
+
+def _logo_stream(px):
+    """把 logo-512.png 攤平在白底、Lanczos 縮到 px 見方，回傳 PNG bytes——
+    跟 build_charlist_pdf.py 同一招：直接把半透明大圖塞進小方框，縮出來的
+    邊緣會糊、會有雜點，先攤平在白底再高品質縮小才乾淨。沒有 Pillow 就回
+    None，呼叫端退回不畫標誌。"""
+    if px in _LOGO_CACHE:
+        return _LOGO_CACHE[px]
+    out = None
+    if LOGO.is_file():
+        try:
+            from PIL import Image
+            im = Image.open(LOGO).convert("RGBA")
+            bg = Image.new("RGB", im.size, "white")
+            bg.paste(im, mask=im.split()[3])
+            bg = bg.resize((px, px), Image.LANCZOS)
+            buf = io.BytesIO()
+            bg.save(buf, "PNG")
+            out = buf.getvalue()
+        except Exception:
+            out = None
+    _LOGO_CACHE[px] = out
+    return out
 
 # 頁邊留給頁首／頁尾文字，比純粹排版需要的窄邊多留一點——8mm 太緊，塞不下
 # 一行字還跟表格黏在一起；左右也加寬一點，紙本裝訂／打孔要留的邊，貼著
@@ -77,6 +134,19 @@ def render_pdf(page, url, out_path, forced_breaks=None):
     # 切換用的是同一個屬性（localStorage 那套，這裡直接寫 DOM 就夠，不用存）。
     page.evaluate("document.documentElement.dataset.theme = 'light'")
     page.emulate_media(media="print")
+    # 頁首那顆「字根表」大標題、下面的說明段，原本是這頁自己的 <h1>／.eyebrow／
+    # .zg-intro，字型（Noto Sans TC）、顏色都跟〈常用字表 PDF〉自己畫出來的
+    # 標題區不是同一套——兩份 PDF 擺在一起看得出是兩種風格（Wilson）。這裡
+    # 直接把這三個元素藏起來，留一塊固定高度的空白（TITLE_BLOCK_RESERVE_PX），
+    # stamp_pdf() 再用跟常用字表 title() 一模一樣的 PyMuPDF 畫法把標題區畫
+    # 進這塊空白——字型引擎都一樣，才會是真的同一套樣式，不是兩邊各自逼近。
+    # 只藏第一個 .zg-intro（main.wrap 的直接子元素）：〈相近字形辨析〉那節
+    # 自己也有一段 .zg-intro，那個不是標題區的一部分，要留著。
+    page.add_style_tag(content=(
+        "main.wrap > .eyebrow, main.wrap > h1, main.wrap > .zg-intro "
+        "{ display: none !important; } "
+        f"main.wrap {{ padding-top: {TITLE_BLOCK_RESERVE_PX}px !important; }}"
+    ))
     if forced_breaks:
         # letterRows()／renderCompactTable() 給每個字母的第一列一個 #L<字母>
         # 錨點，強制換頁只需要選到那一列本身。
@@ -99,12 +169,143 @@ def _letter_badges(page):
     return out
 
 
-def _col_tops(page):
-    """這一頁左／右欄，各自第一塊內容（不分是不是字母鍵）的 {欄: (y, x)}。
-    用來判斷「這一欄最上面那一小塊有沒有字母鍵」——沒有的話就是接著
-    上一欄／上一頁還沒印完的字母；x 順便記下來，補接續標時直接貼著那欄
-    實際的內容邊界，不用另外猜兩欄各自的 x 座標。"""
+# 表頭那一列的文字——Chromium 把整張表放進兩欄容器時，每一欄的開頭都會
+# 重印一次 <thead>，那不是內容。_col_tops 要把它連同頁首品牌字一起跳過，
+# 不然「這一欄開頭沒有字母鍵」永遠成立（表頭不是字母鍵），就會在每一頁
+# 每一欄的最上面亂補一個接續小標——就是頁首左右冒出來的那兩個怪字母。
+_HEAD_LABELS = ("字母", "取形意圖", "字例")
+_HEADER_BAND = 40   # 這個 y 以上是頁首留白（MARGIN top 15mm ≈ 42.5pt）
+
+
+def _badge_x(page):
+    """這一頁左／右欄的字母鍵 x 座標 {欄: x}——補接續標時對齊真正的字母欄，
+    不是對齊量到的內容左緣（那會落在取形意圖欄的文字上）。"""
+    out = {}
     d = page.get_text("dict")
+    for block in d["blocks"]:
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                t = span["text"].strip()
+                if len(t) == 1 and t in string.ascii_uppercase and span["font"] == "Menlo-Bold":
+                    col = "L" if span["bbox"][0] < COL_SPLIT_X else "R"
+                    out.setdefault(col, span["bbox"][0])
+    return out
+
+
+# 真字母鍵印出來的量測值（兩份 PDF 一致）：8pt 的字，外面一個 13.5×13.5pt、
+# 圓角、淡綠底、重點色描邊的藥丸。接續標要一模一樣（Wilson），不是隨手寫個字。
+_ACCENT = (0x0e / 255, 0x7c / 255, 0x73 / 255)
+_KEY_FILL = (0.933, 0.965, 0.961)
+_KEY_PILL = 13.5
+_KEY_CX = {"L": 42.2, "R": 315.2}   # 沒有真字母鍵可抄 x 時的預設欄中心
+
+
+def _stamp_key_badge(page, cx, top_y, letter):
+    """在 (cx, top_y) 補一個跟真字母鍵同款的藥丸標——字母跨欄／跨頁時，
+    接續的那一欄開頭本來沒有字母鍵，補這個讓它看起來就像原本就在那。"""
+    import fitz
+
+    y0 = top_y - 2.0
+    r = fitz.Rect(cx - _KEY_PILL / 2, y0, cx + _KEY_PILL / 2, y0 + _KEY_PILL)
+    # 真字母鍵是 border-radius: 6px（.zg-key）÷ 印出來約 13.5pt 的框 ≈ 0.38
+    page.draw_rect(r, color=_ACCENT, fill=_KEY_FILL, width=0.75, radius=0.38)
+    tl = fitz.get_text_length(letter, fontname="hebo", fontsize=8)
+    page.insert_text((cx - tl / 2, y0 + 11.3), letter,
+                     fontname="hebo", fontsize=8, color=_ACCENT)
+
+
+def _mixed_font(ch):
+    """ASCII（數字、半形標點、空格）走 helv，china-s 會把它們畫成全形，數字
+    之間就多出一大塊空白（跟 build_charlist_pdf.py Flow._text() 同一個坑：
+    「26」曾經被畫成「2　6」，中間卡一格全形空白）。其餘 CJK 走 china-s。"""
+    return "helv" if 0x20 <= ord(ch) <= 0x7E else "china-s"
+
+
+def _mixed_width(s, size):
+    import fitz
+    return sum(fitz.get_text_length(ch, fontname=_mixed_font(ch), fontsize=size) for ch in s)
+
+
+def _draw_mixed(page, x, y, s, size, color):
+    import fitz
+    for ch in s:
+        fn = _mixed_font(ch)
+        page.insert_text((x, y), ch, fontname=fn, fontsize=size, color=color)
+        x += fitz.get_text_length(ch, fontname=fn, fontsize=size)
+    return x
+
+
+def _wrap_print_text(page, x, y, s, size, color, lead, maxw):
+    """跟 build_charlist_pdf.py 的 Flow._wrap() 同一套邏輯（含避頭點：標點
+    不落到下一行開頭；ASCII／CJK 分字型見 _mixed_font），這裡是獨立函式版
+    ——兩支腳本沒有共用 import，複製一份省得為了一個小工具去搭橋。回傳
+    最後印完那一行的 y（給呼叫端接著往下排）。"""
+    line = ""
+    for ch in s:
+        if ch == "\n":
+            _draw_mixed(page, x, y, line, size, color)
+            y += lead
+            line = ""
+            continue
+        if (line and ch not in _NO_LINE_START
+                and _mixed_width(line + ch, size) > maxw):
+            _draw_mixed(page, x, y, line, size, color)
+            y += lead
+            line = ""
+        line += ch
+    if line:
+        _draw_mixed(page, x, y, line, size, color)
+        y += lead
+    return y
+
+
+def _draw_title_block(page, title_rest, note):
+    """畫一份跟〈常用字表 PDF〉title() 同一套樣式的大標題：logo＋「愛發筆
+    輸入法」＋標題（灰）一行，底下再印一段說明文字（同一個字級／顏色／
+    行距）。字型引擎（china-s）、顏色數值都直接照抄，不是另外調近似值——
+    兩份 PDF 的標題區才會是真的同一套樣式，不是碰巧像（Wilson）。
+    「愛發筆輸入法」要用粗體，但 china-s 這顆內建 CJK 字型沒有粗體版本、
+    Helvetica-Bold（hebo）裡又沒有中文字身——用 build_charlist_pdf.py
+    Flow._text(bold=True) 同一招：同一個字疊印兩次、橫向錯開 0.3pt，
+    肉眼看起來就是粗體。"""
+    import fitz
+    top = TITLE_BLOCK_TOP
+    x = 20.0
+    s = 19.0
+    logo = _logo_stream(round(s * 4))
+    if logo is not None:
+        try:
+            page.insert_image(fitz.Rect(x, top, x + s, top + s), stream=logo)
+            x += s + 7
+        except Exception:
+            pass
+    for ch in "愛發筆輸入法":
+        page.insert_text((x, top + 15.5), ch, fontname="china-s", fontsize=17, color=_TITLE_DARK)
+        page.insert_text((x + 0.3, top + 15.5), ch, fontname="china-s", fontsize=17, color=_TITLE_DARK)
+        x += fitz.get_text_length(ch, fontname="china-s", fontsize=17)
+    page.insert_text((x + 6, top + 15.5), title_rest, fontname="china-s",
+                     fontsize=17, color=_TITLE_GRAY)
+    y = top + 26 + 8
+    _wrap_print_text(page, 20.0, y, note, 7.6, _TITLE_NOTE_GRAY, 9.8, 555.0 - 20.0)
+
+
+def _col_tops(page):
+    """這一頁左／右欄，各自第一塊**內容**（跳過重印的表頭與頁首文字）的
+    {欄: (y, x)}。用來判斷「這一欄最上面那一小塊有沒有字母鍵」——沒有的話
+    就是接著上一欄／上一頁還沒印完的字母；x 順便記下來，補接續標時直接
+    貼著那欄實際的內容邊界，不用另外猜兩欄各自的 x 座標。"""
+    d = page.get_text("dict")
+
+    head_ys = []
+    for block in d["blocks"]:
+        for line in block.get("lines", []):
+            joined = "".join(s["text"] for s in line.get("spans", []))
+            if any(lbl in joined for lbl in _HEAD_LABELS):
+                head_ys.append(line["bbox"][1])
+
+    def skip(y0):
+        return y0 < _HEADER_BAND or any(abs(y0 - hy) < 12 for hy in head_ys)
+
     tops = {}
     for block in d["blocks"]:
         for line in block.get("lines", []):
@@ -112,6 +313,8 @@ def _col_tops(page):
                 if not span["text"].strip():
                     continue
                 x0, y0 = span["bbox"][0], span["bbox"][1]
+                if skip(y0):
+                    continue
                 col = "L" if x0 < COL_SPLIT_X else "R"
                 if col not in tops or y0 < tops[col][0]:
                     tops[col] = (y0, x0)
@@ -144,10 +347,21 @@ def find_page_splits(pdf_path):
     return bad
 
 
-def stamp_pdf(path):
+def stamp_pdf(path, show_letter_list=True, stamp_continuation=True,
+              title_rest="字根表", note=""):
     """讀回剛印出來的 PDF（已經沒有跨頁字母了），補三件事：頁首品牌、
-    頁首字母清單、頁尾頁碼；另外把「這一欄開頭沒有字母鍵」（此時只會是
-    跨欄，不會是跨頁）的地方補一個接續小標。
+    頁首字母清單、頁尾頁碼；另外把「這一欄開頭沒有字母鍵」的地方補一個
+    接續小標。
+
+    show_letter_list=False：精簡版只有一頁，右上角再列一次「這頁有哪些
+    字母」＝整個字母表，純粹是雜訊，關掉（Wilson）。
+
+    stamp_continuation：精簡表（zigen.js renderCompactTable）現在只在一個
+    字母的**第一個**等級列畫字母鍵，後面幾等級列的儲存格是空的（Wilson：
+    三列都畫字母鍵，看起來像三個不同字母）——所以字母被瀏覽器的 CSS 分欄
+    硬生生切開時（M 常常這樣，優等留在左欄、三等擠到右欄開頭），右欄開頭
+    那一列本身沒有字母鍵可看，這裡一樣要補接續標，跟完整版同一套邏輯，
+    不能再假設精簡表「每一列都自帶字母鍵」而關掉。
 
     字母鍵的簽名很乾淨：.zg-key 是 `font: 650 ... ui-monospace` 印出來就是
     Menlo-Bold，不管實際字級是多少，兩份 PDF（完整版字級不同、精簡版又不
@@ -160,58 +374,93 @@ def stamp_pdf(path):
     current_letter = None   # 一路往下讀，記住「目前印到哪個字母」
     for i, page in enumerate(doc, start=1):
         badges = _letter_badges(page)
+        # ⚠️ 量欄頂**要在補任何頁首文字之前**——不然 _col_tops 會抓到我們自己
+        # 剛寫上去的品牌字（y≈20、x≈40，落在左欄）跟右上角的字母清單，把它們
+        # 當成「這一欄開頭沒有字母鍵」，於是又在頁首左右各補一個接續小標，
+        # 就是左上／右上冒出來的那兩個怪字母。
+        tops = _col_tops(page)
         letters_here = sorted({t for (_, _, t) in badges})
         w, h = page.rect.width, page.rect.height
 
-        # 頁首左邊：完整標誌＋品牌名，每一頁都有，讀者單獨列印某幾頁時
-        # 也認得出是哪份文件。中文走 PyMuPDF 內建的 CJK 對應字型
-        # （"china-ts"，Droid Sans Fallback），不依賴這台機器裝了哪些系統
-        # 字型，其他人重跑這支腳本也一樣印得出來。
-        if LOGO.exists():
-            page.insert_image(fitz.Rect(20, 8, 36, 24), filename=str(LOGO))
-        brand = "愛發筆輸入法　字根表"
-        page.insert_text((40, 20), brand, fontname="china-ts", fontsize=12,
-                          color=(0.25, 0.25, 0.25))
+        # 頁首左邊：第一頁印大標題（跟〈常用字表 PDF〉title() 同一套樣式，見
+        # _draw_title_block），不疊印那行小小的品牌字——常用字表也是這樣，
+        # 第一頁只有大標題，小標誌＋品牌名的跑馬頁首留給第 2 頁起（Wilson：
+        # 兩份 PDF 風格要一致）。
+        if i == 1:
+            _draw_title_block(page, title_rest, note)
+        else:
+            x = 20
+            logo = _logo_stream(36)
+            if logo is not None:
+                try:
+                    page.insert_image(fitz.Rect(x, 20, x + 9, 29), stream=logo)
+                    x += 12
+                except Exception:
+                    pass
+            brand = "愛發筆輸入法　字根表"
+            for ch in brand:
+                page.insert_text((x, 28), ch, fontname="china-s", fontsize=_HDR_SIZE,
+                                  color=_HDR_GRAY)
+                x += fitz.get_text_length(ch, fontname="china-s", fontsize=_HDR_SIZE)
+            page.draw_line((20, 33), (w - 20, 33), color=_HDR_LINE_GRAY, width=0.4)
 
         # 頁首右邊：這一頁出現的每一個字母，逐個列出來，不縮寫成「A–D」
         # 這種範圍——縮寫要讀者自己在腦裡展開字母表才知道中間有哪些字母
         # 真的在這頁（Wilson：「H 在 G 跟 J 中間」不是一眼看得出來的事），
-        # 全部列出來就不用猜。
-        if letters_here:
-            label = "  ".join(letters_here)
-            tw = fitz.get_text_length(label, fontname="hebo", fontsize=9)
-            page.insert_text((w - 20 - tw, 20), label, fontname="hebo", fontsize=9,
-                              color=(0.35, 0.35, 0.35))
+        # 全部列出來就不用猜。字母中間用點號隔開（不是兩個空格），跟〈常用
+        # 字表 PDF〉頁首範圍標籤同一套分隔符號（Wilson）。
+        if show_letter_list and letters_here:
+            gap = fitz.get_text_length(".", fontname="helv", fontsize=_HDR_SIZE)
+            dotw = gap + _DOT_PAD * 2
+            total_w = (sum(fitz.get_text_length(t, fontname="hebo", fontsize=_HDR_SIZE)
+                           for t in letters_here)
+                       + dotw * (len(letters_here) - 1))
+            lx = w - 20 - total_w
+            ly = 28
+            for k, t in enumerate(letters_here):
+                page.insert_text((lx, ly), t, fontname="hebo", fontsize=_HDR_SIZE,
+                                  color=_LETTER_LIST_GRAY)
+                lx += fitz.get_text_length(t, fontname="hebo", fontsize=_HDR_SIZE)
+                if k < len(letters_here) - 1:
+                    lx += _DOT_PAD
+                    page.insert_text((lx, ly), "·", fontname="helv",
+                                      fontsize=_HDR_SIZE, color=_LETTER_LIST_GRAY)
+                    lx += gap + _DOT_PAD
 
-        # 字母跨欄：這一欄（左、然後右）開頭那一小塊如果沒有字母鍵，代表
-        # 接著上一欄還沒印完的字母（find_page_splits 已經把跨頁的情況都
-        # 用強制換頁擋掉了，所以這裡剩下的一定是同一頁內的跨欄），在這一欄
-        # 開頭補印一次那個字母，讀者才不會翻到一欄劈頭就是一排沒有名字的
-        # 字根。
-        tops = _col_tops(page)
+        # 字母跨欄／跨頁：這一欄開頭（跳過重印的表頭之後）如果沒有字母鍵，
+        # 代表接著上一欄／上一頁還沒印完的字母，在這一欄的字母欄補印一次
+        # 那個字母，讀者才不會翻到一欄劈頭就是一排沒有名字的字根。
+        # 補印的位置對齊這一欄真正的字母鍵中心：同一頁有真字母鍵就抄它的
+        # x（glyph 左緣 + 半個字寬），沒有就用實測預設欄中心。樣式（藥丸、
+        # 底色、描邊、字級、重點色）全部照真字母鍵複刻，見 _stamp_key_badge。
+        badge_x = _badge_x(page)
         for col in ("L", "R"):
             if col not in tops:
                 continue
-            top_y, top_x = tops[col]
-            fresh = any(c == col and abs(y - top_y) < 20 for (c, y, _t) in badges)
-            if not fresh and current_letter:
-                page.insert_text((top_x, top_y + 3), current_letter,
-                                  fontname="hebo", fontsize=7,
-                                  color=(0.55, 0.55, 0.55))
+            top_y, _top_x = tops[col]
+            # 「這一欄開頭就是新字母」＝字母鍵跟欄頂在同一列（差幾 pt）。
+            # 容許值要小於一列的高度，不然精簡版裡 M 的三等列（欄頂）跟它
+            # 下面那個 N 的字母鍵（差約 19pt）會被算成同一列，M 跨欄就補不到
+            # 接續標。完整版新字母落在欄頂時兩者只差約 3pt，12 綽綽有餘。
+            fresh = any(c == col and abs(y - top_y) < 12 for (c, y, _t) in badges)
+            if stamp_continuation and not fresh and current_letter:
+                cx = badge_x[col] + 2.4 if col in badge_x else _KEY_CX[col]
+                _stamp_key_badge(page, cx, top_y, current_letter)
             col_letters = sorted({t for (c, _, t) in badges if c == col})
             if col_letters:
                 current_letter = col_letters[-1]
 
-        # 頁尾：頁碼，置中，貼在下邊距的留白裡。
+        # 頁尾：頁碼，置中，貼在下邊距的留白裡——跟〈常用字表 PDF〉同一個
+        # y 座標（兩份都是 A4），數字看起來印在紙上同一條線上。
         foot = f"{i} / {total}"
         tw = fitz.get_text_length(foot, fontname="helv", fontsize=8)
-        page.insert_text(((w - tw) / 2, h - 14), foot, fontname="helv", fontsize=8,
-                          color=(0.5, 0.5, 0.5))
+        page.insert_text(((w - tw) / 2, h - 16), foot, fontname="helv", fontsize=8,
+                          color=_FOOT_GRAY)
     doc.saveIncr()
     doc.close()
 
 
-def build_one(page, url, out_path, label):
+def build_one(page, url, out_path, label, compact=False):
     try:
         render_pdf(page, url, out_path, forced_breaks=None)
     except Exception as e:
@@ -221,7 +470,9 @@ def build_one(page, url, out_path, label):
     if splits:
         print(f"  ⚠️ {label}：{'、'.join(sorted(splits))} 被印到跨頁——已知限制，"
               f"見檔頭說明，先這樣印出來")
-    stamp_pdf(out_path)
+    title_rest = "字根表（精簡版）" if compact else "字根表"
+    stamp_pdf(out_path, show_letter_list=not compact, stamp_continuation=True,
+              title_rest=title_rest, note=ZG_NOTE)
     kb = out_path.stat().st_size / 1024
     print(f"寫出：{out_path.relative_to(ROOT)}（{label}，{kb:.0f} KB）")
 
@@ -239,14 +490,14 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     targets = [
-        (f"{base}/zigen.html", OUT_DIR / "zigen-chart.pdf", "完整版"),
-        (f"{base}/zigen.html?view=compact", OUT_DIR / "zigen-chart-compact.pdf", "精簡版"),
+        (f"{base}/zigen.html", OUT_DIR / "AiPhaBi_ZigenChart.pdf", "完整版", False),
+        (f"{base}/zigen.html?view=compact", OUT_DIR / "AiPhaBi_ZigenChart_Compact.pdf", "精簡版", True),
     ]
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        for url, out_path, label in targets:
-            build_one(page, url, out_path, label)
+        for url, out_path, label, compact in targets:
+            build_one(page, url, out_path, label, compact=compact)
         browser.close()
 
 

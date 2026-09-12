@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>字根表 PDF · 愛發筆 AiPhaBi</title>
-<meta name="description" content="整張字根表排成 A4，列印或離線查閱用，內容跟網頁上看到的一模一樣。">
-<link rel="canonical" href="https://www.aiphabi.com/zigenpdf.html">
+<title>問答 · 愛發筆 AiPhaBi</title>
+<meta name="description" content="愛發筆輸入法常見問題：為什麼有些字作為偏旁時取碼不同？">
+<link rel="canonical" href="https://www.aiphabi.com/wenda.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="愛發筆輸入法">
 <meta property="og:locale" content="zh_TW">
-<meta property="og:url" content="https://www.aiphabi.com/zigenpdf.html">
-<meta property="og:title" content="字根表 PDF · 愛發筆 AiPhaBi">
-<meta property="og:description" content="整張字根表排成 A4，列印或離線查閱用，內容跟網頁上看到的一模一樣。">
+<meta property="og:url" content="https://www.aiphabi.com/wenda.html">
+<meta property="og:title" content="問答 · 愛發筆 AiPhaBi">
+<meta property="og:description" content="愛發筆輸入法常見問題：為什麼有些字作為偏旁時取碼不同？">
 <meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -74,6 +74,9 @@
         <a href="anzhuangbao.html">安裝包</a>
       </div>
       <a href="wenda.html">問答</a>
+      <ul class="pr-sidenav">
+        <li><a href="#wd-pianpang">為什麼有些字作為偏旁時取碼不同？</a></li>
+      </ul>
       <a href="houji.html">後記</a>
     </nav>
   </div>
@@ -82,52 +85,24 @@
 <main class="wrap doc-prose">
 
   <p class="eyebrow">愛發筆輸入法</p>
-  <h1>字根表 PDF</h1>
+  <h1>問答</h1>
 
   <p class="lede">
-    整張〈<a href="zigen.html">字根表</a>〉排成 A4，可列印或離線查閱。
+    使用時常有人問到、但不適合塞進其他頁面正文的問題，集中放在這裡。
   </p>
 
-  <div class="pdf-switch" role="group" aria-label="選擇版本">
-    <button type="button" data-pdf="full" aria-pressed="true">完整版</button>
-    <button type="button" data-pdf="compact" aria-pressed="false">精簡版</button>
-  </div>
-
-  <div class="pdf-preview" data-pdf-panel="full">
-    <div class="pdf-preview-bar">
-      <span class="pdf-preview-name">AiPhaBi_ZigenChart.pdf</span>
-      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ZigenChart.pdf" download>下載</a>
-    </div>
-    <iframe src="assets/downloads/AiPhaBi_ZigenChart.pdf#toolbar=0" title="字根表 PDF 預覽" loading="lazy"></iframe>
-  </div>
-
-  <div class="pdf-preview" data-pdf-panel="compact" hidden>
-    <div class="pdf-preview-bar">
-      <span class="pdf-preview-name">AiPhaBi_ZigenChart_Compact.pdf</span>
-      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ZigenChart_Compact.pdf" download>下載</a>
-    </div>
-    <iframe src="assets/downloads/AiPhaBi_ZigenChart_Compact.pdf#toolbar=0" title="字根表精簡版 PDF 預覽" loading="lazy"></iframe>
-  </div>
-
-  <p class="ac-caveat">
-    看不到預覽的話，是瀏覽器沒開內嵌 PDF 顯示——按〈下載〉一樣看得到完整內容。
+  <h2 id="wd-pianpang">為什麼有些字作為偏旁時取碼不同？</h2>
+  <p>
+    愛發筆是形碼——照字的形狀取碼。一個字單獨寫、跟被塞進另一個字當偏旁時，形狀往往不一樣：偏旁位置窄，筆畫會被壓縮或省略，於是拆出來的字根也不同，碼跟著變短。
+  </p>
+  <p>
+    最明顯的是那幾個有專屬偏旁寫法的字：「心」單獨寫是 <code data-keep>JLQQ</code>，放到左邊變成「忄」，只剩三筆，取碼 <code data-keep>W</code>；「水」是 <code data-keep>K</code>，放到左邊變成「氵」，取碼 <code data-keep>Z</code>；「手」變「扌」、「示」變「礻」、「衣」變「衤」也是同理。這些偏旁形本身就是另一個字形，給它自己的碼是理所當然的。
+  </p>
+  <p>
+    「選字列設定」裡的〈<a href="xuanzilie.html#xz-6">偏旁碼</a>〉開關（預設開）就是為此而設：你若記得的是某個字當偏旁時的碼，打出來選字列也會把那個字列給你，標「偏旁碼」，不用去回想它單獨寫時的主碼。取碼的完整規則見〈<a href="yuanze.html">取碼原則</a>〉。
   </p>
 
 </main>
-
-<script>
-(function () {
-  var btns = document.querySelectorAll('.pdf-switch button');
-  var panels = document.querySelectorAll('[data-pdf-panel]');
-  btns.forEach(function (b) {
-    b.addEventListener('click', function () {
-      var want = b.dataset.pdf;
-      btns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-      panels.forEach(function (p) { p.hidden = p.dataset.pdfPanel !== want; });
-    });
-  });
-})();
-</script>
 
 
 <footer class="wrap">

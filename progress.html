@@ -80,20 +80,50 @@
   .stdhead:hover .chev{color:var(--accent);}
   /* 收合：只剩兩條長條，一個字都不留。整張卡片可點，點了就展開回來。 */
   .std.collapsed{padding:11px 18px;cursor:pointer;}
-  .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot{display:none;}
-  .std.collapsed .strow{margin:0 0 6px;}
+  .std.collapsed .stdhead,.std.collapsed .sthead,.std.collapsed .stfoot,.std.collapsed .stsegline{display:none;}
+  .std.collapsed .strow{margin:0 0 6px;padding-bottom:0;border-bottom:none;}
   .std.collapsed .strow:last-child{margin-bottom:0;}
   .std.collapsed .stbar{height:7px;}
-  .strow{margin:0 0 16px;}
-  .strow:last-child{margin-bottom:0;}
+  .std.collapsed .stsplit{top:-2px;bottom:-2px;}
+  /* 每個表（甲乙表／GB2312／CJK）中間畫一條淺灰分隔線，不是純靠留白分——卡片
+     一長，光靠 margin 分不太出這裡是換了一張表。收合視圖不畫（上面那條規則
+     蓋掉），密度不一樣。 */
+  .strow{margin:0 0 16px;padding-bottom:16px;border-bottom:1px solid var(--line);}
+  .strow:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
   .sthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 7px;flex-wrap:wrap;}
   .stname{font-size:14px;color:var(--ink);}
   .stname small{color:var(--faint);font-size:11px;margin-left:7px;letter-spacing:0;}
   .stnum{font-size:13px;color:var(--muted);white-space:nowrap;}
   .stnum b{color:var(--accent);font-weight:600;font-size:16px;}
-  .stbar{height:9px;border-radius:5px;background:var(--grid);overflow:hidden;}
-  .stbar i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width .3s;}
+  .stbar{position:relative;height:9px;border-radius:5px;background:var(--grid);overflow:hidden;}
+  /* position:absolute 讓分段的表（甲乙表、GB 一二級、CJK 各段）可以每段自己在
+     自己的區段裡填，不是整條表的完成度從頭填到一個點——分段圓角靠 .stbar 本
+     身的 overflow:hidden 去裁，.i 自己不用畫圓角，不然段跟段中間會多一道圓弧。 */
+  .stbar i{position:absolute;top:0;height:100%;background:var(--accent);transition:width .3s;}
   .strow.b .stbar i{background:var(--s2);} .strow.b .stnum b{color:var(--s2);}
+  .strow.c .stbar i{background:var(--s3);} .strow.c .stnum b{color:var(--s3);}
+  .strow.d .stbar i{background:var(--s4);} .strow.d .stnum b{color:var(--s4);}
+  /* 表中的分段線（甲表／乙表、GB 一級／二級）：蓋在長條圖上，不管填色填到哪都看得到。
+     淺色線芯＋深色外框（box-shadow 當描邊），淺底／深底、填色／未填色都吃得住對比，
+     不用照主題另外配色。 */
+  .stsplit{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px;
+    background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.45);opacity:.95;pointer-events:none;}
+  /* 分段線下面的段名：對齊分段線，甲表在線左、乙表在線右（各自置中在自己的
+     那一段），不是隨便排一列——這樣線在標什麼一眼就懂。 */
+  .stsegline{position:relative;height:15px;margin:5px 0 0;font-size:11.5px;color:var(--muted);}
+  .stsegline.above{margin:0 0 5px;}
+  .stsegline span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;}
+  .stsegline b{color:var(--ink);font-weight:600;}
+  /* 一組（如 CJK 上半／下半）疊在一起：緊貼的間距，跟收合視圖那種「兩條長條
+     疊著」的密度一樣，不是一般 strow 之間的 16px。除了最後一條，段名都搬到
+     長條上面（.above），這裡的間距才是純粹兩條長條之間的縫，不夾一排字。 */
+  .stbargrp{margin:0 0 2px;} .stbargrp:last-child{margin-bottom:0;}
+  /* 疊起來那組的標題（sthead）跟長條之間縮短一點，段名才不會離標題數字那麼
+     開。故意不用 stbarstack 的負 margin-top 去拉：收合視圖裡 sthead 是
+     display:none，一消失，負 margin 就會直接跟上一個 .strow 的 margin-bottom
+     疊在一起（margin collapsing 穿過去了），把整條表跟上一條表的間距吃掉，
+     密度反而變得不一致。改成縮小 sthead 自己（可見時才算），乾淨也不會漏。 */
+  .sthead.tight{margin-bottom:2px;}
   .stfoot{margin-top:7px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;}
   .stfoot a{color:var(--s2);text-decoration:none;}
   .stfoot a:hover{text-decoration:underline;}
@@ -131,6 +161,25 @@
   .cross.on{opacity:.7;}
   .tianzi{stroke:var(--faint);stroke-dasharray:5 6;stroke-width:1;opacity:.3;fill:none;}
   .msg{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
+
+  /* 三個字集合的范氏圖：簡體方案字（簡體字＋傳承字）／傳統漢字（繁體字＋傳承字）／
+     常用字。純示意，圓圈大小、重疊面積不按實際字數比例——但相對關係是真的：
+     兩套字表本身共用的傳承字遠多於各自專屬的簡繁字，所以畫成大重疊；常用字
+     只是橫跨兩套字表挑出來的一小撮，畫成疊在中間偏下、比另外兩個圈小得多。
+     例字沿用上面 CATDEF 同一批（人天后／国鳥／國魚雲），不再另外造例字。 */
+  .venn text{font-family:-apple-system,"PingFang TC","Helvetica Neue",system-ui,sans-serif;}
+  .venn .setname{font-size:15px;font-weight:600;fill:var(--ink);}
+  .venn .setdef{font-size:11px;fill:var(--muted);}
+  /* 圈裡的區塊標籤疊在色塊上，色塊深淺隨主題／重疊層數變化——用跟卡片同色的
+     文字描邊當「光暈」，不管疊了幾層色都讀得到，不必為了對比度去反推透明度。 */
+  .venn .rname,.venn .rex,.venn .rnone{paint-order:stroke;stroke:var(--card);stroke-width:3.5px;stroke-linejoin:round;}
+  .venn .rname{font-size:13px;font-weight:600;fill:var(--ink);}
+  .venn .rex{font-size:11px;fill:var(--muted);}
+  .venn .rnone{font-size:10.5px;fill:var(--faint);font-style:italic;}
+  .venn .cA{fill:var(--s2);stroke:var(--s2);}
+  .venn .cB{fill:var(--accent);stroke:var(--accent);}
+  .venn .cC{fill:var(--s4);stroke:var(--s4);}
+  .venn circle{fill-opacity:.4;stroke-width:1.6;stroke-opacity:.9;}
   @media (prefers-reduced-motion:reduce){.tip{transition:none;}}
 </style>
 </head>
@@ -155,6 +204,41 @@
   </div>
 
   <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="plabel"><span>三個字集合的關係</span><span class="r">示意圖，非按比例</span></div>
+    <figure><svg class="venn" viewBox="0 0 600 420" role="img"
+      aria-label="簡體方案字、傳統漢字、常用字三個字集合的范氏圖：簡體方案字等於簡體字加傳承字，傳統漢字等於繁體字加傳承字，常用字是橫跨兩套字表挑出的一批字，主要落在傳承字與各自專屬字的交集裡。">
+      <circle class="cA" cx="250" cy="193" r="118"/>
+      <circle class="cB" cx="350" cy="193" r="118"/>
+      <circle class="cC" cx="300" cy="257" r="92"/>
+
+      <text class="setname" x="195" y="38" text-anchor="end">簡體方案字</text>
+      <text class="setdef" x="195" y="54" text-anchor="end">＝簡體字＋傳承字</text>
+      <text class="setname" x="405" y="38" text-anchor="start">傳統漢字</text>
+      <text class="setdef" x="405" y="54" text-anchor="start">＝繁體字＋傳承字</text>
+      <text class="setname" x="300" y="378" text-anchor="middle">常用字</text>
+      <text class="setdef" x="300" y="394" text-anchor="middle">依使用頻率篩出，橫跨兩套字表</text>
+
+      <text class="rname" x="175" y="133" text-anchor="middle">簡體字</text>
+      <text class="rex" x="175" y="149" text-anchor="middle">其餘專屬字，較少見</text>
+      <text class="rname" x="425" y="133" text-anchor="middle">繁體字</text>
+      <text class="rex" x="425" y="149" text-anchor="middle">其餘專屬字，較少見</text>
+
+      <text class="rname" x="300" y="137" text-anchor="middle">傳承字</text>
+      <text class="rex" x="300" y="153" text-anchor="middle">其餘傳承字，較少見</text>
+
+      <text class="rname" x="300" y="212" text-anchor="middle">傳承常用字</text>
+      <text class="rex" x="300" y="228" text-anchor="middle">如人天后</text>
+
+      <text class="rname" x="225" y="236" text-anchor="middle">簡體常用字</text>
+      <text class="rex" x="225" y="252" text-anchor="middle">如国鸟</text>
+      <text class="rname" x="375" y="236" text-anchor="middle">繁體常用字</text>
+      <text class="rex" x="375" y="252" text-anchor="middle">如國魚雲</text>
+
+      <text class="rnone" x="300" y="325" text-anchor="middle">（幾乎不存在——常用字必屬於某套字表）</text>
+    </svg></figure>
+  </div>
 
   <footer>
     資料由 git 提交歷史即時重建（每個有取碼提交的日子）· 目前數字含尚未提交的取碼<br>
@@ -447,25 +531,99 @@ function renderStandards(data){
   const list=data.standards||[];
   const box=$('#stdcard');
   if(!list.length){ box.innerHTML=''; return; }
-  box.innerHTML=`<div class="std${stdCollapsed?' collapsed':''}" id="stdbox"${
-      stdCollapsed?' title="展開官方字表覆蓋率"':''}>`+
-    '<div class="stdhead"><h2>官方字表覆蓋率</h2><span class="chev">收起 ▴</span></div>'+
-    list.map((s,i)=>{
-    const pct=s.total?s.done/s.total*100:0;
-    const left=s.missing.length;
-    const head=s.missing.slice(0,LINK_CAP).join('');
-    const foot=left
+  // 同一個 group（目前只有 CJK 上半／下半）併成一疊：一個標題＋兩條緊貼、同色
+  // 的長條，不是兩個各自獨立、各佔一整條寬度的表格區塊——兩條寬度統一用整疊
+  // 的合計字數去對 refTotal，不各自對，才會等寬疊在一起。沒有 group 的維持
+  // 原樣（單獨一條）。
+  const units=[];
+  for(const s of list){
+    const last=units[units.length-1];
+    if(s.group && last && last.group===s.group) last.members.push(s);
+    else units.push(s.group?{group:s.group,groupName:s.groupName,members:[s]}:s);
+  }
+  // 長條的「絕對長度」跟著字表大小走，不是每條都畫滿：以這裡最大的一條長條
+  // （不是一整疊的合計）當 100% 寬的基準——目前最大的是甲乙表合計 11151。疊在
+  // 一起的兩條（CJK 上／下半）各自照自己的字數（10752／10240）對這把尺，兩條
+  // 因此幾乎但不完全一樣寬；標題那排的合計數字（20992）只用來顯示，不能拿來
+  // 當長度基準，不然兩條都會被拉到跟合計數字一樣寬，比甲乙表還長。
+  const refTotal=Math.max(1,...list.map(s=>s.total));
+
+  // 一張表可能由幾段拼起來（甲表＋乙表、GB 一級＋二級）：splits 在長條上畫分隔線，
+  // segs 底下把段名對齊擺在分隔線左右——每段的名字置中在「自己那一段」的範圍
+  // 內，兩段時剛好就是線左一個、線右一個，不是隨便排一列。barw 是這條長條要畫
+  // 到全卡寬的百分之幾，跟自己的 pct（填色比例）是兩把不同的尺。
+  const barHTML=(s,barw,segsAbove)=>{
+    const splits=(s.splits||[]).map(v=>
+      `<span class="stsplit" style="left:${(v/s.total*100).toFixed(3)}%"></span>`).join('');
+    let fill,segs='';
+    if(s.segments&&s.segments.length>1){
+      // 每段的完成度只填在「自己那一段」的範圍裡，不是整條表的完成度從左邊
+      // 一路填到一個點——CJK 的字不是照碼位順序取的，某一段填多少跟它前後那
+      // 段有沒有取完全沒關係，兩段各自算才不會讓一段看起來像完全沒取（明明有
+      // 取，只是取的字散在整段裡，不是從段頭連續排到某個點）。
+      let prev=0;
+      fill=s.segments.map(g=>{
+        const start=prev/s.total*100, end=g.split/s.total*100; prev=g.split;
+        const segPct=g.total?g.done/g.total*100:0;
+        return `<i style="left:${start.toFixed(3)}%;width:${((end-start)*segPct/100).toFixed(3)}%"></i>`;
+      }).join('');
+      let prev2=0;
+      const spans=s.segments.map(g=>{
+        const center=(prev2+g.split)/2/s.total*100; prev2=g.split;
+        return `<span style="left:${center.toFixed(2)}%" title="${g.label}：${g.done.toLocaleString()} / ${g.total.toLocaleString()}"><b>${g.label}</b></span>`;
+      }).join('');
+      // 疊在一起的那一疊裡，上面那條的段名擺到長條上面（segsAbove），不是照
+      // 預設放下面——不然兩條中間會夾一排字，看起來就分開了，不是疊在一起。
+      segs=`<div class="stsegline${segsAbove?' above':''}" style="width:${barw}%">${spans}</div>`;
+    }else{
+      const pct=s.total?s.done/s.total*100:0;
+      fill=`<i style="left:0;width:${pct.toFixed(2)}%"></i>`;
+    }
+    const bar=`<div class="stbar" style="width:${barw}%">${fill}${splits}</div>`;
+    return segsAbove?segs+bar:bar+segs;
+  };
+  const footHTML=missing=>{
+    const left=missing.length;
+    const head=missing.slice(0,LINK_CAP).join('');
+    return left
       ? `<span>還缺 <b>${left.toLocaleString()}</b> 字</span>`+
         `<a href="/annotate?q=${encodeURIComponent(head)}">照字表順序接著取${
           left>LINK_CAP?`（前 ${LINK_CAP} 個）`:''} →</a>`
       : '<span class="stdone">✓ 這張表全部取完了</span>';
-    return `<div class="strow ${i?'b':'a'}">
+  };
+
+  box.innerHTML=`<div class="std${stdCollapsed?' collapsed':''}" id="stdbox"${
+      stdCollapsed?' title="展開官方字表覆蓋率"':''}>`+
+    '<div class="stdhead"><h2>官方字表覆蓋率</h2><span class="chev">收起 ▴</span></div>'+
+    units.map((u,i)=>{
+    const cls='abcd'[i%4];
+    if(u.members){
+      const total=u.members.reduce((a,m)=>a+m.total,0);
+      const done=u.members.reduce((a,m)=>a+m.done,0);
+      const pct=total?done/total*100:0;
+      // 標題顯示兩段合計，長條寬度各自照自己的字數對 refTotal（見上面的說明），
+      // 不是共用合計數字的寬度。除了最後一條，段名都擺長條上面，兩條長條之間
+      // 才不會夾一排字——不然看起來是分開的兩塊，不是疊在一起。
+      const last=u.members.length-1;
+      const bars=u.members.map((m,j)=>
+        `<div class="stbargrp${j?' stacked':''}">${barHTML(m,(m.total/refTotal*100).toFixed(3),j<last)}</div>`).join('');
+      return `<div class="strow ${cls}">
+        <div class="sthead tight">
+          <span class="stname">${u.groupName}</span>
+          <span class="stnum"><b>${done.toLocaleString()}</b> / ${total.toLocaleString()}　${pct.toFixed(1)}%</span>
+        </div>
+        <div class="stbarstack">${bars}</div>
+        <div class="stfoot">${footHTML(u.members.flatMap(m=>m.missing))}</div>
+      </div>`;
+    }
+    const s=u, pct=s.total?s.done/s.total*100:0, barw=(s.total/refTotal*100).toFixed(3);
+    return `<div class="strow ${cls}">
       <div class="sthead">
         <span class="stname">${s.name}<small>${s.full}</small></span>
         <span class="stnum"><b>${s.done.toLocaleString()}</b> / ${s.total.toLocaleString()}　${pct.toFixed(1)}%</span>
       </div>
-      <div class="stbar"><i style="width:${pct.toFixed(2)}%"></i></div>
-      <div class="stfoot">${foot}</div>
+      ${barHTML(s,barw)}
+      <div class="stfoot">${footHTML(s.missing)}</div>
     </div>`;
   }).join('')+'</div>';
 

@@ -342,6 +342,24 @@ def main():
                 cc_s = shorten(cc, max_rule).lower()      # 對齊碼表：一律小寫
                 if cc_s != shorten(codes[c]["code"], max_rule).lower():
                     comp[cc_s].append(c)
+    # 甲表（教育部常用國字 4808）要先載——不打簡體那段馬上要用它排除誤判。
+    def _load_standard(fname):
+        p = DATA / "standards" / fname
+        if not p.exists():
+            return []
+        out, seen = [], set()
+        for line in p.read_text("utf-8").splitlines():
+            if line.startswith("#"):
+                continue
+            for ch in line.strip():
+                if ch not in seen and ("㐀" <= ch <= "鿿"
+                                       or 0x20000 <= ord(ch) < 0xF0000):
+                    seen.add(ch)
+                    out.append(ch)
+        return out
+
+    _tw_common = _load_standard("tw_common_4808.txt")
+
     # 打繁出簡／打簡出繁：跟試打頁共用同一份繁簡對照（data/opencc.json）。
     try:
         opencc = json.loads((DATA / "opencc.json").read_text("utf-8"))
@@ -352,10 +370,16 @@ def main():
     # 這些字本身就是獨立傳承字，只是剛好也被拿來簡化別的字（后＝王后／後的簡化…）。
     # s2t_map 光看資料分不出這兩種，白名單放在 data/dual_use_merged.json（跟
     # stats.html「碼表分析」共用，避免兩邊各自維護一份、分岔）。
+    #
+    # 甲表裡的字一律不算簡體專屬（Wilson 定案，2026-09-10）：甲表是教育部訂的傳承字
+    # 標準，字在甲表上就代表官方認可它是獨立傳承字，跟 dual_use_merged.json 手動收的
+    # 歸併字是同一種豁免，只是判準換成「甲表收不收」而不是逐字人工核可
+    # （岩／升／恤／蔑／肴／灶…都是這樣被誤判成簡體專屬字，見回報）。
     DUAL_USE_MERGED = set(
         json.loads((DATA / "dual_use_merged.json").read_text("utf-8"))["chars"]
     )
-    simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED)
+    _tw_common_set = set(_tw_common)
+    simp_only = sorted(c for c in s2t_map if c not in DUAL_USE_MERGED and c not in _tw_common_set)
 
     # 只打常用字（aiphabi_common_only 開關）：開了之後候選只留「常用字」。白名單模型
     # ——只有下面這個回填集合裡的字放行，其餘一律擋掉（含「兩張表都沒收」的生僻字，
@@ -379,21 +403,7 @@ def main():
     # 來維護不值得——不在清單裡就已經打不出來了，判斷結果沒有實質差異。
     #
     # 產出 M.common（字→true 的白名單）給 Lua filter；缺 gb2312.txt 時為空、開關自動失效。
-    def _load_standard(fname):
-        p = DATA / "standards" / fname
-        if not p.exists():
-            return []
-        out, seen = [], set()
-        for line in p.read_text("utf-8").splitlines():
-            if line.startswith("#"):
-                continue
-            for ch in line.strip():
-                if ch not in seen and ("㐀" <= ch <= "鿿"
-                                       or 0x20000 <= ord(ch) < 0xF0000):
-                    seen.add(ch)
-                    out.append(ch)
-        return out
-
+    # （_load_standard／_tw_common 已經在上面「不打簡體」那段先載過了，這裡直接用。）
     def _try_name_chars():
         """〈試打〉頁那一排常用姓氏／男名／女名用字——從 site/assets/try.js 的
         NAME_SURNAMES / NAME_MALE / NAME_FEMALE 常數現讀（build_site_data.py 也是這樣讀，
@@ -410,7 +420,6 @@ def main():
                 print(f"  ⚠ site/assets/try.js 找不到 {name} —— 名字用字沒補進常用字")
         return {c for c in out if "㐀" <= c <= "鿿"}
 
-    _tw_common = _load_standard("tw_common_4808.txt")
     _gb_level1 = _load_standard("gb2312.txt")[:3755]      # 一級 = 前 3755（拼音序）
     _common_core = set(_tw_common) | set(_gb_level1)
 
@@ -446,7 +455,14 @@ def main():
     # （否則白名單只剩這幾十個部件，開關會誤判成「有名單」把候選全濾光）。
     _keep_component = {c for chs in component_only.values() for c in chs} if _common_core else set()
     _keep |= _keep_component
-    common = set(_keep)                                # 白名單：常用字＝回填集合本身
+    # 手動強制擋（common_extra.txt 的反向）：異體回填靠 OpenCC t2s 邊放行，一堆只活在單一
+    # 冷僻詞裡的變體字（衕＝衚衕、榘＝矩、査＝查…）也一起進來——沒有乾淨的自動判準，逐字
+    # 由 Wilson 認可後列在 common_exclude.txt，這裡從白名單扣掉。
+    _keep_exclude = set(_load_standard("common_exclude.txt")) if _common_core else set()
+    if _keep_exclude & _common_core:
+        print(f"  ⚠ common_exclude.txt 擋掉了甲表／GB 一級的字："
+              f"{''.join(sorted(_keep_exclude & _common_core))}（確定要擋？）")
+    common = set(_keep) - _keep_exclude               # 白名單：回填集合本身，再扣掉強制擋的
 
     by_len = defaultdict(list)
     for code in code2chars:
@@ -1195,7 +1211,8 @@ Weasel／fcitx5-rime 多半內建）：
               f"{len(_gb_level1)} ∪ 回填：異體 {len(_keep_variant)}／"
               f"詞庫 {len(_keep_phrase & set(codes))}／名字 {len(_keep_name & set(codes))}／"
               f"百家姓 {len(_keep_surname & set(codes))}／粵語 {len(_keep_canton & set(codes))}／"
-              f"手動 {len(_keep_manual & set(codes))}／部件 {len(_keep_component)}）；"
+              f"手動 {len(_keep_manual & set(codes))}／部件 {len(_keep_component)}"
+              f"／強制擋 −{len(_keep_exclude & set(codes))}）；"
               f"碼表裡有 {_common_coded} 字過得了、{char_count - _common_coded} 字會被濾掉")
     else:
         print("  ⚠ data/standards/ 缺檔 —— M.common 為空，只打常用字開關會自動失效")

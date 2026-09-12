@@ -48,6 +48,9 @@
   --zg-on-2: #09625a;
   --zg-on-3: #06413c;
   --zg-off:  #c4c4c4;
+  --neutral-bg: #ededec;   /* 真正的中性灰，不帶青——〈常用字表〉非常用字格用 */
+  --neutral-line: #dcdcdb;
+  --neutral-ink: #97999a;
   --radius: 10px;
   /* 〈下載〉頁那顆蘋果選單小圖示是純黑色（Apple 官方素材本來就沒分深淺色版），
      深色主題下黑圖示疊在深色底上幾乎看不見——用這個變數在深色主題翻成白色，
@@ -124,6 +127,9 @@
     --zg-on-2: #22aa9b;
     --zg-on-3: #197e74;
     --zg-off:  #6f6f6f;
+    --neutral-bg: #262726;
+    --neutral-line: #363736;
+    --neutral-ink: #7a7c7c;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
@@ -158,6 +164,9 @@
     --zg-on-2: #22aa9b;
     --zg-on-3: #197e74;
     --zg-off:  #6f6f6f;
+    --neutral-bg: #262726;
+    --neutral-line: #363736;
+    --neutral-ink: #7a7c7c;
 
     /* 深色主題往亮、往飽和拉開，跟 --accent-* 那組同理；黃在暗背景上不用壓暗。 */
     --rb-0: #ff5563;   /* 深色底上把 #ed2939 提亮，色相不動 */
@@ -1029,14 +1038,25 @@ tbody tr:last-child td { border-bottom: 0; }
   stroke: none;
 }
 
-/* 精簡表（?view=compact，見 zigen.js 的 COMPACT）——沒有例字欄，字根欄裡
-   的形狀從左到右排開，一列＝一個取形意圖。跟主表共用 .zg-tbl／
-   .zg-letterkey／.zg-desc／.zg-tier 那套底色與字體，只多這三條處理
-   「一排形狀」的排版，不重複整套表格樣式。 */
+/* 精簡表（?view=compact，見 zigen.js 的 COMPACT）——沒有例字欄、沒有取形
+   意圖文字，一個字母一個等級一列（最多三列），該等級底下所有意圖的形狀
+   從左到右排開，意圖之間用一條豎線（.zg-cdiv）隔開。跟主表共用 .zg-tbl／
+   .zg-letterkey／.zg-tier 那套底色與字體，只多這幾條處理「一排形狀」的
+   排版，不重複整套表格樣式。 */
 .zg-ctbl thead th:nth-child(1) { width: 3.2rem; }
-.zg-ctbl thead th:nth-child(2) { width: 20rem; }
-.zg-ctbl thead th:nth-child(3) { width: auto; }
-.zg-cshapes { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
+.zg-ctbl thead th:nth-child(2) { width: auto; }
+.zg-cshapes { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; padding-block: .35rem; }
+/* 等級標籤在這裡是一列的開頭、跟形狀同一排——主表那邊的 display:block ＋
+   下外距是給「自成一行、排在意圖上面」用的，精簡表要它靠左內嵌。 */
+.zg-ctbl .zg-tier { align-self: center; margin: 0 .45rem 0 0; }
+/* 意圖邊界的豎線：夾在兩個意圖的形狀之間，隨該視覺行的高度撐滿。 */
+.zg-cdiv {
+  align-self: stretch;
+  width: 1px;
+  min-height: 1.5rem;
+  margin: 0 .15rem;
+  background: var(--line);
+}
 /* rootIconSvg() 吐出來的 SVG 本身已經帶 .zg-svg（glyphbox.js 沒傳 cls 參數
    時的預設值），大小照 .zg-svg 既有的規則走（螢幕 1.55rem，印表機專用區
    會再放大到 2.3rem）——這裡不用再開一條 .zg-cglyph svg 選到同一顆 SVG，
@@ -1299,6 +1319,11 @@ footer p { max-width: none; margin: 0 0 .4rem; }
   border-radius: 6px;
   background: var(--bg);
   overflow-x: auto;
+  /* ⚠️ 只留橫向捲軸。CSS 規則：overflow-x 設了非 visible、overflow-y 沒設，
+     overflow-y 會**自動變成 auto**——候選字的碼標籤讓某個 .cand 比框高一點點
+     時，就冒出一條直向捲軸（Wilson 在同類字那排 9 個候選抓到）。明寫 hidden
+     擋掉：框是固定高度的一條，本來就不該上下捲。 */
+  overflow-y: hidden;
 }
 
 .rail .buf {
@@ -1782,6 +1807,10 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 }
 /* 三欄之後每欄變窄，左右內距跟著收，不然表頭會折行 */
 .jm-compact th, .jm-compact td { padding: .28rem 1rem; }
+
+/* 〈功能鍵〉的部件字表只有 38 列，切三欄每欄才十幾列、右邊留一大截白；
+   切兩欄剛好（Wilson）。窄螢幕的退欄規則（62rem→2、40rem→1）照舊沿用。 */
+.jm-cols-2 { grid-template-columns: repeat(2, 1fr); }
 
 /* ⚠️〈約定字表〉裡整條寬度的組（土／甲字類）自己拆欄時借用 .jm-cols，但那條規則是
    〈簡碼〉頁的**三欄**（約定簡碼表用的）。三欄裡只放兩張表，第二張就落在整條寬度的
@@ -5746,8 +5775,14 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
      省下來的寬度全部讓給字根／字例——換回大一點、看得清楚的字形圖，
      不是整張表一起等比縮小。跟 ≤40rem 手機斷點那條 8rem 是同一個數字，
      那條已經證明窄欄照樣讀得下去。 */
-  .zg-tbl thead th:nth-child(2) { width: 8rem; }
+  .zg-tbl:not(.zg-ctbl) thead th:nth-child(2) { width: 8rem; }
   .zg-tbl .zg-desc { font-size: .82rem; line-height: 1.3; }
+
+  /* 精簡表：形狀圖比完整版的 2.3rem 小一點——精簡表一列就攤開一整個等級的
+     形狀，用完整版的尺寸一列會繞到三四行，失去「精簡」的意義。 */
+  .zg-ctbl .zg-svg { width: 2rem; height: 2rem; }
+  .zg-ctbl .zg-cglyph.is-text { font-size: 1.3rem; }
+  .zg-ctbl .zg-cshapes { gap: .32rem; padding-block: .3rem; }
 
   /* 字根欄的字形圖是 .zg-svg，字例欄的是 .zg-exsvg——兩個class，不是同一個
      （字例那邊要疊筆畫顏色分深淺，走 exampleGlyph() 另一條路徑，見
@@ -5862,6 +5897,88 @@ h2:hover > .hlink, h3:hover > .hlink { opacity: 1; }
    Chrome 的 PDF 檢視器認的網址片段，把它內建的工具列（也有下載鈕）藏起來——
    我們自己在上面那條 bar 已經放了一顆下載鈕，兩個工具列疊在一起會很奇怪；
    不支援這個片段的瀏覽器就當作沒事，自己的工具列照常顯示，不會壞掉。 */
+/* 完整版／精簡版切換——同一塊預覽面板換內容，不用往下捲（Wilson）。
+   外觀沿用頁首 .langtoggle 那顆藥丸分段控制，只是字級放大到正文尺寸。 */
+.pdf-switch {
+  display: inline-flex;
+  margin: 1.1rem 0 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pdf-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  padding: .34rem 1.1rem;
+  font: inherit;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.pdf-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 〈常用字表 PDF〉頁的「把字貼進來看哪些是常用字」小工具 —— 見 changyongzi.js。
+   版面借〈拆碼查詢〉的貼字牆，只是每格不畫拆碼圖、改用底色分常用／非常用。 */
+.cy-check { margin: 1.6rem 0; }
+.cy-label { display: block; font-size: .92rem; color: var(--ink-dim); margin-bottom: .45rem; }
+.cy-check .cm-in { max-width: 34rem; }
+
+.cy-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin-top: .7rem; font-size: .82rem; color: var(--ink-dim); }
+.cy-key { display: inline-flex; align-items: center; gap: .35rem; }
+.cy-key::before {
+  content: ""; width: .85rem; height: .85rem; border-radius: 3px; border: 1px solid var(--line);
+}
+.cy-key-yes::before { background: var(--accent-soft); border-color: var(--accent); }
+.cy-key-no::before { background: var(--neutral-bg); border-color: var(--neutral-line); }
+.cy-key-simp::before { display: none; }
+.cy-key-simp .cy-tag { position: static; }
+
+.cy-wall { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1rem 0 .3rem; }
+.cy-cell {
+  position: relative;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+.cy-cell.is-yes { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.cy-cell.is-no {
+  background: var(--neutral-bg);
+  border-color: var(--neutral-line);
+  color: var(--neutral-ink);
+}
+.cy-tag {
+  position: absolute;
+  top: -.4rem;
+  inset-inline-end: -.4rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 .12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  color: var(--surface);
+  font-family: inherit;
+  font-size: .58rem;
+  line-height: 1;
+}
+.cy-summary { margin-top: .5rem; font-size: .9rem; color: var(--ink-dim); }
+
+@media (max-width: 40rem) {
+  .cy-cell { width: 2rem; height: 2rem; font-size: 1.2rem; }
+}
+
 .pdf-preview {
   margin: 1.1rem 0;
   border: 1px solid var(--line);

@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>字根表 PDF · 愛發筆 AiPhaBi</title>
-<meta name="description" content="整張字根表排成 A4，列印或離線查閱用，內容跟網頁上看到的一模一樣。">
-<link rel="canonical" href="https://www.aiphabi.com/zigenpdf.html">
+<title>常用字表 PDF · 愛發筆 AiPhaBi</title>
+<meta name="description" content="「只打常用字」開啟時選字列保留的全部字，依官方清單原順序排成一份可搜尋、可列印的 PDF。">
+<link rel="canonical" href="https://www.aiphabi.com/changyongzi.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="愛發筆輸入法">
 <meta property="og:locale" content="zh_TW">
-<meta property="og:url" content="https://www.aiphabi.com/zigenpdf.html">
-<meta property="og:title" content="字根表 PDF · 愛發筆 AiPhaBi">
-<meta property="og:description" content="整張字根表排成 A4，列印或離線查閱用，內容跟網頁上看到的一模一樣。">
+<meta property="og:url" content="https://www.aiphabi.com/changyongzi.html">
+<meta property="og:title" content="常用字表 PDF · 愛發筆 AiPhaBi">
+<meta property="og:description" content="「只打常用字」開啟時選字列保留的全部字，依官方清單原順序排成一份可搜尋、可列印的 PDF。">
 <meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -82,34 +82,48 @@
 <main class="wrap doc-prose">
 
   <p class="eyebrow">愛發筆輸入法</p>
-  <h1>字根表 PDF</h1>
+  <h1>常用字表 PDF</h1>
 
   <p class="lede">
-    整張〈<a href="zigen.html">字根表</a>〉排成 A4，可列印或離線查閱。
+    〈選字列設定〉的「<a href="xuanzilie.html#xz-4">只打常用字</a>」開啟時，選字列只保留這份清單裡的字。全部列在下面的 PDF，依教育部甲表、GB 2312 一級、常用粵語字、百家姓、常用取名用字分節，其餘的部件字依愛發筆碼排、異體字等依四角號碼排。
   </p>
 
+  <div class="cy-check">
+    <label class="cy-label" for="cy-q">把字或整段話貼進來，看哪些是常用字：</label>
+    <textarea class="cm-in" id="cy-q" rows="2" placeholder="例如：這是一段用來測試的文字"
+              autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-keep></textarea>
+    <div class="cy-legend" aria-hidden="true">
+      <span class="cy-key cy-key-yes">常用字</span>
+      <span class="cy-key cy-key-no">非常用</span>
+      <span class="cy-key cy-key-simp"><span class="cy-tag">簡</span> 簡體專屬字</span>
+    </div>
+    <div class="cy-wall" id="cy-wall"></div>
+    <p class="cy-summary" id="cy-summary" role="status" data-keep></p>
+  </div>
+
   <div class="pdf-switch" role="group" aria-label="選擇版本">
-    <button type="button" data-pdf="full" aria-pressed="true">完整版</button>
-    <button type="button" data-pdf="compact" aria-pressed="false">精簡版</button>
+    <button type="button" data-pdf="plain" aria-pressed="true">一般版</button>
+    <button type="button" data-pdf="codes" aria-pressed="false">附碼版</button>
   </div>
 
-  <div class="pdf-preview" data-pdf-panel="full">
+  <div class="pdf-preview" data-pdf-panel="plain">
     <div class="pdf-preview-bar">
-      <span class="pdf-preview-name">AiPhaBi_ZigenChart.pdf</span>
-      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ZigenChart.pdf" download>下載</a>
+      <span class="pdf-preview-name">AiPhaBi_ChangYongZi.pdf</span>
+      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ChangYongZi.pdf" download>下載</a>
     </div>
-    <iframe src="assets/downloads/AiPhaBi_ZigenChart.pdf#toolbar=0" title="字根表 PDF 預覽" loading="lazy"></iframe>
+    <iframe src="assets/downloads/AiPhaBi_ChangYongZi.pdf#toolbar=0" title="常用字表 PDF 預覽" loading="lazy"></iframe>
   </div>
 
-  <div class="pdf-preview" data-pdf-panel="compact" hidden>
+  <div class="pdf-preview" data-pdf-panel="codes" hidden>
     <div class="pdf-preview-bar">
-      <span class="pdf-preview-name">AiPhaBi_ZigenChart_Compact.pdf</span>
-      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ZigenChart_Compact.pdf" download>下載</a>
+      <span class="pdf-preview-name">AiPhaBi_ChangYongZi_Codes.pdf</span>
+      <a class="btn btn-primary" href="assets/downloads/AiPhaBi_ChangYongZi_Codes.pdf" download>下載</a>
     </div>
-    <iframe src="assets/downloads/AiPhaBi_ZigenChart_Compact.pdf#toolbar=0" title="字根表精簡版 PDF 預覽" loading="lazy"></iframe>
+    <iframe src="assets/downloads/AiPhaBi_ChangYongZi_Codes.pdf#toolbar=0" title="常用字表（附碼版）PDF 預覽" loading="lazy"></iframe>
   </div>
 
   <p class="ac-caveat">
+    附碼版：每個字下面多一行愛發筆碼。
     看不到預覽的話，是瀏覽器沒開內嵌 PDF 顯示——按〈下載〉一樣看得到完整內容。
   </p>
 
@@ -129,12 +143,12 @@
 })();
 </script>
 
-
 <footer class="wrap">
   <p>© 2026 愛發筆輸入法 <span data-keep>AiPhaBi</span>　版權所有
     <span class="en-note" data-keep>All Rights Reserved</span></p>
 </footer>
 
 <script src="assets/site.js"></script>
+<script src="assets/changyongzi.js"></script>
 </body>
 </html>

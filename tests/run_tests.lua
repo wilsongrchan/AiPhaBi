@@ -82,6 +82,28 @@ do
 end
 
 print()
+print("== 不打簡體：甲表字一律不算簡體專屬，dual_use_merged.json 逐字補的也是 ==")
+do
+  -- 岩/升/蔑/晒/霉…都在甲表（教育部常用國字），卻剛好也是某個字的簡化目標
+  -- （t2s[巖]=岩、t2s[昇]=升…）——之前被 s2t_map 一律當簡體專屬濾掉，回報過好幾次
+  -- （2026-09-10 岩，Wilson 順手核過整批甲表交集）。build_rime.py 現在自動排除甲表字，
+  -- 不用逐字收進 dual_use_merged.json。
+  local tw_rescued = { "岩", "升", "恤", "蔑", "肴", "灶", "咨", "冢", "漓", "晒",
+                        "霉", "痴", "仆", "辟", "庵", "穗", "夸", "虫", "捆", "札",
+                        "皂", "愿", "粽", "浚", "苧", "斫", "胄", "吁", "荐", "虱", "并" }
+  for _, ch in ipairs(tw_rescued) do
+    h.check("甲表字 " .. ch .. " 不在 M.simp 裡", data.simp[ch] == nil,
+      "got data.simp[" .. ch .. "]=" .. tostring(data.simp[ch]))
+  end
+  -- 册（不在甲表，冊 才在）：手動補進 dual_use_merged.json 那條路還要繼續管用。
+  h.check("册 手動收進 dual_use_merged.json，不在 M.simp 裡", data.simp["册"] == nil,
+    "got data.simp[册]=" .. tostring(data.simp["册"]))
+  -- 反例：真正的簡體專屬字不該被這條規則誤放行。
+  h.check("馬 的簡化 马 仍在 M.simp 裡（真的簡體專屬）", data.simp["马"] == true,
+    "got data.simp[马]=" .. tostring(data.simp["马"]))
+end
+
+print()
 print("== 提示寫法：圓括號＝參考用主碼，沒括號＝可以改打的捷徑碼 ==")
 do
   -- 打簡碼 JKQ：我 要排第一，並標「簡碼 (主碼)」

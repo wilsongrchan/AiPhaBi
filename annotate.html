@@ -62,8 +62,18 @@
   .filters button { flex:1; padding:4px; font-size:12px; }
   .filters button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
   .sortby, .lenfilter { display:flex; gap:4px; align-items:center; margin-bottom:8px; }
+  .sortby { container-type:inline-size; container-name:sortby; }
   .sortby button, .lenfilter button { flex:1; padding:3px; font-size:11px; }
   .sortby button.on, .lenfilter button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* 「GB表」「CJK」是拉丁字母，擠的時候不像中文字每個字自己就是一個換行點，
+     只會整串溢出或硬切一半——欄位窄到一定程度就轉成直書，拉丁字母在直書裡本
+     來就會自動側轉 90 度（text-orientation:mixed 是直書預設值，寫出來只是明講）
+     ，中文的「表」還是照樣正立，跟「國字表」擠的時候一個字一行是同一種效果。 */
+  @container sortby (max-width:300px) {
+    .sortby button[data-sort="gb2312"], .sortby button[data-sort="cjk"] {
+      writing-mode:vertical-rl; text-orientation:mixed; padding:4px 1px;
+    }
+  }
   /* 動作鈕：直排在字圖右邊。放在預測底下的話，預測一長就得捲下去才按得到。 */
   .glyphrow { display:flex; gap:8px; align-items:flex-start; }
   .actbar { display:flex; flex-direction:column; gap:5px; width:118px; flex:0 0 auto; }
@@ -520,11 +530,11 @@
     </div>
     <div class="sortby" id="sortby" title="未取碼名單的排序依據">
       <span style="font-size:10px;color:var(--muted)">排序</span>
-      <button data-sort="tw4808" class="on" title="教育部《常用國字標準字體表》甲表 4808 字：還沒取碼的照字表原順序（筆畫序）排前。取完這批就能說「涵蓋教育部常用字」">國字表</button>
+      <button data-sort="tw4808" class="on" title="教育部《常用國字標準字體表》甲表＋《次常用國字標準字體表》乙表，共 11151 字：還沒取碼的照字表原順序排前，甲表排完接著排乙表。取完這批就能說「涵蓋教育部常用＋次常用字」">國字表</button>
       <button data-sort="gb2312" title="GB 2312—80 基本集 6763 字（一級 3755 拼音序＋二級 3008 部首序）：還沒取碼的照字表原順序排前">GB表</button>
-      <button data-sort="name" title="兩岸三地常見姓氏＋人名（名字）用字">姓名</button>
+      <button data-sort="cjk" title="中日韓統一表意文字整個區段（U+4E00–U+9FFF）20992 字，Unicode 14.0 起已完整填滿：還沒取碼的照碼位序排前">CJK</button>
+      <button data-sort="baijiaxing" title="百家姓：還沒取碼的姓氏照百家姓原順序排前">百家姓</button>
       <button data-sort="place" title="地名用字：國家與首都、香港／台北／北上廣深地鐵站名、中台日韓大城市與一級行政區、香港台北市區與主要街道、東京地鐵站名（含日漢字）">地名</button>
-      <button data-sort="binom" title="連綿詞用字：寂寞、葡萄這種字，通常要兩個字一起出現才有意義，單獨那一個字字頻不高、容易被排到很後面——這裡手動列出常見連綿詞，把還沒取碼的那些字排前面優先取">連綿詞</button>
     </div>
     <div class="lenfilter" id="lenfilter" title="依碼長篩選已取碼的字（5＝剛好五碼，5+＝完整碼超過五碼、被縮短）" style="display:none">
       <span style="font-size:10px;color:var(--muted)">碼長</span>
@@ -602,11 +612,21 @@
       <button id="mpAddAlt" class="mp-add">＋ 加一個兼容碼</button>
       <label class="mp-row"><span>備註</span>
         <input id="mpNote" spellcheck="false" placeholder="選填"></label>
+      <!-- 手動取碼也可能是部件字（例：粵語用字裡有些只當偏旁），道理跟有筆畫時的
+           #comptoggle 一樣：主碼不變，但單獨打主碼看不到，要加反引號 ` 才會出現 -->
+      <label class="convlab" id="mpComplab" style="margin:0 0 12px">
+        <input type="checkbox" id="mpCompToggle">
+        <span>視為部件字：主碼不變，但單獨打主碼看不到，要在前面加 <code>`</code>（反引號）才會出現</span>
+      </label>
       <div class="mp-bar">
+        <button id="mpSaveOnly" title="只儲存這個字，不跳下一字">儲存 ⌘S</button>
         <button class="primary" id="mpSave">儲存並下一字 ⏎</button>
         <button id="mpClear">清掉此字的碼</button>
         <span id="mpStatus" class="mp-status"></span>
       </div>
+      <!-- 存檔後才報重碼：跟有筆畫時的 #clash 同一套判斷（clashesFor/paintClash），
+           只是手動取碼沒有「拆到一半」這回事，不必等 complete，存下去就是定案 -->
+      <div class="clash" id="mpClash" style="display:none;margin-top:12px"></div>
     </div>
 
     <div class="pred">
@@ -781,7 +801,7 @@ const el = (t, c, x) => { const e = document.createElement(t);
   if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 
 let order = [], codes = {}, zigen = null, lib = [], rules = null, learned = { stroke_kinds: [] };
-let orderings = { tw4808: [], gb2312: [], name: [], place: [], binom: [] };  /* 未取碼佇列的排序來源 */
+let orderings = { tw4808: [], gb2312: [], cjk: [], baijiaxing: [], place: [] };  /* 未取碼佇列的排序來源 */
 let pinOrder = [];  /* 未取碼佇列全域置頂：不分排序來源，這批字一律浮到最前（見 data/todo_pin.json） */
 let stdChars = [];   /* 官方字表聯集（教育部常用國字4808 ∪ GB2312）：跟 /progress 同一套完成目標，
                          不是 order（字頻表 9574，那是字形資料涵蓋範圍，見 server.py 的說明） */
@@ -789,7 +809,7 @@ let stdChars = [];   /* 官方字表聯集（教育部常用國字4808 ∪ GB231
    （選了某個來源，只是把那批字提到最前，其餘仍照字頻），不必再單獨列一顆；
    新聞字頻與「簡體」都併進 GB 表 —— 簡體專屬字本來就幾乎都在 GB 2312 裡。
    舊的 freq／news／simp 存在 localStorage 裡的話，落回國字表。 */
-const QSORTS = ['tw4808', 'gb2312', 'name', 'place', 'binom'];
+const QSORTS = ['tw4808', 'gb2312', 'cjk', 'baijiaxing', 'place'];
 let queueSort = localStorage.getItem('aiphabi-qsort');
 if (!QSORTS.includes(queueSort)) queueSort = 'tw4808';
 let lenFilter = localStorage.getItem('aiphabi-lenfilter') || 'all';  /* 已取碼依碼長篩選：all｜1..5｜5+ */
@@ -1240,11 +1260,16 @@ function renderCode() {
      而且要等整個字拆完才報 —— 拆到一半的碼本來就是殘碼，跟人家撞在一起
      是必然的，這時候跳出來只是噪音。 */
   const complete = strokes.length > 0 && left === 0;
-  /* 別的字的兼容碼（含自動兼容的完整碼）一樣佔碼位 —— 撞到它，打字時照樣要多選一次 */
-  const clash = (fin && complete)
-    ? Object.keys(codes).filter(ch => ch !== cur && codesFor(ch).includes(fin))
-    : [];
-  const w = $('#clash');
+  const clash = (fin && complete) ? clashesFor(fin) : [];
+  paintClash($('#clash'), fin, clash);
+}
+/* 別的字的兼容碼（含自動兼容的完整碼）一樣佔碼位 —— 撞到它，打字時照樣要多選一次。
+   手動取碼（沒有筆畫、沒有 segs/complete 概念）也要用同一套判斷，所以拆出來共用。 */
+function clashesFor(fin) {
+  return fin ? Object.keys(codes).filter(ch => ch !== cur && codesFor(ch).includes(fin)) : [];
+}
+function paintClash(w, fin, clash) {
+  if (!w) return;
   if (clash.length) {
     w.style.display = 'block';
     w.innerHTML = `⚠ <b>重碼</b>：<code>${fin}</code> 已經是 ` +
@@ -3583,9 +3608,11 @@ function showManual(c) {
   $('#mpCode').value = ((!rec.segments && rec.code) || '').toUpperCase();
   updateMpFinal();
   $('#mpNote').value = rec.note || '';
+  $('#mpCompToggle').checked = !!rec.componentOnly;
   const box = $('#mpAlts'); box.innerHTML = '';
   for (const a of (rec.alts || [])) box.append(mpAltRow(a.code));
   $('#mpStatus').textContent = '';
+  $('#mpClash').style.display = 'none';   /* 重碼提醒只在「存過」之後才報，換字先收起 */
   $('#manualpanel').classList.remove('hide');
 }
 async function manualSave(goNext) {
@@ -3607,14 +3634,18 @@ async function manualSave(goNext) {
   if (alts.length) rec.alts = alts; else delete rec.alts;
   const note = $('#mpNote').value.trim();
   if (note) rec.note = note; else delete rec.note;
+  if ($('#mpCompToggle').checked) rec.componentOnly = true; else delete rec.componentOnly;
   /* 全空 → 這個字乾脆整筆拿掉，不留空殼 */
   if (!rec.code && !(rec.alts && rec.alts.length) && !rec.note &&
-      !(rec.variants && rec.variants.length)) delete codes[cur];
+      !rec.componentOnly && !(rec.variants && rec.variants.length)) delete codes[cur];
   st.style.color = 'var(--muted)'; st.textContent = '儲存中…';
   const r = await putGuarded('/api/codes', JSON.stringify(codes), 'codes');
   if (r && r.reloaded) return;
   if (!r.ok) return bad('儲存失敗');
   dirty = false; st.style.color = 'var(--ok)'; st.textContent = '已儲存 ✓';
+  /* 手動取碼沒有「拆到一半」，存下去就是定案的碼，直接報重碼即可 */
+  const fin = rec.final || '';
+  paintClash($('#mpClash'), fin, clashesFor(fin));
   renderQueue();
   if (goNext) {
     const p = pool();
@@ -3623,8 +3654,10 @@ async function manualSave(goNext) {
   }
 }
 $('#mpAddAlt').onclick = () => { $('#mpAlts').append(mpAltRow('')); dirty = true; };
+$('#mpSaveOnly').onclick = () => manualSave(false);   /* 只存，不跳下一字（同 ⌘/Ctrl+S） */
 $('#mpSave').onclick = () => manualSave(true);
-$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; updateMpFinal(); dirty = true; };
+$('#mpClear').onclick = () => { $('#mpCode').value = ''; $('#mpAlts').innerHTML = ''; $('#mpNote').value = ''; $('#mpCompToggle').checked = false; updateMpFinal(); dirty = true; };
+$('#mpCompToggle').onchange = () => { dirty = true; };
 function updateMpFinal() {
   const raw = ($('#mpCode').value || '').trim().toUpperCase();
   const box = $('#mpFinal');
@@ -3638,6 +3671,9 @@ $('#mpCode').oninput = () => { dirty = true; updateMpFinal(); };
 $('#mpNote').oninput = () => { dirty = true; };
 for (const id of ['#mpCode', '#mpNote']) $(id).addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); manualSave(true); }
+  /* 全域鍵盤處理看到 target 是 INPUT 就整段放行（見下方 document keydown），
+     所以 ⌘/Ctrl+S 要在這裡自己接 —— 跟 #mpSaveOnly 按鈕同一件事：只存不跳字 */
+  else if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); manualSave(false); }
 });
 
 /* ---------- 官方倉頡對照 ----------
