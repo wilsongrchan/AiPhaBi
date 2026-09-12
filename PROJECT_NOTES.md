@@ -846,6 +846,16 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-12**, after merging origin/main's batch of 64 commits — largest single
+  jump yet: Z→R recode (58 chars), 彡 recoded E→JJ (75 chars + the component itself), 爪/抓 R→N dup
+  fix, plus a run of new-char batches — pushed 字 8383→8681, 碼 11270→11686. `N=15250` (2026-09-10's
+  value) now **crashes**. Re-bisected: 13,875 passes, 14,000 fails — margin ~125, still thin.
+  Shipped at **`N=13750`**. Same verification pattern: `luajit` load check + end-to-end filter run
+  against the literal bytes extracted from the shipped zip (殳/収/夼/蕖/苤/陧/哿 plus 扌/氵/艹/忄/彡,
+  and a full sweep confirming 0 of the 71 component_only chars are missing from `data.common`).
+  **Sixth cliff move.** N dropped by ~1,500 in one ship (biggest single drop yet, tracking the
+  biggest single merge yet) — the relationship still looks roughly linear with character-table
+  growth, not accelerating, but keep re-bisecting every ship regardless.
 - **Cliff re-checked 2026-09-10**, after merging origin/main's batch of `[rebuild]` commits (贏字頭
   左簡碼 fix + several rounds of new chars/recodes, including a dupe-count bug fix unrelated to the
   cliff) pushed 字 8156→8383, 碼 10950→11270. `N=16000` (2026-09-09's value) now **crashes**.
