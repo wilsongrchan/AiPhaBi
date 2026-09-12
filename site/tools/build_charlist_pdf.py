@@ -71,6 +71,20 @@ CELL = (PAGE_W - ML - MR) / COLS
 ROW_H = 18.0
 CODE_ROW_H = 27.0     # 附碼版：字身下面多一行愛發筆碼，列距要拉開才不會疊字
 CHAR_SIZE = 12.5
+PY_LABEL_SIZE = 5.2   # 拼音「首見」小標字級（二、GB 2312 那節：a／ai／an…）
+BOPO_LABEL_SIZE = 4.2  # 注音版同一種小標（一、甲表那節：ㄅㄚ／ㄞ…）——注音
+                        # 符號是全形方塊字，跟拼音羅馬字比，同字級看起來明顯
+                        # 大一號，字級要比 PY_LABEL_SIZE 再小一點（Wilson）
+PY_LABEL_GAP = -1.2    # 小標基線相對格頂的位移（正值＝格頂往上，負值＝格頂
+                       # 往下、更貼近自己這個字）——借用列與列之間本來就有
+                       # 的空白（CJK 字身 ascent≈字級，格頂正好是字身頂），
+                       # 不加高 row_h、不多佔版面。Wilson：要更貼著自己的字，
+                       # 不要看起來像貼著上一列
+PY_DESCENDER_CHARS = set("gpy")   # 這幾個字母下伸筆畫較長，原本基線對齊會比
+                                  # 其他字母視覺上更低、更貼近下面的字（Wilson
+                                  # 指出 y／p／g），逐字畫、單獨把這幾個字母的
+                                  # 基線往上提一點，其餘字母基線不變
+PY_DESCENDER_LIFT = 0.35   # Wilson：抬太多了，往下調回來一點點
 CODE_SIZE = 5.2
 CODE_FONT = "menlo"   # Wilson：想要無襯線，但 I 要看得出上下橫槓（跟 l／1 分
                        # 得開）——這正是等寬「程式字型」的老設計，Menlo 全字無
@@ -107,6 +121,18 @@ BOPO_INITIALS = list("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗ�
 # ㄚ～ㄦ 這幾組加起來真的會多擠出一頁幾乎全空、GB 那節又是強制換頁起頭，
 # 前一頁的空白就浪費掉了）。這幾組改用 bopo_finals_block() 兩欄併排印。
 BOPO_FINALS = set("ㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ")
+
+# 小標的注音符號旁邊順便標拼音等價字母，方便不熟注音的讀者對照（Wilson）
+BOPO_PINYIN = {
+    "ㄅ": "B", "ㄆ": "P", "ㄇ": "M", "ㄈ": "F", "ㄉ": "D", "ㄊ": "T",
+    "ㄋ": "N", "ㄌ": "L", "ㄍ": "G", "ㄎ": "K", "ㄏ": "H", "ㄐ": "J",
+    "ㄑ": "Q", "ㄒ": "X", "ㄓ": "ZH", "ㄔ": "CH", "ㄕ": "SH", "ㄖ": "R",
+    "ㄗ": "Z", "ㄘ": "C", "ㄙ": "S", "ㄧ": "YI", "ㄨ": "WU", "ㄩ": "YU",
+    "ㄚ": "A", "ㄛ": "O", "ㄜ": "E", "ㄝ": "EH", "ㄞ": "AI", "ㄟ": "EI",
+    "ㄠ": "AO", "ㄡ": "OU", "ㄢ": "AN", "ㄣ": "EN", "ㄤ": "ANG",
+    "ㄥ": "ENG", "ㄦ": "ER",
+}
+BOPO_TONE_MARKS = "ˊˇˋ˙"   # 注音的調號，去掉才是要比對「首見音節」的音節本身
 
 # 常用粵語字——Wilson 手挑、手分組的定稿（2026-09-10）。大致依部首歸堆
 # （口／人／目・言／手／水／火／…），每一堆在 PDF 裡另起一行。用這份的順序
@@ -458,12 +484,33 @@ class Flow:
                                       color=(0.5, 0.5, 0.5))
             cur += cw + CODE_TRACK
 
-    def _cell(self, x, y_top, ch, anno=None, dup=False):
+    def _cell(self, x, y_top, ch, anno=None, dup=False, pinyin=None):
         """在 (x, y_top) 這一格畫一個字，x 是格子左緣。
         anno＝右上角一個小綠字母，指這個多音字另一個讀音落在哪一組。
         dup=True＝這格是同一個多音字在該讀音組的「重出」（本尊、字數都算在
         anno 指的那組）：字母下面點一個小點。
+        pinyin＝這個讀音在本節第一次出現，格子正上方印一個很小的綠色小標
+        ——拼音（a／ai／an…）或注音（ㄅㄚ／ㄞ…都可以，逐字看是不是純
+        ASCII 自動決定字型／字級／要不要逐字調基線）。借用列與列之間
+        （或小標跟第一列之間）本來就有的空白，不吃 row_h，不影響總頁數。
         code_map 有給（附碼版）的話，字身下面再印一行愛發筆碼。"""
+        if pinyin:
+            green = (0.055, 0.486, 0.451)
+            ascii_label = pinyin.isascii()
+            fn = "helv" if ascii_label else FONT
+            size = PY_LABEL_SIZE if ascii_label else BOPO_LABEL_SIZE
+            pw = self.fitz.get_text_length(pinyin, fontname=fn, fontsize=size)
+            px = x + (CELL - pw) / 2
+            py = y_top - PY_LABEL_GAP
+            if ascii_label:
+                for pch in pinyin:  # 逐字畫，g／y 這幾個字母基線單獨上提一點
+                    pcy = py - PY_DESCENDER_LIFT if pch in PY_DESCENDER_CHARS else py
+                    self.page.insert_text((px, pcy), pch, fontname=fn,
+                                          fontsize=size, color=green)
+                    px += self.fitz.get_text_length(pch, fontname=fn, fontsize=size)
+            else:               # 注音符號沒有對應的下伸筆畫問題，整串一次畫
+                self.page.insert_text((px, py), pinyin, fontname=fn,
+                                      fontsize=size, color=green)
         fn = FALLBACK if (self._fb and ch in FALLBACK_CHARS) else FONT
         self.page.insert_text((x + (CELL - CHAR_SIZE) / 2, y_top + CHAR_SIZE), ch,
                               fontname=fn, fontsize=CHAR_SIZE, color=(0.13, 0.13, 0.13))
@@ -486,12 +533,15 @@ class Flow:
         self.grid_cells([(c, annos.get(c), False) for c in chars])
 
     def grid_cells(self, items):
-        """items＝(字, anno 或 None, dup 布林) 的序列，26 格一列。"""
+        """items＝(字, anno 或 None, dup 布林[, 拼音首見小標或 None]) 的序列，
+        26 格一列；第 4 個欄位不給就當 None（沒有小標）。"""
         col = 0
-        for ch, anno, dup in items:
+        for it in items:
+            ch, anno, dup = it[0], it[1], it[2]
+            pinyin = it[3] if len(it) > 3 else None
             if col == 0:
                 self._room(self.row_h)
-            self._cell(ML + col * CELL, self.y, ch, anno, dup)
+            self._cell(ML + col * CELL, self.y, ch, anno, dup, pinyin)
             col += 1
             if col == COLS:
                 col = 0
@@ -552,40 +602,41 @@ class Flow:
         """把好幾個很小的注音組（韻母 ㄚ～ㄦ，通常個位數到二三十字）併成
         ncols 欄印，不然每組各自佔一整列、版面拉得很長，附碼版行距又比一般
         版寬，這幾組加起來真的會多擠出一頁幾乎全空（Wilson）。items＝
-        [(小標文字, 字list, 小標對應的字母), …]；每組還是自己的小標＋方陣，
-        只是跟別組並排、不再獨佔一整列寬度。用貪婪法把各組塞進累積高度
-        最低的那一欄——組數不多（最多 13 個韻母），不需要更複雜的排法。"""
+        [(小標文字, 字list, 小標對應的字母, 每個字對應的首見小標或 None), …]；
+        每組還是自己的小標＋方陣，只是跟別組並排、不再獨佔一整列寬度。用
+        貪婪法把各組塞進累積高度最低的那一欄——組數不多（最多 13 個韻母），
+        不需要更複雜的排法。"""
         if not items:
             return
         colw = (PAGE_W - ML - MR - gutter * (ncols - 1)) / ncols
         subcols = max(1, int(colw // CELL))
         blocks = []
-        for label, chars, sub in items:
+        for label, chars, sub, labels in items:
             rows = -(-len(chars) // subcols) if chars else 0
-            blocks.append((label, chars, sub, 13 + rows * self.row_h))
+            blocks.append((label, chars, sub, labels, 13 + rows * self.row_h))
         col_h = [0.0] * ncols
         col_items = [[] for _ in range(ncols)]
         for b in blocks:
             c = col_h.index(min(col_h))
             col_items[c].append(b)
-            col_h[c] += b[3]
+            col_h[c] += b[4]
         self._room(max(col_h) if col_h else 0)
         y0 = self.y
         green = (0.055, 0.486, 0.451)
         for c in range(ncols):
             x = ML + c * (colw + gutter)
             y = y0
-            for label, chars, sub, h in col_items[c]:
+            for label, chars, sub, labels, h in col_items[c]:
                 if sub:
                     self._marks.append((len(self.doc) - 1, self._cat, sub))
                 self._text((x, y + 8.5), label, 9, green)
                 y += 13
                 col_ = 0
-                for ch in chars:
+                for ch, lb in zip(chars, labels):
                     if col_ == subcols:
                         col_ = 0
                         y += self.row_h
-                    self._cell(x + col_ * CELL, y, ch)
+                    self._cell(x + col_ * CELL, y, ch, pinyin=lb)
                     col_ += 1
                 if col_:
                     y += self.row_h
@@ -861,15 +912,28 @@ def build(with_code=False, preview_page1=False):
         flow.section(f"{title}（{len(chars)} 字）", toc=toc)
         buckets, other = by_bopo(chars)
         finals_items = []
+        seen_syl = set()   # 注音「首見」小標——跟 pinyin_section 那節一樣，整節
+                            # （ㄅ→ㄆ→…→ㄦ）共用一份，音節只在第一次出現標一次
         for k in BOPO_INITIALS:
             if not buckets[k]:
                 continue
+            py = BOPO_PINYIN.get(k, "")
+            head = f"{k} {py}（{len(buckets[k])} 字）"
+            labels = []
+            for c in buckets[k]:
+                syl = _bopo(pinyin_fn, c).rstrip(BOPO_TONE_MARKS)
+                if syl and syl not in seen_syl:
+                    seen_syl.add(syl)
+                    labels.append(syl)
+                else:
+                    labels.append(None)
             if k in BOPO_FINALS:
                 # 韻母排到最後才一起兩欄併排印，不是漏掉——見 bopo_finals_block。
-                finals_items.append((f"{k}（{len(buckets[k])} 字）", buckets[k], k))
+                finals_items.append((head, buckets[k], k, labels))
             else:
-                flow.subhead(f"{k}（{len(buckets[k])} 字）", sub=k)
-                flow.grid(buckets[k])
+                flow.subhead(head, sub=k)
+                flow.grid_cells([(c, None, False, lb)
+                                 for c, lb in zip(buckets[k], labels)])
         if finals_items:
             flow.bopo_finals_block(finals_items, ncols=2)
         if other:
@@ -935,6 +999,9 @@ def build(with_code=False, preview_page1=False):
                    6.8, (0.42, 0.42, 0.42), lead=8.6, maxw=gx - ML - 14)
         ey = flow.dup_example(gx, y0 - 3)
         flow.y = max(flow.y, ey) + 3
+        seen_syl = set()   # 拼音「首見」小標：整節（A→Z）追蹤過的音節，同一個
+                            # 音節只在第一次出現時標一次（Wilson：a 標在 啊，
+                            # ai 標在 埃，an 標在 鞍……）
         for L in AZ:
             base = groups.get(L, [])
             ex = extras.get(L, [])
@@ -957,6 +1024,15 @@ def build(with_code=False, preview_page1=False):
                 head += f"＋{len(ex)} 個多音字重出"
             head += "）"
             flow.subhead(head, sub=L)
+            # keys[i] 是那一格實際印的讀音（TONE3，如 a1／ai1）——重出字用它
+            # 自己那個讀音，不是主讀音；去掉調號數字就是要標的音節本身。
+            for it, k in zip(items, keys):
+                syl = k.rstrip("0123456789")
+                if syl and syl not in seen_syl:
+                    seen_syl.add(syl)
+                    it.append(syl)
+                else:
+                    it.append(None)
             flow.grid_cells([tuple(it) for it in items])
 
     def mingzi_section():
