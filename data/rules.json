@@ -42,6 +42,14 @@
       "note": "程式讀得懂的部分：penalty＝略過一筆的成本；allow＝哪些筆型可以略過；last_stroke_letters＝孤立的首筆或末筆若是這些筆型，就不略過，改取對應的字母（留空＝照樣略過）。取碼時也可手動選取筆畫後按 space 標為略過。"
     },
     {
+      "id": "mu_left_no_skip",
+      "name": "目字旁原則（凌駕孤筆略過）",
+      "desc": "目字居於字的最左方（取 D）時，DI 中的那個 I 不略過——即使它在整個字中途，不是首筆也不是末筆，照樣取 I，不受孤筆略過原則約束。",
+      "kind": "manual",
+      "enabled": true,
+      "note": "目、月兩個部件形狀相近，都取 D；差別只在目多一橫（單獨成字時是 DI）。這一橫若在複合字裡因為孤筆略過原則被略過，目字旁跟月字旁就會撞成同一個碼（例：眼／期 都只剩 D 開頭）。這條原則凌駕孤筆略過：目在最左方就保留這一橫。個別字要在備註標 compliant:[\"lone:N\"]（N＝I 那個字根在 segs 裡的位置，通常是 1）＋ compliantWhy 說明，蓋掉孤筆略過原則跳出來的警告。"
+    },
+    {
       "id": "max_code_length",
       "name": "碼長上限",
       "desc": "一個字最多取 5 碼。超過的話取前 4碼加最後 1 碼。",
@@ -394,8 +402,14 @@
             },
             {
               "c": "足",
-              "code": "OTY",
-              "compCode": "OTL",
+              "code": "OLY",
+              "compCode": "OLL",
+              "standaloneOnly": true
+            },
+            {
+              "c": "幺",
+              "code": "LG",
+              "compCode": "G",
               "standaloneOnly": true
             }
           ]

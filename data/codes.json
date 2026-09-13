@@ -1907,6 +1907,7 @@
       },
       {
         "strokes": [
+          7,
           8,
           9,
           10
@@ -1915,9 +1916,6 @@
       }
     ],
     "code": "JYBA",
-    "skipped": [
-      7
-    ],
     "final": "JYBA"
   },
   "之": {
@@ -4462,6 +4460,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "L"
@@ -4497,16 +4501,15 @@
         "letter": "M"
       }
     ],
-    "code": "DLMJGM",
-    "final": "DLMJM",
-    "skipped": [
-      4
-    ],
+    "code": "DILMJGM",
+    "final": "DILMM",
     "compliant": [
-      "skip:4"
+      "lone:1",
+      "comp:目:0"
     ],
     "compliantWhy": {
-      "skip:4": "這是橫。"
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
     },
     "variants": [
       {
@@ -12791,6 +12794,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -12806,11 +12815,16 @@
         "letter": "K"
       }
     ],
-    "code": "DEK",
-    "final": "DEK",
-    "skipped": [
-      4
-    ]
+    "code": "DIEK",
+    "final": "DIEK",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "買": {
     "segments": [
@@ -33785,6 +33799,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "J"
@@ -33811,12 +33831,19 @@
         "letter": "I"
       }
     ],
-    "code": "DJTHI",
-    "final": "DJTHI",
+    "code": "DIJTHI",
+    "final": "DIJTI",
     "skipped": [
-      4,
       11
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "良": {
     "segments": [
@@ -45972,20 +45999,15 @@
       {
         "strokes": [
           0,
+          1,
+          2,
           3
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          1,
-          2
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "CC",
-    "final": "CC"
+    "code": "G",
+    "final": "G"
   },
   "敵": {
     "segments": [
@@ -46191,20 +46213,15 @@
       {
         "strokes": [
           7,
+          8,
+          9,
           10
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          8,
-          9
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "OLLCC",
-    "final": "OLLCC"
+    "code": "OLLG",
+    "final": "OLLG"
   },
   "拜": {
     "segments": [
@@ -67900,11 +67917,16 @@
     "segments": [
       {
         "strokes": [
-          0,
+          0
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
           1,
           2
         ],
-        "letter": "E"
+        "letter": "I"
       },
       {
         "strokes": [
@@ -67920,8 +67942,8 @@
         "letter": "I"
       }
     ],
-    "code": "ECI",
-    "final": "ECI"
+    "code": "CICI",
+    "final": "CICI"
   },
   "后": {
     "segments": [
@@ -69551,20 +69573,15 @@
       {
         "strokes": [
           3,
+          4,
+          5,
           6
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          4,
-          5
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "KCC",
-    "final": "KCC"
+    "code": "KG",
+    "final": "KG"
   },
   "猜": {
     "segments": [
@@ -72840,6 +72857,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "L"
@@ -72884,11 +72907,8 @@
         "letter": "W"
       }
     ],
-    "code": "DLMJGMW",
-    "final": "DLMJW",
-    "skipped": [
-      4
-    ],
+    "code": "DILMJGMW",
+    "final": "DILMW",
     "variants": [
       {
         "display": "懸",
@@ -72954,7 +72974,15 @@
           5
         ]
       }
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "占": {
     "segments": [
@@ -73051,16 +73079,11 @@
       {
         "strokes": [
           3,
+          4,
+          5,
           6
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          4,
-          5
-        ],
-        "letter": "C"
+        "letter": "G"
       },
       {
         "strokes": [
@@ -73072,8 +73095,8 @@
         "letter": "T"
       }
     ],
-    "code": "ZCCT",
-    "final": "ZCCT"
+    "code": "ZGT",
+    "final": "ZGT"
   },
   "奉": {
     "segments": [
@@ -74288,6 +74311,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -74305,11 +74334,16 @@
         "letter": "D"
       }
     ],
-    "code": "DFD",
-    "final": "DFD",
-    "skipped": [
-      4
-    ]
+    "code": "DIFD",
+    "final": "DIFD",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "桿": {
     "segments": [
@@ -81515,6 +81549,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -81534,11 +81574,16 @@
         "letter": "X"
       }
     ],
-    "code": "DCLX",
-    "final": "DCLX",
-    "skipped": [
-      4
-    ]
+    "code": "DICLX",
+    "final": "DICLX",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "霧": {
     "segments": [
@@ -87233,6 +87278,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -87249,11 +87300,16 @@
         "letter": "K"
       }
     ],
-    "code": "DKK",
-    "final": "DKK",
-    "skipped": [
-      4
-    ]
+    "code": "DIKK",
+    "final": "DIKK",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "漿": {
     "segments": [
@@ -90801,6 +90857,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -90832,11 +90894,16 @@
         "letter": "H"
       }
     ],
-    "code": "DWUAH",
-    "final": "DWUAH",
-    "skipped": [
-      4
-    ]
+    "code": "DIWUAH",
+    "final": "DIWUH",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "閣": {
     "segments": [
@@ -96602,20 +96669,15 @@
       {
         "strokes": [
           5,
+          6,
+          7,
           8
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          6,
-          7
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "YKCC",
-    "final": "YKCC"
+    "code": "YKG",
+    "final": "YKG"
   },
   "旺": {
     "segments": [
@@ -98333,6 +98395,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -98356,12 +98424,19 @@
         "letter": "O"
       }
     ],
-    "code": "DQEO",
-    "final": "DQEO",
+    "code": "DIQEO",
+    "final": "DIQEO",
     "skipped": [
-      4,
       11
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "穆": {
     "segments": [
@@ -105639,20 +105714,15 @@
       {
         "strokes": [
           8,
+          9,
+          10,
           11
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          9,
-          10
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "YFVCC",
-    "final": "YFVCC"
+    "code": "YFVG",
+    "final": "YFVG"
   },
   "衷": {
     "segments": [
@@ -109989,6 +110059,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -110002,11 +110078,16 @@
         "letter": "P"
       }
     ],
-    "code": "DVP",
-    "skipped": [
-      4
+    "code": "DIVP",
+    "final": "DIVP",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
     ],
-    "final": "DVP"
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "峰": {
     "segments": [
@@ -119336,6 +119417,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -119367,11 +119454,16 @@
         "letter": "M"
       }
     ],
-    "code": "DYIFM",
-    "final": "DYIFM",
-    "skipped": [
-      4
-    ]
+    "code": "DIYIFM",
+    "final": "DIYIM",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "髓": {
     "segments": [
@@ -122328,17 +122420,28 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
         "letter": "J"
       }
     ],
-    "code": "DJ",
-    "final": "DJ",
-    "skipped": [
-      4
-    ]
+    "code": "DIJ",
+    "final": "DIJ",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "骸": {
     "segments": [
@@ -136967,6 +137070,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -136997,11 +137106,16 @@
         "letter": "Y"
       }
     ],
-    "code": "DHMYY",
-    "final": "DHMYY",
-    "skipped": [
-      4
-    ]
+    "code": "DIHMYY",
+    "final": "DIHMY",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "歹": {
     "segments": [
@@ -141398,6 +141512,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -141420,11 +141540,16 @@
         "letter": "F"
       }
     ],
-    "code": "DFVF",
-    "final": "DFVF",
-    "skipped": [
-      4
-    ]
+    "code": "DIFVF",
+    "final": "DIFVF",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "愷": {
     "segments": [
@@ -144587,6 +144712,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -144622,12 +144753,19 @@
         "letter": "V"
       }
     ],
-    "code": "DAJROV",
+    "code": "DIAJROV",
     "skipped": [
-      4,
       10
     ],
-    "final": "DAJRV"
+    "final": "DIAJV",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "榆": {
     "segments": [
@@ -144840,6 +144978,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -144878,11 +145022,16 @@
         "letter": "K"
       }
     ],
-    "code": "DHUIJK",
-    "final": "DHUIK",
-    "skipped": [
-      4
-    ]
+    "code": "DIHUIJK",
+    "final": "DIHUK",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "坤": {
     "segments": [
@@ -152180,6 +152329,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -152202,11 +152357,16 @@
         "letter": "B"
       }
     ],
-    "code": "DTXB",
-    "final": "DTXB",
-    "skipped": [
-      4
-    ]
+    "code": "DITXB",
+    "final": "DITXB",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "蠅": {
     "segments": [
@@ -156567,6 +156727,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -156589,11 +156755,16 @@
         "letter": "T"
       }
     ],
-    "code": "DHOT",
-    "final": "DHOT",
-    "skipped": [
-      4
-    ]
+    "code": "DIHOT",
+    "final": "DIHOT",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "塢": {
     "segments": [
@@ -157920,10 +158091,12 @@
   },
   "瞻": {
     "compliant": [
-      "skip:4"
+      "lone:1",
+      "comp:目:0"
     ],
     "compliantWhy": {
-      "skip:4": "橫"
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
     },
     "segments": [
       {
@@ -157934,6 +158107,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -157974,11 +158153,8 @@
         "letter": "O"
       }
     ],
-    "code": "DSRVIO",
-    "final": "DSRVO",
-    "skipped": [
-      4
-    ]
+    "code": "DISRVIO",
+    "final": "DISRO"
   },
   "嚮": {
     "segments": [
@@ -158850,6 +159026,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -158870,12 +159052,19 @@
         "letter": "J"
       }
     ],
-    "code": "DVSJ",
-    "final": "DVSJ",
+    "code": "DIVSJ",
+    "final": "DIVSJ",
     "skipped": [
-      4,
       10
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "饅": {
     "segments": [
@@ -161610,15 +161799,20 @@
     "segments": [
       {
         "strokes": [
-          0,
+          0
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
           1,
           2
         ],
-        "letter": "E"
+        "letter": "I"
       }
     ],
-    "code": "E",
-    "final": "E"
+    "code": "CI",
+    "final": "CI"
   },
   "击": {
     "segments": [
@@ -166645,15 +166839,23 @@
     "segments": [
       {
         "strokes": [
-          0,
+          0
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
           1,
           2
         ],
         "letter": "G"
       }
     ],
-    "code": "G",
-    "final": "G"
+    "code": "LG",
+    "final": "LG",
+    "conventional": [
+      "merge:0-1"
+    ]
   },
   "葱": {
     "segments": [
@@ -169546,6 +169748,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -169560,11 +169768,16 @@
         "letter": "G"
       }
     ],
-    "code": "DIG",
-    "final": "DIG",
-    "skipped": [
-      4
-    ]
+    "code": "DIIG",
+    "final": "DIIG",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "鳩": {
     "segments": [
@@ -174825,10 +175038,12 @@
   },
   "矚": {
     "compliant": [
-      "skip:4"
+      "lone:1",
+      "comp:目:0"
     ],
     "compliantWhy": {
-      "skip:4": "橫"
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
     },
     "segments": [
       {
@@ -174839,6 +175054,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -174892,11 +175113,8 @@
         "letter": "G"
       }
     ],
-    "code": "DRKMSOG",
-    "final": "DRKMG",
-    "skipped": [
-      4
-    ]
+    "code": "DIRKMSOG",
+    "final": "DIRKG"
   },
   "擘": {
     "segments": [
@@ -180153,20 +180371,15 @@
       {
         "strokes": [
           4,
+          5,
+          6,
           7
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          5,
-          6
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "VYCC",
-    "final": "VYCC"
+    "code": "VYG",
+    "final": "VYG"
   },
   "坍": {
     "segments": [
@@ -180249,6 +180462,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -180264,11 +180483,16 @@
         "letter": "T"
       }
     ],
-    "code": "DVT",
-    "final": "DVT",
-    "skipped": [
-      4
-    ]
+    "code": "DIVT",
+    "final": "DIVT",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "汐": {
     "segments": [
@@ -183701,6 +183925,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -183730,11 +183960,16 @@
         "letter": "N"
       }
     ],
-    "code": "DIOJN",
-    "final": "DIOJN",
-    "skipped": [
-      4
-    ]
+    "code": "DIIOJN",
+    "final": "DIION",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "噃": {
     "code": "OJVTOT",
@@ -184084,6 +184319,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -184117,11 +184358,16 @@
         "letter": "Y"
       }
     ],
-    "code": "DAJRIY",
-    "skipped": [
-      4
+    "code": "DIAJRIY",
+    "final": "DIAJY",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
     ],
-    "final": "DAJRY"
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "淦": {
     "segments": [
@@ -185563,6 +185809,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -185583,11 +185835,16 @@
         "letter": "H"
       }
     ],
-    "code": "DGJH",
-    "final": "DGJH",
-    "skipped": [
-      4
-    ]
+    "code": "DIGJH",
+    "final": "DIGJH",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "珉": {
     "segments": [
@@ -186414,6 +186671,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "J"
@@ -186432,11 +186695,16 @@
         "letter": "Z"
       }
     ],
-    "code": "DJQZ",
-    "final": "DJQZ",
-    "skipped": [
-      4
-    ]
+    "code": "DIJQZ",
+    "final": "DIJQZ",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "蕃": {
     "segments": [
@@ -187554,6 +187822,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -187569,11 +187843,16 @@
         "letter": "F"
       }
     ],
-    "code": "DFF",
-    "final": "DFF",
-    "skipped": [
-      4
-    ]
+    "code": "DIFF",
+    "final": "DIFF",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "郴": {
     "segments": [
@@ -189522,6 +189801,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "L"
@@ -189535,11 +189820,16 @@
         "letter": "M"
       }
     ],
-    "code": "DLM",
-    "final": "DLM",
-    "skipped": [
-      4
-    ]
+    "code": "DILM",
+    "final": "DILM",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "畿": {
     "segments": [
@@ -195097,6 +195387,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           6,
           7,
           8
@@ -195118,12 +195414,19 @@
         "letter": "Y"
       }
     ],
-    "code": "DETY",
-    "final": "DETY",
+    "code": "DIETY",
+    "final": "DIETY",
     "skipped": [
-      4,
       5
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "訶": {
     "segments": [
@@ -204475,6 +204778,7 @@
       },
       {
         "strokes": [
+          9,
           10,
           11,
           12
@@ -204483,10 +204787,6 @@
       }
     ],
     "code": "JOBA",
-    "final": "JOBA",
-    "skipped": [
-      9
-    ],
     "alts": [
       {
         "code": "JOBIJQ",
@@ -204536,7 +204836,8 @@
           }
         ]
       }
-    ]
+    ],
+    "final": "JOBA"
   },
   "剑": {
     "segments": [
@@ -216858,6 +217159,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -216878,11 +217185,16 @@
         "letter": "K"
       }
     ],
-    "code": "DKLK",
-    "skipped": [
-      4
+    "code": "DIKLK",
+    "final": "DIKLK",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
     ],
-    "final": "DKLK"
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "弩": {
     "segments": [
@@ -221994,6 +222306,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -222025,12 +222343,19 @@
         "letter": "F"
       }
     ],
-    "code": "DDYIF",
-    "final": "DDYIF",
+    "code": "DIDYIF",
+    "final": "DIDYF",
     "skipped": [
-      4,
       9
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "庾": {
     "segments": [
@@ -225001,6 +225326,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -225032,11 +225363,16 @@
         "letter": "F"
       }
     ],
-    "code": "DIVBF",
-    "final": "DIVBF",
-    "skipped": [
-      4
-    ]
+    "code": "DIIVBF",
+    "final": "DIIVF",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "簫": {
     "segments": [
@@ -225444,6 +225780,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "J"
@@ -225472,11 +225814,16 @@
         "letter": "Y"
       }
     ],
-    "code": "DJTVY",
-    "final": "DJTVY",
-    "skipped": [
-      4
-    ]
+    "code": "DIJTVY",
+    "final": "DIJTY",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "牴": {
     "segments": [
@@ -234054,6 +234401,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -234072,11 +234425,16 @@
         "letter": "L"
       }
     ],
-    "code": "DUJL",
-    "final": "DUJL",
-    "skipped": [
-      4
-    ]
+    "code": "DIUJL",
+    "final": "DIUJL",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "紊": {
     "segments": [
@@ -241844,6 +242202,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           11
@@ -241860,11 +242224,16 @@
         "letter": "T"
       }
     ],
-    "code": "DOT",
-    "final": "DOT",
-    "skipped": [
-      4
-    ]
+    "code": "DIOT",
+    "final": "DIOT",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "狷": {
     "segments": [
@@ -244521,6 +244890,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -244539,11 +244914,16 @@
         "letter": "C"
       }
     ],
-    "code": "DTLC",
-    "final": "DTLC",
-    "skipped": [
-      4
-    ]
+    "code": "DITLC",
+    "final": "DITLC",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "忪": {
     "segments": [
@@ -246016,20 +246396,15 @@
       {
         "strokes": [
           4,
+          5,
+          6,
           7
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          5,
-          6
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "TCC",
-    "final": "TCC"
+    "code": "TG",
+    "final": "TG"
   },
   "袮": {
     "segments": [
@@ -251445,6 +251820,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           10
         ],
@@ -251460,11 +251841,16 @@
         "letter": "E"
       }
     ],
-    "code": "DCE",
-    "final": "DCE",
-    "skipped": [
-      4
-    ]
+    "code": "DICE",
+    "final": "DICE",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "骼": {
     "segments": [
@@ -254359,6 +254745,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "J"
@@ -254381,11 +254773,16 @@
         "letter": "T"
       }
     ],
-    "code": "DJWT",
-    "final": "DJWT",
-    "skipped": [
-      4
-    ]
+    "code": "DIJWT",
+    "final": "DIJWT",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "盹": {
     "segments": [
@@ -254397,6 +254794,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -254412,12 +254815,19 @@
         "letter": "L"
       }
     ],
-    "code": "DUL",
-    "final": "DUL",
+    "code": "DIUL",
+    "final": "DIUL",
     "skipped": [
-      4,
       5
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "畚": {
     "segments": [
@@ -254508,6 +254918,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5
         ],
         "letter": "J"
@@ -254535,11 +254951,16 @@
         "letter": "T"
       }
     ],
-    "code": "DJBJT",
-    "final": "DJBJT",
-    "skipped": [
-      4
-    ]
+    "code": "DIJBJT",
+    "final": "DIJBT",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "疳": {
     "segments": [
@@ -254630,6 +255051,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           6,
           7,
           8,
@@ -254654,10 +255081,9 @@
         "letter": "M"
       }
     ],
-    "code": "DHEM",
-    "final": "DHEM",
+    "code": "DIHEM",
+    "final": "DIHEM",
     "skipped": [
-      4,
       5
     ],
     "alts": [
@@ -254704,7 +255130,15 @@
           10
         ]
       }
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "痊": {
     "segments": [
@@ -255960,6 +256394,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           10,
           11,
@@ -255982,11 +256422,16 @@
         "letter": "Y"
       }
     ],
-    "code": "DTYY",
-    "final": "DTYY",
-    "skipped": [
-      4
-    ]
+    "code": "DITYY",
+    "final": "DITYY",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "睨": {
     "segments": [
@@ -255998,6 +256443,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -256028,11 +256479,8 @@
         "letter": "L"
       }
     ],
-    "code": "DFFJL",
-    "final": "DFFJL",
-    "skipped": [
-      4
-    ],
+    "code": "DIFFJL",
+    "final": "DIFFL",
     "alts": [
       {
         "code": "DFEJL",
@@ -256079,7 +256527,15 @@
           4
         ]
       }
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "祆": {
     "segments": [
@@ -256423,6 +256879,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -256446,11 +256908,16 @@
         "letter": "Z"
       }
     ],
-    "code": "DVTZ",
-    "final": "DVTZ",
-    "skipped": [
-      4
-    ]
+    "code": "DIVTZ",
+    "final": "DIVTZ",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "絢": {
     "segments": [
@@ -256670,6 +257137,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -256699,11 +257172,16 @@
         "letter": "I"
       }
     ],
-    "code": "DFGMI",
-    "final": "DFGMI",
-    "skipped": [
-      4
-    ]
+    "code": "DIFGMI",
+    "final": "DIFGI",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "絀": {
     "segments": [
@@ -256820,6 +257298,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -256849,11 +257333,16 @@
         "letter": "V"
       }
     ],
-    "code": "DUBIV",
-    "final": "DUBIV",
-    "skipped": [
-      4
-    ]
+    "code": "DIUBIV",
+    "final": "DIUBV",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "繚": {
     "segments": [
@@ -257219,20 +257708,15 @@
       {
         "strokes": [
           3,
+          4,
+          5,
           6
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          4,
-          5
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "HCC",
-    "final": "HCC"
+    "code": "HG",
+    "final": "HG"
   },
   "瞠": {
     "segments": [
@@ -257244,6 +257728,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -257277,11 +257767,16 @@
         "letter": "F"
       }
     ],
-    "code": "DWUOF",
-    "final": "DWUOF",
-    "skipped": [
-      4
-    ]
+    "code": "DIWUOF",
+    "final": "DIWUF",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "碉": {
     "segments": [
@@ -257745,6 +258240,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -257775,11 +258276,16 @@
         "letter": "X"
       }
     ],
-    "code": "DCNZX",
-    "skipped": [
-      4
+    "code": "DICNZX",
+    "final": "DICNX",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
     ],
-    "final": "DCNZX"
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "萸": {
     "segments": [
@@ -276925,6 +277431,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -276962,11 +277474,16 @@
         "letter": "Y"
       }
     ],
-    "code": "DAOOYY",
-    "final": "DAOOY",
-    "skipped": [
-      4
-    ]
+    "code": "DIAOOYY",
+    "final": "DIAOY",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "疣": {
     "segments": [
@@ -299701,6 +300218,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -299723,11 +300246,16 @@
         "letter": "F"
       }
     ],
-    "code": "DYIF",
-    "final": "DYIF",
-    "skipped": [
-      4
-    ]
+    "code": "DIYIF",
+    "final": "DIYIF",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "鄠": {
     "code": "MIIISP",
@@ -303779,6 +304307,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -303815,11 +304349,16 @@
         "letter": "G"
       }
     ],
-    "code": "DRJOUG",
-    "final": "DRJOG",
-    "skipped": [
-      4
-    ]
+    "code": "DIRJOUG",
+    "final": "DIRJG",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "缪": {
     "segments": [
@@ -305411,6 +305950,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -305431,11 +305976,16 @@
         "letter": "J"
       }
     ],
-    "code": "DSEJ",
-    "final": "DSEJ",
-    "skipped": [
-      4
-    ]
+    "code": "DISEJ",
+    "final": "DISEJ",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "狲": {
     "segments": [
@@ -315708,6 +316258,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -315736,12 +316292,19 @@
         "letter": "Y"
       }
     ],
-    "code": "DHUYY",
-    "final": "DHUYY",
+    "code": "DIHUYY",
+    "final": "DIHUY",
     "skipped": [
-      4,
       8
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "馒": {
     "segments": [
@@ -322126,20 +322689,15 @@
       {
         "strokes": [
           2,
+          3,
+          4,
           5
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          3,
-          4
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "QZCC",
-    "final": "QZCC"
+    "code": "QZG",
+    "final": "QZG"
   },
   "讷": {
     "segments": [
@@ -326121,6 +326679,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7,
@@ -326159,12 +326723,19 @@
         "letter": "X"
       }
     ],
-    "code": "DDYIFX",
-    "final": "DDYIX",
+    "code": "DIDYIFX",
+    "final": "DIDYX",
     "skipped": [
-      4,
       9
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "鬯": {
     "segments": [
@@ -335510,6 +336081,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -335538,10 +336115,9 @@
         "letter": "V"
       }
     ],
-    "code": "DCDLV",
-    "final": "DCDLV",
+    "code": "DICDLV",
+    "final": "DICDV",
     "skipped": [
-      4,
       11
     ],
     "alts": [
@@ -335594,8 +336170,14 @@
       }
     ],
     "compliant": [
-      "comp:真:5"
-    ]
+      "comp:真:5",
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "鬟": {
     "segments": [
@@ -336668,6 +337250,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6,
           7
@@ -336681,11 +337269,16 @@
         "letter": "J"
       }
     ],
-    "code": "DMJ",
-    "final": "DMJ",
-    "skipped": [
-      4
-    ]
+    "code": "DIMJ",
+    "final": "DIMJ",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "笳": {
     "segments": [
@@ -338895,16 +339488,11 @@
       {
         "strokes": [
           6,
+          7,
+          8,
           9
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          7,
-          8
-        ],
-        "letter": "C"
+        "letter": "G"
       },
       {
         "strokes": [
@@ -338916,8 +339504,8 @@
         "letter": "T"
       }
     ],
-    "code": "HZCCT",
-    "final": "HZCCT"
+    "code": "HZGT",
+    "final": "HZGT"
   },
   "馇": {
     "segments": [
@@ -357872,16 +358460,11 @@
       {
         "strokes": [
           5,
+          6,
+          7,
           8
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          6,
-          7
-        ],
-        "letter": "C"
+        "letter": "G"
       },
       {
         "strokes": [
@@ -357893,8 +358476,8 @@
         "letter": "T"
       }
     ],
-    "code": "YKCCT",
-    "final": "YKCCT"
+    "code": "YKGT",
+    "final": "YKGT"
   },
   "椴": {
     "segments": [
@@ -363474,8 +364057,9 @@
   },
   "氍": {
     "compliant": [
-      "skip:4",
-      "skip:9"
+      "skip:9",
+      "lone:1",
+      "comp:目:0"
     ],
     "segments": [
       {
@@ -363486,6 +364070,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -363539,12 +364129,15 @@
         "letter": "L"
       }
     ],
-    "code": "DDYIFJIL",
-    "final": "DDYIL",
+    "code": "DIDYIFJIL",
+    "final": "DIDYL",
     "skipped": [
-      4,
       9
-    ]
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "腙": {
     "segments": [
@@ -367861,16 +368454,11 @@
       {
         "strokes": [
           8,
+          9,
+          10,
           11
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          9,
-          10
-        ],
-        "letter": "C"
+        "letter": "G"
       },
       {
         "strokes": [
@@ -367882,8 +368470,8 @@
         "letter": "T"
       }
     ],
-    "code": "JOZCCT",
-    "final": "JOZCT"
+    "code": "JOZGT",
+    "final": "JOZGT"
   },
   "礓": {
     "segments": [
@@ -368140,6 +368728,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -368152,11 +368746,16 @@
         "letter": "J"
       }
     ],
-    "code": "DIJ",
-    "final": "DIJ",
-    "skipped": [
-      4
-    ]
+    "code": "DIIJ",
+    "final": "DIIJ",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "眍": {
     "segments": [
@@ -368168,6 +368767,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368184,11 +368789,16 @@
         "letter": "X"
       }
     ],
-    "code": "DCX",
-    "final": "DCX",
-    "skipped": [
-      4
-    ]
+    "code": "DICX",
+    "final": "DICX",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "眚": {
     "segments": [
@@ -368239,6 +368849,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -368253,11 +368869,16 @@
         "letter": "O"
       }
     ],
-    "code": "DGO",
-    "final": "DGO",
-    "skipped": [
-      4
-    ]
+    "code": "DIGO",
+    "final": "DIGO",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "眦": {
     "segments": [
@@ -368269,6 +368890,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368292,11 +368919,16 @@
         "letter": "C"
       }
     ],
-    "code": "DTLC",
-    "final": "DTLC",
-    "skipped": [
-      4
-    ]
+    "code": "DITLC",
+    "final": "DITLC",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "眵": {
     "segments": [
@@ -368308,6 +368940,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368326,11 +368964,16 @@
         "letter": "A"
       }
     ],
-    "code": "DAA",
-    "final": "DAA",
-    "skipped": [
-      4
-    ]
+    "code": "DIAA",
+    "final": "DIAA",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "睐": {
     "segments": [
@@ -368342,6 +368985,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368361,11 +369010,8 @@
         "letter": "V"
       }
     ],
-    "code": "DTV",
-    "final": "DTV",
-    "skipped": [
-      4
-    ],
+    "code": "DITV",
+    "final": "DITV",
     "alts": [
       {
         "code": "DIVT",
@@ -368406,7 +369052,15 @@
           4
         ]
       }
-    ]
+    ],
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "睑": {
     "segments": [
@@ -368418,6 +369072,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368437,11 +369097,16 @@
         "letter": "W"
       }
     ],
-    "code": "DAW",
-    "final": "DAW",
-    "skipped": [
-      4
-    ]
+    "code": "DIAW",
+    "final": "DIAW",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "睃": {
     "segments": [
@@ -368453,6 +369118,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368477,11 +369148,16 @@
         "letter": "X"
       }
     ],
-    "code": "DGVX",
-    "final": "DGVX",
-    "skipped": [
-      4
-    ]
+    "code": "DIGVX",
+    "final": "DIGVX",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "睚": {
     "segments": [
@@ -368493,6 +369169,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368518,11 +369200,16 @@
         "letter": "F"
       }
     ],
-    "code": "DRFF",
-    "final": "DRFF",
-    "skipped": [
-      4
-    ]
+    "code": "DIRFF",
+    "final": "DIRFF",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "瞍": {
     "segments": [
@@ -368534,6 +369221,12 @@
           3
         ],
         "letter": "D"
+      },
+      {
+        "strokes": [
+          4
+        ],
+        "letter": "I"
       },
       {
         "strokes": [
@@ -368565,11 +369258,16 @@
         "letter": "X"
       }
     ],
-    "code": "DFFTX",
-    "final": "DFFTX",
-    "skipped": [
-      4
-    ]
+    "code": "DIFFTX",
+    "final": "DIFFX",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "瞀": {
     "segments": [
@@ -368634,6 +369332,12 @@
       },
       {
         "strokes": [
+          4
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
           5,
           6
         ],
@@ -368665,11 +369369,16 @@
         "letter": "H"
       }
     ],
-    "code": "DVTAH",
-    "final": "DVTAH",
-    "skipped": [
-      4
-    ]
+    "code": "DIVTAH",
+    "final": "DIVTH",
+    "compliant": [
+      "lone:1",
+      "comp:目:0"
+    ],
+    "compliantWhy": {
+      "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
+      "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
+    }
   },
   "畎": {
     "segments": [
@@ -369585,20 +370294,15 @@
       {
         "strokes": [
           5,
+          6,
+          7,
           8
         ],
-        "letter": "C"
-      },
-      {
-        "strokes": [
-          6,
-          7
-        ],
-        "letter": "C"
+        "letter": "G"
       }
     ],
-    "code": "YECC",
-    "final": "YECC"
+    "code": "YEG",
+    "final": "YEG"
   },
   "钣": {
     "segments": [
@@ -370812,5 +371516,2639 @@
     ],
     "code": "YEQC",
     "final": "YEQC"
+  },
+  "铋": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          9
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "YEWJ",
+    "final": "YEWJ"
+  },
+  "铌": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "C"
+      }
+    ],
+    "code": "YERC",
+    "final": "YERC"
+  },
+  "铍": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "P"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "X"
+      }
+    ],
+    "code": "YEPX",
+    "final": "YEPX"
+  },
+  "铎": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "H"
+      }
+    ],
+    "code": "YEXH",
+    "final": "YEXH"
+  },
+  "铐": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "S"
+      }
+    ],
+    "code": "YETXS",
+    "final": "YETXS",
+    "alts": [
+      {
+        "code": "YEFJS",
+        "segments": [
+          {
+            "letter": "Y",
+            "strokes": [
+              0,
+              1
+            ]
+          },
+          {
+            "letter": "E",
+            "strokes": [
+              2,
+              3,
+              4
+            ]
+          },
+          {
+            "letter": "F",
+            "strokes": [
+              5,
+              6,
+              7
+            ]
+          },
+          {
+            "letter": "J",
+            "strokes": [
+              8
+            ]
+          },
+          {
+            "letter": "S",
+            "strokes": [
+              9,
+              10
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "铑": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "C"
+      }
+    ],
+    "code": "YETXC",
+    "final": "YETXC",
+    "alts": [
+      {
+        "code": "YEFJC",
+        "segments": [
+          {
+            "letter": "Y",
+            "strokes": [
+              0,
+              1
+            ]
+          },
+          {
+            "letter": "E",
+            "strokes": [
+              2,
+              3,
+              4
+            ]
+          },
+          {
+            "letter": "F",
+            "strokes": [
+              5,
+              6,
+              7
+            ]
+          },
+          {
+            "letter": "J",
+            "strokes": [
+              8
+            ]
+          },
+          {
+            "letter": "C",
+            "strokes": [
+              9,
+              10
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "铒": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "N"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "E"
+      }
+    ],
+    "code": "YENE",
+    "final": "YENE"
+  },
+  "铕": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "letter": "D"
+      }
+    ],
+    "code": "YEXD",
+    "final": "YEXD"
+  },
+  "铖": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "Q"
+      }
+    ],
+    "code": "YERCXQ",
+    "final": "YERCQ"
+  },
+  "铗": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          6,
+          7
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "YEVK",
+    "final": "YEVK",
+    "skipped": [
+      5
+    ]
+  },
+  "铙": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "YEXJL",
+    "final": "YEXJL"
+  },
+  "铘": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "P"
+      }
+    ],
+    "code": "YEFJP",
+    "final": "YEFJP"
+  },
+  "鋣": {
+    "code": "YFVFJP",
+    "final": "YFVFP",
+    "manual": true
+  },
+  "铛": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "E"
+      }
+    ],
+    "code": "YEWE",
+    "final": "YEWE"
+  },
+  "铞": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "M"
+      }
+    ],
+    "code": "YEOM",
+    "final": "YEOM"
+  },
+  "铟": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          10
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "YEOK",
+    "final": "YEOK"
+  },
+  "铠": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "Z"
+      }
+    ],
+    "code": "YEWZ",
+    "final": "YEWZ"
+  },
+  "铥": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "G"
+      }
+    ],
+    "code": "YEJFG",
+    "final": "YEJFG"
+  },
+  "铧": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "YEYCT",
+    "final": "YEYCT"
+  },
+  "铨": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "letter": "E"
+      }
+    ],
+    "code": "YEYE",
+    "final": "YEYE"
+  },
+  "铪": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "A"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YEAO",
+    "final": "YEAO"
+  },
+  "铩": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "YEXT",
+    "final": "YEXT"
+  },
+  "铫": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "K"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "YEKLK",
+    "final": "YEKLK"
+  },
+  "铮": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "S"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "YESEJ",
+    "final": "YESEJ"
+  },
+  "铯": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "S"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "YESDL",
+    "final": "YESDL"
+  },
+  "铳": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "G"
+      },
+      {
+        "strokes": [
+          9
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "YEIGJL",
+    "final": "YEIGL"
+  },
+  "铴": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "Z"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "S"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "YEZSJ",
+    "final": "YEZSJ"
+  },
+  "铵": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "YEQLJ",
+    "final": "YEQLJ"
+  },
+  "铷": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          6,
+          7
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YELJO",
+    "final": "YELJO"
+  },
+  "铹": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "H"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          11
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "YEHUCJ",
+    "final": "YEHUJ"
+  },
+  "铼": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          9,
+          10,
+          11
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "V"
+      }
+    ],
+    "code": "YETV",
+    "final": "YETV"
+  },
+  "铽": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "Q"
+      }
+    ],
+    "code": "YEWQ",
+    "final": "YEWQ",
+    "skipped": [
+      5
+    ]
+  },
+  "铿": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "N"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "YENXF",
+    "final": "YENXF"
+  },
+  "锃": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "letter": "E"
+      }
+    ],
+    "code": "YEOE",
+    "final": "YEOE"
+  },
+  "锂": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "YEBF",
+    "final": "YEBF"
+  },
+  "锆": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YEJFO",
+    "final": "YEJFO"
+  },
+  "锇": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "K"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          11
+        ],
+        "letter": "Q"
+      }
+    ],
+    "code": "YEJKXQ",
+    "final": "YEJKQ"
+  },
+  "锉": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "F"
+      }
+    ],
+    "code": "YEYYF",
+    "final": "YEYYF"
+  },
+  "锊": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "W"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "A"
+      }
+    ],
+    "code": "YEJWA",
+    "final": "YEJWA"
+  },
+  "锍": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "G"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "N"
+      },
+      {
+        "strokes": [
+          11
+        ],
+        "letter": "L"
+      }
+    ],
+    "code": "YEIGNL",
+    "final": "YEIGL"
+  },
+  "锎": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "N"
+      }
+    ],
+    "code": "YEQCIN",
+    "final": "YEQCN"
+  },
+  "锏": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "letter": "B"
+      }
+    ],
+    "code": "YEQCB",
+    "final": "YEQCB"
+  },
+  "锒": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          6,
+          7,
+          8
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "YEQEK",
+    "final": "YEQEK"
+  },
+  "鋃": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          12,
+          13,
+          14
+        ],
+        "letter": "K"
+      }
+    ],
+    "code": "YFVQEK",
+    "final": "YFVQK"
+  },
+  "锓": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "U"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "X"
+      }
+    ],
+    "code": "YEEUX",
+    "final": "YEEUX"
+  },
+  "鋟": {
+    "code": "YFVEUX",
+    "final": "YFVEX",
+    "manual": true
+  },
+  "锔": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          8
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YERCO",
+    "final": "YERCO"
+  },
+  "鋦": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          11
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          12,
+          13,
+          14
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YFVRCO",
+    "final": "YFVRO"
+  },
+  "锕": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "P"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          11
+        ],
+        "letter": "J"
+      }
+    ],
+    "code": "YEPOJ",
+    "final": "YEPOJ",
+    "skipped": [
+      7
+    ]
+  },
+  "锖": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "letter": "F"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "letter": "D"
+      }
+    ],
+    "code": "YEFD",
+    "final": "YEFD"
+  },
+  "錆": {
+    "code": "YFVFD",
+    "final": "YFVFD",
+    "manual": true
+  },
+  "锘": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "H"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "X"
+      },
+      {
+        "strokes": [
+          10,
+          11,
+          12
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YEHXO",
+    "final": "YEHXO"
+  },
+  "鍩": {
+    "code": "YFVHXO",
+    "final": "YFVHO",
+    "manual": true
+  },
+  "锛": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7
+        ],
+        "letter": "K"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          10,
+          11,
+          12
+        ],
+        "letter": "H"
+      }
+    ],
+    "code": "YEKTH",
+    "final": "YEKTH"
+  },
+  "錛": {
+    "code": "YFVKTH",
+    "final": "YFVKH",
+    "manual": true
+  },
+  "锝": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "letter": "A"
+      }
+    ],
+    "code": "YEBA",
+    "final": "YEBA"
+  },
+  "㝵": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "letter": "A"
+      }
+    ],
+    "code": "BA",
+    "final": "BA"
+  },
+  "锞": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "YEBT",
+    "final": "YEBT"
+  },
+  "锟": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "letter": "B"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "C"
+      },
+      {
+        "strokes": [
+          11,
+          12
+        ],
+        "letter": "C"
+      }
+    ],
+    "code": "YEBCC",
+    "final": "YEBCC"
+  },
+  "锢": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          12
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YEOTO",
+    "final": "YEOTO"
+  },
+  "锪": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "S"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "letter": "W"
+      }
+    ],
+    "code": "YESJW",
+    "final": "YESJW"
+  },
+  "鍃": {
+    "code": "YFVSJW",
+    "final": "YFVSW",
+    "manual": true
+  },
+  "锫": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          7,
+          8,
+          9
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          10,
+          11,
+          12
+        ],
+        "letter": "O"
+      }
+    ],
+    "code": "YEIVO",
+    "final": "YEIVO"
+  },
+  "錇": {
+    "code": "YFVIVO",
+    "final": "YFVIO",
+    "manual": true
+  },
+  "锩": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          11,
+          12
+        ],
+        "letter": "R"
+      }
+    ],
+    "code": "YEVIYR",
+    "final": "YEVIR"
+  },
+  "錈": {
+    "code": "YFVVIYR",
+    "final": "YFVVR",
+    "manual": true
+  },
+  "锬": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "V"
+      },
+      {
+        "strokes": [
+          11,
+          12
+        ],
+        "letter": "Y"
+      }
+    ],
+    "code": "YEVYVY",
+    "final": "YEVYY"
+  },
+  "锱": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1
+        ],
+        "letter": "Y"
+      },
+      {
+        "strokes": [
+          2,
+          3,
+          4
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          5
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          6
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          12
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "T"
+      }
+    ],
+    "code": "YELLLOT",
+    "final": "YELLT"
   }
 }
