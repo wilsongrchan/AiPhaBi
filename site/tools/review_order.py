@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """產生「字根順序核對頁」—— 每個字母、每個取形意圖底下的形狀，照網站實際會顯示
-的順序跟代表字列出來，旁邊標上 data/zigen.json 裡的原始序號（跟 intent_notes.md
-用的 L1、L2…同一套編號）。
+的順序跟代表字列出來，旁邊標上 data/zigen.json 裡的原始序號（L1、L2…＝同字母底下
+取形意圖照等第由上到下的順序，跟字根表／editor.html 看到的順序一致）。
 
     python3 site/tools/build_site_data.py   # 先確保 site/assets/zigen.json 是新的
     python3 site/tools/review_order.py
@@ -36,7 +36,7 @@ def raw_positions(zraw):
     """(letter, src, sorted(strokes)) -> (取形意圖序號, 該意圖底下的形狀序號)。
 
     序號是「同字母底下，取形意圖照等第（主／次／三）由上到下」的順序——
-    跟 intent_notes.md 的 L1、L2…同一套算法，Wilson 已經在用那套核對意圖說明了。
+    跟字根表／editor.html 看到的順序一致。
     """
     pos = {}
     for L in zraw.get("letters", []):
@@ -182,7 +182,7 @@ h2 {{ font-size: 1.6rem; border-bottom: 2px solid #ccc; padding-bottom: .2rem; m
 </style></head><body>
 <h1>字根順序核對頁</h1>
 <p class="hint">照網站實際會顯示的順序列出每個字母的取形意圖跟代表字。「L2③」讀作
-data/zigen.json 裡 L 字母第 2 個取形意圖（跟 intent_notes.md 的編號同一套）的第 3 個形狀。
+data/zigen.json 裡 L 字母第 2 個取形意圖（跟字根表／editor.html 顯示的順序一致）的第 3 個形狀。
 紅框代表這個形狀被排到跟原始序號不同的意圖分組底下——正常情況不該出現。「原字」是還沒套用
 代表字替換前，zigen.json 裡本來的那個字。這頁不寫檔，純核對用。</p>
 {warn}

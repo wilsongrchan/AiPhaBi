@@ -1433,29 +1433,6 @@ def build_lianxi(picks, codes, max_rule, warn, per_level=8):
             "levels": n_levels, "pass": per_level, "questions": made, "glyphs": glyphs}
 
 
-def load_intent_notes(warn):
-    """讀 site/content/intent_notes.md —— 少數取形意圖的額外說明，Wilson 手寫。
-
-    key 是「字母＋該字母底下取形意圖的順序」（A3 ＝ A 的第三個意圖），跟字根表上
-    看到的順序一致。序號會隨 Side A 合併意圖而移動，所以建置時把每一條對到的意圖
-    原文印出來，對不上一眼就看得到。
-    """
-    path = ROOT / "site" / "content" / "intent_notes.md"
-    if not path.exists():
-        return {}
-    text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
-    notes = {}
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        k, _, v = line.partition("=")
-        m = re.fullmatch(r"([A-Z])\s*(\d+)", k.strip())
-        if m and v.strip():
-            notes[(m.group(1), int(m.group(2)))] = v.strip()
-    return notes
-
-
 # 三簡碼沒有挑字清單（全碼表通用），這裡只現算幾個例字做示範。挑的是常見字、
 # 主碼四碼以上、而且不在約定簡碼的 63 字名單裡——兩種機制分開示範，不要用同一個字
 # 讓人搞混「這是約定簡碼還是三簡碼」。
@@ -2802,7 +2779,7 @@ def _drift_blame(drift, ship, pc):
 TIER_ORDER = {"primary": 0, "secondary": 1, "tertiary": 2}
 
 
-def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, notes=None):
+def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
     ⚠️ 純文字版，刻意不畫字根。一個字根存的是「某個字的第幾筆到第幾筆」
@@ -2812,6 +2789,11 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
     得先解決字形資料的授權與取得——那是另一個決定，不要偷偷在這裡引入相依。
 
     例字（seen）依字頻排序後截斷：常用字排前面，學的人才認得出來。
+
+    每個意圖的額外說明（note）直接從 zigen.json 的 intention.note 讀——那個欄位
+    現在可以在 editor.html 裡直接編輯（Side A 2026-09-13），不用再透過
+    site/content/intent_notes.md 這個中介檔案，序號也就不會再因為 Side A 調整
+    意圖順序而錯位。
     """
     # 筆畫總數只能從 codes.json 的 segments 反推（union 出來的最大索引 + 1）。
     # 有了它才能分辨「整個字」和「字的前幾筆」——沒有 graphics.txt 就只有這條路。
@@ -2967,8 +2949,7 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
             # -s["count"] 這個鍵，同一個「整個字／非整個字」分堆內就會維持原順序。
             shapes.sort(key=lambda s: (s["span"] != "whole",))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
-                           "shapes": shapes,
-                           "note": (notes or {}).get((L.get("letter"), len(groups) + 1), "")})
+                           "shapes": shapes, "note": (it.get("note") or "").strip()})
         letters.append({"letter": L.get("letter", ""), "groups": groups})
 
     return {
@@ -3345,25 +3326,11 @@ def main():
     if std_path.exists():
         standard = {c for line in std_path.read_text("utf-8").splitlines()
                     if not line.startswith("#") for c in line.strip()}
-    notes = load_intent_notes(warn)
     zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
-                     standard=standard, notes=notes)
+                     standard=standard)
 
     lianxi = build_lianxi(load_lianxi_picks(warn), codes, max_rule, warn)
 
-    # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
-    # 印出來才看得出有沒有對錯位置。找不到的直接警告。
-    if notes:
-        idx = {}
-        for L in zg["letters"]:
-            for i, g in enumerate(L["groups"], 1):
-                idx[(L["letter"], i)] = g["desc"] or "（沒有取形意圖）"
-        for k in sorted(notes):
-            d = idx.get(k)
-            if d is None:
-                warn.append(f"意圖說明 {k[0]}{k[1]}：{k[0]} 底下沒有第 {k[1]} 個取形意圖")
-            else:
-                print(f"  意圖說明 {k[0]}{k[1]} → 「{d[:30]}」")
     zg["similar"] = build_similar(codes)
 
     # 字根表要畫出字根本身，需要這些字的筆畫輪廓。先只收字根的**來源字**（含 alts）：
