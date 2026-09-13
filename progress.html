@@ -163,23 +163,39 @@
   .msg{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
 
   /* 三個字集合的范氏圖：簡體方案字（簡體字＋傳承字）／傳統漢字（繁體字＋傳承字）／
-     常用字。純示意，圓圈大小、重疊面積不按實際字數比例——但相對關係是真的：
-     兩套字表本身共用的傳承字遠多於各自專屬的簡繁字，所以畫成大重疊；常用字
-     只是橫跨兩套字表挑出來的一小撮，畫成疊在中間偏下、比另外兩個圈小得多。
-     例字沿用上面 CATDEF 同一批（人天后／国鳥／國魚雲），不再另外造例字。 */
+     常用字。圓圈面積、重疊距離依 /api/venn 回來的實際字數算（見 computeVenn()）——
+     三圓兩兩重疊的距離照實際交集面積反解，三圓同時擺放時第三圓的三方交集面積是
+     算出來的結果、不是另外去湊，示意圖等級的準確度，不是嚴格證明過的最佳解。
+     虛線圈是疊上去的第四層：已在愛發筆取碼＝虛線內，還沒取碼＝虛線外。 */
   .venn text{font-family:-apple-system,"PingFang TC","Helvetica Neue",system-ui,sans-serif;}
-  .venn .setname{font-size:15px;font-weight:600;fill:var(--ink);}
+  .venn .setname{font-size:16px;font-weight:600;fill:var(--ink);}
   .venn .setdef{font-size:11px;fill:var(--muted);}
   /* 圈裡的區塊標籤疊在色塊上，色塊深淺隨主題／重疊層數變化——用跟卡片同色的
      文字描邊當「光暈」，不管疊了幾層色都讀得到，不必為了對比度去反推透明度。 */
-  .venn .rname,.venn .rex,.venn .rnone{paint-order:stroke;stroke:var(--card);stroke-width:3.5px;stroke-linejoin:round;}
+  .venn .rname,.venn .rex,.venn .rnone{paint-order:stroke;stroke:var(--card);stroke-width:3.5px;stroke-linejoin:round;pointer-events:none;}
   .venn .rname{font-size:13px;font-weight:600;fill:var(--ink);}
   .venn .rex{font-size:11px;fill:var(--muted);}
   .venn .rnone{font-size:10.5px;fill:var(--faint);font-style:italic;}
+  .venn .samp{font-size:13px;fill:var(--muted);pointer-events:none;letter-spacing:1px;}
   .venn .cA{fill:var(--s2);stroke:var(--s2);}
   .venn .cB{fill:var(--accent);stroke:var(--accent);}
   .venn .cC{fill:var(--s4);stroke:var(--s4);}
-  .venn circle{fill-opacity:.4;stroke-width:1.6;stroke-opacity:.9;}
+  .venn circle.set{fill-opacity:.32;stroke-width:1.6;stroke-opacity:.9;}
+  .venn{cursor:pointer;}
+  .venn .mark{fill:var(--ink);pointer-events:none;}
+  .venn .coded-bound{fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1.8;stroke-dasharray:6 5;pointer-events:none;}
+  .vlegend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:4px;}
+  .vlegend span{display:inline-flex;align-items:center;gap:5px;}
+  .vlegend i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .vlegend i.dashed{width:14px;height:0;border-top:2px dashed var(--ink);border-radius:0;opacity:.55;}
+  .vpanel{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+  .vpanel .vhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .vpanel .vhead h3{margin:0;font-size:15px;}
+  .vpanel .vhead .vn{color:var(--muted);font-size:12.5px;}
+  .vpanel .vchars{margin-top:10px;font-size:19px;line-height:2;letter-spacing:2px;word-break:break-all;max-height:180px;overflow-y:auto;}
+  .vpanel .vchars a{text-decoration:none;color:inherit;}
+  .vpanel .vchars a:hover{color:var(--accent);}
+  .vpanel .view{font-size:12.5px;}
   @media (prefers-reduced-motion:reduce){.tip{transition:none;}}
 </style>
 </head>
@@ -206,38 +222,16 @@
   <div class="stats" id="stats"></div>
 
   <div class="card">
-    <div class="plabel"><span>三個字集合的關係</span><span class="r">示意圖，非按比例</span></div>
-    <figure><svg class="venn" viewBox="0 0 600 420" role="img"
-      aria-label="簡體方案字、傳統漢字、常用字三個字集合的范氏圖：簡體方案字等於簡體字加傳承字，傳統漢字等於繁體字加傳承字，常用字是橫跨兩套字表挑出的一批字，主要落在傳承字與各自專屬字的交集裡。">
-      <circle class="cA" cx="250" cy="193" r="118"/>
-      <circle class="cB" cx="350" cy="193" r="118"/>
-      <circle class="cC" cx="300" cy="257" r="92"/>
-
-      <text class="setname" x="195" y="38" text-anchor="end">簡體方案字</text>
-      <text class="setdef" x="195" y="54" text-anchor="end">＝簡體字＋傳承字</text>
-      <text class="setname" x="405" y="38" text-anchor="start">傳統漢字</text>
-      <text class="setdef" x="405" y="54" text-anchor="start">＝繁體字＋傳承字</text>
-      <text class="setname" x="300" y="378" text-anchor="middle">常用字</text>
-      <text class="setdef" x="300" y="394" text-anchor="middle">依使用頻率篩出，橫跨兩套字表</text>
-
-      <text class="rname" x="175" y="133" text-anchor="middle">簡體字</text>
-      <text class="rex" x="175" y="149" text-anchor="middle">其餘專屬字，較少見</text>
-      <text class="rname" x="425" y="133" text-anchor="middle">繁體字</text>
-      <text class="rex" x="425" y="149" text-anchor="middle">其餘專屬字，較少見</text>
-
-      <text class="rname" x="300" y="137" text-anchor="middle">傳承字</text>
-      <text class="rex" x="300" y="153" text-anchor="middle">其餘傳承字，較少見</text>
-
-      <text class="rname" x="300" y="212" text-anchor="middle">傳承常用字</text>
-      <text class="rex" x="300" y="228" text-anchor="middle">如人天后</text>
-
-      <text class="rname" x="225" y="236" text-anchor="middle">簡體常用字</text>
-      <text class="rex" x="225" y="252" text-anchor="middle">如国鸟</text>
-      <text class="rname" x="375" y="236" text-anchor="middle">繁體常用字</text>
-      <text class="rex" x="375" y="252" text-anchor="middle">如國魚雲</text>
-
-      <text class="rnone" x="300" y="325" text-anchor="middle">（幾乎不存在——常用字必屬於某套字表）</text>
-    </svg></figure>
+    <div class="plabel"><span>三個字集合的關係</span><span class="r" id="vennr">讀取中…</span></div>
+    <figure><svg class="venn" id="vennSvg" viewBox="0 0 700 620" role="img"
+      aria-label="簡體方案字、傳統漢字、常用字三個字集合的范氏圖，圓圈大小依實際字數比例畫，虛線圈內是已在愛發筆取碼的字。點區塊看字清單。"></svg></figure>
+    <div class="vlegend">
+      <span><i style="background:var(--s2)"></i>簡體方案字＝簡體字＋傳承字</span>
+      <span><i style="background:var(--accent)"></i>傳統漢字＝繁體字＋傳承字</span>
+      <span><i style="background:var(--s4)"></i>常用字＝只打常用字白名單</span>
+      <span><i class="dashed"></i>虛線內＝已取碼</span>
+    </div>
+    <div class="vpanel" id="vpanel" hidden></div>
   </div>
 
   <footer>
@@ -670,6 +664,189 @@ function renderCats(data){
   const old=$('#catstats'); if(old) old.remove();
   const wrap=document.createElement('div'); wrap.id='catstats'; wrap.appendChild(box);
   $('#stats').insertAdjacentElement('afterend',wrap);
+}
+
+/* ---------- 三個字集合的范氏圖：真的按 /api/venn 的字數算面積 ----------
+   三圓兩兩重疊的距離，個別反解「兩圓重疊面積＝實際交集字數（等比例縮放）」；
+   三圓同時擺好之後，三方交集自然落在哪就是哪，不再另外去湊——示意圖等級的
+   準確度，不是嚴格的最佳解，但比手畫的「非按比例」誠實得多。 */
+const VW=700,VH=620;
+const VLABEL={simp_rare:'簡體字',simp_common:'簡體常用字',trad_rare:'繁體字',
+  trad_common:'繁體常用字',inherited_rare:'傳承字',inherited_common:'傳承常用字'};
+let VENN=null,vennSel=null;
+
+fetch('/api/venn').then(r=>r.json()).then(d=>{VENN=d; drawVenn(d);}).catch(e=>{
+  $('#vennr').textContent='讀取失敗';
+});
+
+function circleOverlapArea(r1,r2,d){
+  if(d>=r1+r2) return 0;
+  if(d<=Math.abs(r1-r2)) return Math.PI*Math.min(r1,r2)**2;
+  const a=Math.acos((d*d+r1*r1-r2*r2)/(2*d*r1))*2;
+  const b=Math.acos((d*d+r2*r2-r1*r1)/(2*d*r2))*2;
+  return 0.5*r1*r1*(a-Math.sin(a))+0.5*r2*r2*(b-Math.sin(b));
+}
+function solveDistance(r1,r2,targetArea){
+  const maxOv=Math.PI*Math.min(r1,r2)**2;
+  if(targetArea<=0) return r1+r2;
+  if(targetArea>=maxOv) return Math.abs(r1-r2)+0.001;
+  let lo=Math.abs(r1-r2),hi=r1+r2;
+  for(let i=0;i<40;i++){
+    const mid=(lo+hi)/2;
+    if(circleOverlapArea(r1,r2,mid)>targetArea) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+const vsub=(p,q)=>[p[0]-q[0],p[1]-q[1]];
+const vadd=(p,v,s)=>[p[0]+v[0]*s,p[1]+v[1]*s];
+const vnorm=v=>{const d=Math.hypot(v[0],v[1]); return d<1e-6?[0,-1]:[v[0]/d,v[1]/d];};
+
+function computeVenn(regions){
+  const g=k=>regions[k]?regions[k].total:0;
+  const sizeA=g('simp_rare')+g('simp_common')+g('inherited_rare')+g('inherited_common');
+  const sizeB=g('trad_rare')+g('trad_common')+g('inherited_rare')+g('inherited_common');
+  const sizeC=g('simp_common')+g('trad_common')+g('inherited_common');
+  const ab=g('inherited_rare')+g('inherited_common');
+  const ac=g('simp_common')+g('inherited_common');
+  const bc=g('trad_common')+g('inherited_common');
+
+  const k=185/Math.sqrt(Math.max(sizeA,sizeB,1));
+  const rA=k*Math.sqrt(Math.max(sizeA,1)),rB=k*Math.sqrt(Math.max(sizeB,1)),rC=k*Math.sqrt(Math.max(sizeC,1));
+  const AREA_K=Math.PI*k*k;
+  // ×1.18：三個字集合實際重疊得很深（傳承字動輒佔七八成），照實際面積解出來的
+  // 距離會讓三圈幾乎疊在一起、區塊標籤全部擠在中心讀不出來。加一點墊寬，大小
+  // 關係還是對的（重疊愈多、墊寬後還是相對愈近），只是不再是嚴格的等比例。
+  let dAB=solveDistance(rA,rB,AREA_K*ab)*1.18, dAC=solveDistance(rA,rC,AREA_K*ac)*1.18,
+      dBC=solveDistance(rB,rC,AREA_K*bc)*1.18;
+  // 三角不等式夾一下，反解出來的三個距離不見得能同時擺成一個真三角形
+  for(let i=0;i<6;i++){
+    if(dAB>dAC+dBC) dAB=dAC+dBC-0.01;
+    if(dAC>dAB+dBC) dAC=dAB+dBC-0.01;
+    if(dBC>dAB+dAC) dBC=dAB+dAC-0.01;
+  }
+
+  const A=[0,0],B=[dAB,0];
+  const cosA=Math.max(-1,Math.min(1,(dAB*dAB+dAC*dAC-dBC*dBC)/(2*dAB*dAC||1)));
+  const angA=Math.acos(cosA);
+  const C=[dAC*Math.cos(angA),dAC*Math.sin(angA)];
+
+  const pts=[[A,rA],[B,rB],[C,rC]];
+  const minX=Math.min(...pts.map(([p,r])=>p[0]-r)),maxX=Math.max(...pts.map(([p,r])=>p[0]+r));
+  const minY=Math.min(...pts.map(([p,r])=>p[1]-r)),maxY=Math.max(...pts.map(([p,r])=>p[1]+r));
+  const bboxW=maxX-minX,bboxH=maxY-minY;
+  const availW=VW-100,availH=VH-220;
+  const scale=Math.min(availW/bboxW,availH/bboxH,3)*0.95;
+  const offX=(VW-bboxW*scale)/2-minX*scale, offY=110-minY*scale;
+  const tf=p=>[p[0]*scale+offX,p[1]*scale+offY];
+
+  return {
+    A:{cx:tf(A)[0],cy:tf(A)[1],r:rA*scale},
+    B:{cx:tf(B)[0],cy:tf(B)[1],r:rB*scale},
+    C:{cx:tf(C)[0],cy:tf(C)[1],r:rC*scale},
+    k:k*scale,   // 有效的「每 sqrt(字數) 幾個 px」係數，套過縮放——已取碼邊界圈拿這個算半徑，不必再反推一次
+  };
+}
+
+function pointRegion(x,y,layout){
+  const dA=Math.hypot(x-layout.A.cx,y-layout.A.cy), inA=dA<=layout.A.r;
+  const dB=Math.hypot(x-layout.B.cx,y-layout.B.cy), inB=dB<=layout.B.r;
+  const dC=Math.hypot(x-layout.C.cx,y-layout.C.cy), inC=dC<=layout.C.r;
+  if(!inA&&!inB) return null;
+  const cat=inA&&inB?'inherited':inA?'simp':'trad';
+  return cat+'_'+(inC?'common':'rare');
+}
+
+function drawVenn(data){
+  const regions=data.regions||{};
+  const layout=computeVenn(regions);
+  const svg=$('#vennSvg');
+  svg.innerHTML='';
+  svg.setAttribute('viewBox',`0 0 ${VW} ${VH}`);
+
+  const {A,B,C}=layout;
+  svg.appendChild(mk('circle',{class:'set cA',cx:A.cx,cy:A.cy,r:A.r}));
+  svg.appendChild(mk('circle',{class:'set cB',cx:B.cx,cy:B.cy,r:B.r}));
+  svg.appendChild(mk('circle',{class:'set cC',cx:C.cx,cy:C.cy,r:C.r}));
+
+  // 已取碼邊界：面積 ∝ 已取碼字數，圓心落在三圓形心——目前常用字白名單已 100%
+  // 取碼，這圈通常會整個包住上面三圓，是誠實的現狀，不是畫錯。
+  const rCoded=layout.k*Math.sqrt(Math.max(data.codedTotal||0,1));
+  const cx0=(A.cx+B.cx+C.cx)/3, cy0=(A.cy+B.cy+C.cy)/3;
+  svg.appendChild(mk('circle',{class:'coded-bound',cx:cx0,cy:cy0,r:rCoded}));
+
+  // 集合名稱：A／B 各自往外撇（跟原本示意圖同一招——两邊圈靠太近，疊在正上方會
+  // 兩塊標籤互撞），C 貼在圈的下緣。
+  const addName=(x,y,anchor,name,def)=>{
+    const n=mk('text',{class:'setname',x,y,'text-anchor':anchor}); n.textContent=name;
+    svg.appendChild(n);
+    const d=mk('text',{class:'setdef',x,y:y+16,'text-anchor':anchor}); d.textContent=def;
+    svg.appendChild(d);
+  };
+  const topY=Math.max(28,Math.min(A.cy-A.r,B.cy-B.r)-26);
+  const midX=(A.cx+B.cx)/2;
+  addName(midX-72,topY,'end','簡體方案字','＝簡體字＋傳承字');
+  addName(midX+72,topY,'start','傳統漢字','＝繁體字＋傳承字');
+  addName(C.cx,Math.min(VH-16,C.cy+C.r+30),'middle','常用字','＝只打常用字白名單');
+
+  // 六個區塊的標籤位置：用形心關係估，不是解幾何最佳解——夠讀就好。三個「＿常用」
+  // 區塊本來就疊得深，位置天生擠在一起，所以額外沿著「小圓→大圓形心」方向再推
+  // 開一點，並把每個區塊縮成單行（標籤＋字數＋例字），不然三行高的區塊互相疊字。
+  const O=[(A.cx+B.cx+C.cx)/3,(A.cy+B.cy+C.cy)/3];
+  const mid=[(A.cx+B.cx)/2,(A.cy+B.cy)/2];
+  const awayC=vnorm(vsub(mid,[C.cx,C.cy]));
+  const ptInhRare=vadd(mid,awayC,0.7*Math.min(A.r,B.r));
+  const dirA=vnorm(vsub([A.cx,A.cy],O));
+  const ptSimpRare=vadd([A.cx,A.cy],dirA,0.62*A.r);
+  const dirB=vnorm(vsub([B.cx,B.cy],O));
+  const ptTradRare=vadd([B.cx,B.cy],dirB,0.62*B.r);
+  // 三個「＿常用」區塊全落在 C 圈裡，彼此天生就近——改成在 C 圈內部自己排成一個
+  // 小三角：傳承常用（A∩B∩C）靠 C 的上緣（朝 A、B 那側），簡體常用／繁體常用
+  // 各自貼 C 的左下／右下緣，三塊才不會疊字。
+  const towardAB=vnorm(vsub(mid,[C.cx,C.cy]));
+  const leftInC=vnorm(vsub([A.cx,A.cy],[B.cx,B.cy]));
+  const ptInhCommon=vadd([C.cx,C.cy],towardAB,0.5*C.r);
+  const ptSimpCommon=vadd([C.cx,C.cy],leftInC,0.5*C.r);
+  const ptTradCommon=vadd([C.cx,C.cy],leftInC,-0.5*C.r);
+
+  const REGION_PT={simp_rare:ptSimpRare,simp_common:ptSimpCommon,trad_rare:ptTradRare,
+    trad_common:ptTradCommon,inherited_rare:ptInhRare,inherited_common:ptInhCommon};
+
+  Object.keys(REGION_PT).forEach(key=>{
+    const r=regions[key]; if(!r||!r.total) return;
+    const [x,y]=REGION_PT[key];
+    const rn=mk('text',{class:'rname',x,y:y-7,'text-anchor':'middle'});
+    rn.textContent=`${VLABEL[key]}　${r.total.toLocaleString()}字`+
+      (r.coded<r.total?`（${r.coded.toLocaleString()} 已取碼）`:'');
+    svg.appendChild(rn);
+    if(r.chars.length){
+      const samp=mk('text',{class:'samp',x,y:y+11,'text-anchor':'middle'});
+      samp.textContent=r.chars.slice(0,6).join('');
+      svg.appendChild(samp);
+    }
+  });
+
+  $('#vennr').textContent=`已取碼 ${data.codedTotal.toLocaleString()} ／常用字白名單相關字 ${data.universeTotal.toLocaleString()}`;
+
+  svg.onclick=e=>{
+    const pt=svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
+    const loc=pt.matrixTransform(svg.getScreenCTM().inverse());
+    const key=pointRegion(loc.x,loc.y,layout);
+    if(!key||!regions[key]||!regions[key].total){ hideVennPanel(); return; }
+    showVennPanel(key,regions[key]);
+  };
+}
+
+function hideVennPanel(){ vennSel=null; const p=$('#vpanel'); p.hidden=true; p.innerHTML=''; }
+
+function showVennPanel(key,r){
+  vennSel=key;
+  const p=$('#vpanel'); p.hidden=false;
+  const chars=r.chars||[];
+  p.innerHTML=`<div class="vhead"><h3>${VLABEL[key]}</h3>` +
+    `<span class="vn">${r.total.toLocaleString()} 字，其中 ${r.coded.toLocaleString()} 已取碼` +
+    (r.coded<r.total?`　<a class="view" href="/annotate?q=${encodeURIComponent(chars.slice(0,200).join(''))}">先取這些 →</a>`:'') +
+    `</span></div>` +
+    `<div class="vchars">${chars.map(c=>`<a href="/annotate?q=${encodeURIComponent(c)}" title="${c}">${c}</a>`).join('')}</div>`;
 }
 </script>
 </body>

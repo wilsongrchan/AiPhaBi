@@ -23,10 +23,12 @@
   /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
   /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
   /api/state        GET      各檔 mtime，兩頁靠它互通
+  /api/venn         GET      簡體字／繁體字／傳承字 ×常用字×已取碼，給取碼進度頁范氏圖用
 """
 import collections
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -430,6 +432,70 @@ def progress_data():
             "standards": standards}
 
 
+def _load_common_whitelist():
+    """只打常用字＝白名單，來源是 Side B 產生的 rime/lua/aiphabi_data.lua（跟
+    site/tools/build_site_data.py 的 build_charset() 同一份定義、同一個理由：
+    寧可依賴人家的產出，也不要在這裡另外養一份會走偏的定義）。抓不到檔或抓不到
+    欄位就回空集合，圖上「常用字」那個圈就縮成 0——不是造假數字。"""
+    lua = ROOT / "rime" / "lua" / "aiphabi_data.lua"
+    try:
+        text = lua.read_text("utf-8")
+    except OSError:
+        return set()
+
+    def grab(field):
+        m = re.search(r"\nM\.%s = \{(.*?)\n\}" % field, text, re.S)
+        return set(re.findall(r'\["(.+?)"\]', m.group(1))) if m else None
+
+    return grab("common") or grab("biaonei") or set()
+
+
+def venn_data():
+    """簡體字／繁體字／傳承字 × 常用字 × 已取碼，給取碼進度頁的范氏圖用。
+
+    範圍（universe）＝已取碼字 ∪ 只打常用字白名單——不是全部 CJK 統一表意文字
+    （那兩萬多字裡九成沒人打過，「傳承字，較少見」會被灌到失真）。常用字白名單
+    剛好也是「不打簡體／只打常用字」關掉時會篩掉哪些字的那個定義，拿來當「還沒
+    取碼但在乎」那一側的邊界最貼題——多出來的缺口本身就是看得懂、有意義的清單。
+    """
+    s2t = _load_s2t()
+    simp_only = _load_simp_only(s2t)
+    t2s = _load_t2s()
+    common = _load_common_whitelist()
+
+    try:
+        coded_map = json.loads(CODES.read_text("utf-8")) if CODES.exists() else {}
+    except json.JSONDecodeError:
+        coded_map = {}
+    coded = {c for c, r in coded_map.items() if isinstance(r, dict) and r.get("code")}
+
+    universe = coded | common
+
+    try:
+        rank = {c: i for i, c in enumerate(json.loads(FREQ.read_text("utf-8")).get("order", []))}
+    except (OSError, json.JSONDecodeError):
+        rank = {}
+    far = len(rank) + 1
+
+    LABELS = {
+        "simp_rare": "簡體字，較少見", "simp_common": "簡體常用字",
+        "trad_rare": "繁體字，較少見", "trad_common": "繁體常用字",
+        "inherited_rare": "傳承字，較少見", "inherited_common": "傳承常用字",
+    }
+    regions = {k: [] for k in LABELS}
+    for ch in universe:
+        cat = "simp" if ch in simp_only else "trad" if ch in t2s else "inherited"
+        regions[f"{cat}_{'common' if ch in common else 'rare'}"].append(ch)
+
+    out = {}
+    for key, chars in regions.items():
+        chars.sort(key=lambda c: rank.get(c, far))
+        out[key] = {"label": LABELS[key], "chars": chars,
+                    "coded": sum(1 for c in chars if c in coded), "total": len(chars)}
+
+    return {"regions": out, "codedTotal": len(coded), "universeTotal": len(universe)}
+
+
 def variants_data():
     tw = tw_strokes()
     ids = ids_map()
@@ -615,6 +681,8 @@ class Handler(BaseHTTPRequestHandler):
                               else '{}', cache=True)
         if u.path == "/api/progress":
             return self._send(200, json.dumps(progress_data(), ensure_ascii=False))
+        if u.path == "/api/venn":
+            return self._send(200, json.dumps(venn_data(), ensure_ascii=False))
         if u.path == "/api/state":
             # 一律用字串：mtime_ns 是 19 位數，超過 JavaScript 的安全整數範圍，
             # 當成 JSON 數字送出去會被瀏覽器悄悄四捨五入，版本就永遠對不上，
