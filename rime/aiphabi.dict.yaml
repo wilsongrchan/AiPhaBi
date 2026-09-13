@@ -3,7 +3,7 @@
 # 完整碼一律接受；alts 是手動收的兼容碼。
 ---
 name: aiphabi
-version: "2026.09.12"
+version: "2026.09.13"
 sort: by_weight
 columns:
   - text
@@ -1654,6 +1654,8 @@ columns:
 趯	ftyjijiyif	100093170
 轸	ftyjj	100081973
 趔	ftyjn	100093815
+趟	ftymo	100117492
+趟	ftymuo	100117492
 赳	ftyn	100095301
 趣	ftynex	100098734
 趣	ftynx	100098734
@@ -4166,6 +4168,7 @@ columns:
 軀	jnejcooo	100096801
 躯	jnejcx	100082031
 躾	jnejk	100087690
+躺	jnejmuo	100098128
 躲	jnejnt	100098256
 躺	jnejo	100098128
 軀	jnejo	100096801
@@ -5856,6 +5859,7 @@ columns:
 怏	muk	100094498
 帶	mum	100289786
 带	mum	100085485
+尚	muo	100138871
 恫	muo	100094812
 尙	muo	100093567
 惘	muvil	100095506
@@ -10277,6 +10281,7 @@ columns:
 低	ycxq	100229667
 侯	ycyk	100178240
 伍	yd	100098159
+俔	ydjl	100087200
 傺	ydjrim	100093447
 傺	ydjrm	100093447
 俉	ydo	100093429
@@ -10301,6 +10306,7 @@ columns:
 铸	yeeja	100081370
 银	yeek	100081377
 钰	yeeq	100081590
+钍	yef	100081695
 锗	yefjb	100081270
 钙	yefs	100081665
 链	yeftz	100081353
@@ -10335,6 +10341,8 @@ columns:
 铣	yejfl	100081434
 铤	yejfz	100081430
 铁	yejiy	100081533
+钐	yejj	100081685
+钏	yejn	100081689
 钎	yejt	100081692
 铢	yejt	100081437
 锤	yejthi	100081234
@@ -10359,6 +10367,7 @@ columns:
 铅	yeno	100081520
 铝	yeoo	100081454
 锅	yeouy	100081330
+钌	yep	100081698
 锰	yepmi	100081197
 钋	yeq	100081702
 钟	yeq	100081645
@@ -10843,6 +10852,7 @@ columns:
 儇	ymiok	100093681
 舞	ymjah	100109101
 無	ymm	100369924
+倘	ymuo	100126747
 倆	ymyy	100098569
 介	yn	100138864
 仉	yn	100093466
@@ -11047,6 +11057,7 @@ columns:
 岱	yxqw	100096388
 贷	yxqy	100082239
 仗	yxr	100097752
+俙	yxxm	100091350
 偺	yxyb	100080016
 傩	yxyif	100086251
 仌	yy	100093705
@@ -15433,6 +15444,7 @@ columns:
 時裝	bakfijk	1493
 時裝	bakfk	1493
 時裝	bakfqjk	1493
+時尚	bamuo	8159
 時候	bancyk	144150
 时候	bancyk	144150
 時候	bank	144150
@@ -15788,6 +15800,7 @@ columns:
 時裝	bfakfijk	1493
 時裝	bfakfk	1493
 時裝	bfakfqjk	1493
+時尚	bfamuo	8159
 時候	bfancyk	144150
 時候	bfank	144150
 時限	bfapek	1159
@@ -23835,6 +23848,8 @@ columns:
 坦誠	fbiioq	1491
 坦誠	fbiiorcq	1491
 坦白	fbijb	1534
+坦尚尼亞	fbimuorcihi	12000
+坦尚尼亚	fbimuorcnv	12000
 坦克	fbitojl	4655
 坦克	fbitol	4655
 坦尚尼亞	fbiwuorcihi	12000
@@ -39433,6 +39448,7 @@ columns:
 主教	iftxpx	884
 主教	iftxx	884
 一走	ifty	967
+一趟	iftymo	2888
 一趟	iftywo	2888
 一起	iftyz	58494
 一起玩	iftyzeijl	2361
@@ -45735,6 +45751,7 @@ columns:
 詞性	ioomjf	1142
 高性能	ioomjfgc	2781
 高性價比	ioomjfyhvcc	960
+高尚	ioomuo	2095
 高職	iooneivq	1085
 高職	iooneq	1085
 高風險	ioonjgpay	2127
@@ -46882,6 +46899,7 @@ columns:
 高性能	iouomjfgc	2781
 高性能	iouomjfgdcc	2781
 高性價比	iouomjfyhdvcc	960
+高尚	iouomuo	2095
 高職	iouoneivq	1085
 高職	iouoneq	1085
 高風險	iouonjogpaooy	2127
@@ -65530,6 +65548,7 @@ columns:
 和媽媽	jtoljshmljshm	868
 和她	jtoll	4155
 舌尖	jtomk	1020
+和尚	jtomuo	2559
 刮目相看	jtonditdiji	12000
 刮目相看	jtonditdijijdi	12000
 和業務	jtonvmpjj	1003
@@ -77627,8 +77646,17 @@ columns:
 帶他	mumypl	976
 帶你	mumysm	4714
 小剛	mun	980
+尚比亞	muoccihi	12000
+尚比亚	muoccnv	12000
+尚書	muoefb	1389
+尚未	muohjr	6155
+尚可	muoioj	1934
 惆悵	muomfik	1154
 惆悵	muomfk	1154
+尚且	muoue	1897
+尚有	muoxd	1157
+尚在	muoxf	924
+尚無	muoymm	1098
 小剛	muvwn	980
 憎恨	mvbmek	1008
 小美	mvek	1048
@@ -79110,6 +79138,7 @@ columns:
 風雪	njgmiie	950
 風雲	njgmiiig	2222
 風電	njgmil	930
+風尚	njgmuo	1152
 風風雨雨	njgnjgmiimii	12000
 風口	njgo	3375
 風味	njgohjr	6577
@@ -79221,6 +79250,7 @@ columns:
 風雲變幻	njogmiiigiogmxgc	12000
 風雲人物	njogmiiigyjhsj	12000
 風電	njogmil	930
+風尚	njogmuo	1152
 風風雨雨	njognjogmiimii	12000
 風口	njogo	3375
 風味	njogohjr	6577
@@ -85478,7 +85508,7 @@ columns:
 阿部宽	pojivopqhujl	12000
 阿部宽	pojivpqhl	12000
 阿部寬	pojivpqhq	12000
-阿必尚	pojjlyqwuo	12000
+阿必尚	pojjlyqmuo	12000
 阿德	pojjytmw	1031
 阿德莱德	pojjytmwhtvjytmw	12000
 阿德萊德	pojjytmwhtyyjytmw	12000
@@ -88594,6 +88624,7 @@ columns:
 塞舌爾	qhfjtovmx	12000
 塞拉利昂	qhfkivjtnbcp	12000
 塞拉耶佛	qhfkivnepysn	12000
+塞尚	qhfmuo	12000
 塞席尔	qhfqrmsm	12000
 塞席爾	qhfqrmvmx	12000
 塞尔维亚	qhfsmgyfnv	12000
@@ -88721,6 +88752,7 @@ columns:
 塞舌爾	qhvfjtovmxxx	12000
 塞拉利昂	qhvfkivjtnbcp	12000
 塞拉耶佛	qhvfkivnepysn	12000
+塞尚	qhvfmuo	12000
 塞席尔	qhvfqrhmsm	12000
 塞席爾	qhvfqrhmvmxxx	12000
 塞尔维亚	qhvfsmgyifnv	12000
@@ -99754,6 +99786,8 @@ columns:
 卡羅	tfmgmyf	12000
 卡罗	tfmja	12000
 卡帶	tfmum	2058
+杜尚别	tfmuoocjn	12000
+杜尚別	tfmuoosn	12000
 卡口	tfo	1253
 杜哈	tfoao	12000
 杜鵑	tfodjsm	980
@@ -112340,6 +112374,7 @@ columns:
 崇高	wqimiouo	1466
 崇拜	wqimjijet	5009
 崇拜	wqimjit	5009
+崇尚	wqimmuo	1783
 崇禎	wqimqmtdv	12000
 崇祯	wqimqmtuy	12000
 崇禎	wqimqmv	12000
@@ -112354,6 +112389,7 @@ columns:
 崇高	wqmiouo	1466
 崇拜	wqmjijet	5009
 崇拜	wqmjit	5009
+崇尚	wqmmuo	1783
 崇禎	wqmqmtdv	12000
 崇祯	wqmqmtuy	12000
 崇禎	wqmqmv	12000
@@ -121398,6 +121434,7 @@ columns:
 你都	ymtxbp	3966
 你來	ymtyy	2197
 你用	ymuh	3671
+倘若	ymuohxo	3410
 你爸	ymvxdl	1156
 你爸	ymvxl	1156
 你卻	ymvyop	1342
@@ -122776,6 +122813,7 @@ columns:
 您需要	ysmwmmij	1408
 您還	ysmwmojkz	1379
 您還沒有	ysmwmojkzzsxxd	962
+您尚未	ysmwmuohjr	896
 您還	ysmwmz	1379
 您還沒有	ysmwmzwxxd	962
 您對	ysmwna	1505

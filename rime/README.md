@@ -1,6 +1,6 @@
 # 愛發筆 · Rime 輸入法
 
-由 `python3 build_rime.py` 產生。共 **8681 字**、**11686 條碼**
+由 `python3 build_rime.py` 產生。共 **8687 字**、**11697 條碼**
 （主碼 + 完整碼 + 手動收的兼容碼）。
 
 ## macOS（Squirrel 鼠鬚管）
