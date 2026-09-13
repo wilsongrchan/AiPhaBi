@@ -25,6 +25,8 @@
   /api/state        GET      各檔 mtime，兩頁靠它互通
   /api/venn         GET      簡體字／繁體字／傳承字 ×常用字×已取碼，給取碼進度頁范氏圖用
   /api/glyphset     GET      有筆畫中線資料的字（一個字串），逐字取碼佇列靠它標「純手動」
+  /api/common-whitelist  GET  只打常用字的白名單（同 venn_data 用的那份），碼表分析頁模擬
+                              「打開只打常用字」後的統計用
 """
 import collections
 import json
@@ -671,6 +673,9 @@ class Handler(BaseHTTPRequestHandler):
                               cache=True)
         if u.path == "/api/simp-only":
             return self._send(200, json.dumps(simp_only_data(), ensure_ascii=False), cache=True)
+        if u.path == "/api/common-whitelist":
+            return self._send(200, json.dumps(sorted(_load_common_whitelist()), ensure_ascii=False),
+                              cache=True)
         if u.path == "/api/assoc":
             return self._send(200, json.dumps(assoc_data(), ensure_ascii=False))
         if u.path == "/api/ids":

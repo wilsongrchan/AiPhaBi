@@ -191,13 +191,16 @@
 </header>
 
 <main>
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span style="font-size:13px;color:var(--muted)">算整頁統計時要不要只看常用字：</span>
     <button id="cut2500">首 2500 常用字</button>
     <button id="cut2500wide">首 2500（撞全部）</button>
     <button id="cutAll" class="on">全部</button>
-    <span id="cutsub" style="font-size:12px;color:var(--muted)"></span>
+    <button id="cutCommon">打開「只打常用字」後</button>
+    <button id="cutNoSimp">打開「不打簡體」後</button>
+    <button id="cutCommonNoSimp">打開「只打常用字」和「不打簡體」後</button>
   </div>
+  <div id="cutsub" style="font-size:12px;color:var(--muted);margin:4px 0 10px"></div>
   <div class="kpis" id="kpis"></div>
 
   <section>
@@ -310,6 +313,7 @@ const CJ_KEY = { A:'日', B:'月', C:'金', D:'木', E:'水', F:'火', G:'土', 
 
 let codes = {}, zigen = null, rules = null, cangjie = null, dayi = null, rank = new Map();
 let simpOnly = new Set();   /* 簡體專屬字（不含歸併字，見 data/dual_use_merged.json）；碼表分析排除簡體用 */
+let commonWhitelist = new Set();   /* 只打常用字白名單（/api/common-whitelist，同 venn 那份）*/
 
 /* 打字實際要按的碼（超過上限的取前 head 碼 + 末碼）。統計、重碼都以它為準，
    而不是完整碼 —— 使用者按的是縮短後那幾個鍵。 */
@@ -678,18 +682,32 @@ function renderDupCurve() {
   });
 }
 
+/* 六種「整頁統計要看哪批字」模式：
+   c2500／c2500wide／all 是常用度上限（排名門檻，見 render() 原本的說明）；
+   common／noSimp／commonNoSimp 是模擬「打開某個試打開關後」的統計——開關開了，
+   候選裡就真的不會再出現那些字，所以不是排名門檻，是候選池本身變小：entries
+   直接濾成「開關開著時還打得出來」的那批，重碼判斷也只在這批裡面比對（被濾掉
+   的字既然打不出來，就不可能真的跟誰撞碼）。 */
+const CUT_MODES = {
+  c2500:        { filter: ch => (rank.get(ch) ?? Infinity) < 2500, wide: false },
+  c2500wide:    { filter: ch => (rank.get(ch) ?? Infinity) < 2500, wide: true },
+  all:          { filter: () => true, wide: false },
+  common:       { filter: ch => commonWhitelist.has(ch), wide: false },
+  noSimp:       { filter: ch => !simpOnly.has(ch), wide: false },
+  commonNoSimp: { filter: ch => commonWhitelist.has(ch) && !simpOnly.has(ch), wide: false },
+};
+
 function render() {
-  /* 常用度上限：只看排前 2500 名的常用字，其餘先當作不存在。
-     這一刀切在最源頭（entries），下面所有統計——字母頻率、重碼、碼長分布、
-     特例率——就都自動跟著算同一批字，不必每個地方各自濾一次。
-     「2500（撞全部）」是變體：entries 一樣只取前 2500（其他統計照舊只看這批），
+  /* 「c2500wide」是變體：entries 一樣只取前 2500（其他統計照舊只看這批），
      但重碼判斷改比對全部已取碼的字——常用字撞到範圍外的冷僻字，一樣是真的
      要選字，不該因為對方排名在外就當沒撞到；範圍外兩個冷僻字彼此撞碼，則跟
-     「只看常用字」的統計目的無關，不算。 */
-  const wide = cutoff === 'wide';
-  const scopeCutoff = wide ? 2500 : cutoff;
+     「只看常用字」的統計目的無關，不算。這一刀切在最源頭（entries），下面
+     所有統計——字母頻率、重碼、碼長分布、特例率——就都自動跟著算同一批字，
+     不必每個地方各自濾一次。 */
+  const mode = CUT_MODES[cutoff] || CUT_MODES.all;
+  const wide = mode.wide;
   const entries = Object.entries(codes).filter(([, r]) => r.code)
-    .filter(([ch]) => scopeCutoff === Infinity || (rank.get(ch) ?? Infinity) < scopeCutoff);
+    .filter(([ch]) => mode.filter(ch));
   const inScope = wide ? new Set(entries.map(([ch]) => ch)) : null;
 
   const all = {}, first = {}, byCode = new Map();
@@ -1122,19 +1140,30 @@ for (const [btn, tbl, chart, axis] of [
    一樣不算——排在那之後的字，實際打字幾乎碰不到，混進全體統計裡看不出
    真正該優先處理的是哪些。影響 render() 一開始篩的 entries，所以整頁的
    字母頻率、重碼、碼長分布、特例率都會跟著換算，不是只有重碼表。
-   「wide」＝第三個變體：entries 範圍一樣是前 2500，但重碼判斷改比對全部
-   已取碼的字（見 render() 裡的 wide 分支）——只有重碼這一項受影響。 */
-let cutoff = Infinity;
-const cutBtns = { [Infinity]: '#cutAll', 2500: '#cut2500', wide: '#cut2500wide' };
+   「c2500wide」＝變體：entries 範圍一樣是前 2500，但重碼判斷改比對全部
+   已取碼的字（見 render() 裡的 wide 分支）——只有重碼這一項受影響。
+   common／noSimp／commonNoSimp：模擬對應試打開關打開後的統計，見上面
+   CUT_MODES 的說明。 */
+let cutoff = 'all';
+const cutBtns = {
+  c2500: '#cut2500', c2500wide: '#cut2500wide', all: '#cutAll',
+  common: '#cutCommon', noSimp: '#cutNoSimp', commonNoSimp: '#cutCommonNoSimp',
+};
 const CUT_SUB = {
-  [Infinity]: '',
-  2500: '目前只計算前 2500 常用字範圍內的統計，其餘先當作沒取碼。',
-  wide: '整頁統計只算前 2500 常用字，但重碼判斷比對全部已取碼的字——' +
+  all: '',
+  c2500: '目前只計算前 2500 常用字範圍內的統計，其餘先當作沒取碼。',
+  c2500wide: '整頁統計只算前 2500 常用字，但重碼判斷比對全部已取碼的字——' +
     '2500 內撞到 2500 外的字一樣算重碼；2500 外彼此撞碼則不算。',
+  common: '模擬打開「只打常用字」後的統計——白名單外的字當作打不出來，' +
+    '整頁統計（含重碼判斷）都只算白名單內還打得到的字。',
+  noSimp: '模擬打開「不打簡體」後的統計——簡體專屬字當作打不出來，' +
+    '整頁統計（含重碼判斷）都跳過它們。',
+  commonNoSimp: '模擬同時打開「只打常用字」與「不打簡體」後的統計——' +
+    '白名單外、以及簡體專屬字都當作打不出來。',
 };
 for (const [v, btn] of Object.entries(cutBtns)) {
   $(btn).onclick = () => {
-    cutoff = v === 'Infinity' ? Infinity : (v === 'wide' ? 'wide' : +v);
+    cutoff = v;
     for (const b of Object.values(cutBtns)) $(b).classList.remove('on');
     $(btn).classList.add('on');
     $('#cutsub').textContent = CUT_SUB[v];
@@ -1176,16 +1205,18 @@ $('#curveNoSimpToggle').onclick = () => {
 let stamp = null;
 const fetchStamp = () => fetch('/api/state').then(r => r.json());
 async function load() {
-  let simpOnlyData;
-  [codes, zigen, rules, cangjie, dayi, simpOnlyData] = await Promise.all([
+  let simpOnlyData, commonWhitelistData;
+  [codes, zigen, rules, cangjie, dayi, simpOnlyData, commonWhitelistData] = await Promise.all([
     fetch('/api/codes').then(r => r.json()),
     fetch('/api/zigen').then(r => r.json()),
     fetch('/api/rules').then(r => r.json()),
     fetch('/api/cangjie').then(r => r.json()).catch(() => null),
     fetch('/api/dayi').then(r => r.json()).catch(() => null),
     fetch('/api/simp-only').then(r => r.json()).catch(() => ({ chars: [] })),
+    fetch('/api/common-whitelist').then(r => r.json()).catch(() => []),
   ]);
   simpOnly = new Set(simpOnlyData.chars || []);
+  commonWhitelist = new Set(commonWhitelistData || []);
   render();
   renderStrip();      /* 複審面板開著的話：更新「已處理」標記，但不動 iframe */
   $('#meta').textContent = '隨字根表／碼表自動更新';
