@@ -227,6 +227,10 @@ def main():
     short_rule = next((r for r in rules["rules"] if r["id"] == "short_code"), None)
     shortcode = {}      # 簡碼(小寫) -> 字（清單裡撞碼的，先加的贏，跟取碼原則頁的預覽一致）
     shortcode_rev = {}  # 字 -> 簡碼：打了這個字的完整碼（不是簡碼）時，提醒「其實有簡碼可以打」
+    # 這個字本身主碼就撞碼（這/記、麼/魔、吧/邑…），約定簡碼開著時，打主碼要把「有
+    # 簡碼可打」那個字擠到候選最後面——不然打主碼一樣先看到它（常常就是因為夠常用
+    # 才被挑進約定簡碼），沒人會多學一條簡碼。開關關掉時完全不管，字頻排序照舊。
+    short_demote = defaultdict(set)   # 主碼(小寫) -> {字,...}：這個主碼底下要擠到最後面的字
     if short_rule and short_rule.get("enabled"):
         for entry in short_rule.get("entries", []):
             ch, short = entry.get("c"), (entry.get("short") or "").lower()
@@ -236,6 +240,9 @@ def main():
                 shortcode[short] = ch
             if ch not in shortcode_rev:
                 shortcode_rev[ch] = short
+            main = shorten(codes[ch]["code"], max_rule).lower()
+            if len(code2chars.get(main, [])) > 1:
+                short_demote[main].add(main_out.get(ch, ch))
 
     # 三簡碼：約定簡碼的自動版——不用手動挑，4 碼以上的字全部適用。打 3 碼
     # 當「頭兩碼＋末一碼」查（等於 AB`C），碰撞其實不多（多數簽名只對到 1～2 個
@@ -803,6 +810,11 @@ def main():
     dl += ["}", "M.shortcode_rev = {"]  # 字 → 簡碼（打完整碼時提醒「其實有簡碼」；aiphabi_short100 開關控制）
     for ch, short in sorted(shortcode_rev.items()):
         dl.append(f'  [{lua_str(ch)}]={lua_str(short)},')
+    dl += ["}", "M.short_demote = {"]  # 主碼 → {字:true,...}（這個主碼撞碼，且撞到的字有約定簡碼可打；
+                                        # aiphabi_short100 開時把這些字擠到候選最後面，逼你改用簡碼打）
+    for code, chs in sorted(short_demote.items()):
+        inner = "".join(f'[{lua_str(c)}]=true,' for c in sorted(chs))
+        dl.append(f'  [{lua_str(code)}]={{{inner}}},')
     dl += ["}", "M.short3 = {"]         # 簽名(頭2+末1) → [字]（三簡碼；aiphabi_short3 開關控制，提示一律秀主碼）
     for sig, chs in sorted(short3.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(chs)},')

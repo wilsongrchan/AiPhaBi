@@ -17,28 +17,29 @@ local ALL_ON = {
 
 print("== 左簡碼：打滿的要排在最前（exact 一級），不能被冷門猜測壓過 ==")
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
-  -- 模擬：打 smbf 時碼表本身給不出東西，只有切分湊出來的怪詞（尔日）跟一個高頻的雜訊字。
-  -- 鯉 是靠 aiphabi_hint 從左簡碼表補進來的。若 鯉 仍標 ap_pool，就會照字頻輸給 的。
+  -- 模擬：打 agjk 時碼表本身給不出東西，只有切分湊出來的怪詞（尔日）跟一個高頻的雜訊字。
+  -- 飫（食字旁）是靠 aiphabi_hint 從左簡碼表補進來的。若 飫 仍標 ap_pool，就會照字頻輸給 的。
+  -- （原本用魚字旁的 鯉 SMBF；魚 已不在 rules.json left_short 家族名單裡，改用食字旁 AEG。）
   local out = h.run{
-    schema = schema, code = "smbf", options = ALL_ON,
+    schema = schema, code = "agjk", options = ALL_ON,
     cands = {
       { text = "尔日" },          -- enable_sentence 湊出來的兩字組合
-      { text = "的" },            -- 高頻雜訊（字頻遠高於 鯉）
+      { text = "的" },            -- 高頻雜訊（字頻遠高於 飫）
     },
   }
-  h.checkAt(schema .. " · 打滿 SMBF → 鯉 排第一", out, 1, "鯉")
-  h.checkComment(schema .. " · 鯉 標「左簡 (主碼)」", out, "鯉", "左簡 (SOTMF)")
+  h.checkAt(schema .. " · 打滿 AGJK → 飫 排第一", out, 1, "飫")
+  h.checkComment(schema .. " · 飫 標「左簡 (主碼)」", out, "飫", "左簡 (AEGJK)")
 end
 
 print()
 print("== 左簡碼：沒打完的是補全，屬於猜測，不該搶到 exact 那一級 ==")
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   local out = h.run{
-    schema = schema, code = "smb", options = ALL_ON,
-    cands = { { text = "的" } },   -- 高頻字：補全的 鯉 不該壓過它
+    schema = schema, code = "agj", options = ALL_ON,
+    cands = { { text = "的" } },   -- 高頻字：補全的 飫 不該壓過它
   }
-  h.checkPresent(schema .. " · 打 SMB 找得到 鯉（補全）", out, "鯉", true)
-  h.checkPresent(schema .. " · 打 SMB 也找得到 鯤", out, "鯤", true)
+  h.checkPresent(schema .. " · 打 AGJ 找得到 飫（補全）", out, "飫", true)
+  h.checkPresent(schema .. " · 打 AGJ 也找得到 餓", out, "餓", true)
   h.checkAt(schema .. " · 但補全排在高頻字之後", out, 1, "的")
 end
 
@@ -130,14 +131,50 @@ do
 end
 
 print()
+print("== 約定簡碼字本身主碼撞碼：開簡碼時把有簡碼可打的那個擠到最後，逼你改用簡碼 ==")
+do
+  -- 這／記 主碼都是 IOZ，這 有約定簡碼 IZ、記 沒有。這 字頻本來就比 記高（模擬碼表
+  -- 原序：較常用的先），不擠的話簡碼開了也沒人會用——反正打主碼一樣先看到 這。
+  local out = h.run{
+    schema = "aiphabi", code = "ioz", options = ALL_ON,
+    cands = { { text = "這" }, { text = "記" } },   -- 碼表原序：這（較常用）先
+  }
+  h.checkAt("開約定簡碼 → 打主碼 IOZ：記（沒簡碼）排第一", out, 1, "記")
+  h.checkAt("開約定簡碼 → 這（有簡碼）擠到第二", out, 2, "這")
+  h.checkComment("開約定簡碼 → 這 仍標「簡碼 IZ」提醒（沒被擠掉，只是往後排）", out, "這", "簡碼 IZ")
+
+  -- 開關關掉：完全不查 short_demote，字頻排序照舊（這 排第一）——這也是使用者
+  -- 沒開約定簡碼時該有的行為：比較常用的字本來就該先出來。
+  local off = h.run{
+    schema = "aiphabi", code = "ioz", options = {},
+    cands = { { text = "這" }, { text = "記" } },
+  }
+  h.checkAt("約定簡碼關掉 → 打主碼 IOZ：這（較常用）照舊排第一", off, 1, "這")
+end
+
+print()
+print("== 同一機制也管得到「撞的是別人的兼容碼」，不限於兩個字天生同一個主碼 ==")
+do
+  -- 家 主碼 QJK、有約定簡碼 QK；衣 主碼是 IJK，但另收了一條兼容碼 QJK——打 QJK
+  -- 兩個字都會冒出來（碼表「完整碼／兼容碼一律接受」）。這種撞法一樣該擠 家。
+  local out = h.run{
+    schema = "aiphabi", code = "qjk", options = ALL_ON,
+    cands = { { text = "家" }, { text = "衣" } },
+  }
+  h.checkAt("開約定簡碼 → 打 QJK：衣（撞碼、沒簡碼）排第一", out, 1, "衣")
+  h.checkAt("開約定簡碼 → 家（有簡碼 QK）擠到第二", out, 2, "家")
+end
+
+print()
 print("== 左簡碼反向提醒：只提真的比主碼短的字 ==")
 do
-  -- 鮭 主碼 SOTMF（5）、左簡碼 SMFF（4）→ 有省到，要提醒
+  -- 針 主碼 YFVT（4）、左簡碼 YVT（3）→ 有省到，要提醒
+  -- （原本用魚字旁的 鮭；魚 已不在 rules.json left_short 家族名單裡，改用金字旁 YFV。）
   local out = h.run{
-    schema = "aiphabi", code = "sotmf", options = ALL_ON,
-    cands = { { text = "鮭" } },
+    schema = "aiphabi", code = "yfvt", options = ALL_ON,
+    cands = { { text = "針" } },
   }
-  h.checkComment("打 鮭 主碼 → 提醒 左簡 SMFF", out, "鮭", "左簡 SMFF")
+  h.checkComment("打 針 主碼 → 提醒 左簡 YVT", out, "針", "左簡 YVT")
 
   -- 鐵 主碼 YFVFQ（5）、左簡碼 YVFOQ（5）→ 沒省到，不該提醒左簡
   local out2 = h.run{
@@ -152,43 +189,41 @@ do
 end
 
 print()
-print("== 左簡碼：贏字頭（ILOD→ID，左上方偏旁）把 iloda 五方重碼拆成單一碼 ==")
+print("== 左簡碼：主碼因五碼上限被壓成同一碼時，左簡碼能拆開重碼（銅/鍋 都壓成 YFVUO）==")
+-- （原本用魚字旁的 贏赢嬴羸蠃；魚 已不在 rules.json left_short 家族名單裡，改用金字旁 YFV
+-- 底下同樣因五碼上限撞碼的 銅／鍋。）
 do
-  -- 贏赢嬴羸蠃 五個字主碼都壓成 iloda（七碼超上限）。贏字頭左簡碼 ID+尾 三碼還是五碼，
-  -- 沒省鍵，但每個字各有獨一的碼：iddva 只出 贏。
-  h.check("M.leftshort iddva → 只有 贏",
-    data.leftshort["iddva"] and data.leftshort["iddva"][1] == "贏"
-      and #data.leftshort["iddva"] == 1,
-    "got " .. tostring(data.leftshort["iddva"] and table.concat(data.leftshort["iddva"], "／")))
-  h.check("M.leftshort idvfa → 只有 羸",
-    data.leftshort["idvfa"] and data.leftshort["idvfa"][1] == "羸",
-    "got " .. tostring(data.leftshort["idvfa"] and data.leftshort["idvfa"][1]))
+  -- 銅 YFVUO、鍋 YFVUUO（6 碼，超五碼上限）主碼都被壓成 YFVUO。左簡碼另外用自己的
+  -- 「偏旁頭兩碼＋剩餘最多三碼」規則（沒有五碼那個上限），銅 YVUO、鍋 YVUUO 各自獨立成碼。
+  h.check("M.leftshort yvuo → 只有 銅",
+    data.leftshort["yvuo"] and data.leftshort["yvuo"][1] == "銅"
+      and #data.leftshort["yvuo"] == 1,
+    "got " .. tostring(data.leftshort["yvuo"] and table.concat(data.leftshort["yvuo"], "／")))
+  h.check("M.leftshort yvuuo → 只有 鍋",
+    data.leftshort["yvuuo"] and data.leftshort["yvuuo"][1] == "鍋",
+    "got " .. tostring(data.leftshort["yvuuo"] and data.leftshort["yvuuo"][1]))
   local out = h.run{
-    schema = "aiphabi", code = "iddva", options = ALL_ON,
+    schema = "aiphabi", code = "yvuo", options = ALL_ON,
     cands = { { text = "的" } },   -- 高頻雜訊，不該壓過打滿的左簡碼
   }
-  h.checkAt("打滿 IDDVA → 贏 排第一", out, 1, "贏")
-  -- iloda（主碼）跟左簡碼一樣長 → 不提「左簡」
+  h.checkAt("打滿 YVUO → 銅 排第一", out, 1, "銅")
+  -- yfvuo（主碼）比左簡碼 yvuo 長一碼 → 該提左簡
   local out2 = h.run{
-    schema = "aiphabi", code = "iloda", options = ALL_ON,
-    cands = { { text = "贏" } },
+    schema = "aiphabi", code = "yfvuo", options = ALL_ON,
+    cands = { { text = "銅" } },
   }
-  local cc
-  for _, x in ipairs(out2) do if x.text == "贏" then cc = x.comment end end
-  h.check("打 贏 主碼 iloda → 不提左簡（一樣五碼）",
-    cc == nil or not tostring(cc):find("左簡"),
-    string.format("got %q", tostring(cc)))
+  h.checkComment("打 銅 主碼 yfvuo → 提醒 左簡 YVUO", out2, "銅", "左簡 YVUO")
 end
 
 print()
 print("== 開關關掉就完全不作用 ==")
 do
   local out = h.run{
-    schema = "aiphabi", code = "smbf",
+    schema = "aiphabi", code = "agjk",
     options = { aiphabi_left_short = false, aiphabi_short100 = true },
     cands = { { text = "尔日" } },
   }
-  h.checkPresent("左簡碼關 → 打 SMBF 不會冒出 鯉", out, "鯉", false)
+  h.checkPresent("左簡碼關 → 打 AGJK 不會冒出 飫", out, "飫", false)
 end
 
 print()
@@ -305,13 +340,15 @@ do
     ac._is_dead_extension("ppinex") == false, "expected alive")
   h.check("PPINEZ 打死（闞的路走到 E 之後沒有 Z 這條）→ 該頂",
     ac._is_dead_extension("ppinez") == true, "expected dead")
-  -- 左簡碼是即時頂最容易誤傷的地方：SMB 只活在 leftshort_pre／leftshort 兩張表，
+  -- 左簡碼是即時頂最容易誤傷的地方：AGJ 只活在 leftshort_pre／leftshort 兩張表，
   -- 不在主碼表 code2chars 裡——build_index 漏查任一張，這裡就會誤判「打死了」，
-  -- 把還在打 SMBF（鯉）的人半路頂掉。
-  h.check("SMB+F 沒打死（左簡碼 鯉 SMBF）→ 不該頂",
-    ac._is_dead_extension("smbf") == false, "expected alive")
-  h.check("SM+B 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
-    ac._is_dead_extension("smb") == false, "expected alive")
+  -- 把還在打 AGJK（飫）的人半路頂掉。（原本用魚字旁 SMB／鯉 SMBF；魚 已不在
+  -- rules.json left_short 家族名單裡，且 SMB／SMBF 剛好也是別的字真正的主碼，
+  -- 沒改的話這條測試會悄悄變成沒在測 leftshort 這條路，改用食字旁 AEG。）
+  h.check("AGJ+K 沒打死（左簡碼 飫 AGJK）→ 不該頂",
+    ac._is_dead_extension("agjk") == false, "expected alive")
+  h.check("AG+J 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
+    ac._is_dead_extension("agj") == false, "expected alive")
   -- 約定簡碼／三簡碼也只活在各自的表（shortcode／short3），不在主碼表 code2chars
   -- 裡——漏查會把「N 几/刂/丌」誤判成打死，把還在打 候 的約定簡碼 NK 的人半路頂掉
   -- （2026-08-26 實測 bug：打 NK 被誤頂成「几K」，候 完全打不出來）。
@@ -490,8 +527,8 @@ do
     compK[2] and compK[2].text == "爿" and compK[3] and compK[3].text == "丬",
     "expected 爿 then 丬, got " .. h.fmt(compK):sub(1, 60))
 
-  local compMulti = run_wildcard("`qr")  -- 多碼部件（疒 主碼 QR）
-  h.check("打 `qr：多碼部件 疒 也撈得到",
+  local compMulti = run_wildcard("`qri")  -- 多碼部件（疒 主碼 QRI；原本是 QR，Side A 拆碼後多了 I）
+  h.check("打 `qri：多碼部件 疒 也撈得到",
     compMulti[1] and compMulti[1].text == "疒" and compMulti[1].type == "ap_component",
     "expected 疒 (ap_component), got " .. h.fmt(compMulti):sub(1, 40))
 
