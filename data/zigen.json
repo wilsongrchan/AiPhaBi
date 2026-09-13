@@ -12415,12 +12415,23 @@
                 ]
               },
               "ex": "號",
-              "count": 4,
+              "count": 6,
               "seen": [
-                "號"
+                "號",
+                "虒",
+                "遞"
               ],
               "learned": true,
-              "thr": 0.005
+              "thr": 0.005,
+              "alts": [
+                {
+                  "src": "虒",
+                  "strokes": [
+                    8,
+                    9
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -12507,24 +12518,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "虒",
-                "strokes": [
-                  8,
-                  9
-                ]
-              },
-              "ex": "虒",
-              "count": 2,
-              "seen": [
-                "虒",
-                "遞"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
