@@ -41,10 +41,13 @@
      相關字自成一欄，可以用旁邊那條 tab 收起來（收起時該軌寬度歸零）。 */
   .cols { flex:1; display:grid; min-height:0;
     grid-template-columns:var(--colL,200px) 6px var(--colRel,136px) 15px 1fr 6px var(--colR,330px); }
-  body.relhide .cols { --colRel:0px; }
+  /* relhide：你自己收起來的。relempty：renderRelated 沒東西可畫（這個字沒有部件拆分）——
+     两種情況都把那一軌收掉，跟「有沒有筆畫資料」（manualmode）沒關係：manualmode 的字
+     常常照樣有部件（CJKVI 補了簡體／罕用字的拆分），這時欄該照常開著。 */
+  body.relhide .cols, body.relempty .cols { --colRel:0px; }
   /* 收合＝把那一軌縮成 0 並裁掉內容。不能用 display:none —— grid 會把後面的
      項目統統往前挪一軌，整個版面就散了（字圖會跑到最左邊）。 */
-  body.relhide #relpane { overflow:hidden; padding:0; border:0; }
+  body.relhide #relpane, body.relempty #relpane { overflow:hidden; padding:0; border:0; }
   /* 收合把手：一條窄長的直條，貼在相關字欄旁邊 */
   .reltab { display:flex; align-items:center; justify-content:center; padding:0;
     border:0; border-left:1px solid var(--line); border-right:1px solid var(--line);
@@ -110,6 +113,10 @@
   .qi.warn .cd { color:var(--bad); }
   .qi.warn::after { content:"⚠"; position:absolute; top:-4px; right:-3px; font-size:7px;
     color:var(--bad); background:var(--card); border:1px solid var(--bad); border-radius:50%;
+    width:10px; height:10px; line-height:9px; }
+  /* 純手動：沒有筆畫、也沒有部件拆分可查——貼在左下角，跟警告（右上角）不衝突 */
+  .qi.nopred::before { content:"手"; position:absolute; bottom:-4px; left:-3px; font-size:7px;
+    color:var(--muted); background:var(--card); border:1px solid var(--line); border-radius:50%;
     width:10px; height:10px; line-height:9px; }
   .qi { position:relative; }
 
@@ -470,8 +477,6 @@
   body.manualmode .glyphrow, body.manualmode .pred, body.manualmode .hintbar,
   body.manualmode #ref, body.manualmode .altbar, body.manualmode .editor-only,
   body.manualmode #clash { display:none !important; }
-  /* 部件欄是 grid 的一個欄軌，不能 display:none（會把其他欄擠到錯的軌）——收成 0 寬即可 */
-  body.manualmode .cols { --colRel:0px; }
   .mp-hd { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:14px;
     background:var(--card); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
   .mp-hd b { color:var(--ink); }
@@ -484,6 +489,11 @@
   #mpCode:focus, #mpNote:focus, .mp-altrow input:focus { outline:none; border-color:var(--accent); }
   .mp-final { font-size:12px; color:var(--muted); margin:-2px 0 2px 50px; min-height:16px; }
   .mp-final b { color:var(--accent); font-family:ui-monospace,monospace; letter-spacing:1px; }
+  /* 部件推測：沒有筆畫可以幾何預測，但借「相關字」欄的部件碼拼——跟有筆畫時的
+     預測（.opts／.po／.pseg，見上面 .pred 那組）同一套外觀，這裡借來用。 */
+  .mp-guessbox.hide { display:none; }
+  .mp-guessbox { margin:2px 0 14px; }
+  .mp-guessbox .m0 { font-size:10px; color:var(--muted); margin:0 2px 2px; width:100%; }
   .mp-alth { font-size:12px; color:var(--muted); margin:14px 0 5px; }
   .mp-altrow { display:flex; align-items:center; gap:8px; margin:5px 0; }
   .mp-altrow input { font-size:14px; }
@@ -607,6 +617,7 @@
       <label class="mp-row"><span>主碼</span>
         <input id="mpCode" spellcheck="false" autocapitalize="characters" placeholder="例：ORM"></label>
       <div id="mpFinal" class="mp-final"></div>
+      <div id="mpGuessBox" class="mp-guessbox hide"></div>
       <div class="mp-alth">兼容碼（可多個，選填）</div>
       <div id="mpAlts"></div>
       <button id="mpAddAlt" class="mp-add">＋ 加一個兼容碼</button>
@@ -3212,6 +3223,10 @@ async function markNotComponent(ch) {
 const IDS_OPS = '⿰⿱⿲⿳⿴⿵⿶⿷⿸⿹⿺⿻';
 let ids = {};                 /* 字 → 拆分字串 */
 let compOf = null;            /* 部件 → 用到它的字（只算已取碼的） */
+let glyphSet = new Set();     /* 有筆畫中線資料的字（/api/glyphset）——跟 ids 一起判斷「純手動」 */
+/* 這個字完全沒有拆解依據：沒有筆畫中線（不能幾何預測），也沒有部件拆分（連「相關字」
+   欄的部件都生不出來）——兩者都沒有才是真的純手動，任何一邊有都還能借力。 */
+const noPredict = c => !glyphSet.has(c) && !ids[c];
 
 /* 單筆的「部件」不是偏旁，是筆畫 —— 列出來只是雜訊 */
 const STROKEISH = new Set([...'丶一丨丿乀乁乚亅㇏丷丶']);
@@ -3234,6 +3249,85 @@ function partsOf(ch, depth = 2, seen = new Set()) {
     if (!coded) for (const sub of partsOf(c, depth - 1, seen)) out.push(sub);
   }
   return out;
+}
+
+/* 這個字目前的碼（不管是畫筆畫存的還是手動輸入的），沒有就是 null。
+   跟 renderQueue 判斷完成度同一套：segments 在就用它現算，不直接信 .code
+   （理論上兩者同步，但寧可信現算的）。 */
+const codeOf = c => {
+  const r = codes[c];
+  if (!r) return null;
+  if (r.segments && r.segments.length) return r.segments.map(s => s.letter).join('');
+  return r.code || null;
+};
+
+/* 孤筆略過原則（/rules 可改）：一橫／一豎若在字中途單獨出現、跟別的筆畫併不
+   成字根，就整筆略過不取碼；只有它是「整個字」的第一筆或最後一筆才會取（孤立
+   橫→I，孤立豎→J，見 rules.json 的 last_stroke_letters）。部件套用時同一個
+   道理要繼續套：亻疌 兩個部件接起來（＝倢），疌 自己的碼開頭那個孤立橫（I）在
+   「疌單獨成字」時是它的第一筆，保留；套進倢以後，疌不再是整個字的開頭（亻
+   才是），那個孤立橫就該略過——YIETY 要變成 YETY。部件若不是序列裡最後一個，
+   它自己末筆的孤立橫／豎同理也該略過。
+   單筆、且字母剛好等於規則配置的孤筆字母，不能直接當作孤筆略過的產物——I／J
+   底下可能還有其他跟孤筆略過無關、剛好也只佔一筆的字根（例：「爯」的第一筆
+   實際是撇，只是也編在 J 底下；孤筆略過只吃 allow 裡列的筆型，撇從來不在
+   裡面，不該被略過）。所以要跟有筆畫時的 expected() 一樣，抓這個部件自己的
+   筆畫中線，用真正的筆型（Zigen.strokeKind）判斷，不能只看字母猜。 */
+function edgeSkipRule() {
+  const sk = rule('skip_isolated_hv');
+  const letters = sk && sk.params && sk.params.last_stroke_letters;
+  const allow = sk && sk.params && sk.params.allow;
+  return letters && allow ? { letters, allow } : null;
+}
+async function edgeIsSkippable(ch, seg) {
+  if (seg.strokes.length !== 1) return false;
+  const r = edgeSkipRule();
+  if (!r) return false;
+  const g = await Zigen.getGlyph(ch);
+  const med = g && g.medians[seg.strokes[0]];
+  if (!med) return false;
+  const kind = kindOf(med);
+  return r.allow.includes(kind) && r.letters[kind] === seg.letter;
+}
+async function pruneEdge(ch, segs, atStart, atEnd) {
+  if (segs.length <= 1) return segs;
+  let out = segs;
+  if (!atStart && await edgeIsSkippable(ch, out[0]))
+    out = out.slice(1);
+  if (!atEnd && out.length > 1 && await edgeIsSkippable(ch, out[out.length - 1]))
+    out = out.slice(0, -1);
+  return out.length ? out : segs;   /* 修剪到空就當沒修剪過，別留下空碼部件 */
+}
+
+/* 手動取碼（沒有筆畫）的部件推測：⿰亻兌 → 亻(Y) ＋ 兌(VOJL) → YVOJL。
+   跟有筆畫時的 componentPredict 同一個精神（部件蓋不到的地方才往下拆），純粹
+   照結構把部件的碼接起來（有筆畫資料的部件會先套孤筆略過），只是「填入框裡
+   的起點」，不是自動存檔，填完照樣能改。深度封頂 4 層，跟「相關字」欄的
+   partsOf 同一個上限。
+   回傳這個字「第一層」的每個部件（不管解不解得出碼都列出來，解不出的就是
+   code:null）——renderMpGuess() 再用它拼出整組碼，或個別拿一顆填。 */
+async function manualComponentParts(ch, depth = 4) {
+  const d = ids[ch];
+  if (!d) return [];
+  const raw = [...d].filter(c => !IDS_OPS.includes(c) && c !== ch && /[㐀-鿿]/.test(c));
+  const out = [];
+  for (let i = 0; i < raw.length; i++) {
+    const p = raw[i];
+    const r = codes[p];
+    if (r && r.segments && r.segments.length) {
+      const segs = await pruneEdge(p, r.segments, i === 0, i === raw.length - 1);
+      out.push({ ch: p, code: segs.map(s => s.letter).join('') });
+    } else {
+      out.push({ ch: p, code: codeOf(p) || await manualComponentGuess(p, depth - 1) });
+    }
+  }
+  return out;
+}
+async function manualComponentGuess(ch, depth = 4) {
+  if (depth <= 0) return null;
+  const parts = await manualComponentParts(ch, depth);
+  if (!parts.length || parts.some(p => !p.code)) return null;
+  return parts.map(p => p.code).join('');
 }
 
 /* 「同偏旁」只看第一層 —— 議、論、識 都是 ⿰言X，言 就在第一層。
@@ -3261,7 +3355,7 @@ async function renderRelated(ch) {
   const box = $('#related');
   box.innerHTML = '';
   const run = ++relRun;
-  if (!ids[ch]) return;
+  if (!ids[ch]) { document.body.classList.add('relempty'); return; }
   if (!compOf) buildCompIndex();
   if (run !== relRun) return;
 
@@ -3312,6 +3406,9 @@ async function renderRelated(ch) {
     box.append(el('span', 'lab', '　用到它：'));
     for (const c of usedIn) box.append(chip(c, 'up'));
   }
+  /* 欄寬跟著「有沒有東西可看」走，不是跟著「有沒有筆畫資料」走——manualmode 的字
+     （沒筆畫）常常照樣有部件（CJKVI 補的），這時欄不該收。 */
+  document.body.classList.toggle('relempty', !box.children.length);
 }
 
 /* ---------- 整字預測 ---------- */
@@ -3555,8 +3652,10 @@ async function load(c) {
     strokes = []; medians = []; baseStrokes = []; baseMedians = []; drawGlyph();
     document.body.classList.add('manualmode');
     showManual(c);
-    $('#related').innerHTML = '';        /* 部件欄雖已收成 0 寬，內容也清掉免得殘留 */
-    /* 沒 makemeahanzi ≠ 沒有參考：右欄能載的照樣載入（倉頡、台／港筆順、繁簡，都不靠筆畫） */
+    /* 沒 makemeahanzi ≠ 沒有部件：CJKVI 補了不少簡體／罕用字的結構拆分（俔＝⿰亻見），
+       部件欄該照常顯示——renderRelated 自己會在真的沒資料時清空、收欄（見 relempty）。
+       沒 makemeahanzi ≠ 沒有參考：右欄能載的照樣載入（倉頡、台／港筆順、繁簡，都不靠筆畫） */
+    renderRelated(c);
     renderSimp(c); renderCangjie(c); strokeOrder(c);
     renderQueue(); renderBack();
     return;
@@ -3601,12 +3700,56 @@ function mpAltRow(code) {
   row.append(inp, del);
   return row;
 }
+/* 手動取碼的部件推測面板：跟有筆畫時的預測同一套外觀（.prow／.po／.pseg，借
+   #predopts 那組樣式來用）。部件全部解得出碼，才有那顆大的「整組套用」可點
+   （點了整組填進主碼框）；不管整不整組解得出來，個別部件一律列在下面，解不
+   出的部件變成「還沒取碼，點去取」，解得出的點一下就把那個部件的碼接到主碼
+   框末端——想自己拼幾個部件、其餘手打，這樣拼最快。 */
+let mpGuessRun = 0;
+async function renderMpGuess(c) {
+  const run = ++mpGuessRun;
+  const parts = await manualComponentParts(c);
+  if (run !== mpGuessRun) return;    /* 換字了，這批結果過期，別蓋掉新字的畫面 */
+  const box = $('#mpGuessBox');
+  box.innerHTML = '';
+  box.classList.toggle('hide', !parts.length);
+  if (!parts.length) return;
+  const full = parts.every(p => p.code);
+  const row = el('div', 'prow');
+  if (full) {
+    const code = parts.map(p => p.code).join('');
+    const b = el('div', 'po');
+    b.append(el('span', 'c', code));
+    b.append(el('span', 'm', `部件套用（${parts.map(p => p.ch).join('＋')}）　整組套用`));
+    b.title = '填入主碼框——你可以再改';
+    b.style.borderColor = 'var(--accent)';
+    b.onclick = () => { $('#mpCode').value = code; dirty = true; updateMpFinal(); };
+    row.append(b);
+  } else {
+    box.append(el('span', 'm0', '部件裡有還沒取碼的，沒法整組套用——能查到的列在下面：'));
+  }
+  const one = el('div', 'pseg');
+  for (const p of parts) {
+    const t = el('button', p.code ? '' : 'sk');
+    t.innerHTML = p.code ? `<b>${p.code}</b><span>${p.ch}</span>` : `<b>${p.ch}</b><span>未取碼</span>`;
+    t.title = p.code ? `把這個部件的碼接到主碼框末端（${p.ch} = ${p.code}）` : `${p.ch} 還沒取碼，點一下去取`;
+    t.onclick = () => {
+      if (!p.code) { load(p.ch); return; }
+      $('#mpCode').value = ($('#mpCode').value || '') + p.code;
+      dirty = true; updateMpFinal();
+    };
+    one.append(t);
+  }
+  row.append(one);
+  box.append(row);
+}
 function showManual(c) {
   const rec = codes[c] || {};
   $('#cur').innerHTML = `<b>${c}</b><span class="cplabel" title="此字無筆畫資料，手動取碼">手動取碼</span>`;
   $('#code').textContent = rec.final || rec.code || '—';
   $('#mpCode').value = ((!rec.segments && rec.code) || '').toUpperCase();
   updateMpFinal();
+  renderMpGuess(c);
   $('#mpNote').value = rec.note || '';
   $('#mpCompToggle').checked = !!rec.componentOnly;
   const box = $('#mpAlts'); box.innerHTML = '';
@@ -3978,11 +4121,14 @@ function pool() {
 }
 function renderQueue() {
   const box = $('#qlist'); box.innerHTML = '';
-  for (const c of pool().slice(0, shown)) {
+  const list = pool();
+  for (const c of list.slice(0, shown)) {
+    const np = !isDone(c) && noPredict(c);
     const d = el('div', 'qi' + (c === cur ? ' on' : '') + (isDone(c) ? '' : ' todo') +
-      ((audit.get(c) || 0) > 0 ? ' warn' : ''));
+      ((audit.get(c) || 0) > 0 ? ' warn' : '') + (np ? ' nopred' : ''));
     d.dataset.c = c;
     if (audit.get(c)) d.title = `${audit.get(c)} 項未處理的警告`;
+    else if (np) d.title = '沒有筆畫資料、也沒有部件拆分可查——純手動取碼';
     d.append(el('div', 'c', c));
     d.append(el('div', 'cd', isDone(c)
       ? finalOf(codes[c].segments ? codes[c].segments.map(s => s.letter).join('') : (codes[c].code || ''))
@@ -3992,6 +4138,10 @@ function renderQueue() {
   }
   $('#prog').innerHTML = `官方字表已取碼 <b>${stdChars.filter(isDone).length}</b> / ${stdChars.length}`;
   $('#prog').title = '目標：教育部常用國字 4808 ＋ GB2312 6763 聯集，跟 /progress 同一套（不是字頻表 9574）';
+  if (filter === 'todo') {
+    const npTotal = list.filter(c => !isDone(c) && noPredict(c)).length;
+    $('#prog').innerHTML += `　·　純手動 <b>${npTotal}</b> / ${list.length}`;
+  }
 }
 /* ---------- 三欄可拖寬 ---------- */
 for (const [id, varName, side] of [['#dragL', '--colL', 'L'], ['#dragR', '--colR', 'R']]) {
@@ -4564,9 +4714,11 @@ Promise.all([
   fetch('/api/ids').then(r => r.json()).catch(() => ({})),   /* 部件拆分（相關字用） */
   fetch('/api/opencc').then(r => r.json()).catch(() => ({ t2s: {}, s2t: {} })),
   fetch('/api/orderings').then(r => r.json()).catch(() => ({})),
-]).then(async ([f, c, z, rl, cj, ln, s, id, oc, ords]) => {
+  fetch('/api/glyphset').then(r => r.json()).catch(() => ''),  /* 有筆畫資料的字（純手動判斷用） */
+]).then(async ([f, c, z, rl, cj, ln, s, id, oc, ords, gs]) => {
   order = f.order; codes = c; zigen = z; rules = rl; cangjie = cj;
   ids = id || {};
+  glyphSet = new Set(gs || '');
   orderings = Object.fromEntries(QSORTS.map(k => [k, (ords && ords[k]) || []]));
   pinOrder = (ords && ords.pin) || [];
   stdChars = [...new Set([...orderings.tw4808, ...orderings.gb2312])];

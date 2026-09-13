@@ -19,11 +19,12 @@
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
   /api/dayi         GET      大易4碼表（rime-dayi，對照用）
-  /api/ids          GET      部件拆分（makemeahanzi，例 訴 = ⿰言斥）
+  /api/ids          GET      部件拆分（makemeahanzi 為主，缺的字補 CJKVI，例 俔 = ⿰亻見）
   /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
   /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
   /api/state        GET      各檔 mtime，兩頁靠它互通
   /api/venn         GET      簡體字／繁體字／傳承字 ×常用字×已取碼，給取碼進度頁范氏圖用
+  /api/glyphset     GET      有筆畫中線資料的字（一個字串），逐字取碼佇列靠它標「純手動」
 """
 import collections
 import json
@@ -54,6 +55,8 @@ BACKUPS = DATA_DIR / "backups"
 FREQ = SHARED / "freq.json"
 GRAPHICS = SHARED / "graphics.txt"
 DICT = SHARED / "dictionary.txt"        # makemeahanzi：部件拆分（IDS，例 訴 = ⿰言斥）
+IDS_BROAD = SHARED / "ids_broad.txt"    # CJKVI／CHISE 的部件拆分，補 makemeahanzi 沒收的字
+                                         # （例 俔＝⿰亻見，多半是簡體、罕用字，佔未取碼佇列大宗）
 TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
 DAYI = SHARED / "dayi.json"             # 大易4碼表（對照用；rime-dayi 匯入）
@@ -114,22 +117,48 @@ def load_glyphs():
 
 IDS: dict[str, str] = {}          # 字 → 部件拆分（⿰言斥）
 _ids_lock = threading.Lock()
+_ids_loaded = False
 
 
 def ids_map():
     """字的「部件」是結構事實，不該用形狀去猜 ——
     猜的下場：訴 的下半在幾何上很像「下」，就真的被當成部件報出來。
-    這裡直接用 makemeahanzi 的 IDS 拆分（訴 = ⿰言斥），第一次用到才載入。"""
+    先收 makemeahanzi 的 IDS 拆分（訴 = ⿰言斥）—— 筆畫中線也是這份資料來的，
+    兩邊對得上，幾何預測信得過。makemeahanzi 只收 9574 字，沒收的字（多半是
+    簡體、罕用字，佔未取碼佇列的絕大多數，例 俔／饱／绊）完全沒有部件可查，
+    「相關字」欄一片空白，逐字取碼只能死記硬背。這裡補 CJKVI／CHISE 的拆分
+    （data/ids_broad.txt）——沒有筆畫中線，套不進幾何預測，但至少讓「相關字」
+    部件欄看得出偏旁（俔 = 亻＋見，兩個都已取碼），能照著部件的碼人工拼。
+    makemeahanzi 有的字不被覆蓋：那份跟筆畫資料同源，比較準。
+    第一次用到才載入，兩份都只載一次。"""
+    global _ids_loaded
     with _ids_lock:
-        if not IDS and DICT.exists():
-            with DICT.open(encoding="utf-8") as f:
-                for line in f:
-                    g = json.loads(line)
-                    d = g.get("decomposition")
-                    if d:
-                        IDS[g["character"]] = d
-            print(f"部件拆分（IDS）：{len(IDS)} 字")
+        if not _ids_loaded:
+            if DICT.exists():
+                with DICT.open(encoding="utf-8") as f:
+                    for line in f:
+                        g = json.loads(line)
+                        d = g.get("decomposition")
+                        if d:
+                            IDS[g["character"]] = d
+            n_native = len(IDS)
+            if IDS_BROAD.exists():
+                with IDS_BROAD.open(encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("#") or not line.strip():
+                            continue
+                        ch, d = line.rstrip("\n").split("\t", 1)
+                        IDS.setdefault(ch, d)
+            print(f"部件拆分（IDS）：makemeahanzi {n_native} 字 ＋ CJKVI 補 {len(IDS) - n_native} 字 "
+                  f"＝ {len(IDS)} 字")
+            _ids_loaded = True
     return IDS
+
+
+def glyph_chars():
+    """有筆畫中線資料的字，串成一個字串給前端當 Set 用——逐字取碼佇列靠「有沒有
+    這個字」＋「有沒有部件拆分」判斷一個字是不是純手動（兩者都沒有才是）。"""
+    return "".join(GLYPHS.keys())
 
 
 def tw_strokes():
@@ -646,6 +675,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(assoc_data(), ensure_ascii=False))
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
+        if u.path == "/api/glyphset":
+            return self._send(200, json.dumps(glyph_chars(), ensure_ascii=False), cache=True)
         if u.path == "/api/variants":
             return self._send(200, json.dumps(variants_data(), ensure_ascii=False), cache=True)
         if u.path == "/api/variant-gaps":
