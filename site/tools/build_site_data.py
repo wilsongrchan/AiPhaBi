@@ -2966,7 +2966,13 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
             for sh in shapes:
                 used_reps.add(sh["src"])
 
-            shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
+            # 只照「整個字」優先分組，組內不再照 count 降冪排——那會蓋掉 Wilson 在
+            # zigen.json 裡排好的順序（同一組挑 5 個形狀時，順序本身是刻意的：
+            # 讓 5 個形狀盡量長得不一樣，count 排序會把它打散，看起來像少了一個
+            # 形狀，2026-09 被抓到）。list.sort 是穩定排序，形狀在進來之前就是
+            # zigen.json 原始順序（上面的迴圈只是逐一 append，不會重排），所以拿掉
+            # -s["count"] 這個鍵，同一個「整個字／非整個字」分堆內就會維持原順序。
+            shapes.sort(key=lambda s: (s["span"] != "whole",))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
                            "shapes": shapes,
                            "note": (notes or {}).get((L.get("letter"), len(groups) + 1), "")})
