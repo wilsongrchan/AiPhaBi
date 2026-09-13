@@ -2925,45 +2925,38 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
             #
             # 只在**該例字裡這個字根只出現一次**時改（segs 長度為 1），否則筆序不唯一。
             # 原本的來源字保留在 src0 欄，需要時查得回去。
+            #
+            # ⚠️ 一個 shape 一決定完代表字就立刻登記進 used_reps，不是等整組跑完才登記
+            # 一次（先前的寫法）。先前那樣的話，**同一組**裡兩個 shape 若第一個例字
+            # 恰好一樣，兩個都還沒登記，都會通過「沒人用過」的檢查，一起換成同一個
+            # 代表字，組內看起來像重複了兩次（F 組的「與」、K 組的「兆」「鼎」、P 組的
+            # 「門」都是這樣，2026-09 用 site/tools/review_order.py 核對時抓到）。
             for sh in shapes:
                 first = (sh["ex"] or [None])[0]
-                if not first or not (first.get("segs") or []):
-                    continue
                 # 字根在這個字裡出現不只一次時（笑 的竹頭是兩個「个」、羽 是兩個「习」、
                 # 回 是口中有口），取**第一次出現**當代表 —— 「笑 第 1–3 筆」指得很明確，
                 # 不會有歧義。先前這種情況整個跳過，結果 笑、羽、回 這些好代表字都用不上。
-                if first["c"] == sh["src"]:
-                    continue
-
+                #
                 # 一律用第一個例字當代表字（Wilson 2026-08-19：「for all the description,
                 # use the first characters of the 4 samples」）。第一個例字要嘛是他手挑的、
                 # 要嘛是照單純度排出來的，兩者都比 zigen.json 原本的代表字適合。
                 #
-                # 只留一道門檻：**代表字不能是異體字或簡體專屬字**（不在教育部甲表的）。
-                # 那不是品味問題而是正確性問題 —— 這是繁體優先的網站，拿 鸟 當「島」類
-                # 字根的代表字是錯的。擋掉的話就維持原本的代表字。
-                #
-                # 先前還有一道「字根要佔代表字 60% 以上」的門檻，已移除：它會擋掉
-                # 衣（3/6）、初（4/7）、逐（5/10）、笑（3/10），而那些正是 Wilson 要的
-                # ——尤其 豬→逐、第→笑 是他手挑的例字，門檻等於推翻他的決定。
-                cand, cst = first["c"], list(first["segs"][0])
-                # 唯一的門檻：**不要把繁體代表字換成簡體／異體字**。
-                # 但如果現在的代表字本來就不是甲表字（岛、错、给、师…那些字根本來就
-                # 取自簡體字），那換成另一個同樣是簡體的第一個例字並不會更糟，
-                # 照 Wilson 的規則走即可 —— 門檻是防降級，不是防平移。
-                if standard and cand not in standard and sh["src"] in standard:
-                    continue
-                # 這個字母底下已經有別的字根搶先用了同一個代表字——不要換，
-                # 維持原本的代表字，免得字根表上同一個字母下出現兩個一模一樣的字
-                # （見上面 used_reps 的說明）。
-                if cand in used_reps:
-                    continue
-
-                sh["src0"], sh["st0"] = sh["src"], sh["st"]
-                sh["src"] = cand
-                sh["st"] = cst
-                sh["span"] = span(cand, cst)
-            for sh in shapes:
+                # 兩道門檻：**代表字不能是異體字或簡體專屬字**（不在教育部甲表的）——
+                # 這是繁體優先的網站，拿 鸟 當「島」類字根的代表字是錯的；先前還有一道
+                # 「字根要佔代表字 60% 以上」的門檻，已移除：它會擋掉衣（3/6）、初（4/7）、
+                # 逐（5/10）、笑（3/10），而那些正是 Wilson 要的——尤其 豬→逐、第→笑
+                # 是他手挑的例字，門檻等於推翻他的決定。
+                # 以及**這個字母底下已經有別的字根搶先用了同一個代表字**——不要換，維持
+                # 原本的代表字，免得字根表上同一個字母下出現兩個一模一樣的字。
+                if (first and (first.get("segs") or []) and first["c"] != sh["src"]):
+                    cand, cst = first["c"], list(first["segs"][0])
+                    blocked_variant = (standard and cand not in standard
+                                       and sh["src"] in standard)
+                    if not blocked_variant and cand not in used_reps:
+                        sh["src0"], sh["st0"] = sh["src"], sh["st"]
+                        sh["src"] = cand
+                        sh["st"] = cst
+                        sh["span"] = span(cand, cst)
                 used_reps.add(sh["src"])
 
             # 只照「整個字」優先分組，組內不再照 count 降冪排——那會蓋掉 Wilson 在
