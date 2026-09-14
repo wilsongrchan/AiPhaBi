@@ -1657,7 +1657,7 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
    說明和例字是它底下的內容，不該跟標題齊頭。 */
 .pr-body { padding-inline-start: 1.1rem; }
 
-/* 條文內部的子標題（例：孤筆略過底下的「目字旁原則」凌駕條款）——不是九條
+/* 條文內部的子標題（例：孤筆略過底下的「目字旁例外」凌駕條款）——不是九條
    之一，不編號、不用 h2 的 accent 橘，免得讀者以為多了一條原則；但要跟一般
    例字說明分得出主從，所以比照 .pr-num 用同一支灰、加粗、字級介於 h2 跟
    內文之間。padding-inline-start 沒有再縮一層，跟 .pr-body 底下其餘內容
@@ -1669,6 +1669,93 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   color: var(--ink-dim);
   margin: 1rem 0 .5rem;
 }
+
+/* 孤筆略過原則的判斷流程圖——不是逐條念規則，讀者一眼要看到「這是一串是非題，
+   每題答完要嘛有答案、要嘛接下一題」。刻意不用真的畫線的 SVG 流程圖：這一頁
+   全部是手寫 HTML/CSS，四層判斷、每層還要在窄螢幕上折成一欄，畫線的版本很快
+   就會變成「線對不準框」的維護負擔（zg-inline 那類小圖示已經夠多要顧）。用
+   「問題框 → 分支箭頭 → 結果框」＋「↓ 接下一題」兩種區塊代替，答案永遠是
+   「往右出去」或「往下继续」，跟真的流程圖同一個判斷邏輯，只是連接線換成
+   文字箭頭，窄螢幕上 .pr-flow-branch 换行也不會壞。
+   is-keep／is-skip 顏色跟例字卡片的 ✓／✗（.pr-card.is-ok／.is-bad）呼應：
+   會取到碼＝正面結果，用 accent；被略過＝不取碼，用素色不特別強調。 */
+.pr-flow {
+  margin: .7rem 0 .9rem;
+}
+.pr-flow-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: .6rem;
+}
+.pr-flow-q {
+  flex: 1 1 16rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: .55rem .8rem;
+  font-size: .92rem;
+}
+.pr-flow-n {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: .82rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pr-flow-branch {
+  flex: 1 1 14rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.pr-flow-arrow {
+  flex: none;
+  font-weight: 700;
+  font-size: .85rem;
+  white-space: nowrap;
+}
+.pr-flow-arrow.is-yes { color: var(--accent); }
+.pr-flow-arrow.is-no  { color: var(--ink-faint); }
+.pr-flow-out {
+  flex: 1 1 12rem;
+  border-inline-start: 3px solid var(--line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .45rem .7rem;
+  font-size: .88rem;
+  font-weight: 600;
+}
+.pr-flow-out small {
+  display: block;
+  font-weight: 400;
+  color: var(--ink-dim);
+  font-size: .8rem;
+  margin-top: .1rem;
+}
+.pr-flow-out.is-keep {
+  border-inline-start-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pr-flow-out.is-skip {
+  border-inline-start-color: var(--ink-faint);
+  background: var(--surface);
+  color: var(--ink-dim);
+  font-weight: 500;
+}
+.pr-flow-down {
+  text-align: center;
+  padding: .3rem 0;
+}
+.pr-flow-final { margin-inline-start: 0; }
 
 .pr-example {
   display: flex;

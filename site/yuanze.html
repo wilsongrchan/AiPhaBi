@@ -157,6 +157,45 @@
   但在認定該橫劃或豎劃為孤立之前，應首先嘗試將該筆劃和其他筆劃組成為可取字根，如「文」字不應取 <code>QX</code>（點劃、略過橫劃、兩劃交叉），而是應該優先將點劃和橫劃組成為屬於 <code>I</code> 的字根<strong><span class="pr-inline" data-char="言" data-st="1,2">第 1、2 筆</span></strong>，取 <code>IX</code>。有些三等字根正是優等字根上或下附帶橫劃，讓該橫劃免被略過。
 </p>
 
+<div class="pr-flow">
+  <div class="pr-flow-step">
+    <div class="pr-flow-q"><span class="pr-flow-n">1</span>這一橫／豎能不能和其他筆劃組成字根？</div>
+    <div class="pr-flow-branch">
+      <div class="pr-flow-arrow is-yes">能 →</div>
+      <div class="pr-flow-out is-keep">取那個字根<small>不適用孤筆略過</small></div>
+    </div>
+  </div>
+  <div class="pr-flow-down"><span class="pr-flow-arrow is-no">不能 ↓</span></div>
+
+  <div class="pr-flow-step">
+    <div class="pr-flow-q"><span class="pr-flow-n">2</span>這一橫／豎是不是整個字的第一筆或最後一筆？</div>
+    <div class="pr-flow-branch">
+      <div class="pr-flow-arrow is-yes">是 →</div>
+      <div class="pr-flow-out is-keep">不略過<small>橫取 I，豎取 J</small></div>
+    </div>
+  </div>
+  <div class="pr-flow-down"><span class="pr-flow-arrow is-no">不是 ↓</span></div>
+
+  <div class="pr-flow-step">
+    <div class="pr-flow-q"><span class="pr-flow-n">3</span>（僅橫劃）這一橫是不是「目」字本身最後那一橫？</div>
+    <div class="pr-flow-branch">
+      <div class="pr-flow-arrow is-no">不是 →</div>
+      <div class="pr-flow-out is-skip">略過<small>不取碼</small></div>
+    </div>
+  </div>
+  <div class="pr-flow-down"><span class="pr-flow-arrow is-yes">是 ↓</span></div>
+
+  <div class="pr-flow-step">
+    <div class="pr-flow-q"><span class="pr-flow-n">4</span>這個「目」是不是位於整個字最左方——其上方、左方、下方都沒有其他筆劃？</div>
+    <div class="pr-flow-branch">
+      <div class="pr-flow-arrow is-yes">是 →</div>
+      <div class="pr-flow-out is-keep">不略過，取 <code>I</code><small>目字旁例外，凌駕本原則</small></div>
+    </div>
+  </div>
+  <div class="pr-flow-down"><span class="pr-flow-arrow is-no">不是 ↓</span></div>
+  <div class="pr-flow-out is-skip pr-flow-final">略過<small>不取碼</small></div>
+</div>
+
 <div class="pr-example" data-char="文">
   <div class="pr-cards"></div>
   <p class="pr-text">例：「文」取 <code>IX</code>，不取 <code>QX</code>。</p>
@@ -177,9 +216,9 @@
   <p class="pr-text">例：「石」取 <code>JO</code>，不取 <code>IJO</code>，因<span class="pr-inline" data-char="石" data-st="1,2">一橫和一撇的組合</span>正是屬於 <code>J</code> 的字根，應優先取 <code>J</code>，而非認定該第一筆為孤立的橫劃。</p>
 </div>
 
-<h3 class="pr-subhead">目字旁原則（凌駕本原則）</h3>
+<h3 class="pr-subhead">目字旁例外</h3>
 <p>
-  目字旁若居於全字最左方，即使中間那一橫<span class="pr-inline" data-char="睛" data-st="5" data-rb="1"></span>因而不是首筆或末筆，仍不略過，取 <code>I</code>，以跟月字旁的 <code>D</code> 做區別——這條例外凌駕孤筆略過原則本身。
+  目字旁若居於全字最左方，即使中間那一橫<span class="pr-inline" data-char="睛" data-st="5"></span>因而不是首筆或末筆，仍不略過，取 <code>I</code>，以跟月字旁的 <code>D</code> 做區別——這條例外凌駕孤筆略過原則本身。
 </p>
 
 <div class="pr-example" data-char="睛">
@@ -193,7 +232,7 @@
 </div>
 
 <p>
-  目字旁不在最左方時，不套用這條例外，改看孤筆略過原則本身「首筆或末筆不略過」那句：「相」的目字旁在字的最右方，那一橫<span class="pr-inline" data-char="相" data-st="9" data-rb="2"></span>剛好是全字最後一筆，一樣不略過。
+  目字旁不在最左方時，不套用這條例外，改看孤筆略過原則本身「首筆或末筆不略過」那句：「相」的目字旁在字的最右方，那一橫<span class="pr-inline" data-char="相" data-st="9"></span>剛好是全字最後一筆，一樣不略過。
 </p>
 
 <div class="pr-example" data-char="相">
@@ -203,7 +242,7 @@
 
 <div class="pr-example" data-char="想">
   <div class="pr-cards"></div>
-  <p class="pr-text">但「想」是「相」加「心」，同一個目字旁那一橫<span class="pr-inline" data-char="想" data-st="9" data-rb="off"></span>既不在最左，也不再是全字最後一筆，就正常略過，取 <code>TDW</code>，不取 <code>TDIW</code>。</p>
+  <p class="pr-text">但「想」是「相」加「心」，同一個目字旁那一橫<span class="pr-inline" data-char="想" data-st="9"></span>既不在最左，也不再是全字最後一筆，就正常略過，取 <code>TDW</code>，不取 <code>TDIW</code>。</p>
 </div>
 </div>
 
