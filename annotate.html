@@ -2942,6 +2942,10 @@ function renderChecks() {
   pinned = null;                    /* 舊的列已經被砍掉了，別再抓著它 */
   const rec = codes[cur] || {};
   const off = muted(rec);
+  if (regionForm) {
+    box.innerHTML = '<span class="newz">台灣／香港字形沒有中線資料，不做規則檢查——跟拆解預測一樣，全靠手動指派時的判斷。</span>';
+    return;
+  }
   const list = checks({ ch: cur, segs, skipped, medians, nStrokes: strokes.length });
   const active = list.filter(c => !off.has(c.key));
 
