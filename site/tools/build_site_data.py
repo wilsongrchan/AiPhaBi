@@ -1433,29 +1433,6 @@ def build_lianxi(picks, codes, max_rule, warn, per_level=8):
             "levels": n_levels, "pass": per_level, "questions": made, "glyphs": glyphs}
 
 
-def load_intent_notes(warn):
-    """讀 site/content/intent_notes.md —— 少數取形意圖的額外說明，Wilson 手寫。
-
-    key 是「字母＋該字母底下取形意圖的順序」（A3 ＝ A 的第三個意圖），跟字根表上
-    看到的順序一致。序號會隨 Side A 合併意圖而移動，所以建置時把每一條對到的意圖
-    原文印出來，對不上一眼就看得到。
-    """
-    path = ROOT / "site" / "content" / "intent_notes.md"
-    if not path.exists():
-        return {}
-    text = re.sub(r"^```.*?^```", "", path.read_text("utf-8"), flags=re.S | re.M)
-    notes = {}
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        k, _, v = line.partition("=")
-        m = re.fullmatch(r"([A-Z])\s*(\d+)", k.strip())
-        if m and v.strip():
-            notes[(m.group(1), int(m.group(2)))] = v.strip()
-    return notes
-
-
 # 三簡碼沒有挑字清單（全碼表通用），這裡只現算幾個例字做示範。挑的是常見字、
 # 主碼四碼以上、而且不在約定簡碼的 63 字名單裡——兩種機制分開示範，不要用同一個字
 # 讓人搞混「這是約定簡碼還是三簡碼」。
@@ -2802,7 +2779,7 @@ def _drift_blame(drift, ship, pc):
 TIER_ORDER = {"primary": 0, "secondary": 1, "tertiary": 2}
 
 
-def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, notes=None):
+def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None):
     """字根表：把 zigen.json 攤成網站要的形狀。
 
     ⚠️ 純文字版，刻意不畫字根。一個字根存的是「某個字的第幾筆到第幾筆」
@@ -2812,6 +2789,11 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
     得先解決字形資料的授權與取得——那是另一個決定，不要偷偷在這裡引入相依。
 
     例字（seen）依字頻排序後截斷：常用字排前面，學的人才認得出來。
+
+    每個意圖的額外說明（note）直接從 zigen.json 的 intention.note 讀——那個欄位
+    現在可以在 editor.html 裡直接編輯（Side A 2026-09-13），不用再透過
+    site/content/intent_notes.md 這個中介檔案，序號也就不會再因為 Side A 調整
+    意圖順序而錯位。
     """
     # 筆畫總數只能從 codes.json 的 segments 反推（union 出來的最大索引 + 1）。
     # 有了它才能分辨「整個字」和「字的前幾筆」——沒有 graphics.txt 就只有這條路。
@@ -2925,51 +2907,49 @@ def build_zigen(zigen, codes, rank, far, picks=None, warn=None, standard=None, n
             #
             # 只在**該例字裡這個字根只出現一次**時改（segs 長度為 1），否則筆序不唯一。
             # 原本的來源字保留在 src0 欄，需要時查得回去。
+            #
+            # ⚠️ 一個 shape 一決定完代表字就立刻登記進 used_reps，不是等整組跑完才登記
+            # 一次（先前的寫法）。先前那樣的話，**同一組**裡兩個 shape 若第一個例字
+            # 恰好一樣，兩個都還沒登記，都會通過「沒人用過」的檢查，一起換成同一個
+            # 代表字，組內看起來像重複了兩次（F 組的「與」、K 組的「兆」「鼎」、P 組的
+            # 「門」都是這樣，2026-09 用 site/tools/review_order.py 核對時抓到）。
             for sh in shapes:
                 first = (sh["ex"] or [None])[0]
-                if not first or not (first.get("segs") or []):
-                    continue
                 # 字根在這個字裡出現不只一次時（笑 的竹頭是兩個「个」、羽 是兩個「习」、
                 # 回 是口中有口），取**第一次出現**當代表 —— 「笑 第 1–3 筆」指得很明確，
                 # 不會有歧義。先前這種情況整個跳過，結果 笑、羽、回 這些好代表字都用不上。
-                if first["c"] == sh["src"]:
-                    continue
-
+                #
                 # 一律用第一個例字當代表字（Wilson 2026-08-19：「for all the description,
                 # use the first characters of the 4 samples」）。第一個例字要嘛是他手挑的、
                 # 要嘛是照單純度排出來的，兩者都比 zigen.json 原本的代表字適合。
                 #
-                # 只留一道門檻：**代表字不能是異體字或簡體專屬字**（不在教育部甲表的）。
-                # 那不是品味問題而是正確性問題 —— 這是繁體優先的網站，拿 鸟 當「島」類
-                # 字根的代表字是錯的。擋掉的話就維持原本的代表字。
-                #
-                # 先前還有一道「字根要佔代表字 60% 以上」的門檻，已移除：它會擋掉
-                # 衣（3/6）、初（4/7）、逐（5/10）、笑（3/10），而那些正是 Wilson 要的
-                # ——尤其 豬→逐、第→笑 是他手挑的例字，門檻等於推翻他的決定。
-                cand, cst = first["c"], list(first["segs"][0])
-                # 唯一的門檻：**不要把繁體代表字換成簡體／異體字**。
-                # 但如果現在的代表字本來就不是甲表字（岛、错、给、师…那些字根本來就
-                # 取自簡體字），那換成另一個同樣是簡體的第一個例字並不會更糟，
-                # 照 Wilson 的規則走即可 —— 門檻是防降級，不是防平移。
-                if standard and cand not in standard and sh["src"] in standard:
-                    continue
-                # 這個字母底下已經有別的字根搶先用了同一個代表字——不要換，
-                # 維持原本的代表字，免得字根表上同一個字母下出現兩個一模一樣的字
-                # （見上面 used_reps 的說明）。
-                if cand in used_reps:
-                    continue
-
-                sh["src0"], sh["st0"] = sh["src"], sh["st"]
-                sh["src"] = cand
-                sh["st"] = cst
-                sh["span"] = span(cand, cst)
-            for sh in shapes:
+                # 兩道門檻：**代表字不能是異體字或簡體專屬字**（不在教育部甲表的）——
+                # 這是繁體優先的網站，拿 鸟 當「島」類字根的代表字是錯的；先前還有一道
+                # 「字根要佔代表字 60% 以上」的門檻，已移除：它會擋掉衣（3/6）、初（4/7）、
+                # 逐（5/10）、笑（3/10），而那些正是 Wilson 要的——尤其 豬→逐、第→笑
+                # 是他手挑的例字，門檻等於推翻他的決定。
+                # 以及**這個字母底下已經有別的字根搶先用了同一個代表字**——不要換，維持
+                # 原本的代表字，免得字根表上同一個字母下出現兩個一模一樣的字。
+                if (first and (first.get("segs") or []) and first["c"] != sh["src"]):
+                    cand, cst = first["c"], list(first["segs"][0])
+                    blocked_variant = (standard and cand not in standard
+                                       and sh["src"] in standard)
+                    if not blocked_variant and cand not in used_reps:
+                        sh["src0"], sh["st0"] = sh["src"], sh["st"]
+                        sh["src"] = cand
+                        sh["st"] = cst
+                        sh["span"] = span(cand, cst)
                 used_reps.add(sh["src"])
 
-            shapes.sort(key=lambda s: (s["span"] != "whole", -s["count"]))
+            # 只照「整個字」優先分組，組內不再照 count 降冪排——那會蓋掉 Wilson 在
+            # zigen.json 裡排好的順序（同一組挑 5 個形狀時，順序本身是刻意的：
+            # 讓 5 個形狀盡量長得不一樣，count 排序會把它打散，看起來像少了一個
+            # 形狀，2026-09 被抓到）。list.sort 是穩定排序，形狀在進來之前就是
+            # zigen.json 原始順序（上面的迴圈只是逐一 append，不會重排），所以拿掉
+            # -s["count"] 這個鍵，同一個「整個字／非整個字」分堆內就會維持原順序。
+            shapes.sort(key=lambda s: (s["span"] != "whole",))
             groups.append({"desc": desc, "tier": it.get("tier") or "primary",
-                           "shapes": shapes,
-                           "note": (notes or {}).get((L.get("letter"), len(groups) + 1), "")})
+                           "shapes": shapes, "note": (it.get("note") or "").strip()})
         letters.append({"letter": L.get("letter", ""), "groups": groups})
 
     return {
@@ -3346,25 +3326,11 @@ def main():
     if std_path.exists():
         standard = {c for line in std_path.read_text("utf-8").splitlines()
                     if not line.startswith("#") for c in line.strip()}
-    notes = load_intent_notes(warn)
     zg = build_zigen(zigen_raw, codes, rank, far, picks=picks, warn=warn,
-                     standard=standard, notes=notes)
+                     standard=standard)
 
     lianxi = build_lianxi(load_lianxi_picks(warn), codes, max_rule, warn)
 
-    # 每一條意圖說明對到哪一個意圖，把原文印出來 —— 序號會隨 Side A 合併意圖而移動，
-    # 印出來才看得出有沒有對錯位置。找不到的直接警告。
-    if notes:
-        idx = {}
-        for L in zg["letters"]:
-            for i, g in enumerate(L["groups"], 1):
-                idx[(L["letter"], i)] = g["desc"] or "（沒有取形意圖）"
-        for k in sorted(notes):
-            d = idx.get(k)
-            if d is None:
-                warn.append(f"意圖說明 {k[0]}{k[1]}：{k[0]} 底下沒有第 {k[1]} 個取形意圖")
-            else:
-                print(f"  意圖說明 {k[0]}{k[1]} → 「{d[:30]}」")
     zg["similar"] = build_similar(codes)
 
     # 字根表要畫出字根本身，需要這些字的筆畫輪廓。先只收字根的**來源字**（含 alts）：

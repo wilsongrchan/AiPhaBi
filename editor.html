@@ -57,15 +57,21 @@
   .key { font:650 26px/1 ui-monospace,Menlo,monospace; margin-bottom:2px; }
 
   .intent { border-left:2px solid var(--line); padding:6px 0 6px 10px; margin:8px 0; }
-  .intent-head { display:flex; align-items:center; gap:6px; }
+  .intent-head { display:grid; grid-template-columns:auto auto 1fr auto; align-items:center; gap:2px 6px; }
   .num { font:600 12px ui-monospace,monospace; color:var(--accent);
     border:1px solid var(--accent); border-radius:50%; width:19px; height:19px;
     display:grid; place-items:center; flex:none; }
-  .desc { flex:1; border:none; background:transparent; color:var(--ink); font:inherit;
+  .desc { border:none; background:transparent; color:var(--ink); font:inherit;
     font-size:14px; padding:2px 4px; border-radius:5px; }
   .desc:hover { background:var(--bg); }
   .desc:focus { outline:1px solid var(--line); background:var(--bg); }
   .desc:placeholder-shown { color:var(--muted); font-style:italic; }
+  /* 跟 desc 同一個 grid column，左緣自然對齊，不必去猜 grip／num 實際渲染寬度 */
+  .note { grid-column:3; box-sizing:border-box; border:none; background:transparent;
+    color:var(--muted); font:inherit; font-size:12.5px; padding:1px 4px; border-radius:5px; }
+  .note:hover { background:var(--bg); }
+  .note:focus { outline:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  .note:placeholder-shown { font-style:italic; }
   .shapes { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 
   .chip { position:relative; display:flex; flex-direction:column; align-items:center;
@@ -701,6 +707,11 @@ function render() {
           L.intentions.splice(ii, 1); touch(); render();
         };
         ih.append(del);
+        const note = el('input', 'note');
+        note.value = it.note || '';
+        note.placeholder = '額外說明';
+        note.oninput = () => { it.note = note.value; touch(); };
+        ih.append(note);
         box.append(ih);
 
         const shapes = dropZone(el('div', 'shapes'), it.shapes);

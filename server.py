@@ -19,14 +19,19 @@
   /api/hk?c=字      GET      香港教育局筆順（隨用隨抓並快取；見 hk.py）
   /api/cangjie      GET      官方倉頡碼表（rime-cangjie，對照用）
   /api/dayi         GET      大易4碼表（rime-dayi，對照用）
-  /api/ids          GET      部件拆分（makemeahanzi，例 訴 = ⿰言斥）
+  /api/ids          GET      部件拆分（makemeahanzi 為主，缺的字補 CJKVI，例 俔 = ⿰亻見）
   /api/cjmap?c=字   GET      倉頡「哪一筆屬於哪一碼」（見 cangjie_map.py）
   /api/cjimg?c=字   GET      倉頡拆碼圖（倉頡字典.com，隨用隨抓並快取）
   /api/state        GET      各檔 mtime，兩頁靠它互通
+  /api/venn         GET      簡體字／繁體字／傳承字 ×常用字×已取碼，給取碼進度頁范氏圖用
+  /api/glyphset     GET      有筆畫中線資料的字（一個字串），逐字取碼佇列靠它標「純手動」
+  /api/common-whitelist  GET  只打常用字的白名單（同 venn_data 用的那份），碼表分析頁模擬
+                              「打開只打常用字」後的統計用
 """
 import collections
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -52,6 +57,8 @@ BACKUPS = DATA_DIR / "backups"
 FREQ = SHARED / "freq.json"
 GRAPHICS = SHARED / "graphics.txt"
 DICT = SHARED / "dictionary.txt"        # makemeahanzi：部件拆分（IDS，例 訴 = ⿰言斥）
+IDS_BROAD = SHARED / "ids_broad.txt"    # CJKVI／CHISE 的部件拆分，補 makemeahanzi 沒收的字
+                                         # （例 俔＝⿰亻見，多半是簡體、罕用字，佔未取碼佇列大宗）
 TW = SHARED / "tw_strokes.json"
 CANGJIE = SHARED / "cangjie.json"
 DAYI = SHARED / "dayi.json"             # 大易4碼表（對照用；rime-dayi 匯入）
@@ -112,22 +119,48 @@ def load_glyphs():
 
 IDS: dict[str, str] = {}          # 字 → 部件拆分（⿰言斥）
 _ids_lock = threading.Lock()
+_ids_loaded = False
 
 
 def ids_map():
     """字的「部件」是結構事實，不該用形狀去猜 ——
     猜的下場：訴 的下半在幾何上很像「下」，就真的被當成部件報出來。
-    這裡直接用 makemeahanzi 的 IDS 拆分（訴 = ⿰言斥），第一次用到才載入。"""
+    先收 makemeahanzi 的 IDS 拆分（訴 = ⿰言斥）—— 筆畫中線也是這份資料來的，
+    兩邊對得上，幾何預測信得過。makemeahanzi 只收 9574 字，沒收的字（多半是
+    簡體、罕用字，佔未取碼佇列的絕大多數，例 俔／饱／绊）完全沒有部件可查，
+    「相關字」欄一片空白，逐字取碼只能死記硬背。這裡補 CJKVI／CHISE 的拆分
+    （data/ids_broad.txt）——沒有筆畫中線，套不進幾何預測，但至少讓「相關字」
+    部件欄看得出偏旁（俔 = 亻＋見，兩個都已取碼），能照著部件的碼人工拼。
+    makemeahanzi 有的字不被覆蓋：那份跟筆畫資料同源，比較準。
+    第一次用到才載入，兩份都只載一次。"""
+    global _ids_loaded
     with _ids_lock:
-        if not IDS and DICT.exists():
-            with DICT.open(encoding="utf-8") as f:
-                for line in f:
-                    g = json.loads(line)
-                    d = g.get("decomposition")
-                    if d:
-                        IDS[g["character"]] = d
-            print(f"部件拆分（IDS）：{len(IDS)} 字")
+        if not _ids_loaded:
+            if DICT.exists():
+                with DICT.open(encoding="utf-8") as f:
+                    for line in f:
+                        g = json.loads(line)
+                        d = g.get("decomposition")
+                        if d:
+                            IDS[g["character"]] = d
+            n_native = len(IDS)
+            if IDS_BROAD.exists():
+                with IDS_BROAD.open(encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("#") or not line.strip():
+                            continue
+                        ch, d = line.rstrip("\n").split("\t", 1)
+                        IDS.setdefault(ch, d)
+            print(f"部件拆分（IDS）：makemeahanzi {n_native} 字 ＋ CJKVI 補 {len(IDS) - n_native} 字 "
+                  f"＝ {len(IDS)} 字")
+            _ids_loaded = True
     return IDS
+
+
+def glyph_chars():
+    """有筆畫中線資料的字，串成一個字串給前端當 Set 用——逐字取碼佇列靠「有沒有
+    這個字」＋「有沒有部件拆分」判斷一個字是不是純手動（兩者都沒有才是）。"""
+    return "".join(GLYPHS.keys())
 
 
 def tw_strokes():
@@ -430,6 +463,70 @@ def progress_data():
             "standards": standards}
 
 
+def _load_common_whitelist():
+    """只打常用字＝白名單，來源是 Side B 產生的 rime/lua/aiphabi_data.lua（跟
+    site/tools/build_site_data.py 的 build_charset() 同一份定義、同一個理由：
+    寧可依賴人家的產出，也不要在這裡另外養一份會走偏的定義）。抓不到檔或抓不到
+    欄位就回空集合，圖上「常用字」那個圈就縮成 0——不是造假數字。"""
+    lua = ROOT / "rime" / "lua" / "aiphabi_data.lua"
+    try:
+        text = lua.read_text("utf-8")
+    except OSError:
+        return set()
+
+    def grab(field):
+        m = re.search(r"\nM\.%s = \{(.*?)\n\}" % field, text, re.S)
+        return set(re.findall(r'\["(.+?)"\]', m.group(1))) if m else None
+
+    return grab("common") or grab("biaonei") or set()
+
+
+def venn_data():
+    """簡體字／繁體字／傳承字 × 常用字 × 已取碼，給取碼進度頁的范氏圖用。
+
+    範圍（universe）＝已取碼字 ∪ 只打常用字白名單——不是全部 CJK 統一表意文字
+    （那兩萬多字裡九成沒人打過，「傳承字，較少見」會被灌到失真）。常用字白名單
+    剛好也是「不打簡體／只打常用字」關掉時會篩掉哪些字的那個定義，拿來當「還沒
+    取碼但在乎」那一側的邊界最貼題——多出來的缺口本身就是看得懂、有意義的清單。
+    """
+    s2t = _load_s2t()
+    simp_only = _load_simp_only(s2t)
+    t2s = _load_t2s()
+    common = _load_common_whitelist()
+
+    try:
+        coded_map = json.loads(CODES.read_text("utf-8")) if CODES.exists() else {}
+    except json.JSONDecodeError:
+        coded_map = {}
+    coded = {c for c, r in coded_map.items() if isinstance(r, dict) and r.get("code")}
+
+    universe = coded | common
+
+    try:
+        rank = {c: i for i, c in enumerate(json.loads(FREQ.read_text("utf-8")).get("order", []))}
+    except (OSError, json.JSONDecodeError):
+        rank = {}
+    far = len(rank) + 1
+
+    LABELS = {
+        "simp_rare": "簡體字，較少見", "simp_common": "簡體常用字",
+        "trad_rare": "繁體字，較少見", "trad_common": "繁體常用字",
+        "inherited_rare": "傳承字，較少見", "inherited_common": "傳承常用字",
+    }
+    regions = {k: [] for k in LABELS}
+    for ch in universe:
+        cat = "simp" if ch in simp_only else "trad" if ch in t2s else "inherited"
+        regions[f"{cat}_{'common' if ch in common else 'rare'}"].append(ch)
+
+    out = {}
+    for key, chars in regions.items():
+        chars.sort(key=lambda c: rank.get(c, far))
+        out[key] = {"label": LABELS[key], "chars": chars,
+                    "coded": sum(1 for c in chars if c in coded), "total": len(chars)}
+
+    return {"regions": out, "codedTotal": len(coded), "universeTotal": len(universe)}
+
+
 def variants_data():
     tw = tw_strokes()
     ids = ids_map()
@@ -576,10 +673,15 @@ class Handler(BaseHTTPRequestHandler):
                               cache=True)
         if u.path == "/api/simp-only":
             return self._send(200, json.dumps(simp_only_data(), ensure_ascii=False), cache=True)
+        if u.path == "/api/common-whitelist":
+            return self._send(200, json.dumps(sorted(_load_common_whitelist()), ensure_ascii=False),
+                              cache=True)
         if u.path == "/api/assoc":
             return self._send(200, json.dumps(assoc_data(), ensure_ascii=False))
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
+        if u.path == "/api/glyphset":
+            return self._send(200, json.dumps(glyph_chars(), ensure_ascii=False), cache=True)
         if u.path == "/api/variants":
             return self._send(200, json.dumps(variants_data(), ensure_ascii=False), cache=True)
         if u.path == "/api/variant-gaps":
@@ -615,6 +717,8 @@ class Handler(BaseHTTPRequestHandler):
                               else '{}', cache=True)
         if u.path == "/api/progress":
             return self._send(200, json.dumps(progress_data(), ensure_ascii=False))
+        if u.path == "/api/venn":
+            return self._send(200, json.dumps(venn_data(), ensure_ascii=False))
         if u.path == "/api/state":
             # 一律用字串：mtime_ns 是 19 位數，超過 JavaScript 的安全整數範圍，
             # 當成 JSON 數字送出去會被瀏覽器悄悄四捨五入，版本就永遠對不上，

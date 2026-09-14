@@ -7,6 +7,9 @@
 -- 約定簡碼：打中某個常用字「主碼首尾兩碼」剛好組成的簡碼，就把那個字也帶出來（附正碼）。
 -- 這個字會排到最前面，蓋過原本占那個碼的字——會被挑進約定簡碼，就是你認定它比
 -- 誰占那個碼都常用，理當排第一，不然約定了也沒省到選字的那一下。
+-- 約定簡碼字若本身主碼就撞碼（這/記、麼/魔、吧/邑…）：反過來，打主碼時把它擠到
+-- 候選最後面（data.short_demote），逼你改用簡碼——不然打主碼一樣先看到它，簡碼
+-- 形同虛設。這條跟約定簡碼同一個開關（沒有簡碼就沒有「該不該擠」這回事）。
 -- 三簡碼：跟約定簡碼同個道理，但不用手動挑——4 碼以上的字都適用，打 3 碼（頭兩碼
 -- +末一碼）當「AB`C」查全表，碰到的都帶出來（附正碼）。跟約定簡碼不一樣：約定簡碼
 -- 是認定過「就這個字」，值得排最前面、蓋過其他候選；三簡碼是自動配對、可能撞好幾個
@@ -306,6 +309,12 @@ local function filter(input, env)
   -- 提示——量過，3000 個候選時 大 排在第 1501 名，MAX_SORT=40／舊 RAW_CAP=1500 都構不到）。
   -- 這裡先讓開，把它們排到最前面，才能真的進到會被排序的那前 40 名，照常用度公平競爭。
   local shortText = short_hit and short_hit.text
+  -- 約定簡碼字本身主碼撞碼（這/記、麼/魔、吧/邑…）：開了約定簡碼，代表你認定這個字
+  -- 用簡碼打比較划算——但打的是主碼時，若還是照字頻排最前面（常常就是因為夠常用
+  -- 才被挑進約定簡碼），簡碼就沒人會去用，反正打主碼一樣先看到它。所以這裡把它擠到
+  -- 「正常候選」最後面（撞碼的另一個字先出來），逼你改用簡碼打它。開關關掉時完全
+  -- 不查這張表，字頻排序照舊（見下方 short_on 那個判斷）。
+  local demoted = {}
   if short_hit and keep(short_hit) then yield(short_hit) end
   for _, c in ipairs(extra) do
     if keep(c) then yield(c) end
@@ -321,9 +330,16 @@ local function filter(input, env)
   end
   for i = 1, #cands do
     if cands[i].text ~= shortText and keep(cands[i]) then
-      yield(cands[i].type == "ap_repeat" and cands[i] or markHints(cands[i]))
+      local c = cands[i].type == "ap_repeat" and cands[i] or markHints(cands[i])
+      local dm = short_on and data.short_demote[code]
+      if dm and dm[c.text] then
+        demoted[#demoted + 1] = c
+      else
+        yield(c)
+      end
     end
   end
+  for _, c in ipairs(demoted) do yield(c) end
 end
 
 -- _RAW_CAP：只給 tests/ 用，讓測試檔跟這裡的真實數字保持一致，不要各自硬編一份。

@@ -323,7 +323,7 @@
           if (g.desc) td.appendChild(el('span', null, g.desc));
           else td.appendChild(el('span', 'zg-todo', '（取形意圖待補）'));
           // 少數意圖有額外說明（為什麼這一類形狀算是像這個字母），來自
-          // site/content/intent_notes.md，顯示在意圖底下
+          // zigen.json 意圖的 note 欄位（editor.html 直接編輯），顯示在意圖底下
           if (g.note) td.appendChild(el('span', 'zg-note', g.note));
           tr.appendChild(td);
         }
