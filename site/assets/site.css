@@ -1690,11 +1690,25 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
    讀規則說明必經的第一站，擺在孤筆略過整節的最後，跟前面的文字說明／例字
    分開，收合可以避免它把整節版面拉得太長。 */
 .pr-flow-details {
+  position: relative;
   margin: 1rem 0 .3rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: .15rem .8rem;
 }
+/* 試按例字時，面板右上角冒出那個字真正的拆碼小卡（跟正文例字卡同一個
+   card()，見 principles.js 的 setupFlowTester）。position:absolute，不佔
+   版面——出現／消失都不會把下面的按鈕列或圖往下推。 */
+.pr-flow-glyph {
+  position: absolute;
+  top: .5rem;
+  right: .8rem;
+  z-index: 1;
+}
+.pr-flow-glyph[hidden] { display: none; }
+.pr-flow-glyph .pr-icon { width: 2.1rem; height: 2.1rem; }
+.pr-flow-glyph .pr-code { font-size: .68rem; }
+.pr-flow-glyph .pr-mark { width: .85rem; height: .85rem; font-size: .55rem; }
 .pr-flow-details > summary {
   cursor: pointer;
   list-style: none;
