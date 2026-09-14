@@ -4,7 +4,10 @@
 --   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
 --      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
 --      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
---      那個是猜的，留在下面。）
+--      那個是猜的，留在下面。）這一層內部也照常用度排——四碼快打詞（常是生僻地名
+--      這類拼出來的固定詞組）不該單純因為候選提供者先吐出來，就壓過常用單字的主碼
+--      exact（例：jwej 打滿 爭 的主碼，也剛好是「群島」系列地名的四碼簽名，沒排序
+--      前會照候選來源順序出，地名排到常用字前面；回報：jwej 打「爭」被「J群島」蓋過）。
 --   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
 --      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
 --      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
@@ -265,6 +268,22 @@ local function filter(input, env)
     for _, e in ipairs(compTail) do compHead[#compHead + 1] = e end
   end
   comp = compHead
+  -- exact 一級內部排序：見上面第 2 層的說明，不然候選提供者的原始順序（跟常用度無關）
+  -- 會決定誰排前面。量通常很小（同一碼底下能打滿的字/詞不多），不用 MAX_SORT 上限。
+  -- 約定簡碼撞碼字（data.short_demote，見 aiphabi_hint.lua 同名邏輯）仍得先擠到這一級
+  -- 最後面——那是刻意的「逼你改用簡碼」，不能被這裡新加的常用度排序蓋過去。
+  local short_on = env.engine.context:get_option("aiphabi_short100")
+  local demoteSet = short_on and data.short_demote[code]
+  for i, c in ipairs(exact) do exact[i] = { c = c, i = i } end
+  table.sort(exact, function(a, b)
+    local da = demoteSet and demoteSet[a.c.text] or false
+    local db = demoteSet and demoteSet[b.c.text] or false
+    if da ~= db then return db end   -- 沒被撞碼標記的排前面
+    local sa, sb = score(a.c.text), score(b.c.text)
+    if sa ~= sb then return sa > sb end
+    return a.i < b.i
+  end)
+
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
     if a.cov ~= b.cov then return a.cov > b.cov end
@@ -272,7 +291,7 @@ local function filter(input, env)
   end)
 
   for _, c in ipairs(short) do yield(c) end              -- 1. 簡碼
-  for _, c in ipairs(exact) do yield(c) end              -- 2. 主碼 exact
+  for _, e in ipairs(exact) do yield(e.c) end            -- 2. 主碼 exact
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
   for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
   for _, c in ipairs(demoted) do yield(c) end            -- 5. 沒打 ` 前綴卻冒出來的部件字，壓到這

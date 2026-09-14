@@ -60,6 +60,24 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== exact 一級內部：主碼 exact 跟打滿的四碼詞同級，但同級內仍要照常用度排 ==")
+for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+  -- 打 JWEJ：爭 的主碼剛好是 JWEJ；同一個簽名底下也收了幾個生僻地名（长山群岛／舟山
+  -- 群島／万山群岛），都標 type=ap_si4。兩者都算 exact 一級（推得出來的碼），但常用單字
+  -- 爭 不該輸給候選提供者剛好先吐出來的冷門地名（回報：jwej 打「爭」被「万山群島」蓋過）。
+  local out = h.run{
+    schema = schema, code = "jwej", options = ALL_ON,
+    cands = {
+      { text = "万山群島", type = "ap_si4" },
+      { text = "长山群岛", type = "ap_si4" },
+      { text = "爭" },
+    },
+  }
+  h.checkAt(schema .. " · 常用字 爭 排在生僻四碼地名前面", out, 1, "爭")
+  h.checkPresent(schema .. " · 四碼地名 万山群島 還在（只是排後面）", out, "万山群島", true)
+end
+
+print()
 print("== 不打簡體：地名詞庫逐字簡化的簡體詞（澳门…）跟簡體專屬單字一起被濾掉 ==")
 do
   h.check("澳门 在 M.simp_phrase 裡、澳門 不在",
