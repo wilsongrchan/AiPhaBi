@@ -1671,8 +1671,10 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 }
 
 /* 孤筆略過原則的判斷流程圖——真的畫框＋線的 SVG，不是文字箭頭排出來的假流程圖
-   （Wilson 給的參考圖是 Creately 那種方框＋菱形＋直角連接線）。座標是固定的
-   viewBox，不是跟著容器寬度重排的響應式版面：五層判斷、每層的問題長短不一，
+   （Wilson 給的參考圖是 Creately 那種方框＋直角連接線）。原本每個問題框前面
+   還畫一個菱形小圖示標「這是決策點」，但框內已經有一個數字圓圈當標記，兩個
+   一起放純粹佔位置，拿掉了。座標是固定的 viewBox，不是跟著容器寬度重排的
+   響應式版面：五層判斷、每層的問題長短不一，
    硬要在窄螢幕上重排每一格的座標比維護一張手畫的圖還累。做法是整張圖包在
    .pr-flow-scroll（overflow-x:auto）裡，跟全站「表格、圖表、code block 可以
    比內文寬，各自捲動」的規則一致（見 css_order_test.js 旁邊那類寬內容的處理），
@@ -1730,7 +1732,6 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 .pf-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 .pf-out.is-keep { fill: var(--accent-soft); stroke: var(--accent); }
 .pf-out.is-skip { fill: var(--surface); stroke: var(--ink-faint); }
-.pf-diamond { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
 .pf-line { stroke-width: 2; fill: none; }
 .pf-line.is-yes { stroke: var(--accent); }
 .pf-line.is-no  { stroke: var(--ink-faint); }
