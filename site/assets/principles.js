@@ -123,10 +123,14 @@
   /* 說明文字裡的「V（第 1、2 筆）」這種文字描述，換成就地畫出來的字根小圖——
    * 用法跟 zigen.js 的 {字#筆序} 一樣，但那支程式的函式沒有對外開放，這裡另外
    * 寫一份（裁切／置中算法照抄 zigen.js 的 rootIconSvg，見那邊的註解）。
-   * 標記寫法：<span class="pr-inline" data-char="美" data-st="1,2"></span> */
+   * 標記寫法：<span class="pr-inline" data-char="美" data-st="1,2"></span>
+   * 想讓這一筆跟上面卡片同一個顏色（例如指名卡片裡那個被略過的字根），加一個
+   * data-rb="0".."5"（對應卡片那個字根在 breakdown.groups 裡的序號），
+   * 圖示就會套 rb-N 而不是預設的墨色——顏色系統跟卡片同一套（見 card() 的
+   * RAINBOW 陣列），不是另外配的一套。 */
   var ROOT_PAD = 40;
 
-  function rootIconSvg(strokes, sel) {
+  function rootIconSvg(strokes, sel, rbClass) {
     var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
     for (var k = 0; k < sel.length; k++) {
       var d = strokes[sel[k]];
@@ -145,12 +149,13 @@
     var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     var span = Math.max(x1 - x0, y1 - y0);
     var BOX = Math.min(1024, span / 0.85) || 1024;
+    var cls = rbClass ? ' class="' + rbClass + '"' : '';
     var paths = '';
     for (var j = 0; j < sel.length; j++) {
-      if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
+      if (strokes[sel[j]]) paths += '<path' + cls + ' d="' + strokes[sel[j]] + '"/>';
     }
-    return '<svg class="zg-svg" viewBox="' + (cx - BOX / 2) + ' ' + (cy - BOX / 2) +
-      ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
+    return '<svg class="' + (rbClass ? 'zg-altsvg' : 'zg-svg') + '" viewBox="' +
+      (cx - BOX / 2) + ' ' + (cy - BOX / 2) + ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
       '<g transform="scale(1,-1) translate(0,-900)">' + paths + '</g></svg>';
   }
 
@@ -162,10 +167,13 @@
       var sel = (span.getAttribute('data-st') || '').split(',')
         .filter(Boolean).map(function (n) { return +n - 1; });
       if (!strokes || !sel.length) return;
-      var svg = rootIconSvg(strokes, sel);
+      var rbIdx = span.getAttribute('data-rb');
+      var rbClass = rbIdx === 'off' ? 'off'
+        : (rbIdx !== null && rbIdx !== '' ? RAINBOW[+rbIdx % RAINBOW.length] : null);
+      var svg = rootIconSvg(strokes, sel, rbClass);
       if (!svg) return;
       span.innerHTML = svg;
-      span.className = 'zg-inline';
+      span.className = rbClass ? 'zg-inline is-rb' : 'zg-inline';
       span.title = ch + '　第 ' + sel.map(function (i) { return i + 1; }).join('、') + ' 筆';
       span.setAttribute('data-keep', '');
       span.dataset.done = '1';
@@ -315,6 +323,104 @@
     });
   }
 
+  /* 孤筆略過判斷流程圖：按一個例字，沿著它實際走的問題／分支高亮一次，
+   * 面板右上角同時冒出這個字真正的拆碼小卡（跟正文例字卡同一個 card()，
+   * 資料也是同一份 DATA／GLYPHS，不用另外抓一次）。
+   * 路徑是手追出來的，不是程式跑出來的——孤筆略過本身（kind=enforced）雖然
+   * 有算法可以驗證，但目字旁例外那條在 rules.json 是 kind=manual，沒有一支
+   * 函式能回答「這個字走到哪一步」。每條路徑對過 codes.json 的實際 segments
+   * 才寫下來（見 yuanze.html 那幾個 pr-example 的說明文字，路徑跟文字說的
+   * 是同一件事，只是這裡換成節點 id 的清單）：
+   *   文／石：第一筆能跟別的筆劃組成字根，第 1 題就結束。
+   *   更：不能組成字根，但它是全字第一筆，第 2 題結束。
+   *   便：不能組成字根、不是首尾筆、是橫劃，但不是「目」字本身那一橫，第 4
+   *       題以「略過」結束——這裡的橫跟目字旁一點關係都沒有，只是恰好也是橫。
+   *   相：跟更同一類（不能組成字根，是全字最後一筆），第 2 題結束，不是靠
+   *       目字旁例外，是孤筆略過原則本身「首尾筆不略過」那句。
+   *   睛：一路答到第 5 題「是」，目字旁例外成立。
+   *   想：跟睛前四題一樣，但第 5 題「不是」（目不在最左，因為木在它左邊），
+   *       落到最後那個共用的略過終點（pf-final），不是 pf-out4／pf-out5。
+   *   腈：月字旁本身沒有目那多出來的一橫，根本沒有孤立筆劃可以問——這個字
+   *       不會進到這個流程圖，path 留空，但整張圖照樣灰掉（is-tracing 沒有
+   *       任何 is-active），跟其他字選中時「大部分灰、一條路亮」是同一個
+   *       視覺語言，不是另外開一種「無效」狀態。
+   */
+  function setupFlowTester() {
+    var wrap = document.querySelector('.pr-flow-test');
+    if (!wrap) return;
+    var svg = document.querySelector('.pr-flow-svg');
+    var note = document.querySelector('.pr-flow-test-note');
+    var glyph = document.querySelector('.pr-flow-glyph');
+    var buttons = wrap.querySelectorAll('[data-flow-char]');
+    var clearBtn = wrap.querySelector('[data-flow-clear]');
+
+    var FLOW = {
+      '文': { path: ['pf-q1', 'pf-hline1', 'pf-out1'],
+              result: '「文」：這一橫能跟上方的一點組成「亠」，取 I，整個字取 IX。' },
+      '石': { path: ['pf-q1', 'pf-hline1', 'pf-out1'],
+              result: '「石」：這一橫能跟下面的撇組成一個字根，取 J，整個字取 JO。' },
+      '更': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-hline2', 'pf-out2'],
+              result: '「更」：這一橫不能跟其他筆劃組成字根，但它是全字第一筆，不略過，整個字取 IBX。' },
+      '相': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-hline2', 'pf-out2'],
+              result: '「相」：這一橫不能跟其他筆劃組成字根，但它是全字最後一筆，不略過，整個字取 TDI。' },
+      '便': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
+                     'pf-q4', 'pf-hline4', 'pf-out4'],
+              result: '「便」：這一橫不能跟其他筆劃組成字根，不是首尾筆，雖然是橫劃，但不是「目」字本身那一橫，略過，整個字取 YBX。' },
+      '睛': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
+                     'pf-q4', 'pf-vline4', 'pf-q5', 'pf-hline5', 'pf-out5'],
+              result: '「睛」：這一橫一路確認到「目」在全字最左方，目字旁例外成立，不略過，取 I，整個字取 DIFD。' },
+      '想': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
+                     'pf-q4', 'pf-vline4', 'pf-q5', 'pf-vline5', 'pf-final'],
+              result: '「想」：跟「睛」前四題答案一樣，但「目」不在全字最左方（木在它左邊），略過，整個字取 TDW。' },
+      '腈': { path: [], result: '「腈」：沒有孤立的橫劃或豎劃。' },
+      '引': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-hline2', 'pf-out2'],
+              result: '「引」：這一豎不能跟其他筆劃組成字根，但它是全字最後一筆，不略過，整個字取 SJ。' },
+      '契': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-hline3', 'pf-out3'],
+              result: '「契」：這一豎不能跟其他筆劃組成字根，不是首尾筆，是豎劃，目字旁例外只適用橫劃，略過，整個字取 EPK。' }
+    };
+
+    function clear() {
+      if (svg) {
+        svg.classList.remove('is-tracing');
+        Array.prototype.forEach.call(svg.querySelectorAll('.is-active'), function (n) {
+          n.classList.remove('is-active');
+        });
+      }
+      Array.prototype.forEach.call(buttons, function (b) { b.classList.remove('is-active'); });
+      note.hidden = true;
+      if (glyph) { glyph.hidden = true; glyph.textContent = ''; }
+    }
+
+    Array.prototype.forEach.call(buttons, function (btn) {
+      btn.addEventListener('click', function () {
+        var ch = btn.getAttribute('data-flow-char');
+        var wasActive = btn.classList.contains('is-active');
+        clear();
+        if (wasActive) return;   // 再按一次同一個字＝取消
+        var info = FLOW[ch];
+        if (!info) return;
+        btn.classList.add('is-active');
+        note.textContent = info.result;
+        note.hidden = false;
+        if (svg) {
+          svg.classList.add('is-tracing');   // 沒有路徑（腈）也整張圖照樣灰掉
+          info.path.forEach(function (id) {
+            var n = document.getElementById(id);
+            if (n) n.classList.add('is-active');
+          });
+        }
+        var entry = DATA && DATA[ch];
+        if (glyph && entry) {
+          glyph.textContent = '';
+          glyph.appendChild(card(ch, entry.correct, true));
+          glyph.hidden = false;
+        }
+      });
+    });
+
+    if (clearBtn) clearBtn.addEventListener('click', clear);
+  }
+
   fetch('assets/principles.json')
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -328,4 +434,6 @@
       render();                // 拿到筆畫資料後重畫一次，補上顏色分組
     })
     .catch(function () { /* 保持純文字退路 */ });
+
+  setupFlowTester();   // 跟 DATA／GLYPHS 是否已經到位無關，按鈕點下去那一刻才需要
 })();

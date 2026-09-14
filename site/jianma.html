@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>簡碼 · 愛發筆 AiPhaBi</title>
-<meta name="description" content="愛發筆輸入法縮短取碼的三種機制：約定簡碼、三簡碼、左簡碼。">
+<meta name="description" content="愛發筆輸入法縮短取碼的機制：約定簡碼、三簡碼。">
 <!-- 分頁圖示用**簡化版**的標誌（單一個字母）：完整標誌四個字母擠在一起，
      16px 下整個糊成一團，一個字母都認不出來。側邊欄那個 34px 的品牌圖示
      仍然用完整標誌 —— 那個尺寸讀得出來，而且旁邊就是品牌名。 -->
@@ -18,7 +18,7 @@
 <meta property="og:locale" content="zh_TW">
 <meta property="og:url" content="https://www.aiphabi.com/jianma.html">
 <meta property="og:title" content="簡碼 · 愛發筆 AiPhaBi">
-<meta property="og:description" content="愛發筆輸入法縮短取碼的三種機制：約定簡碼、三簡碼、左簡碼。">
+<meta property="og:description" content="愛發筆輸入法縮短取碼的機制：約定簡碼、三簡碼。">
 <meta property="og:image" content="https://www.aiphabi.com/assets/img/share.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -67,8 +67,10 @@
         <ul class="pr-sidenav">
           <li><a href="#jm-1">1. 約定簡碼</a></li>
           <li><a href="#jm-2">2. 三簡碼</a></li>
-          <li><a href="#jm-3">3. 左簡碼</a></li>
         </ul>
+        <!-- 左簡碼已停用（2026-09-14），從選單移除，復原時把這行放回上面的 <ul> 裡：
+        <li><a href="#jm-3">3. 左簡碼</a></li>
+        -->
       </div>
       <div class="nav-sec">
         <span class="nav-sec-t">流暢模式</span>
@@ -102,8 +104,13 @@
   <p class="eyebrow">愛發筆輸入法</p>
   <h1>簡碼</h1>
 
+  <!-- 原文（三種簡碼，含左簡碼）2026-09-14 起改成下面兩種的版本，左簡碼停用後復原時換回來：
   <p class="lede">
     愛發筆輸入法拆碼時最多五碼，但另外設計了三種縮短取碼的簡碼，方便日常打字。三種簡碼各自獨立，可以分別設定使用與否。設定使用了簡碼後，主碼仍然能夠打出該字，但選字列會提示此字有簡碼，可以一邊打字一邊學習。所有簡碼都是從主碼縮短而來，無需另外學習或記憶。
+  </p>
+  -->
+  <p class="lede">
+    愛發筆輸入法拆碼時最多五碼，但另外設計了兩種縮短取碼的簡碼，方便日常打字。兩種簡碼各自獨立，可以分別設定使用與否。設定使用了簡碼後，主碼仍然能夠打出該字，但選字列會提示此字有簡碼，可以一邊打字一邊學習。所有簡碼都是從主碼縮短而來，無需另外學習或記憶。
   </p>
 
   <h2 id="jm-1">約定簡碼</h2>
@@ -146,6 +153,9 @@
     </table>
   </div>
 
+  <!-- 左簡碼已停用（2026-09-14，見 data/rules.json 的 left_short.note），整節從網站移除，
+       文字與表格結構原封不動留在這裡；復原時把這段註解拿掉即可，jianma.js 的
+       renderLeftShort() 一直都在，靠 #jm-leftshort 存不存在自動判斷要不要跑。
   <h2 id="jm-3">左簡碼</h2>
   <p>
     部分常見於字左邊、而且字形較繁複的偏旁部首，可為左邊的偏旁縮短取碼，只取偏旁的首尾兩碼，之後再為餘下的部分取碼。只有符合以下要求的字，左簡碼才適用：
@@ -171,6 +181,7 @@
       <tbody><tr><td colspan="6">簡碼表載入中……</td></tr></tbody>
     </table>
   </div>
+  -->
 
 </main>
 

@@ -176,6 +176,154 @@
   <div class="pr-cards"></div>
   <p class="pr-text">例：「石」取 <code>JO</code>，不取 <code>IJO</code>，因<span class="pr-inline" data-char="石" data-st="1,2">一橫和一撇的組合</span>正是屬於 <code>J</code> 的字根，應優先取 <code>J</code>，而非認定該第一筆為孤立的橫劃。</p>
 </div>
+
+<h3 class="pr-subhead">目字旁例外</h3>
+<p>
+  目字旁若居於全字最左方，即使中間那一橫<span class="pr-inline" data-char="睛" data-st="5"></span>因而不是首筆或末筆，仍不略過，取 <code>I</code>，以跟月字旁的 <code>D</code> 做區別——這條例外凌駕孤筆略過原則本身。
+</p>
+
+<div class="pr-example" data-char="睛">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「睛」取 <code>DIFD</code>，不取 <code>DFD</code>。</p>
+</div>
+
+<div class="pr-example" data-char="腈">
+  <div class="pr-cards"></div>
+  <p class="pr-text">對照同樣是「青」的「腈」：左方是月字旁，本來就沒有目那多出來的一橫，正常取 <code>DFD</code>。</p>
+</div>
+
+<p>
+  目字旁不在最左方時，不套用這條例外，改看孤筆略過原則本身「首筆或末筆不略過」那句：「相」的目字旁在字的最右方，那一橫<span class="pr-inline" data-char="相" data-st="9"></span>剛好是全字最後一筆，一樣不略過。
+</p>
+
+<div class="pr-example" data-char="相">
+  <div class="pr-cards"></div>
+  <p class="pr-text">例：「相」取 <code>TDI</code>。</p>
+</div>
+
+<div class="pr-example" data-char="想">
+  <div class="pr-cards"></div>
+  <p class="pr-text">但「想」是「相」加「心」，同一個目字旁那一橫<span class="pr-inline" data-char="想" data-st="9"></span>既不在最左，也不再是全字最後一筆，就正常略過，取 <code>TDW</code>，不取 <code>TDIW</code>。</p>
+</div>
+
+<details class="pr-flow-details">
+  <summary>圖解：完整判斷流程</summary>
+  <div class="pr-flow-glyph" hidden></div>
+  <!-- 座標是拿一支一次性的 Python 小工具排的（矩形＋foreignObject 文字＋直角
+       連接線），不是手key——要調任一格的高度或間距，改那支工具重新產生一次，
+       不要直接改下面的座標，很快就會對不齊。 -->
+  <div class="pr-flow-test" role="group" aria-label="試按這一節用過的例字，看它怎麼走過這張圖">
+    <span class="pr-flow-test-label">試試這一節的例字：</span>
+    <button type="button" data-flow-char="文">文</button>
+    <button type="button" data-flow-char="更">更</button>
+    <button type="button" data-flow-char="便">便</button>
+    <button type="button" data-flow-char="石">石</button>
+    <button type="button" data-flow-char="睛">睛</button>
+    <button type="button" data-flow-char="腈">腈</button>
+    <button type="button" data-flow-char="相">相</button>
+    <button type="button" data-flow-char="想">想</button>
+    <button type="button" data-flow-char="引">引</button>
+    <button type="button" data-flow-char="契">契</button>
+    <button type="button" class="pr-flow-test-clear" data-flow-clear>清除</button>
+  </div>
+  <p class="pr-flow-test-note" hidden></p>
+  <div class="pr-flow-scroll">
+<svg class="pr-flow-svg" viewBox="0 0 708 472" role="img" aria-label="孤筆略過原則判斷流程圖">
+  <defs>
+    <marker id="pf-arrow-yes" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="pf-arrowhead-yes"/>
+    </marker>
+    <marker id="pf-arrow-no" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="pf-arrowhead-no"/>
+    </marker>
+  </defs>
+  <g class="pf-node" id="pf-q1">
+    <rect class="pf-box pf-q" x="14" y="14" width="380" height="50" rx="9"/>
+    <foreignObject x="26" y="14" width="356" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-qtext"><span class="pf-n">1</span>這一橫／豎能不能和其他筆劃組成字根？</div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-hline1">
+    <line class="pf-line is-yes" x1="394" y1="39.0" x2="446" y2="39.0" marker-end="url(#pf-arrow-yes)"/>
+    <foreignObject x="385.0" y="15.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-hlabel is-yes">能</div></foreignObject>
+  </g>
+  <g class="pf-node pf-out is-keep" id="pf-out1">
+    <rect class="pf-box pf-out is-keep" x="450" y="14" width="244" height="50" rx="9"/>
+    <foreignObject x="462" y="14" width="220" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-outtext"><strong>取那個字根</strong><small>和其他筆劃組成字根後不視作孤筆</small></div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-vline1">
+    <line class="pf-line is-no" x1="204.0" y1="64" x2="204.0" y2="86" marker-end="url(#pf-arrow-no)"/>
+    <foreignObject x="214.0" y="68.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-vlabel is-no">不能</div></foreignObject>
+  </g>
+  <g class="pf-node" id="pf-q2">
+    <rect class="pf-box pf-q" x="14" y="90" width="380" height="50" rx="9"/>
+    <foreignObject x="26" y="90" width="356" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-qtext"><span class="pf-n">2</span>這一橫／豎是不是整個字的第一筆或最後一筆？</div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-hline2">
+    <line class="pf-line is-yes" x1="394" y1="115.0" x2="446" y2="115.0" marker-end="url(#pf-arrow-yes)"/>
+    <foreignObject x="385.0" y="91.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-hlabel is-yes">是</div></foreignObject>
+  </g>
+  <g class="pf-node pf-out is-keep" id="pf-out2">
+    <rect class="pf-box pf-out is-keep" x="450" y="90" width="244" height="50" rx="9"/>
+    <foreignObject x="462" y="90" width="220" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-outtext"><strong>不略過</strong><small>橫取 I，豎取 J</small></div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-vline2">
+    <line class="pf-line is-no" x1="204.0" y1="140" x2="204.0" y2="162" marker-end="url(#pf-arrow-no)"/>
+    <foreignObject x="214.0" y="144.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-vlabel is-no">不是</div></foreignObject>
+  </g>
+  <g class="pf-node" id="pf-q3">
+    <rect class="pf-box pf-q" x="14" y="166" width="380" height="50" rx="9"/>
+    <foreignObject x="26" y="166" width="356" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-qtext"><span class="pf-n">3</span>這一筆是橫劃還是豎劃？</div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-hline3">
+    <line class="pf-line is-no" x1="394" y1="191.0" x2="446" y2="191.0" marker-end="url(#pf-arrow-no)"/>
+    <foreignObject x="385.0" y="167.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-hlabel is-no">豎</div></foreignObject>
+  </g>
+  <g class="pf-node pf-out is-skip" id="pf-out3">
+    <rect class="pf-box pf-out is-skip" x="450" y="166" width="244" height="50" rx="9"/>
+    <foreignObject x="462" y="166" width="220" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-outtext"><strong>略過</strong><small>豎劃沒有目字旁例外，不取碼</small></div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-vline3">
+    <line class="pf-line is-yes" x1="204.0" y1="216" x2="204.0" y2="238" marker-end="url(#pf-arrow-yes)"/>
+    <foreignObject x="214.0" y="220.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-vlabel is-yes">橫</div></foreignObject>
+  </g>
+  <g class="pf-node" id="pf-q4">
+    <rect class="pf-box pf-q" x="14" y="242" width="380" height="50" rx="9"/>
+    <foreignObject x="26" y="242" width="356" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-qtext"><span class="pf-n">4</span>這一橫是不是「目」字本身最後那一橫？</div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-hline4">
+    <line class="pf-line is-no" x1="394" y1="267.0" x2="446" y2="267.0" marker-end="url(#pf-arrow-no)"/>
+    <foreignObject x="385.0" y="243.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-hlabel is-no">不是</div></foreignObject>
+  </g>
+  <g class="pf-node pf-out is-skip" id="pf-out4">
+    <rect class="pf-box pf-out is-skip" x="450" y="242" width="244" height="50" rx="9"/>
+    <foreignObject x="462" y="242" width="220" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-outtext"><strong>略過</strong><small>不取碼</small></div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-vline4">
+    <line class="pf-line is-yes" x1="204.0" y1="292" x2="204.0" y2="314" marker-end="url(#pf-arrow-yes)"/>
+    <foreignObject x="214.0" y="296.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-vlabel is-yes">是</div></foreignObject>
+  </g>
+  <g class="pf-node" id="pf-q5">
+    <rect class="pf-box pf-q" x="14" y="318" width="380" height="64" rx="9"/>
+    <foreignObject x="26" y="318" width="356" height="64"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-qtext"><span class="pf-n">5</span>這個「目」是不是位於整個字最左方——其上方、左方、下方都再沒有其他筆劃？</div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-hline5">
+    <line class="pf-line is-yes" x1="394" y1="350.0" x2="446" y2="350.0" marker-end="url(#pf-arrow-yes)"/>
+    <foreignObject x="385.0" y="326.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-hlabel is-yes">是</div></foreignObject>
+  </g>
+  <g class="pf-node pf-out is-keep" id="pf-out5">
+    <rect class="pf-box pf-out is-keep" x="450" y="318" width="244" height="64" rx="9"/>
+    <foreignObject x="462" y="318" width="220" height="64"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-outtext"><strong>不略過，取 I</strong><small>目字旁例外，凌駕本原則</small></div></foreignObject>
+  </g>
+  <g class="pf-edge" id="pf-vline5">
+    <line class="pf-line is-no" x1="204.0" y1="382" x2="204.0" y2="404" marker-end="url(#pf-arrow-no)"/>
+    <foreignObject x="214.0" y="386.0" width="70" height="18"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-vlabel is-no">不是</div></foreignObject>
+  </g>
+  <g class="pf-node pf-out is-skip" id="pf-final">
+    <rect class="pf-box pf-out is-skip" x="14" y="408" width="380" height="50" rx="9"/>
+    <foreignObject x="26" y="408" width="356" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="pf-outtext"><strong>略過</strong><small>不取碼</small></div></foreignObject>
+  </g>
+</svg>
+  </div>
+</details>
 </div>
 
 <h2 id="pr-4"><span class="pr-num">4.</span> 字根等級原則</h2>

@@ -1388,8 +1388,9 @@ full explanatory prose. `build_jianma()` in `build_site_data.py` derives all thr
 their real 主碼; 三簡碼 has no fixed list (it's a blanket rule over any 主碼 ≥4 字, `code[0]+code[1]
 +code[-1]`) so the page just demos 5 picked chars (`SHORT3_DEMO_CHARS`, deliberately none from the
 63 約定簡碼 list, to avoid the two mechanisms reading as one) plus a live-counted eligible total;
-左簡碼 reproduces the 8 component families straight from `rules.json`'s `left_short.entries`
-(comp/code/short/ok/no/members), which is Wilson's own vetted table, not computed. The page states
+左簡碼 reproduces the component families straight from `rules.json`'s `left_short.entries`
+(comp/code/short/ok/no/members), which is Wilson's own vetted table, not computed — 6 families as
+of the 2026-09-14 shelving (was 8; 魚 and 金 dropped, see *Re-enabling 左簡碼* below). The page states
 plainly that 左簡碼 is design-only, not shipped — see below.
 
 `zigen.html` also carries a 相近字形辨析 section (from `content/similar.md`, hand-written) and
@@ -1565,10 +1566,11 @@ capped at 5 (first 4 + last). On top of that are four *optional, opt-in* conveni
 | **主碼** | full derivable code | zigen in stroke order, cap 5 | always on | **JKXQ** |
 | **簡碼** | hand-picked shortcut for ~60 common chars | 首+末 (occasionally 首2+末), by designer discretion | `aiphabi_short100` | **JKQ** |
 | **三簡碼** | auto shortcut for every ≥4-code char | 頭2 + 末1 — **you type just those 3 keys**, no wildcard (`aiphabi_hint.lua` gates on `#code == 3`; the effect equals `AB` + `` ` `` + `C`, but `` ` `` is never pressed) | `aiphabi_short3` | (n/a, 我 is short) |
-| **左簡碼** | 8 curated 偏旁; when one sits on the far left, it contributes only 首+末 | 偏旁 2 codes + remainder, then the usual cap | `aiphabi_left_short` (default **on** — `reset: 1`, since 2026-08-17) | (n/a, 我 has no such 偏旁) |
+| **左簡碼** | ⏸️ **shelved 2026-09-14** — 6 curated 偏旁 (was 8; 魚 and 金 dropped, both after their families collapsed to 2 codes each and the shortcut became a no-op); when one sits on the far left, it contributes only 首+末 | 偏旁 2 codes + remainder, then the usual cap | `aiphabi_left_short` — **toggle removed from both schemas**, not just defaulted off; see *Re-enabling 左簡碼* below | (n/a, 我 has no such 偏旁) |
 | **詞組連打** | phrases = each char's 簡碼(or主碼) concatenated | see phrase rules below | `aiphabi_phrase` | 我的 = JKQJA |
 
-**左簡碼 shipped notes** (Side B, `build_rime.py` + `aiphabi_hint.lua`): codes are computed live
+**左簡碼 shipped notes** (kept for reference — describes how the feature worked before the
+2026-09-14 shelving; still accurate, nothing here was deleted, see the runbook below) (Side B, `build_rime.py` + `aiphabi_hint.lua`): codes are computed live
 from `codes.json` — the `members` list stores characters only, never codes, so a re-coded character
 can't leave a stale shortcut behind. Three things worth knowing:
 - **Only 97 of the 249 family characters actually save a keystroke.** Once the remainder exceeds
@@ -1622,14 +1624,16 @@ it's a hand-curated 60. On a 簡碼 collision, **first in the list wins** (match
 preview). `build_rime.py` builds `shortcode` (code→char) and `shortcode_rev` (char→its 簡碼,
 drives the hint).
 
-### 左簡碼 — the 偏旁 layer (spec'd + curated by Side A; **shipped** — `build_rime.py` + `aiphabi_hint.lua`)
+### 左簡碼 — the 偏旁 layer (spec'd + curated by Side A; built into `build_rime.py` + `aiphabi_hint.lua`, **⏸️ shelved 2026-09-14** — see *Re-enabling 左簡碼* below)
 
 When a curated 偏旁 sits at the far left of a character, the 偏旁 contributes only its **首+末**
 two codes and its middle is skipped. 鮭 完整碼 `SOTMFF` → 左簡碼 `SMFF`.
 
-The 8 偏旁 and their 左簡碼: 魚 `SOTM`→`SM`, 金 `YFV`→`YV`, 馬 `SHM`→`SM`, 食 `AEG`→`AG`,
-車 `IBT`→`IT`, 足 `OTL`→`OL`, 酉 `IHI`→`II`, 革 `HOT`→`HT`. **249 member characters**, all
-hand-reviewed. Note 食 and 足: the code is the *radical form as written on the left*
+The remaining 6 偏旁 and their 左簡碼: 馬 `SHM`→`SM`, 食 `AEG`→`AG`, 車 `IBT`→`IT`, 足 `OTL`→`OL`,
+酉 `IHI`→`II`, 革 `HOT`→`HT`. **247 member characters**, all hand-reviewed. (Originally 8 偏旁／249
+members — 魚 `SOTM`→`SM` and 金 `YFV`→`YV` were dropped once their families each collapsed to a
+2-code main code, making the shortcut a no-op; see *Re-enabling 左簡碼* below for how to bring
+either back.) Note 食 and 足: the code is the *radical form as written on the left*
 (飠 `AEG`, 𧾷 `OTL`), which differs from the standalone character (食 `AEK`, 足 `OTY`).
 
 Six conditions, in `rules.json` → `left_short` → `conditions`. The two that carry the weight:
@@ -1662,6 +1666,56 @@ one simplification per character.
   of the dict for anyone who doesn't want that collision surface.
 
 Background and the numbers that led here: `偏旁縮碼investigation.md` at the repo root.
+
+### Re-enabling 左簡碼 (currently shelved, not deleted)
+
+**Why it's off:** `data/rules.json` → `left_short.enabled` was flipped to `false` on 2026-09-14,
+same commit that collapsed 金 YFV→YV to 2 codes (which made 金's own 左簡碼 a no-op — main code
+already equalled the shortcut). With 金 (and, earlier, 魚) both gone, the remaining 6 families
+(馬食車足酉革, 247 members) only saved a keystroke for 89 of them (36%) — thin yield, plus this
+rule has been the repeat offender for the "`alts` not covered" bug class (4 times project-wide,
+2 of them here — see *AiPhaBi alts blind spot* in memory). Member lists were **not** deleted, only
+the `comp:金`/`comp:魚` entries were removed and the flag flipped — see that rule's own `note` field
+for the full writeup. The IME-side **toggle itself** was then removed too (not just defaulted off),
+per Wilson's explicit request the same day — a dead switch sitting in the menu (states always
+"關", nothing under it to flip) is worse than no switch.
+
+**To bring it back, in order:**
+
+1. **Side A** (`data/rules.json`, this session's checkout must have `.aiphabi-side` = `A`): flip
+   `left_short.enabled` back to `true`. If 金 or 魚 should rejoin, their families need a fresh
+   `comp` entry under `entries` (code/short/members) — those were removed outright, not just
+   disabled, so re-adding is a real curation decision (was 金's family, at only 2 codes total,
+   ever going to save anyone a keystroke again? probably not — 魚/other families are the likely
+   candidates if this comes back). Commit with the `[rebuild]` prefix.
+2. **Side B**, after pulling that commit — `build_rime.py` already self-restores the *data* half:
+   the `if leftshort:` gate (~L735) means the base `aiphabi.schema.yaml` switch and the
+   `M.leftshort`/`leftshort_pre`/`leftshort_rev` Lua tables reappear automatically on rebuild, no
+   code change needed there. Four things were hand-edited today and need hand-restoring:
+   - `rime/aiphabi_plus.schema.yaml` (**not** touched by `build_rime.py` — confirmed by its build
+     log, which only writes `aiphabi.schema.yaml`/`aiphabi.dict.yaml`/`README.md`): re-add the
+     switch entry (`- name: aiphabi_left_short` / `states: [ 左簡碼關, 左簡碼開 ]`) next to
+     `aiphabi_short3`, before `ascii_punct`.
+   - `rime/default.custom.yaml` → `switcher/save_options`: re-add `aiphabi_left_short` (between
+     `aiphabi_short3` and `aiphabi_phrase`, matching switch declaration order).
+   - `build_rime.py` → `seed_default_options()` → `off_by_default` list (~L63): re-add
+     `"aiphabi_left_short"` so a fresh `user.yaml` seeds it off like the other opt-in switches.
+   - `build_rime.py` → the README docstring (~L1044, ~L1050): the 左簡碼 bullet under 智慧候選 and
+     its mention in the "預設關" summary line were deleted outright — this commit's diff (subject
+     starts `拿掉左簡碼開關`) has the exact text to restore, in reverse.
+   - **Also fix on the live machine**, since `sync.sh`/`--install` never overwrites an existing
+     `default.custom.yaml`: hand-edit `~/Library/Rime/default.custom.yaml` the same way as the repo
+     copy (or delete it and let `--install` regenerate it fresh), then `Squirrel --reload`.
+3. **Tests** (`tests/run_tests.lua`): nothing to edit — every 左簡碼 assertion is already guarded
+   behind `local LEFTSHORT_ON = next(data.leftshort) ~= nil` (added this session), so they resume
+   running the moment a rebuild produces a non-empty `M.leftshort`. The guarded cases use 金-radical
+   characters (飫/針/銅/鍋) as their test data — if 金 doesn't come back as a family, those specific
+   characters will fail again (correctly — the feature not working for characters no longer in any
+   family is the true expected state) and the test data needs swapping to whichever family Side A
+   does re-enable, same way `魚→金` was swapped before. Follow the pattern already in the comments
+   at each guarded block.
+4. Run the normal pipeline: `python3 build_rime.py` → `luac -p rime/lua/*.lua` →
+   `LUA_PATH="./tests/?.lua;;" lua tests/run_tests.lua` (expect all cases un-skip) → `./sync.sh`.
 
 ---
 
@@ -1773,8 +1827,9 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   enclosure).
 - ✅ Annotation / rules / 簡碼 / 字根表 / progress / stats / variants tools.
 - ✅ 簡碼 split onto its own page (`/short`), with the two-page save merge in `assets/rulesio.js`.
-- ✅ 左簡碼 **spec'd and curated on the A side**: 8 偏旁, 249 reviewed members, 6 conditions,
-  collision numbers live on `/short`. Handoff spec is in commit `d84e690`.
+- ⏸️ 左簡碼 **spec'd and curated on the A side, but shelved 2026-09-14**: was 8 偏旁/249 members,
+  now 6 偏旁/247 members after 魚 and 金 were dropped (see *Re-enabling 左簡碼* under Quickcode
+  conventions for the full status + restore steps). Original handoff spec is in commit `d84e690`.
 - ✅ **Zigen consolidation, ongoing**: 418 → 363 shapes across 109 取形意圖, as of 2026-08-24
   (re-sourcing to simpler representative characters + merging duplicate clusters + folding
   near-duplicate auto shapes into existing ones as `alts`). Every 取形意圖 with real shapes now has
@@ -1785,8 +1840,6 @@ dict scale, so on mobile a curated 屬鼠 outranked common 屬於 (67100 raw). K
   working top-down *is* working down the official list. `data/todo_chars.txt` is the older
   frequency-ordered queue and its header counts are stale; `/progress` is the authority. Also:
   refine tiers/groups; `kind:"manual"` rules not yet enforced.
-- (Side B caught up: 左簡碼 shipped as `aiphabi_left_short` — see *B · User side* below. Nothing
-  outstanding here.)
 
 ### Zigen curation tools (`tools/*.py`, Side A only — need `data/graphics.txt`)
 
@@ -1821,11 +1874,13 @@ the moment anyone in that folder pushes.
 ### B · User side
 - ✅ Two macOS schemas (pure `aiphabi` + `aiphabi_plus` with F4 pinyin toggle), installed via
   `./sync.sh`.
-- ✅ Quickcode stack: 60 hand-picked 簡碼, auto 三簡碼, 左簡碼 (8 偏旁 families, 299 members as of
-  2026-08-16), all three with toggles + reserved main codes + reverse hints — see *Candidate-bar
-  filters* and *Candidate comment convention*.
-- ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼/左簡碼 > pool >
-  coverage-demoted part; userfreq boosting; completion & cold-reading penalties; span-based
+- ✅ Quickcode stack: 60 hand-picked 簡碼, auto 三簡碼, both with toggles + reserved main codes +
+  reverse hints — see *Candidate-bar filters* and *Candidate comment convention*. 左簡碼 was a third
+  layer here (8→6 偏旁 families) but is **shelved since 2026-09-14**, toggle removed from both
+  schemas — see *Re-enabling 左簡碼* under Quickcode conventions. The filter code paths below still
+  reference it; they're inert (empty tables) while shelved, not deleted.
+- ✅ Candidate reorder filters (pure + plus, kept in sync): 簡碼 > exact/四碼/左簡碼(when enabled) >
+  pool > coverage-demoted part; userfreq boosting; completion & cold-reading penalties; span-based
   coverage gating.
 - ✅ 詞組連打: ~40k+ curated phrases across 10 themed files; 2-char cartesian; 3+ uniform modes;
   四碼快打 (first-4 + first-3+last for 5+, plus a reverse hint `si4_rev` since 2026-08-15);

@@ -9,6 +9,12 @@ local h = require((...) and "harness" or "harness")
 local data = require("aiphabi_data")
 local T = {}
 
+-- 左簡碼整支功能 2026-09-14 起 rules.json enabled:false（見該條 note）：build_rime.py
+-- 讀到就跳過整段運算，M.leftshort/leftshort_pre/leftshort_rev 全空。下面幾個依賴
+-- 具體字（飫/針/銅/鍋，原本測金字旁家族）的正向案例先跳過，不當成真的回歸——
+-- 名單只是關掉、沒刪，等哪天開回來這些案例會自動繼續跑。
+local LEFTSHORT_ON = next(data.leftshort) ~= nil
+
 -- 開關全開，才測得到各機制；預設關的（三簡、左簡、詞組）在真機上要自己開。
 local ALL_ON = {
   aiphabi_family = true, aiphabi_comp = true, aiphabi_short100 = true,
@@ -16,6 +22,9 @@ local ALL_ON = {
 }
 
 print("== 左簡碼：打滿的要排在最前（exact 一級），不能被冷門猜測壓過 ==")
+if not LEFTSHORT_ON then
+  print("  (skip - 左簡碼 enabled:false)")
+else
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 模擬：打 agjk 時碼表本身給不出東西，只有切分湊出來的怪詞（尔日）跟一個高頻的雜訊字。
   -- 飫（食字旁）是靠 aiphabi_hint 從左簡碼表補進來的。若 飫 仍標 ap_pool，就會照字頻輸給 的。
@@ -30,9 +39,13 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   h.checkAt(schema .. " · 打滿 AGJK → 飫 排第一", out, 1, "飫")
   h.checkComment(schema .. " · 飫 標「左簡 (主碼)」", out, "飫", "左簡 (AEGJK)")
 end
+end
 
 print()
 print("== 左簡碼：沒打完的是補全，屬於猜測，不該搶到 exact 那一級 ==")
+if not LEFTSHORT_ON then
+  print("  (skip - 左簡碼 enabled:false)")
+else
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   local out = h.run{
     schema = schema, code = "agj", options = ALL_ON,
@@ -41,6 +54,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   h.checkPresent(schema .. " · 打 AGJ 找得到 飫（補全）", out, "飫", true)
   h.checkPresent(schema .. " · 打 AGJ 也找得到 餓", out, "餓", true)
   h.checkAt(schema .. " · 但補全排在高頻字之後", out, 1, "的")
+end
 end
 
 print()
@@ -187,12 +201,17 @@ print()
 print("== 左簡碼反向提醒：只提真的比主碼短的字 ==")
 do
   -- 針 主碼 YFVT（4）、左簡碼 YVT（3）→ 有省到，要提醒
-  -- （原本用魚字旁的 鮭；魚 已不在 rules.json left_short 家族名單裡，改用金字旁 YFV。）
-  local out = h.run{
-    schema = "aiphabi", code = "yfvt", options = ALL_ON,
-    cands = { { text = "針" } },
-  }
-  h.checkComment("打 針 主碼 → 提醒 左簡 YVT", out, "針", "左簡 YVT")
+  -- （原本用魚字旁的 鮭；魚 已不在 rules.json left_short 家族名單裡，改用金字旁 YFV；
+  -- 金 現在也整支關掉了，見 LEFTSHORT_ON。）
+  if LEFTSHORT_ON then
+    local out = h.run{
+      schema = "aiphabi", code = "yfvt", options = ALL_ON,
+      cands = { { text = "針" } },
+    }
+    h.checkComment("打 針 主碼 → 提醒 左簡 YVT", out, "針", "左簡 YVT")
+  else
+    print("  (skip - 打 針 主碼 → 提醒 左簡 YVT：左簡碼 enabled:false)")
+  end
 
   -- 鐵 主碼 YFVFQ（5）、左簡碼 YVFOQ（5）→ 沒省到，不該提醒左簡
   local out2 = h.run{
@@ -209,7 +228,10 @@ end
 print()
 print("== 左簡碼：主碼因五碼上限被壓成同一碼時，左簡碼能拆開重碼（銅/鍋 都壓成 YFVUO）==")
 -- （原本用魚字旁的 贏赢嬴羸蠃；魚 已不在 rules.json left_short 家族名單裡，改用金字旁 YFV
--- 底下同樣因五碼上限撞碼的 銅／鍋。）
+-- 底下同樣因五碼上限撞碼的 銅／鍋；金 現在也整支關掉了，見 LEFTSHORT_ON。）
+if not LEFTSHORT_ON then
+  print("  (skip - 左簡碼 enabled:false)")
+else
 do
   -- 銅 YFVUO、鍋 YFVUUO（6 碼，超五碼上限）主碼都被壓成 YFVUO。左簡碼另外用自己的
   -- 「偏旁頭兩碼＋剩餘最多三碼」規則（沒有五碼那個上限），銅 YVUO、鍋 YVUUO 各自獨立成碼。
@@ -231,6 +253,7 @@ do
     cands = { { text = "銅" } },
   }
   h.checkComment("打 銅 主碼 yfvuo → 提醒 左簡 YVUO", out2, "銅", "左簡 YVUO")
+end
 end
 
 print()
@@ -382,11 +405,16 @@ do
   -- 不在主碼表 code2chars 裡——build_index 漏查任一張，這裡就會誤判「打死了」，
   -- 把還在打 AGJK（飫）的人半路頂掉。（原本用魚字旁 SMB／鯉 SMBF；魚 已不在
   -- rules.json left_short 家族名單裡，且 SMB／SMBF 剛好也是別的字真正的主碼，
-  -- 沒改的話這條測試會悄悄變成沒在測 leftshort 這條路，改用食字旁 AEG。）
-  h.check("AGJ+K 沒打死（左簡碼 飫 AGJK）→ 不該頂",
-    ac._is_dead_extension("agjk") == false, "expected alive")
-  h.check("AG+J 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
-    ac._is_dead_extension("agj") == false, "expected alive")
+  -- 沒改的話這條測試會悄悄變成沒在測 leftshort 這條路，改用食字旁 AEG；金 現在
+  -- 也整支關掉了，見 LEFTSHORT_ON——關掉時 AGJK 沒有 leftshort 這條路，本來就該打死。）
+  if LEFTSHORT_ON then
+    h.check("AGJ+K 沒打死（左簡碼 飫 AGJK）→ 不該頂",
+      ac._is_dead_extension("agjk") == false, "expected alive")
+    h.check("AG+J 沒打死（還在通往左簡碼家族的路上）→ 不該頂",
+      ac._is_dead_extension("agj") == false, "expected alive")
+  else
+    print("  (skip - AGJ+K／AG+J 即時頂案例：左簡碼 enabled:false)")
+  end
   -- 約定簡碼／三簡碼也只活在各自的表（shortcode／short3），不在主碼表 code2chars
   -- 裡——漏查會把「N 几/刂/丌」誤判成打死，把還在打 候 的約定簡碼 NK 的人半路頂掉
   -- （2026-08-26 實測 bug：打 NK 被誤頂成「几K」，候 完全打不出來）。

@@ -88,27 +88,27 @@
   /* 重碼率曲線：單一系列時不需要圖例（標題已經講清楚是什麼）；
      開了移動平均才是兩個系列，這時才長出圖例。細線＋淡淡的面積，
      格線跟座標都用不搶戲的顏色。 */
-  .curvewrap { position:relative; height:220px; }
-  .curvewrap svg { width:100%; height:100%; display:block; overflow:visible; }
-  .curvewrap .grid { stroke:var(--line); stroke-width:1; }
-  .curvewrap .grid.vgrid { stroke-dasharray:2 3; }
-  .curvewrap .axislabel { font:11px ui-monospace,monospace; fill:var(--muted); }
-  .curvewrap .curveline { fill:none; stroke:var(--accent); stroke-width:2;
+  .curvesvgbox { position:relative; height:220px; }
+  .curvesvgbox svg { width:100%; height:100%; display:block; overflow:visible; }
+  .curvesvgbox .grid { stroke:var(--line); stroke-width:1; }
+  .curvesvgbox .grid.vgrid { stroke-dasharray:2 3; }
+  .curvesvgbox .axislabel { font:11px ui-monospace,monospace; fill:var(--muted); }
+  .curvesvgbox .curveline { fill:none; stroke:var(--accent); stroke-width:2;
     stroke-linejoin:round; stroke-linecap:round; }
-  .curvewrap .curveline-cj { fill:none; stroke:var(--s2); stroke-width:2;
+  .curvesvgbox .curveline-cj { fill:none; stroke:var(--s2); stroke-width:2;
     stroke-linejoin:round; stroke-linecap:round; }   /* 倉頡（自然碼）比較線 */
-  .curvewrap .curveline-dy { fill:none; stroke:var(--s3); stroke-width:2;
+  .curvesvgbox .curveline-dy { fill:none; stroke:var(--s3); stroke-width:2;
     stroke-linejoin:round; stroke-linecap:round; }   /* 大易比較線 */
-  .curvewrap .curveavg { fill:none; stroke:var(--accent); stroke-width:1.5; opacity:.7;
+  .curvesvgbox .curveavg { fill:none; stroke:var(--accent); stroke-width:1.5; opacity:.7;
     stroke-dasharray:5 4; stroke-linejoin:round; stroke-linecap:round; }
-  .curvewrap .curvefill { fill:var(--accent); opacity:.08; }
-  .curvewrap .crosshair { stroke:var(--muted); stroke-width:1; stroke-dasharray:3 3;
+  .curvesvgbox .curvefill { fill:var(--accent); opacity:.08; }
+  .curvesvgbox .crosshair { stroke:var(--muted); stroke-width:1; stroke-dasharray:3 3;
     display:none; pointer-events:none; }
-  .curvewrap .dot { fill:var(--accent); stroke:var(--card); stroke-width:2; display:none;
+  .curvesvgbox .dot { fill:var(--accent); stroke:var(--card); stroke-width:2; display:none;
     pointer-events:none; }
-  .curvewrap .hoverlayer { fill:transparent; cursor:crosshair; }
-  .curvelegend { display:flex; gap:14px; align-items:center; font-size:12px;
-    color:var(--muted); margin-top:6px; }
+  .curvesvgbox .hoverlayer { fill:transparent; cursor:crosshair; }
+  .curvelegend { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; font-size:12px;
+    color:var(--muted); margin-top:10px; }
   .curvelegend i { display:inline-block; width:11px; height:11px; border-radius:3px;
     margin-right:5px; vertical-align:-1px; }
 
@@ -532,18 +532,31 @@ function cjNatural(ch) {          /* 倉頡自然碼：去掉消歧用的前導 
   return (c[0] === 'X' && _cjVals.has(c.slice(1))) ? c.slice(1) : c;
 }
 function curveList() {
-  /* 部件字（扌／爿／丬…）不算重碼，本來就沒有常用度排名（真正的文本不會單獨
-     印出一個部件），rank == null 這條篩選就已經把它們排除掉了。 */
-  return Object.entries(codes).filter(([, r]) => r.code)
+  /* 部件字（扌／爿／丬…）不算重碼——這條假設錯了：這批部件的 Unicode 碼位在
+     語料庫裡照樣有次數（很可能是文字打字時被單獨引用、或當標點字元用），84 個
+     部件字全部都查得到常用度排名，rank == null 這條篩選一個也濾不掉。上面的
+     KPI 卡（重碼組／重碼率）在算 byCode 時本來就明講「部件字不算重碼」而排掉
+     它們（人/亻、金/釒、水/扌爿丬亇 這類都是部件字自己撞自己，不是真字撞碼），
+     這裡沒排掉，於是這條曲線的重碼率比 KPI 卡系統性偏高——直接排掉才是同一套
+     標準（2026-09-14 發現：全部模式下 KPI 卡 11.0% vs 這條線終點 12.1%，排掉
+     部件字後兩邊在重碼字數上完全一致，只差 8 個字沒有排名對不上分母）。 */
+  return Object.entries(codes).filter(([, r]) => r.code && !r.componentOnly)
     .map(([ch, r]) => ({ ch, code: finalOf(r), cj: cjNatural(ch), dy: (dayi && dayi[ch]) || '', rank: rank.get(ch) }))
     .filter(x => x.rank != null)
     .sort((a, b) => a.rank - b.rank);
 }
 /* 逐字累加某一套碼的重碼率；AiPhaBi 與倉頡用同一份 list、同一個 n，才比得準。
    coveredOnly（大易用）：分母只算「該碼表有收的字」，缺字不稀釋分母（不然缺字一多
-   線就一路往下掉，看起來像重碼變少，其實是它沒那個字）；並在最後一個有收的字截斷。 */
+   線就一路往下掉，看起來像重碼變少，其實是它沒那個字）；並在資料真的斷掉的地方截斷。
+   「真的斷掉」不能只看「最後一個有收的字」——大易資料在密集區（目前約前 7250 字）
+   缺字從沒連續超過個位數，密集區結束後缺字動輒連續 20～150 個，但偏偏在很後面
+   （第 9268 字左右）還會冒出一兩個孤立的字剛好也有收，若只認「最後一個有收的字」，
+   截斷點會被這種孤例硬拉到幾乎整條線的尾端，變成密集區之後那一大段全部持平的
+   假線（2026-09-14 發現：使用者回報「該停的地方變直線」）。改成認「連續缺超過
+   MAX_GAP 個字」才算資料斷了，斷點鎖定後不管後面有沒有孤立的字，都不再往後挪。 */
 function cumulativeDup(list, key, coveredOnly) {
-  const size = new Map(); let dup = 0, seen = 0, lastCovered = -1;
+  const MAX_GAP = 20;
+  const size = new Map(); let dup = 0, seen = 0, lastCovered = -1, gap = 0, stopAt = -1;
   const pts = list.map((x, i) => {
     const code = x[key];
     if (code) {
@@ -552,13 +565,16 @@ function cumulativeDup(list, key, coveredOnly) {
       if (prev === 1) dup += 2; else if (prev >= 2) dup += 1;
       size.set(code, prev + 1);
       lastCovered = i;
-    } else if (!coveredOnly) {
-      seen++;
+      gap = 0;
+    } else {
+      if (!coveredOnly) seen++;
+      else if (++gap > MAX_GAP && stopAt < 0) stopAt = lastCovered;
     }
     const denom = coveredOnly ? seen : (i + 1);
     return { n: i + 1, rate: denom ? dup / denom * 100 : 0, ch: x.ch };
   });
-  return (coveredOnly && lastCovered >= 0) ? pts.slice(0, lastCovered + 1) : pts;
+  const cutoff = stopAt >= 0 ? stopAt : lastCovered;
+  return (coveredOnly && cutoff >= 0) ? pts.slice(0, cutoff + 1) : pts;
 }
 
 /* 移動平均：原始線每加一個字就是一階，鋸齒很多，看不出走勢。
@@ -627,7 +643,7 @@ function renderDupCurve() {
     ? avgPoints.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.n).toFixed(1)},${yOf(p.rate).toFixed(1)}`).join('')
     : '';
 
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+  box.innerHTML = `<div class="curvesvgbox"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     ${yTicks.map(t => `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${yOf(t).toFixed(1)}" y2="${yOf(t).toFixed(1)}"/>
       <text class="axislabel" x="${padL - 6}" y="${(yOf(t) + 3).toFixed(1)}" text-anchor="end">${t.toFixed(0)}%</text>`).join('')}
     ${xTicks.map(t => `<line class="grid vgrid" x1="${xOf(t).toFixed(1)}" x2="${xOf(t).toFixed(1)}" y1="${padT}" y2="${H - padB}"/>
@@ -640,7 +656,7 @@ function renderDupCurve() {
     <line class="crosshair" id="curveCross" x1="0" x2="0" y1="${padT}" y2="${H - padB}"/>
     <circle class="dot" id="curveDot" r="4"/>
     <rect class="hoverlayer" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}"/>
-  </svg>
+  </svg></div>
   <div class="curvelegend">
       <span><i style="background:var(--accent)"></i>AiPhaBi</span>
       ${cjPoints ? `<span><i style="background:var(--s2)"></i>倉頡（自然碼）</span>` : ''}
