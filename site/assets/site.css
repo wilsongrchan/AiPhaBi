@@ -1670,92 +1670,132 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   margin: 1rem 0 .5rem;
 }
 
-/* 孤筆略過原則的判斷流程圖——不是逐條念規則，讀者一眼要看到「這是一串是非題，
-   每題答完要嘛有答案、要嘛接下一題」。刻意不用真的畫線的 SVG 流程圖：這一頁
-   全部是手寫 HTML/CSS，四層判斷、每層還要在窄螢幕上折成一欄，畫線的版本很快
-   就會變成「線對不準框」的維護負擔（zg-inline 那類小圖示已經夠多要顧）。用
-   「問題框 → 分支箭頭 → 結果框」＋「↓ 接下一題」兩種區塊代替，答案永遠是
-   「往右出去」或「往下继续」，跟真的流程圖同一個判斷邏輯，只是連接線換成
-   文字箭頭，窄螢幕上 .pr-flow-branch 换行也不會壞。
-   is-keep／is-skip 顏色跟例字卡片的 ✓／✗（.pr-card.is-ok／.is-bad）呼應：
-   會取到碼＝正面結果，用 accent；被略過＝不取碼，用素色不特別強調。 */
-.pr-flow {
-  margin: .7rem 0 .9rem;
+/* 孤筆略過原則的判斷流程圖——真的畫框＋線的 SVG，不是文字箭頭排出來的假流程圖
+   （Wilson 給的參考圖是 Creately 那種方框＋菱形＋直角連接線）。座標是固定的
+   viewBox，不是跟著容器寬度重排的響應式版面：五層判斷、每層的問題長短不一，
+   硬要在窄螢幕上重排每一格的座標比維護一張手畫的圖還累。做法是整張圖包在
+   .pr-flow-scroll（overflow-x:auto）裡，跟全站「表格、圖表、code block 可以
+   比內文寬，各自捲動」的規則一致（見 css_order_test.js 旁邊那類寬內容的處理），
+   窄螢幕上橫向捲動看，不強迫縮字。
+   文字用 <foreignObject> 包一般 HTML＋CSS class（.pf-qtext／.pf-outtext），
+   不是 SVG <text>＋手排 <tspan> 斷行——中文長句要斷幾行沒辦法在畫座標的時候
+   就知道，foreignObject 讓瀏覽器照正常排版規則自動換行，跟頁面其餘文字同一
+   套字型渲染。
+   顏色系統：is-yes（accent，跟例字卡片 ✓ 用同一個 accent）＝不略過或例外
+   成立；is-no（ink-faint，跟卡片 ✗ 的淡紅不同——這裡不是「錯」，只是「繼續
+   下一題或略過」，用更中性的灰避免讀者誤會在標記對錯）。
+   收在 <details> 裡預設收合：這張圖是給想核對邏輯完整性的人看的參考，不是
+   讀規則說明必經的第一站，擺在孤筆略過整節的最後，跟前面的文字說明／例字
+   分開，收合可以避免它把整節版面拉得太長。 */
+.pr-flow-details {
+  margin: 1rem 0 .3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: .15rem .8rem;
 }
-.pr-flow-step {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: .6rem;
+.pr-flow-details > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-weight: 600;
+  font-size: .92rem;
+  padding: .6rem 0;
 }
-.pr-flow-q {
-  flex: 1 1 16rem;
+.pr-flow-details > summary::-webkit-details-marker { display: none; }
+.pr-flow-details > summary::before {
+  content: '';
+  width: .42rem;
+  height: .42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .18s ease;
+}
+.pr-flow-details[open] > summary::before { transform: rotate(45deg); }
+.pr-flow-details > summary:hover { color: var(--accent); }
+.pr-flow-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .pr-flow-details > summary::before { transition: none; }
+}
+
+.pr-flow-scroll {
+  overflow-x: auto;
+  padding-bottom: .4rem;
+  margin: 0 0 .6rem;
+}
+.pr-flow-svg { display: block; width: 45rem; max-width: none; }
+
+.pf-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.pf-out.is-keep { fill: var(--accent-soft); stroke: var(--accent); }
+.pf-out.is-skip { fill: var(--surface); stroke: var(--ink-faint); }
+.pf-diamond { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+.pf-line { stroke-width: 2; fill: none; }
+.pf-line.is-yes { stroke: var(--accent); }
+.pf-line.is-no  { stroke: var(--ink-faint); }
+.pf-arrowhead-yes { fill: var(--accent); }
+.pf-arrowhead-no  { fill: var(--ink-faint); }
+
+.pf-qtext, .pf-outtext, .pf-hlabel, .pf-vlabel {
+  font-family: inherit;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.pf-qtext {
   display: flex;
   align-items: center;
   gap: .5rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: .55rem .8rem;
-  font-size: .92rem;
+  height: 100%;
+  font-size: .88rem;
+  box-sizing: border-box;
 }
-.pr-flow-n {
+.pf-n {
   flex: none;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.3rem;
+  height: 1.3rem;
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 700;
-  font-size: .82rem;
+  font-size: .76rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.pr-flow-branch {
-  flex: 1 1 14rem;
+.pf-outtext {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  box-sizing: border-box;
+  font-size: .86rem;
+}
+.pf-outtext strong { font-weight: 700; }
+.pf-outtext small { color: var(--ink-dim); font-weight: 400; font-size: .8rem; margin-top: .15rem; }
+.pf-hlabel, .pf-vlabel {
   display: flex;
   align-items: center;
-  gap: .5rem;
-}
-.pr-flow-arrow {
-  flex: none;
+  justify-content: center;
   font-weight: 700;
-  font-size: .85rem;
-  white-space: nowrap;
+  font-size: .82rem;
+  height: 100%;
 }
-.pr-flow-arrow.is-yes { color: var(--accent); }
-.pr-flow-arrow.is-no  { color: var(--ink-faint); }
-.pr-flow-out {
-  flex: 1 1 12rem;
-  border-inline-start: 3px solid var(--line);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  padding: .45rem .7rem;
-  font-size: .88rem;
-  font-weight: 600;
-}
-.pr-flow-out small {
-  display: block;
-  font-weight: 400;
+.pf-hlabel.is-yes, .pf-vlabel.is-yes { color: var(--accent); }
+.pf-hlabel.is-no,  .pf-vlabel.is-no  { color: var(--ink-faint); }
+
+.pr-flow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: .82rem;
   color: var(--ink-dim);
-  font-size: .8rem;
-  margin-top: .1rem;
+  margin: 0 0 .8rem;
 }
-.pr-flow-out.is-keep {
-  border-inline-start-color: var(--accent);
-  background: var(--accent-soft);
-}
-.pr-flow-out.is-skip {
-  border-inline-start-color: var(--ink-faint);
-  background: var(--surface);
-  color: var(--ink-dim);
-  font-weight: 500;
-}
-.pr-flow-down {
-  text-align: center;
-  padding: .3rem 0;
-}
-.pr-flow-final { margin-inline-start: 0; }
+.pr-flow-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
+.pr-flow-legend-dot { width: .65rem; height: .65rem; border-radius: 50%; display: inline-block; }
+.pr-flow-legend-item.is-yes .pr-flow-legend-dot { background: var(--accent); }
+.pr-flow-legend-item.is-no  .pr-flow-legend-dot { background: var(--ink-faint); }
 
 .pr-example {
   display: flex;
