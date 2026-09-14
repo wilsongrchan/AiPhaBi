@@ -372,7 +372,7 @@
       '想': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
                      'pf-q4', 'pf-vline4', 'pf-q5', 'pf-vline5', 'pf-final'],
               result: '「想」：跟「睛」前四題答案一樣，但「目」不在全字最左方（木在它左邊），略過，整個字取 TDW。' },
-      '腈': { path: [], result: '「腈」沒有孤立的橫劃或豎劃。' }
+      '腈': { path: [], result: '「腈」：沒有孤立的橫劃或豎劃。' }
     };
 
     function clear() {
