@@ -845,6 +845,20 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-14 (margin recovered)**, after merging Side A's 金家族 YFV→YV recode
+  (collapsed to 2 codes) and, more importantly, **左簡碼 (aiphabi_left_short) shelved project-wide**
+  (`rules.json`'s `left_short` rule set `enabled: false` — the whole `M.leftshort`/`leftshort_pre`/
+  `leftshort_rev` generation in `build_rime.py` is already gated on that flag, same pattern as the
+  predict.db conditional, so it degraded to empty tables automatically, no code change needed).
+  Losing those three tables freed real LuaJIT constant budget despite 字 growing 9268→9356 (碼
+  12548→12653): `N=11000` (previous value) still **passes** — first time in a while a previous ship's
+  N wasn't already crashing. Bisected fresh anyway: 12,500 passes, 12,625 fails — margin **~125**,
+  back to a healthy range after several ships in the ~25-30 danger zone. Shipped at **`N=12500`**,
+  a big jump up from 11,000. Verification harness also spot-checks `M.leftshort` is empty and the
+  金-family recode landed (銀/鎮/錯/針/鐵 all on `YV`) directly in the shipped bytes.
+  **Reminder for next time the character table grows past this margin: re-enabling 左簡碼 later
+  would eat this reclaimed budget right back — re-bisect immediately if that ever happens, don't
+  assume the old margin still holds.**
 - **aiphabi_order.lua: exact tier now sorted by usage 2026-09-14** — bug report: typing `jwej`
   (爭's own main code) showed obscure 四碼 place-name phrases (长山群岛/舟山群島/万山群岛, same
   `jwej` signature) ranked above 爭 itself. The "exact" tier (main-code matches + 打滿的 ap_si4/
