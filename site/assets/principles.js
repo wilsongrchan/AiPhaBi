@@ -372,7 +372,11 @@
       '想': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
                      'pf-q4', 'pf-vline4', 'pf-q5', 'pf-vline5', 'pf-final'],
               result: '「想」：跟「睛」前四題答案一樣，但「目」不在全字最左方（木在它左邊），略過，整個字取 TDW。' },
-      '腈': { path: [], result: '「腈」：沒有孤立的橫劃或豎劃。' }
+      '腈': { path: [], result: '「腈」：沒有孤立的橫劃或豎劃。' },
+      '引': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-hline2', 'pf-out2'],
+              result: '「引」：這一豎不能跟其他筆劃組成字根，但它是全字最後一筆，不略過，整個字取 SJ。' },
+      '契': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-hline3', 'pf-out3'],
+              result: '「契」：這一豎不能跟其他筆劃組成字根，不是首尾筆，是豎劃，目字旁例外只適用橫劃，略過，整個字取 EPK。' }
     };
 
     function clear() {

@@ -1701,14 +1701,21 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
    版面——出現／消失都不會把下面的按鈕列或圖往下推。 */
 .pr-flow-glyph {
   position: absolute;
-  top: .5rem;
-  right: .8rem;
+  top: .9rem;
+  right: 1.5rem;
   z-index: 1;
 }
 .pr-flow-glyph[hidden] { display: none; }
-.pr-flow-glyph .pr-icon { width: 2.1rem; height: 2.1rem; }
+.pr-flow-glyph .pr-icon { width: 2.6rem; height: 2.6rem; }
 .pr-flow-glyph .pr-code { font-size: .68rem; }
 .pr-flow-glyph .pr-mark { width: .85rem; height: .85rem; font-size: .55rem; }
+/* 窄螢幕上試按例字的按鈕列會折成兩三行，把桌面版那個往右下拉一點、放大
+   一點的位置頂到——退回貼著右上角、縮小一級，寧可不利用留白也不要疊到
+   按鈕上面。 */
+@media (max-width: 40rem) {
+  .pr-flow-glyph { top: .5rem; right: .8rem; }
+  .pr-flow-glyph .pr-icon { width: 2.1rem; height: 2.1rem; }
+}
 .pr-flow-details > summary {
   cursor: pointer;
   list-style: none;
@@ -1827,7 +1834,19 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
   color: var(--surface);
   font-weight: 600;
 }
-.pr-flow-test-clear { color: var(--ink-faint); font-size: .82rem !important; }
+/* 清除是動作、不是例字選項，不該看起來像另一顆可以「選中」的字——拿掉
+   邊框跟藥丸底色，改成純文字連結的樣子，跟旁邊那排字泡泡明顯分開。 */
+.pr-flow-test-clear {
+  border: none !important;
+  background: none !important;
+  color: var(--ink-faint) !important;
+  font-size: .82rem !important;
+  text-decoration: underline;
+  text-underline-offset: .15em;
+  padding: .2rem .3rem !important;
+  margin-inline-start: .2rem;
+}
+.pr-flow-test-clear:hover { color: var(--accent) !important; }
 
 .pr-flow-test-note {
   font-size: .85rem;
