@@ -123,10 +123,14 @@
   /* 說明文字裡的「V（第 1、2 筆）」這種文字描述，換成就地畫出來的字根小圖——
    * 用法跟 zigen.js 的 {字#筆序} 一樣，但那支程式的函式沒有對外開放，這裡另外
    * 寫一份（裁切／置中算法照抄 zigen.js 的 rootIconSvg，見那邊的註解）。
-   * 標記寫法：<span class="pr-inline" data-char="美" data-st="1,2"></span> */
+   * 標記寫法：<span class="pr-inline" data-char="美" data-st="1,2"></span>
+   * 想讓這一筆跟上面卡片同一個顏色（例如指名卡片裡那個被略過的字根），加一個
+   * data-rb="0".."5"（對應卡片那個字根在 breakdown.groups 裡的序號），
+   * 圖示就會套 rb-N 而不是預設的墨色——顏色系統跟卡片同一套（見 card() 的
+   * RAINBOW 陣列），不是另外配的一套。 */
   var ROOT_PAD = 40;
 
-  function rootIconSvg(strokes, sel) {
+  function rootIconSvg(strokes, sel, rbClass) {
     var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, re = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
     for (var k = 0; k < sel.length; k++) {
       var d = strokes[sel[k]];
@@ -145,12 +149,13 @@
     var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     var span = Math.max(x1 - x0, y1 - y0);
     var BOX = Math.min(1024, span / 0.85) || 1024;
+    var cls = rbClass ? ' class="' + rbClass + '"' : '';
     var paths = '';
     for (var j = 0; j < sel.length; j++) {
-      if (strokes[sel[j]]) paths += '<path d="' + strokes[sel[j]] + '"/>';
+      if (strokes[sel[j]]) paths += '<path' + cls + ' d="' + strokes[sel[j]] + '"/>';
     }
-    return '<svg class="zg-svg" viewBox="' + (cx - BOX / 2) + ' ' + (cy - BOX / 2) +
-      ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
+    return '<svg class="' + (rbClass ? 'zg-altsvg' : 'zg-svg') + '" viewBox="' +
+      (cx - BOX / 2) + ' ' + (cy - BOX / 2) + ' ' + BOX + ' ' + BOX + '" aria-hidden="true">' +
       '<g transform="scale(1,-1) translate(0,-900)">' + paths + '</g></svg>';
   }
 
@@ -162,10 +167,13 @@
       var sel = (span.getAttribute('data-st') || '').split(',')
         .filter(Boolean).map(function (n) { return +n - 1; });
       if (!strokes || !sel.length) return;
-      var svg = rootIconSvg(strokes, sel);
+      var rbIdx = span.getAttribute('data-rb');
+      var rbClass = rbIdx === 'off' ? 'off'
+        : (rbIdx !== null && rbIdx !== '' ? RAINBOW[+rbIdx % RAINBOW.length] : null);
+      var svg = rootIconSvg(strokes, sel, rbClass);
       if (!svg) return;
       span.innerHTML = svg;
-      span.className = 'zg-inline';
+      span.className = rbClass ? 'zg-inline is-rb' : 'zg-inline';
       span.title = ch + '　第 ' + sel.map(function (i) { return i + 1; }).join('、') + ' 筆';
       span.setAttribute('data-keep', '');
       span.dataset.done = '1';

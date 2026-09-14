@@ -1184,11 +1184,15 @@ tbody tr:last-child td { border-bottom: 0; }
   vertical-align: -.28em;
   margin: 0 .1em;
 }
-.zg-inline .zg-svg {
+.zg-inline .zg-svg,
+.zg-inline .zg-altsvg {
   width: 1.35em;
   height: 1.35em;
 }
 .zg-inline svg path { fill: var(--ink); }
+/* is-rb：跟卡片同一套 rb-* 上色（見 principles.js 的 data-rb），蓋掉上面那條墨色規則。
+   .zg-altsvg path.rb-N 已經是兩個 class 的選擇器，優先度本來就比 .zg-inline svg path
+   高，這裡不用再加 !important —— 保留這個區塊只是讓「為什麼沒被蓋掉」有據可查。 */
 
 @media (max-width: 40rem) {
   .zg-simtbl thead th:nth-child(1) { width: 3.4rem; }
