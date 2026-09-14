@@ -846,6 +846,17 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-14 (second time same day)**, after merging origin/main's follow-up batch
+  — Side A fixed the recode stragglers flagged by a completeness check earlier in the day (瞭/嘴/虧
+  among 63 改碼, plus 61 new chars across two `[rebuild]` commits, one of them explicitly noted as
+  "T→L 足部一致性補完") — pushed 字 9025→9083, 碼 12174→12250, `component_only` 80→83 (51 groups).
+  `N=12000` (this morning's value) now **crashes**. Re-bisected: 11,925 passes, 11,950 fails —
+  margin ~25, thinnest yet again. Shipped at **`N=11900`**. Same verification pattern, plus this
+  round's harness also spot-checks the three just-fixed characters' code prefixes directly out of
+  the shipped `aiphabi_data.lua` (瞭→`DI`, 嘴→`OLL`, 虧→`LR`) rather than only the usual
+  in/out-of-whitelist checks — all three confirmed correct in the shipped package.
+  **Eighth cliff move.** Margin has now been ~30-ish or thinner for two ships running; the
+  `si4`/`si4_rev` chunk-split fix (see above) is looking less optional by the week.
 - **Cliff re-checked 2026-09-14**, after merging origin/main's next batch of `[rebuild]` commits
   (更新取碼字與碼表 ×3, plus the 字根表/常用字表 PDF and site-side rebuilds that ride along) pushed
   字 8681→9025, 碼 11686→12174, `component_only` 71→80 (50 groups). This merge also had a genuine
