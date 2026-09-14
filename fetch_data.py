@@ -8,8 +8,6 @@
     data/dictionary.txt   makemeahanzi 的部件拆分（IDS，例 訴 = ⿰言斥；相關字欄用）
     data/tw_strokes.json  台灣教育部標準筆順（g0v/zh-stroke-data，4847 字）
     data/freq.json        字頻排序（由 rime-essay 統計而來，決定取碼佇列次序）
-    data/predict.db       官方 librime-predict 接續資料庫（已編譯，Squirrel 智能聯想直接用）
-    data/predict.txt      predict.db 的原始 TSV（純文字，/type 頁面智能聯想模擬用）
     data/opencc.json      繁簡對照（OpenCC；試打的「簡繁兼容」用）
 
 這些是第三方資料，各有授權，所以不放進 git；用時自行下載。
@@ -31,8 +29,6 @@ ESSAY = "https://raw.githubusercontent.com/rime/rime-essay/master/essay.txt"
 CJ = ["https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.base.dict.yaml",
       "https://raw.githubusercontent.com/rime/rime-cangjie/master/cangjie5.extended.dict.yaml"]
 OPENCC = "https://raw.githubusercontent.com/BYVoid/OpenCC/master/data/dictionary/"
-PREDICT_DB = "https://github.com/rime/librime-predict/releases/download/data-1.0/predict.db"
-PREDICT_TXT = "https://github.com/rime/librime-predict/releases/download/data-1.0/predict.txt"
 
 
 def fetch(url):
@@ -132,15 +128,6 @@ def main():
         freq.write_text(json.dumps({"order": ranked + rest, "with_freq": len(ranked)},
                                    ensure_ascii=False), "utf-8")
         print(f"  {len(ranked) + len(rest)} 字排序完成")
-
-    predict_db = DATA / "predict.db"
-    if not predict_db.exists():
-        print("智能聯想資料庫（官方 librime-predict，選完字猜下一個字／詞用）")
-        predict_db.write_bytes(fetch(PREDICT_DB))
-    predict_txt = DATA / "predict.txt"
-    if not predict_txt.exists():
-        print("智能聯想資料庫（純文字版，/type 頁面模擬用）")
-        predict_txt.write_bytes(fetch(PREDICT_TXT))
 
     cj = DATA / "cangjie.json"
     if not cj.exists():

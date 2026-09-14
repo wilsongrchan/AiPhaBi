@@ -127,8 +127,7 @@ commands that created it, in order. **Side B needs no copied files at all**: eve
 `build_rime.py` reads (`codes.json`, `rules.json`, `freq.json`, `charfreq.json`, `opencc.json`,
 `dual_use_merged.json`, `phrases_*.txt`) is tracked, so a fresh `AiPhaBi-B` builds immediately.
 `freq.json` and `opencc.json` used to be gitignored and hand-copied; hazard 4 explains why that
-stopped. Only `data/predict.db` (智能聯想, optional — the build skips it cleanly) and Side A's
-bulky glyph data remain untracked.
+stopped. Only Side A's bulky glyph data remains untracked.
 
 ### What the guard does and does not do
 

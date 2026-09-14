@@ -73,7 +73,6 @@ CHARFREQ = SHARED / "charfreq.json"     # 現代（台港新聞）字頻：候�
 TEXTFREQ = SHARED / "textfreq.json"     # 單字出現次數，取自 librime essay.txt（廣泛語料，不侷限新聞一種文
                                          # 類）：取碼進度頁「覆蓋率」算的是這個，跟候選排序用的 CHARFREQ 分開，
                                          # 兩者用途不同——候選排序要貼近「現在的」用字習慣，覆蓋率要看夠廣的樣本
-PREDICT_TXT = SHARED / "predict.txt"    # 官方 librime-predict 接續資料（predict.db 的純文字版；智能聯想用）
 PORT = int(os.environ.get("AIPHABI_PORT", 8777))
 
 GLYPHS: dict[str, dict] = {}     # 大陸筆順：輪廓 + 中線（字根比對靠中線）
@@ -581,34 +580,6 @@ def simp_only_data():
     return {"chars": sorted(c for c in s2t if c not in dual_use)}
 
 
-_predict_cache = None
-
-
-def assoc_data():
-    """智能聯想：字 → 接續建議清單。跟 Squirrel 用同一份官方 librime-predict 資料
-    （data/predict.txt，predict.db 的純文字版）——選了直接上屏，不用碼，所以不像
-    以前那樣篩「現在打得出來的」；/type 頁面看到的建議跟真正輸入法一致。"""
-    global _predict_cache
-    if _predict_cache is None:
-        _predict_cache = {}
-        if PREDICT_TXT.exists():
-            pairs = collections.defaultdict(list)
-            for line in PREDICT_TXT.read_text("utf-8", "replace").splitlines():
-                parts = line.split("\t")
-                if len(parts) < 3:
-                    continue
-                head, cont = parts[0], parts[1]
-                try:
-                    w = float(parts[2])
-                except ValueError:
-                    continue
-                pairs[head].append((cont, w))
-            for head, lst in pairs.items():
-                lst.sort(key=lambda x: -x[1])
-                _predict_cache[head] = [c for c, _ in lst[:5]]   # 配 Squirrel 的 predictor/max_candidates
-    return _predict_cache
-
-
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"      # keep-alive：頁面切換時省下重複握手
 
@@ -676,8 +647,6 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/common-whitelist":
             return self._send(200, json.dumps(sorted(_load_common_whitelist()), ensure_ascii=False),
                               cache=True)
-        if u.path == "/api/assoc":
-            return self._send(200, json.dumps(assoc_data(), ensure_ascii=False))
         if u.path == "/api/ids":
             return self._send(200, json.dumps(ids_map(), ensure_ascii=False), cache=True)
         if u.path == "/api/glyphset":

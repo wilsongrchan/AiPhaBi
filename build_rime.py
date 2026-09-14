@@ -70,7 +70,7 @@ def seed_default_options(path):
                      "aiphabi_phrase"]
     off_by_default = ["aiphabi_t2s", "aiphabi_s2t", "aiphabi_no_simp", "aiphabi_common_only",
                       "aiphabi_autocommit", "aiphabi_short3", "aiphabi_left_short",
-                      "full_shape", "ascii_punct", "prediction"]
+                      "full_shape", "ascii_punct"]
     seeds = [(k, "true") for k in on_by_default] + [(k, "false") for k in off_by_default]
     lines = path.read_text("utf-8").splitlines() if path.exists() else []
     var_i = next((i for i, l in enumerate(lines) if l == "var:"), None)
@@ -780,26 +780,6 @@ def main():
                           "    reset: 1\n")
     # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
     # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
-    # 智能聯想開關：用官方 librime-predict 外掛（predictor/predict_translator），
-    # 不是自己寫的 segmentor——選完字、完全沒打碼時，Rime 內建機制才有辦法自動彈出候選
-    # （lua segmentor 在 input 是空字串時根本不會被呼叫，試過會發現這條路走不通）。
-    # data/predict.db 沒抓下來就不出現這個開關。
-    prediction_switch = ""
-    predictor_processor = ""
-    predict_translator = ""
-    predictor_config = ""
-    if (DATA / "predict.db").exists():
-        # 預設開，理由同詞組連打開關：手機上「記住使用者選擇」目前不可靠，切個 app
-        # 回來就常被重置回預設值——與其停在關，不如直接把預設定成使用者想要的「開」。
-        prediction_switch = ("  - name: prediction                # 智能聯想：選完字，猜下一個字／詞\n"
-                              "    states: [ 聯想關, 聯想開 ]\n"
-                              "    reset: 1\n")
-        predictor_processor = "    - predictor\n"
-        predict_translator = "    - predict_translator\n"
-        predictor_config = ("\npredictor:\n"
-                             "  db: predict.db\n"
-                             "  max_candidates: 5    # 配 menu.page_size，一頁看得完\n"
-                             "  max_iterations: 1    # 選了聯想候選後，最多再連續猜一輪，別一路猜下去\n")
     def lua_str(x):
         return '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
     def lua_arr(xs):
@@ -968,14 +948,14 @@ switches:
     states: [ 只打常用字關, 只打常用字開 ]
   - name: aiphabi_autocommit       # 自動上屏：碼打到獨一無二、沒有第二個候選排隊，直接上屏
     states: [ 自動上屏關, 自動上屏開 ]
-{short_switch}{short3_switch}{left_switch}{phrase_switch}{prediction_switch}  - name: ascii_punct
+{short_switch}{short3_switch}{left_switch}{phrase_switch}  - name: ascii_punct
     states: [ 。，, ．， ]
 
 engine:
   processors:
     - ascii_composer
     - recognizer
-{predictor_processor}    - key_binder
+    - key_binder
     - lua_processor@aiphabi_autocommit  # 自動上屏：打下一鍵前先問「上一段夠不夠決定了」
     - speller
     - punctuator
@@ -989,7 +969,7 @@ engine:
     - punct_segmentor
     - fallback_segmentor
   translators:
-{predict_translator}    - punct_translator
+    - punct_translator
     - table_translator
     - lua_translator@aiphabi_wildcard   # 萬用鍵 `：某幾碼想不起來就按 `
   filters:
@@ -1017,7 +997,7 @@ translator:
     - "xlit|abcdefghijklmnopqrstuvwxyz|ABCDEFGHIJKLMNOPQRSTUVWXYZ|"
     - "xform/~/- /"            # 補碼提示的 ~ 改成「- 」（例 ~K → - K）
     - "xform/☯/?/"             # enable_sentence 組句候選內建提示符 ☯ 改成 ?，跟其他提示風格一致
-{predictor_config}
+
 menu:
   page_size: 6                 # 一次顯示 6 個候選（留多點空間給候選字放大）
 
@@ -1103,7 +1083,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 ## 智慧候選（跟試打頁一樣的貼心功能）
 
-都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（`sync.sh` 安裝時預設開的只有：同類字／偏旁碼／輸入容錯／約定簡碼／詞組連打；其餘全部預設關，包括三簡碼／左簡碼／只打常用字／自動上屏／智能聯想）：
+都靠鼠鬚管內建的 librime-lua，裝好就能用；點選單列鼠鬚管圖示就能個別勾選開關（`sync.sh` 安裝時預設開的只有：同類字／偏旁碼／輸入容錯／約定簡碼／詞組連打；其餘全部預設關，包括三簡碼／左簡碼／只打常用字／自動上屏）：
 
 * **打繁出簡**（`aiphabi_t2s` 開關，預設關）— 候選字順便帶出它的簡體版，標「簡」。
 * **打簡出繁**（`aiphabi_s2t` 開關，預設關）— 候選字順便帶出它的繁體版，標「繁」。兩個各自獨立，要單開哪邊都行。
@@ -1153,10 +1133,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 > 之後補上。
 
 **要傳的檔案**：`aiphabi.schema.yaml`、`aiphabi.dict.yaml`、`rime.lua`、整個 `lua/` 目錄、
-`default.custom.yaml`、`hamster.custom.yaml`。想要智能聯想（選完字猜下一個字／詞）也一併
-傳 `data/predict.db`（放到跟其他檔案同一層，不用建 `data/` 子目錄）——這個是另外抓的第三方
-資料庫（跑 `python3 fetch_data.py` 產生），不隨 schema 一起產生，忘了帶這個檔案的話，
-「聯想」開關開了也不會有任何候選（predictor 找不到資料庫可查）。打包成 zip 時**不要包住
+`default.custom.yaml`、`hamster.custom.yaml`。打包成 zip 時**不要包住
 一層資料夾**——這幾個檔案本身就要是 zip 的最外層，不然「仓」的匯入功能讀不到。
 
 **匯入（手機端全部搞定，不用電腦）**：
@@ -1256,8 +1233,6 @@ Weasel／fcitx5-rime 多半內建）：
             shutil.copy(OUT / f, RIME_USER_DIR / f)
         if (OUT / "aiphabi_plus.schema.yaml").exists():   # 二合一（形碼＋拼音）實驗方案
             shutil.copy(OUT / "aiphabi_plus.schema.yaml", RIME_USER_DIR / "aiphabi_plus.schema.yaml")
-        if (DATA / "predict.db").exists():    # 智能聯想資料庫（官方 librime-predict）
-            shutil.copy(DATA / "predict.db", RIME_USER_DIR / "predict.db")
         (RIME_USER_DIR / "lua").mkdir(exist_ok=True)
         for f in LUA.glob("*.lua"):           # 智慧候選：資料 + 三個邏輯檔
             shutil.copy(f, RIME_USER_DIR / "lua" / f.name)
