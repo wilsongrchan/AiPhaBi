@@ -1785,18 +1785,55 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 .pf-hlabel.is-yes, .pf-vlabel.is-yes { color: var(--accent); }
 .pf-hlabel.is-no,  .pf-vlabel.is-no  { color: var(--ink-faint); }
 
-.pr-flow-legend {
+/* 試按例字：按鈕本身跟其餘小標籤（pr-flow-test-label）同一排；按下去之後
+   把整張 SVG 標成 is-tracing，路徑上的節點/連線加 is-active——其餘一律
+   淡出而不是徹底隱藏，讀者才看得出「這是同一張圖，只是有一條路被點亮」。 */
+.pr-flow-test {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  font-size: .82rem;
-  color: var(--ink-dim);
-  margin: 0 0 .8rem;
+  align-items: center;
+  gap: .4rem;
+  margin: 0 0 .6rem;
 }
-.pr-flow-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
-.pr-flow-legend-dot { width: .65rem; height: .65rem; border-radius: 50%; display: inline-block; }
-.pr-flow-legend-item.is-yes .pr-flow-legend-dot { background: var(--accent); }
-.pr-flow-legend-item.is-no  .pr-flow-legend-dot { background: var(--ink-faint); }
+.pr-flow-test-label { font-size: .82rem; color: var(--ink-dim); margin-inline-end: .2rem; }
+.pr-flow-test button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: .2rem .75rem;
+  font-size: .88rem;
+}
+.pr-flow-test button:hover { border-color: var(--accent); color: var(--accent); }
+.pr-flow-test button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+.pr-flow-test-clear { color: var(--ink-faint); font-size: .82rem !important; }
+
+.pr-flow-test-note {
+  font-size: .85rem;
+  color: var(--ink-dim);
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+  padding: .5rem .8rem;
+  margin: 0 0 .6rem;
+}
+.pr-flow-test-note[hidden] { display: none; }
+
+.pr-flow-svg.is-tracing .pf-node,
+.pr-flow-svg.is-tracing .pf-edge { opacity: .25; transition: opacity .15s ease; }
+.pr-flow-svg.is-tracing .pf-node.is-active,
+.pr-flow-svg.is-tracing .pf-edge.is-active { opacity: 1; }
+.pr-flow-svg.is-tracing .pf-node.is-active .pf-box { stroke-width: 2.5; }
+.pr-flow-svg.is-tracing .pf-edge.is-active .pf-line { stroke-width: 3; }
+@media (prefers-reduced-motion: reduce) {
+  .pr-flow-svg.is-tracing .pf-node, .pr-flow-svg.is-tracing .pf-edge { transition: none; }
+}
 
 .pr-example {
   display: flex;

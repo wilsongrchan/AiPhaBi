@@ -337,3 +337,86 @@
     })
     .catch(function () { /* 保持純文字退路 */ });
 })();
+
+/* 孤筆略過判斷流程圖：按一個例字，沿著它實際走的問題／分支高亮一次。
+ * 路徑是手追出來的，不是程式跑出來的——孤筆略過本身（kind=enforced）雖然
+ * 有算法可以驗證，但目字旁例外那條在 rules.json 是 kind=manual，沒有一支
+ * 函式能回答「這個字走到哪一步」。每條路徑對過 codes.json 的實際 segments
+ * 才寫下來（見 yuanze.html 那幾個 pr-example 的說明文字，路徑跟文字說的
+ * 是同一件事，只是這裡換成節點 id 的清單）：
+ *   文／石：第一筆能跟別的筆劃組成字根，第 1 題就結束。
+ *   更：不能組成字根，但它是全字第一筆，第 2 題結束。
+ *   便：不能組成字根、不是首尾筆、是橫劃，但不是「目」字本身那一橫，第 4
+ *       題以「略過」結束——這裡的橫跟目字旁一點關係都沒有，只是恰好也是橫。
+ *   相：跟更同一類（不能組成字根，是全字最後一筆），第 2 題結束，不是靠
+ *       目字旁例外，是孤筆略過原則本身「首尾筆不略過」那句。
+ *   睛：一路答到第 5 題「是」，目字旁例外成立。
+ *   想：跟睛前四題一樣，但第 5 題「不是」（目不在最左，因為木在它左邊），
+ *       落到最後那個共用的略過終點（pf-final），不是 pf-out4／pf-out5。
+ *   腈：月字旁本身沒有目那多出來的一橫，根本沒有孤立筆劃可以問——這個字
+ *       不會進到這個流程圖，path 留空，只顯示說明文字。
+ */
+(function () {
+  'use strict';
+  var wrap = document.querySelector('.pr-flow-test');
+  if (!wrap) return;
+  var svg = document.querySelector('.pr-flow-svg');
+  var note = document.querySelector('.pr-flow-test-note');
+  var buttons = wrap.querySelectorAll('[data-flow-char]');
+  var clearBtn = wrap.querySelector('[data-flow-clear]');
+
+  var FLOW = {
+    '文': { path: ['pf-q1', 'pf-hline1', 'pf-out1'],
+            result: '「文」：這一橫能跟旁邊的點組成字根 → 取那個字根（IX）。' },
+    '石': { path: ['pf-q1', 'pf-hline1', 'pf-out1'],
+            result: '「石」：這一橫能跟旁邊的撇組成字根 → 取那個字根（JO）。' },
+    '更': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-hline2', 'pf-out2'],
+            result: '「更」：不能組成字根，但是全字第一筆 → 不略過（IBX）。' },
+    '相': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-hline2', 'pf-out2'],
+            result: '「相」：不能組成字根，但是全字最後一筆 → 不略過（TDI）。' },
+    '便': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
+                   'pf-q4', 'pf-hline4', 'pf-out4'],
+            result: '「便」：不是首尾筆、是橫劃，但不是「目」字本身那一橫 → 略過（YBX）。' },
+    '睛': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
+                   'pf-q4', 'pf-vline4', 'pf-q5', 'pf-hline5', 'pf-out5'],
+            result: '「睛」：一路到「目在最左方」成立 → 目字旁例外，取 I（DIFD）。' },
+    '想': { path: ['pf-q1', 'pf-vline1', 'pf-q2', 'pf-vline2', 'pf-q3', 'pf-vline3',
+                   'pf-q4', 'pf-vline4', 'pf-q5', 'pf-vline5', 'pf-final'],
+            result: '「想」：一路到「目不在最左方」（木在它左邊）→ 略過（TDW）。' },
+    '腈': { path: [],
+            result: '「腈」是月字旁，月本身沒有目那多出來的一橫，不會進到這個判斷流程。' }
+  };
+
+  function clear() {
+    if (svg) {
+      svg.classList.remove('is-tracing');
+      Array.prototype.forEach.call(svg.querySelectorAll('.is-active'), function (el) {
+        el.classList.remove('is-active');
+      });
+    }
+    Array.prototype.forEach.call(buttons, function (b) { b.classList.remove('is-active'); });
+    note.hidden = true;
+  }
+
+  Array.prototype.forEach.call(buttons, function (btn) {
+    btn.addEventListener('click', function () {
+      var ch = btn.getAttribute('data-flow-char');
+      var wasActive = btn.classList.contains('is-active');
+      clear();
+      if (wasActive) return;   // 再按一次同一個字＝取消
+      var info = FLOW[ch];
+      if (!info) return;
+      btn.classList.add('is-active');
+      note.textContent = info.result;
+      note.hidden = false;
+      if (!info.path.length || !svg) return;
+      svg.classList.add('is-tracing');
+      info.path.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.add('is-active');
+      });
+    });
+  });
+
+  if (clearBtn) clearBtn.addEventListener('click', clear);
+})();
