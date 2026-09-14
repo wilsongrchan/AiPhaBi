@@ -1657,6 +1657,19 @@ nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
    說明和例字是它底下的內容，不該跟標題齊頭。 */
 .pr-body { padding-inline-start: 1.1rem; }
 
+/* 條文內部的子標題（例：孤筆略過底下的「目字旁原則」凌駕條款）——不是九條
+   之一，不編號、不用 h2 的 accent 橘，免得讀者以為多了一條原則；但要跟一般
+   例字說明分得出主從，所以比照 .pr-num 用同一支灰、加粗、字級介於 h2 跟
+   內文之間。padding-inline-start 沒有再縮一層，跟 .pr-body 底下其餘內容
+   （例字方塊、段落）維持同一個左邊界，這樣才看得出它是分節而不是縮進去的
+   附屬說明。 */
+.pr-subhead {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+  margin: 1rem 0 .5rem;
+}
+
 .pr-example {
   display: flex;
   flex-wrap: wrap;
