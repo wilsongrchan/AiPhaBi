@@ -3213,9 +3213,9 @@ def main():
                 "corpus": tf_total,
             }
 
-    # 重碼率：首 2000 常用字裡，有多少字跟別的字共用同一個主碼。這是對外會被引用的數字，
-    # 所以定義寫死在這裡、每次重算 —— 「涉及重碼的字 ÷ 2000」，跟文案講的是同一件事。
-    top = [c for c in freq_order if c in codes][:2000]
+    # 重碼率：首 2500 常用字裡，有多少字跟別的字共用同一個主碼。這是對外會被引用的數字，
+    # 所以定義寫死在這裡、每次重算 —— 「涉及重碼的字 ÷ 2500」，跟文案講的是同一件事。
+    top = [c for c in freq_order if c in codes][:2500]
     groups = {}
     for ch in top:
         groups.setdefault(shorten(codes[ch]["code"], max_rule), []).append(ch)
