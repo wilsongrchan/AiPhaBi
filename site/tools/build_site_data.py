@@ -929,6 +929,16 @@ def build_pinyin(codes, zigen_raw, max_rule, charfreq, conv_chars, s2t_raw):
     }, dict(meta, segs=segs, glyphs=glyphs)
 
 
+# 例字高亮預設抓「整字裡每一段連續等於取碼的字母」，同一個字母出現兩次通常是
+# 同一形狀真的出現兩次（朋＝兩個月、能＝兩個匕、孤＝瓜字兩個捺，都要全部亮）。
+# 但少數字是巧合：選＝ZZHVZ，頭兩個 Z 是巳這一列要講的形狀，最後一個 Z 其實是
+# 完全不相干的「辶」（也剛好取 Z），亮出來會誤導成「選字裡有三個巳」。
+# key 是 (shape, 字母, 例字)，value 是只保留前幾段（掃描順序＝字母出現的順序）。
+SIMILAR_EX_RUN_CAP = {
+    ("巳", "Z", "選"): 2,
+}
+
+
 def build_similar(codes):
     """相近字形辨析：全部來自 site/content/similar.md，Wilson 手寫。
 
@@ -1001,6 +1011,9 @@ def build_similar(codes):
                                          for k in (sg.get("strokes") or [])])
                     if not runs:
                         probe = probe[:-1]
+                cap = SIMILAR_EX_RUN_CAP.get((shape, letter, c))
+                if cap is not None:
+                    runs = runs[:cap]
                 items.append({"c": c,
                               "st": sorted({k for r in runs for k in r}),
                               "segs": [sorted(r) for r in runs]})
