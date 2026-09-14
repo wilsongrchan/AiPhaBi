@@ -845,6 +845,35 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **智能聯想 (predict) removed project-wide 2026-09-14** — Wilson pulled the feature entirely: the
+  `/type` page's `assocCompat`/`assocMap`/`/api/assoc` route, `fetch_data.py`'s predict.db/predict.txt
+  download step, and Side B's own `predictor`/`predict_translator` generation in `build_rime.py`
+  (it wasn't good enough to be worth the 7.5MB `predict.db`). Picking this up required more than
+  just merging: `build_rime.py`'s predictor-generation block was still conditional on
+  `(DATA / "predict.db").exists()`, and that file is **gitignored** — deleting it on one machine
+  doesn't propagate to another checkout's disk, so a stale local copy would silently keep the old
+  behavior alive. Had to also: delete the local `data/predict.db`/`.txt` copies by hand, drop the
+  now-dead `"prediction"` entry from `build_rime.py`'s `off_by_default` save-options seed list and
+  from `rime/default.custom.yaml`'s `switcher/save_options`, and strip the stale predict.db
+  packaging instructions out of the generated README template. **Mobile packaging recipe changes
+  too, going forward: do NOT copy `data/predict.db` into the mobile zip anymore** — confirmed via
+  `grep -n predict` across the shipped schema/config (zero hits) that the switch, the processor, and
+  the translator are all gone. Package size dropped accordingly: **~5.9MB → ~1.5MB** (the drop this
+  time is correct and expected — don't mistake a ~1.5MB zip for a broken build going forward, that's
+  the new normal now that predict.db isn't part of the package. Note this looks byte-count-identical
+  to an actual packaging bug from earlier the same day (a mobile ship went out at ~1.5MB because the
+  packaging step forgot to copy `data/predict.db` at all, caught only because Wilson knew from
+  experience the zip is normally ~5.8-5.9MB and asked why — fixed by re-copying it in and reshipping,
+  before this predict-removal even happened). The two ~1.5MB zips mean opposite things: that one was
+  missing a file it should have had; this one correctly excludes a file that no longer exists as a
+  feature. **Going forward ~1.5MB is the expected size — don't "fix" it by adding predict.db back.**)
+- **Cliff re-checked 2026-09-14 (third time same day)**, after merging origin/main's predict-removal
+  batch (no character-table impact from the removal itself, but it rode along with new chars) pushed
+  字 9083→9165, 碼 12250→12385. `N=11900` (this morning's value) now **crashes**. Re-bisected: 11,550
+  passes, 11,575 fails — margin ~25, same thin range as the last couple of ships. Shipped at
+  **`N=11500`**. Same verification pattern (component/whitelist/wordfreq checks); the predict-removal
+  needed no special check here since it's orthogonal to the si4/si4_rev cliff.
+  **Ninth cliff move.**
 - **Cliff re-checked 2026-09-14 (second time same day)**, after merging origin/main's follow-up batch
   — Side A fixed the recode stragglers flagged by a completeness check earlier in the day (瞭/嘴/虧
   among 63 改碼, plus 61 new chars across two `[rebuild]` commits, one of them explicitly noted as
