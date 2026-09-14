@@ -1020,8 +1020,9 @@ full explanatory prose. `build_jianma()` in `build_site_data.py` derives all thr
 their real 主碼; 三簡碼 has no fixed list (it's a blanket rule over any 主碼 ≥4 字, `code[0]+code[1]
 +code[-1]`) so the page just demos 5 picked chars (`SHORT3_DEMO_CHARS`, deliberately none from the
 63 約定簡碼 list, to avoid the two mechanisms reading as one) plus a live-counted eligible total;
-左簡碼 reproduces the 8 component families straight from `rules.json`'s `left_short.entries`
-(comp/code/short/ok/no/members), which is Wilson's own vetted table, not computed. The page states
+左簡碼 reproduces the component families straight from `rules.json`'s `left_short.entries`
+(comp/code/short/ok/no/members), which is Wilson's own vetted table, not computed — 6 families as
+of the 2026-09-14 shelving (was 8; 魚 and 金 dropped, see *Re-enabling 左簡碼* below). The page states
 plainly that 左簡碼 is design-only, not shipped — see below.
 
 `zigen.html` also carries a 相近字形辨析 section (from `content/similar.md`, hand-written) and
@@ -1249,9 +1250,11 @@ drives the hint).
 When a curated 偏旁 sits at the far left of a character, the 偏旁 contributes only its **首+末**
 two codes and its middle is skipped. 鮭 完整碼 `SOTMFF` → 左簡碼 `SMFF`.
 
-The 8 偏旁 and their 左簡碼: 魚 `SOTM`→`SM`, 金 `YFV`→`YV`, 馬 `SHM`→`SM`, 食 `AEG`→`AG`,
-車 `IBT`→`IT`, 足 `OTL`→`OL`, 酉 `IHI`→`II`, 革 `HOT`→`HT`. **249 member characters**, all
-hand-reviewed. Note 食 and 足: the code is the *radical form as written on the left*
+The remaining 6 偏旁 and their 左簡碼: 馬 `SHM`→`SM`, 食 `AEG`→`AG`, 車 `IBT`→`IT`, 足 `OTL`→`OL`,
+酉 `IHI`→`II`, 革 `HOT`→`HT`. **247 member characters**, all hand-reviewed. (Originally 8 偏旁／249
+members — 魚 `SOTM`→`SM` and 金 `YFV`→`YV` were dropped once their families each collapsed to a
+2-code main code, making the shortcut a no-op; see *Re-enabling 左簡碼* below for how to bring
+either back.) Note 食 and 足: the code is the *radical form as written on the left*
 (飠 `AEG`, 𧾷 `OTL`), which differs from the standalone character (食 `AEK`, 足 `OTY`).
 
 Six conditions, in `rules.json` → `left_short` → `conditions`. The two that carry the weight:
