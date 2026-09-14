@@ -845,6 +845,28 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **aiphabi_order.lua: exact tier now sorted by usage 2026-09-14** — bug report: typing `jwej`
+  (爭's own main code) showed obscure 四碼 place-name phrases (长山群岛/舟山群島/万山群岛, same
+  `jwej` signature) ranked above 爭 itself. The "exact" tier (main-code matches + 打滿的 ap_si4/
+  ap_left — all deliberately treated as equally certain, see the big header comment at the top of
+  the file) was never sorted internally, so whichever candidate the underlying providers happened
+  to emit first won, unrelated to actual frequency. Fixed by sorting the tier with the same
+  `score()` used for the pool/completion tiers — but had to partition on `data.short_demote` first
+  (broke 2 existing tests on the first pass: the "push shortcode-eligible collisions to the very
+  end" mechanism needs to keep losing to non-demoted candidates regardless of raw frequency, or
+  約定簡碼 stops doing its job). `aiphabi_order_plus.lua` already had this covered (its top-bucket
+  sort already had a frequency tiebreak) — only the plain schema's filter needed the fix. Added a
+  regression test using real 爭/jwej data; **157 total codes project-wide** have this exact-vs-si4
+  collision shape (found by scanning `code2chars` for 4-letter codes that are also `si4` keys) —
+  useful sample set if this class of bug resurfaces: `jwej`→爭, `ihim`→票, `iouo`→高, `jyij`→行
+  (5-way pileup, good stress case), `dvtj`→財. All 178 tests pass; verified against the actual
+  reported scenario in the shipped `aiphabi_data.lua`/`aiphabi_order.lua` bytes before shipping.
+- **Cliff re-checked 2026-09-14 (yet again the same day)**, after two small merges: Side A's 佢
+  recode (no table-size change) and then a 103-new-char batch (蚺蜱蛳螄… ) + 頻/频/瀕/濒 recode,
+  pushing 字 9165→9268, 碼 12385→12548. `N=11500` now **crashes**. Re-bisected: 11,000 passes,
+  11,025 fails — margin ~25, same thin range as the last several ships. Shipped at **`N=11000`**.
+  Same verification pattern, this time also spot-checking `jwej`→爭 in the shipped bytes to confirm
+  the ordering fix above survived the rebuild.
 - **智能聯想 (predict) removed project-wide 2026-09-14** — Wilson pulled the feature entirely: the
   `/type` page's `assocCompat`/`assocMap`/`/api/assoc` route, `fetch_data.py`'s predict.db/predict.txt
   download step, and Side B's own `predictor`/`predict_translator` generation in `build_rime.py`
