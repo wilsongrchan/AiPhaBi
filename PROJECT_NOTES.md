@@ -846,6 +846,25 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-14**, after merging origin/main's next batch of `[rebuild]` commits
+  (更新取碼字與碼表 ×3, plus the 字根表/常用字表 PDF and site-side rebuilds that ride along) pushed
+  字 8681→9025, 碼 11686→12174, `component_only` 71→80 (50 groups). This merge also had a genuine
+  content conflict in `rime/lua/aiphabi_hint.lua` — both branches had independently touched the
+  same candidate-yield loop (this branch's earlier reorder to put hint candidates before the main
+  `cands` loop so they land inside `aiphabi_order.lua`'s `MAX_SORT` window, vs. origin/main's new
+  `short_demote` logic that pushes conventional-shortcode collisions to the very end) — resolved by
+  combining both: hints still yield first, and the `cands` loop (now last) still applies the
+  `short_demote` push-to-end. `N=13750` (2026-09-12's value) now **crashes**. Re-bisected: 12,030
+  passes, 12,060 fails — margin ~30, the thinnest yet (previous rounds: ~125, ~150, ~400). Shipped
+  at **`N=12000`** for a bit of headroom below the fail point. Same verification pattern: `luajit`
+  load check + end-to-end filter run against the literal bytes extracted from the shipped zip
+  (殳/収/夼/蕖/苤/陧/哿 plus 扌/氵/艹/忄/彡, and a full sweep confirming 0 of the 80 component_only
+  chars are missing from `data.common`, plus `M.wordfreq` confirmed empty in the shipped copy).
+  **Seventh cliff move.** The margin has now shrunk for two ships running (~125 → ~30) even though
+  the character-count jump this time (344 chars) was much smaller than 09-12's (298 chars) — worth
+  watching closely; if the margin keeps collapsing like this, the `si4`/`si4_rev` chunk-split fix
+  (splitting them into their own Lua chunk so LuaJIT's per-chunk 65,536-constant cap doesn't apply
+  to the combined table) stops being optional headroom and becomes the actual fix needed.
 - **Cliff re-checked 2026-09-12**, after merging origin/main's batch of 64 commits — largest single
   jump yet: Z→R recode (58 chars), 彡 recoded E→JJ (75 chars + the component itself), 爪/抓 R→N dup
   fix, plus a run of new-char batches — pushed 字 8383→8681, 碼 11270→11686. `N=15250` (2026-09-10's
