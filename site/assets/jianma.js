@@ -155,7 +155,8 @@
       CONVENTION = d.convention || [];
       renderConvention(CONVENTION);
       renderShort3(d.short3 || { examples: [], eligible: 0 });
-      renderLeftShort(d.left_short || []);
+      // 左簡碼已從頁面移除（見 jianma.html 裡的註解），#jm-leftshort 不存在時跳過。
+      if (document.querySelector('#jm-leftshort')) renderLeftShort(d.left_short || []);
     })
     .catch(function () {
       document.querySelectorAll('.jm-tbl tbody').forEach(function (tb) {
