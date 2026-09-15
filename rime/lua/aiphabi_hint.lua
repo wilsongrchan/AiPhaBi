@@ -202,15 +202,23 @@ local function filter(input, env)
       end
     end
     if si4_on then                       -- 四碼快打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
-                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。
-      local exact4 = #code == 4
-      for _, w in ipairs(data.si4[code] or {}) do
-        if not seen[w] then
-          seen[w] = true
-          if exact4 then
+                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴——還沒打完，算補全，
+                                          -- 標「- X」提示還差哪一碼，跟主碼／左簡碼的補全同一級（比 exact
+                                          -- 低一級），不能跟打滿的四碼混在同一池（回報：qoq 打到一半的
+                                          -- 「福田康夫」被當成打滿處理，蓋過真的打滿主碼的「中國」）。
+      if #code == 4 then
+        for _, w in ipairs(data.si4[code] or {}) do
+          if not seen[w] then
+            seen[w] = true
             extra[#extra + 1] = Candidate("ap_si4", s, e, w, "四碼")
-          else
-            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+          end
+        end
+      elseif #code == 3 then
+        for _, pair in ipairs(data.si4_pre[code] or {}) do
+          local w = pair.w
+          if not seen[w] then
+            seen[w] = true
+            extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. pair.n:upper())
           end
         end
       end

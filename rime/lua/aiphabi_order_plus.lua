@@ -137,7 +137,7 @@ local function filter(input, env)
   -- 判斷候選是「形碼」還是「拼音」：形碼 preedit 是大寫字母（HOYJBT）；拼音是小寫音節。
   local function isFormCand(c)
     if c.type == "ap_short" or c.type == "ap_pool" or c.type == "ap_si4"
-       or c.type == "ap_left" then return true end
+       or c.type == "ap_si4_partial" or c.type == "ap_left" then return true end
     local mc = data.char2code[c.text]
     if mc and mc:sub(1, #code) == code then return true end
     local pe = c.preedit
@@ -188,7 +188,7 @@ local function filter(input, env)
           -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞不算
           if pyRank > PY_TOPK and ulen(c.text) == 1 then w = w * PY_OBSCURE end
         end
-        if c.type == "completion" then          -- 碼還沒打完：不進 pool，整批墊在 pool 之後
+        if c.type == "completion" or c.type == "ap_si4_partial" then  -- 碼還沒打完：不進 pool，整批墊在 pool 之後
           comp[#comp + 1] = { c = c, i = i, w = w }
         else
           pool[#pool + 1] = { c = c, i = i, w = w }

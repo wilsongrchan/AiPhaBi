@@ -92,6 +92,27 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== 四碼快打只打到前三碼＝補全，不是打滿：不能跟打滿的主碼擠同一級 ==")
+for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+  -- 打 QOQ：中國 的詞組碼剛好是 QOQ（中q + 國oq，國有約定簡碼）；同一個前三碼底下也收了
+  -- 好幾個四碼快打詞（福田康夫＝QOQI、家喻户晓＝QOQB…），都只打到前三碼，還差最後一碼，
+  -- 標 type=ap_si4_partial。這些「還沒打完」的不該跟打滿主碼的 中國 同級（回報：福田康夫
+  -- 排到 中國 前面，因為前三碼曾經被當「打滿的四碼」處理，沒有跟真的打滿四碼分開）。
+  -- 福田康夫／家喻户晓 不用自己塞進 cands——它們是 aiphabi_hint.lua 自己從真實的
+  -- data.si4_pre['qoq'] 查出來、動態生成 extra4 候選的（type/comment 都是那邊決定），
+  -- 塞一個「假裝已經是 ap_si4_partial」的候選進 cands 反而不寫實：cands 代表的是碼表
+  -- 吐出來的原始候選，真實情況下 Rime 不會吐出這個 type，會被主迴圈的 markHints 誤當
+  -- 一般候選重新處理、蓋掉本來該有的「- I」提示。
+  local out = h.run{
+    schema = schema, code = "qoq", options = ALL_ON,
+    cands = { { text = "中國" } },
+  }
+  h.checkAt(schema .. " · 打滿主碼 中國 排在還沒打完的四碼快打前面", out, 1, "中國")
+  h.checkComment(schema .. " · 福田康夫 標「四碼 - I」（還差哪一碼）", out, "福田康夫", "四碼 - I")
+  h.checkPresent(schema .. " · 福田康夫 還在（只是排後面）", out, "福田康夫", true)
+end
+
+print()
 print("== 不打簡體：地名詞庫逐字簡化的簡體詞（澳门…）跟簡體專屬單字一起被濾掉 ==")
 do
   h.check("澳门 在 M.simp_phrase 裡、澳門 不在",

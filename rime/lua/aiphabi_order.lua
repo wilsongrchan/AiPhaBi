@@ -11,8 +11,12 @@
 --   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
 --      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
 --      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
---   4. 補全（type=completion，librime 標的「碼還沒打完」）—— 整批墊在第 3 層之後。
---      打滿的 碰巧（jovnvis）不該輸給還差一碼、但詞頻較高的 碰瓷（jovnvisq）。
+--   4. 補全（type=completion，librime 標的「碼還沒打完」；type=ap_si4_partial，四碼快打只
+--      打到前三碼、還差最後一碼）—— 整批墊在第 3 層之後。打滿的 碰巧（jovnvis）不該輸給
+--      還差一碼、但詞頻較高的 碰瓷（jovnvisq）；四碼快打同理：qoq 打到一半的「福田康夫」
+--      （還差 I）不該蓋過打滿主碼的「中國」（回報：福田康夫 排到中國前面，因為前三碼一律
+--      當「打滿」處理，沒有分「已經四碼都對上」跟「只對到三碼」——現在兩者分開，只有真的
+--      四碼都打滿才算第 2 層，前三碼一律降到這一層，附「四碼 - X」提示還差哪一碼）。
 --   5. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
@@ -214,6 +218,7 @@ local function filter(input, env)
     elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = c  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
+    elseif c.type == "ap_si4_partial" then comp[#comp + 1] = { c = c }  -- 四碼前三碼＝還沒打完，跟 completion 同一級（不能跟打滿的 ap_si4 混在 exact，也不能跟打滿整段的 ap_pool 混在池子——見 aiphabi_hint.lua 同名註解）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = c
     else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
