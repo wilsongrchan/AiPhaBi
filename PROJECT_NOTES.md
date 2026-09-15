@@ -845,6 +845,37 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **四碼快打 (si4) exact-vs-partial split, 2026-09-15** — bug report: typing `qoq` (中國's own
+  phrase code) showed several incomplete 四碼快打 candidates (福田康夫/家喻户晓/谭咏麟— the user
+  had only typed 3 of their real 4-letter signatures, e.g. 福田康夫 is `qoqi`) ranked *above* 中國,
+  a genuine complete match. Root cause: `build_rime.py` registered every si4 word under both its
+  full 4-letter signature AND a 3-letter prefix, in the same `M.si4` table, with no way to
+  distinguish "typed all 4" from "typed 3 of 4" — `aiphabi_hint.lua` tagged both identically as
+  `ap_si4`, so `aiphabi_order.lua`'s exact tier treated a still-typing signature with the same
+  confidence as a complete one. Fixed by splitting into a separate `M.si4_pre` table (3-letter
+  prefix → words still missing their 4th letter); only real 4-letter hits stay `ap_si4` (exact
+  tier), 3-letter hits get a new `ap_si4_partial` type with a proper "四碼 - X" hint (same
+  convention as the main-code "- X" completion hint) and route into the completion tier — strictly
+  below the pool tier where 中國 (and every phrase-dict exact match) lands, robust regardless of
+  frequency data.
+  **Second layer, found immediately after**: 中國人 (a real, common completion, "- Y") was *also*
+  losing to the same si4-partial candidates, because on the **mobile build `M.wordfreq` is stripped
+  to `{}`**, so both score 0 and tie — falling back to arrival order, where si4-partial candidates
+  are yielded earlier in the pipeline. Fixed with an explicit tiebreak in both
+  `aiphabi_order.lua`/`aiphabi_order_plus.lua`'s completion-tier sort: on a score tie, prefer real
+  completions over `ap_si4_partial` ones. Only activates on ties, so desktop (wordfreq intact)
+  behavior is unchanged.
+  **Encoding lesson**: the first version of `M.si4_pre` stored `{w=word, n=letter}` — a table
+  literal per entry — which cost enough extra LuaJIT constants to crash `N=11700` all the way down
+  to somewhere below 9000. Switched to appending the single missing ASCII letter directly onto the
+  UTF-8 word string (always safe — Chinese characters are multi-byte, never collide with a trailing
+  ASCII byte) and splitting it back out at read time (`w:sub(1,-2)` / `w:sub(-1)`). Recovered the
+  margin back to ~75 at the same `N=11700`. **Worth remembering for any future per-entry Lua table
+  the mobile build ships: a table constructor per entry is measurably expensive against the
+  constant budget — prefer packing into a single string when the extra field is small and fixed-
+  width.** Added regression tests for both layers (real 中國/qoq/福田康夫 data, and a simulated-
+  mobile wordfreq-stripped tie). All 169 tests pass; verified end-to-end against the literal shipped
+  bytes (both `aiphabi_hint.lua` and `aiphabi_order.lua` run for real, not just checked separately).
 - **Cliff re-checked 2026-09-15**, after merging three batches of new chars (88+44+6, mostly 鳥/魚/黑
   radical GB2312 coverage) plus small recodes (角/䍃/鰥/黎/藜), pushing 字 9356→9513, 碼 12653→12950.
   `N=12500` (2026-09-14's post-左簡碼-shelving value) now **crashes**. Re-bisected: 11,700 passes,
