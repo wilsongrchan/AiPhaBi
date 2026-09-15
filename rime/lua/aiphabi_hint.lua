@@ -214,11 +214,12 @@ local function filter(input, env)
           end
         end
       elseif #code == 3 then
-        for _, pair in ipairs(data.si4_pre[code] or {}) do
-          local w = pair.w
+        for _, packed in ipairs(data.si4_pre[code] or {}) do
+          -- packed = 詞 + 還差的那一碼（單一 ASCII 字母黏在字尾，見 build_rime.py 註解）
+          local w, missing = packed:sub(1, -2), packed:sub(-1)
           if not seen[w] then
             seen[w] = true
-            extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. pair.n:upper())
+            extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. missing:upper())
           end
         end
       end

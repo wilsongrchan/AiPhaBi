@@ -748,7 +748,13 @@ def main():
         _seen, _out = set(), []               # 前三碼底下可能有兩種不同第四碼（來自不同 alts 簽名），
         for _, _w, _last in sorted(si4_pre[_c], key=lambda x: -x[0]):   # 兩條都值得留、給不同提醒
             if (_w, _last) not in _seen:
-                _seen.add((_w, _last)); _out.append((_w, _last))
+                _seen.add((_w, _last))
+                # 詞＋還差的那一碼編成一個字串（單一 ASCII 字母黏在 UTF-8 中文詞尾），
+                # 不用 {w=,n=} 這種每筆一個 table——量過：每個 si4_pre 條目多一層 table
+                # constructor，LuaJIT 常數上限一口氣從 N=11700 掉到 N<9000，划不來。
+                # Lua 端用 w:sub(1,-2) 去掉最後一 byte 還原詞、w:sub(-1) 取出那一碼即可
+                # （中文字在 UTF-8 都是多 byte，最後一 byte 加的 ASCII 字母不會被撞到）。
+                _out.append(_w + _last)
         si4_pre[_c] = _out[:24]
     print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼；"
           f"其中 {len(si4_rev)} 詞真的比平常打法短，才給「四碼」提醒")
@@ -863,11 +869,10 @@ def main():
     dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼快打；aiphabi_phrase 開關控制，依詞頻排）
     for sig, ws in sorted(si4.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
-    dl += ["}", "M.si4_pre = {"]        # 前三碼 → [{w=詞,n=還差的第四碼},...]（打到第三碼算補全，
-                                         # 不是打滿——跟左簡碼補全同一套，見上面 si4_pre 的註解）
-    for pre, pairs in sorted(si4_pre.items()):
-        _items = ",".join(f'{{w={lua_str(w)},n={lua_str(last)}}}' for w, last in pairs)
-        dl.append(f'  [{lua_str(pre)}]={{{_items}}},')
+    dl += ["}", "M.si4_pre = {"]        # 前三碼 → [詞+還差的第四碼(黏在字尾的單一 ASCII 字母)]
+                                         # （打到第三碼算補全，不是打滿——見上面 si4_pre 的註解）
+    for pre, ws in sorted(si4_pre.items()):
+        dl.append(f'  [{lua_str(pre)}]={lua_arr(ws)},')
     dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
     for w, sig in sorted(si4_rev.items()):
         dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
