@@ -224,21 +224,24 @@ local function filter(input, env)
     end)
   end
   -- 補全彼此照常用度；整批排在 pool 之後。同樣吃 MAX_SORT 上限（見上面）。
+  -- 分數打平時優先真正的詞組補全，勝過四碼快打前三碼補全——理由跟 aiphabi_order.lua
+  -- 同一段註解：手機上 M.wordfreq 清空，多字詞常打平在 0 分，四碼快打不該靠來源順序贏。
+  local function compCmp(a, b)
+    if a.w ~= b.w then return a.w > b.w end
+    local pa = a.c.type ~= "ap_si4_partial"
+    local pb = b.c.type ~= "ap_si4_partial"
+    if pa ~= pb then return pa end
+    return a.i < b.i
+  end
   if #comp > MAX_SORT then
     local head, tail = {}, {}
     for i = 1, MAX_SORT do head[i] = comp[i] end
     for i = MAX_SORT + 1, #comp do tail[#tail + 1] = comp[i] end
-    table.sort(head, function(a, b)
-      if a.w ~= b.w then return a.w > b.w end
-      return a.i < b.i
-    end)
+    table.sort(head, compCmp)
     for _, e in ipairs(tail) do head[#head + 1] = e end
     comp = head
   else
-    table.sort(comp, function(a, b)
-      if a.w ~= b.w then return a.w > b.w end
-      return a.i < b.i
-    end)
+    table.sort(comp, compCmp)
   end
   table.sort(part, function(a, b)             -- 前綴候選：吃得越多越前，再比常用度
     if a.cov ~= b.cov then return a.cov > b.cov end

@@ -113,6 +113,30 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== 補全彼此打平分數時：真正的詞組補全該贏四碼快打的前三碼補全 ==")
+do
+  -- 手機上 M.wordfreq 清空成 {}（LuaJIT 常數上限緣故），多字詞一律 0 分，score()／cf()
+  -- 打平——這裡模擬那個情境（跑完就還原，不影響後面其他測），兩種補全（中國人 真正的
+  -- 詞組補全 vs 福田康夫 四碼快打的前三碼補全）在 comp 這一層打平分數時，不能靠候選
+  -- 來源順序決勝負（四碼快打先吐出來就贏），該優先真正的詞組補全（回報：qoq 打
+  -- 「中國人」被「福田康夫」蓋過）。
+  local savedWordfreq = data.wordfreq
+  data.wordfreq = {}
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "qoq", options = ALL_ON,
+      cands = {
+        { text = "中國" },
+        { text = "中國人", type = "completion", comment = "- Y" },
+      },
+    }
+    h.checkAt(schema .. " · 分數打平時 中國人（真正的補全）排在 福田康夫（四碼補全）前面",
+      out, 2, "中國人")
+  end
+  data.wordfreq = savedWordfreq
+end
+
+print()
 print("== 不打簡體：地名詞庫逐字簡化的簡體詞（澳门…）跟簡體專屬單字一起被濾掉 ==")
 do
   h.check("澳门 在 M.simp_phrase 裡、澳門 不在",

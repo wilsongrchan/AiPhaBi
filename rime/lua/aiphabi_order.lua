@@ -267,6 +267,14 @@ local function filter(input, env)
   table.sort(compHead, function(a, b)
     local sa, sb = score(a.c.text), score(b.c.text)
     if sa ~= sb then return sa > sb end
+    -- 分數打平時（手機上 M.wordfreq 清空成 {}，多字詞一律 0 分，常有這種情況），
+    -- 真正的詞組補全（碼表本來就收的詞，常用度來自 essay 真語料）優先於四碼快打的
+    -- 前三碼補全（不少是巧合湊出來的生僻詞，四碼本來就只是「順便」的機制）——不然
+    -- 兩邊都是 0 分時退回候選來源順序，四碼快打剛好先吐出來，會蓋過更常用的完整詞
+    -- 補全（回報：qoq 打「中國人」被還沒打完的「福田康夫」蓋過）。
+    local pa = a.c.type ~= "ap_si4_partial"
+    local pb = b.c.type ~= "ap_si4_partial"
+    if pa ~= pb then return pa end
     return a.i < b.i
   end)
   if compTail then
