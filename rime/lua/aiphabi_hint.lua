@@ -109,9 +109,11 @@ local function filter(input, env)
   -- 那種 #code 閘門，直接拿整串碼查表。查不到就沒事，是一次雜湊查詢而已。
   local left_on = ok and ctx:get_option("aiphabi_left_short")
   -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
-  -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
+  -- 打到第 2 碼就先補全（還差兩碼），第 3 碼再補全一次（還差一碼），第 4 碼是完整四碼——
+  -- 只到第 3 碼才有提示的話，打完第 2 碼候選欄會看起來斷頭（沒別的東西可打了），使用者
+  -- 會誤以為這條路打錯（回報：QQ 打到一半看起來沒東西，第三碼 QQF 才冒出來）。
   local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
-  local si4_on    = ok and (#code == 3 or #code == 4) and phrase_on
+  local si4_on    = ok and (#code == 2 or #code == 3 or #code == 4) and phrase_on
   -- 四碼反向提醒：跟簡碼／左簡碼同一套「教你少打幾碼」，但不鎖 #code==3/4 那個閘門——
   -- 這個提醒是打「詞組連打」的完整長碼（通常遠超過 4 碼）拿到詞當正常候選時才附註的。
   local si4_rev_on = ok and phrase_on
@@ -217,6 +219,15 @@ local function filter(input, env)
         for _, packed in ipairs(data.si4_pre[code] or {}) do
           -- packed = 詞 + 還差的那一碼（單一 ASCII 字母黏在字尾，見 build_rime.py 註解）
           local w, missing = packed:sub(1, -2), packed:sub(-1)
+          if not seen[w] then
+            seen[w] = true
+            extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. missing:upper())
+          end
+        end
+      elseif #code == 2 then
+        for _, packed in ipairs(data.si4_pre2[code] or {}) do
+          -- packed = 詞 + 還差的兩碼（兩個 ASCII 字母黏在字尾，跟前三碼那條同一套編碼）
+          local w, missing = packed:sub(1, -3), packed:sub(-2)
           if not seen[w] then
             seen[w] = true
             extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. missing:upper())

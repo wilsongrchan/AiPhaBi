@@ -113,6 +113,20 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
 end
 
 print()
+print("== 四碼快打打到前兩碼也該有提示：不然候選欄看起來斷頭，使用者以為打錯 ==")
+for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+  -- 打 QQ：容祖兒 的四碼簽名是 QQFL（容q + 祖q + 兒首f + 兒末l）。只到第三碼（QQF）才有
+  -- 提示的話，打完第二碼候選欄會像斷頭一樣（回報：QQ 打到一半看起來沒東西，QQF 才冒出來，
+  -- 使用者誤以為 QQ 這條路打錯了）。打到第二碼也該冒出來，標「四碼 - FL」（還差兩碼）。
+  local out = h.run{
+    schema = schema, code = "qq", options = ALL_ON,
+    cands = {},
+  }
+  h.checkPresent(schema .. " · 打 QQ 找得到 容祖兒（四碼快打前兩碼）", out, "容祖兒", true)
+  h.checkComment(schema .. " · 容祖兒 標「四碼 - FL」（還差哪兩碼）", out, "容祖兒", "四碼 - FL")
+end
+
+print()
 print("== 補全彼此打平分數時：真正的詞組補全該贏四碼快打的前三碼補全 ==")
 do
   -- 手機上 M.wordfreq 清空成 {}（LuaJIT 常數上限緣故），多字詞一律 0 分，score()／cf()

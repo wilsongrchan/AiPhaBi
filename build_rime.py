@@ -709,6 +709,12 @@ def main():
                                    # 記了（回報：qoq 打到一半的「福田康夫」被當成打滿的四碼處理，
                                    # 標成 exact 一級，蓋過真的打滿的 中國——四碼快打「還沒打完」
                                    # 跟左簡碼「還沒打完」該是同一種處理：算補全，不算 exact）。
+    si4_pre2 = defaultdict(list)  # 四碼前兩碼（打到第二碼，還差最後兩碼）-> [(權重, 詞, 還差的兩碼), ...]
+                                   # 只到前三碼才有提示的話，打完第二碼、候選欄看起來像斷頭（沒別的
+                                   # 東西可打了），使用者會以為自己打錯——回報：QQ 打到一半看起來
+                                   # 沒東西，第三碼 QQF 才冒出來，誤以為 QQ 這條路不通。前兩碼比三碼
+                                   # 更早出現、也更容易撞到一堆詞，所以是「另一張表」而非沿用
+                                   # si4_pre 的前綴——量體不同，各自去重、各自上限 24，互不影響。
     si4_rev = {}    # 詞 -> 四碼：打了詞組連打的完整碼，剛好有四碼快打可用，就提醒「其實有四碼」
                     # （跟簡碼／左簡碼同一套反向提醒；5+ 字詞兩式都收，提醒只留第一式＝前四字首碼，
                     # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒；alts 生出的
@@ -733,8 +739,9 @@ def main():
         if any(_c in char_alt_codes for _c in (set(_chs[:4]) | {_chs[-1]})):
             si4_alt_words += 1
         for _c4 in _codes4:
-            si4[_c4].append((_wt, _w))                    # 完整四碼
-            si4_pre[_c4[:3]].append((_wt, _w, _c4[3]))    # 前三碼＋還差的第四碼（打到第三碼算補全）
+            si4[_c4].append((_wt, _w))                       # 完整四碼
+            si4_pre[_c4[:3]].append((_wt, _w, _c4[3]))       # 前三碼＋還差的第四碼（打到第三碼算補全）
+            si4_pre2[_c4[:2]].append((_wt, _w, _c4[2:4]))    # 前兩碼＋還差的後兩碼（打到第二碼算補全）
         _wc = _word_codes(_w)                 # 只有「四碼真的比平常打法短」才提醒，不然沒省到
         if _wc and min(len(_c) for _c in _wc) > 4:
             si4_rev[_w] = _codes4[0]          # base 簽名（每個位置的第一選項），最好記的那條
@@ -756,6 +763,13 @@ def main():
                 # （中文字在 UTF-8 都是多 byte，最後一 byte 加的 ASCII 字母不會被撞到）。
                 _out.append(_w + _last)
         si4_pre[_c] = _out[:24]
+    for _c in list(si4_pre2):                 # 同上，還差的是兩碼（一樣黏在詞尾，一次取兩個 byte）
+        _seen, _out = set(), []
+        for _, _w, _last2 in sorted(si4_pre2[_c], key=lambda x: -x[0]):
+            if (_w, _last2) not in _seen:
+                _seen.add((_w, _last2))
+                _out.append(_w + _last2)
+        si4_pre2[_c] = _out[:24]
     print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼；"
           f"其中 {len(si4_rev)} 詞真的比平常打法短，才給「四碼」提醒")
     if si4_alt_words:
@@ -872,6 +886,10 @@ def main():
     dl += ["}", "M.si4_pre = {"]        # 前三碼 → [詞+還差的第四碼(黏在字尾的單一 ASCII 字母)]
                                          # （打到第三碼算補全，不是打滿——見上面 si4_pre 的註解）
     for pre, ws in sorted(si4_pre.items()):
+        dl.append(f'  [{lua_str(pre)}]={lua_arr(ws)},')
+    dl += ["}", "M.si4_pre2 = {"]       # 前兩碼 → [詞+還差的後兩碼(黏在字尾的兩個 ASCII 字母)]
+                                         # （打到第二碼算補全——見上面 si4_pre2 的註解）
+    for pre, ws in sorted(si4_pre2.items()):
         dl.append(f'  [{lua_str(pre)}]={lua_arr(ws)},')
     dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
     for w, sig in sorted(si4_rev.items()):
