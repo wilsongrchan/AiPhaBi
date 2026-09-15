@@ -69,6 +69,7 @@
       if (!shape.glyph) continue;
       /* 合併過的字根有多個變體（alts）：每個變體都要能比對得上 */
       for (const form of [shape.glyph, ...(shape.alts || [])]) {
+        if (form.region) continue;   /* 台灣／香港來源只有輪廓、沒有中線，不能比對 */
         const g = await getGlyph(form.src);
         if (!g) continue;
         const med = form.strokes.map(i => g.medians[i]);
