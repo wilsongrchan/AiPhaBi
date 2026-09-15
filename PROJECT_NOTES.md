@@ -845,6 +845,12 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-15**, after merging three batches of new chars (88+44+6, mostly 鳥/魚/黑
+  radical GB2312 coverage) plus small recodes (角/䍃/鰥/黎/藜), pushing 字 9356→9513, 碼 12653→12950.
+  `N=12500` (2026-09-14's post-左簡碼-shelving value) now **crashes**. Re-bisected: 11,700 passes,
+  11,750 fails — margin ~50, down from the ~125 right after the leftshort-freed headroom but still
+  healthier than the ~25-30 danger zone from earlier in the week. Shipped at **`N=11700`**. Same
+  verification pattern (component/whitelist/wordfreq/leftshort-empty/jwej-ordering checks).
 - **Cliff re-checked 2026-09-14 (margin recovered)**, after merging Side A's 金家族 YFV→YV recode
   (collapsed to 2 codes) and, more importantly, **左簡碼 (aiphabi_left_short) shelved project-wide**
   (`rules.json`'s `left_short` rule set `enabled: false` — the whole `M.leftshort`/`leftshort_pre`/
