@@ -4097,8 +4097,10 @@ function codeLenBucket(c) {
 }
 function pool() {
   const q = $('#search').value.trim();
-  /* 搜尋／跳到某字：字頻表裡沒有的字也放行（例：粵語 啲 喺 冇），才進得去手動取碼 */
-  if (q) return [...q].filter(c => /[㐀-鿿豈-﫿]/.test(c));
+  /* 搜尋／跳到某字：字頻表裡沒有的字也放行（例：粵語 啲 喺 冇），才進得去手動取碼。
+     〇（U+3007）不在 CJK 統一表意文字區段（它落在 CJK 符號區），但中文數字寫法
+     常用它（二〇二六年），額外放行，不然連搜尋框都打不進去。 */
+  if (q) return [...q].filter(c => /[㐀-鿿豈-﫿〇]/.test(c));
   if (filter === 'all') return order.slice();
   if (filter === 'done') {
     const done = order.filter(isDone);
@@ -4747,7 +4749,8 @@ Promise.all([
     $('#saveNext').textContent = '儲存 ⏎';
     $('#saveNext').onclick = save;
   }
-  await load(want && order.includes(want) ? want : (pool()[0] || '的'));
+  await load(want && (order.includes(want) || /[㐀-鿿豈-﫿〇]/.test(want))
+    ? want : (pool()[0] || '的'));
   /* 從複審面板連過來時，直接把那一條警告標出來（它可能還是「已處理」狀態） */
   const focus = q.get('focus');
   if (focus) flashCheck(focus);
