@@ -845,6 +845,18 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **四碼快打 (si4) hint extended to 2 typed letters, 2026-09-15** — follow-up to the exact-vs-partial
+  split below: typing just 2 of a si4 signature (e.g. `qq` for 容祖兒's `qqfl`) showed nothing
+  si4-related at all — `si4_on` only fired at `#code == 3 or 4`, so the candidate bar looked like a
+  dead end until the 3rd letter, reading as "this input is wrong" even though the user was on the
+  right track. Added a parallel `M.si4_pre2` table (2-letter prefix → words still missing their
+  last 2 letters, same generation/dedup/cap-24 treatment as `si4_pre`), extended `si4_on` to also
+  fire at `#code == 2`, and reused the existing `ap_si4_partial` type (already routes to the
+  completion tier from the fixes below — no `aiphabi_order.lua` changes needed). Reused the
+  packed-string encoding (2 trailing ASCII bytes on the word) from the start this time, having just
+  learned the table-per-entry lesson the hard way. Re-bisected: cliff dropped from `N=11700` to
+  **`N=10500`** (margin ~150, healthy) — a real, expected cost of doubling the si4 lookup surface
+  (2-letter prefixes are numerous), not a regression to be alarmed about on its own.
 - **四碼快打 (si4) exact-vs-partial split, 2026-09-15** — bug report: typing `qoq` (中國's own
   phrase code) showed several incomplete 四碼快打 candidates (福田康夫/家喻户晓/谭咏麟— the user
   had only typed 3 of their real 4-letter signatures, e.g. 福田康夫 is `qoqi`) ranked *above* 中國,
