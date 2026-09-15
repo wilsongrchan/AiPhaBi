@@ -1,6 +1,6 @@
 # 愛發筆 · Rime 輸入法
 
-由 `python3 build_rime.py` 產生。共 **9374 字**、**12688 條碼**
+由 `python3 build_rime.py` 產生。共 **9462 字**、**12840 條碼**
 （主碼 + 完整碼 + 手動收的兼容碼）。
 
 ## macOS（Squirrel 鼠鬚管）
@@ -54,7 +54,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 `"` 與 `'` 是成對的：連按會輪流出「」與『』的左右半邊。
 
-## 目前的重碼（533 組）
+## 目前的重碼（541 組）
 
 裝之前先知道哪些字要多按一次選字鍵：
 
@@ -63,6 +63,7 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `is` → 方巧万亏亐
 * `ouy` → 吶呐呗员呙
 * `ye` → 全任仨仼仺
+* `bf` → 里旱旰圼
 * `ihi` → 西亞酉亜
 * `jk` → 夭豕夬长
 * `pi` → 子孑孒卫
@@ -73,7 +74,6 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `ym` → 尓尒仦伂
 * `yvt` → 針籴伞伻
 * `aasj` → 第笏笫
-* `bf` → 里旱旰
 * `bsj` → 易昜畅
 * `bt` → 果早杲
 * `cl` → 已乜巳
