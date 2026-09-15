@@ -1605,6 +1605,64 @@ nav.site .pr-sidenav a:hover { color: var(--ink); background: var(--code-bg); }
    縮排加在 a 上而不是 li，不然 hover 的底色會缺一角。 */
 nav.site .pr-sidenav .is-sub a { padding-inline-start: 1.4rem; }
 
+/* 〈問答〉分類：pr-sidenav 裡純文字的分組小標（不是連結）。跟 .nav-sec-t 一樣是
+   分組標題，但巢狀在已經用 --accent 強調的章節連結底下，再套一次強調色會分不清
+   是哪一層分組，改用比 --ink-dim 更淡的 --ink-faint。 */
+.pr-sidenav-h {
+  padding: .3rem .6rem .05rem;
+  font-size: .66rem;
+  font-weight: 700;
+  color: var(--ink-faint);
+  letter-spacing: .05em;
+}
+.pr-sidenav-h:first-child { padding-top: .05rem; }
+
+/* 〈常見問題〉：一題一個編號，答案再縮一階跟題目分開——編號用 ::before 而不是
+   <ol> 內建標記，理由跟 .points 一樣（要跟題目對齊、上色）。題目跟其他頁面的
+   章節標題一樣上 --accent，跟 .points 的圓形編號徽章不同，這裡文字多、標題也
+   多（十幾條），徽章太搶眼，改用貼齊題目的數字＋句點。 */
+.wd-qa {
+  list-style: none;
+  padding-inline-start: 0;
+  margin: 1.4rem 0 0;
+  counter-reset: wdq;
+}
+.wd-qa > li {
+  counter-increment: wdq;
+  position: relative;
+  padding-inline-start: 1.7rem;
+  margin-bottom: 1.8rem;
+}
+.wd-qa > li::before {
+  content: counter(wdq) ".";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+.wd-qa > li > h3 {
+  margin: 0 0 .5rem;
+  font-size: 1rem;
+  color: var(--accent);
+}
+.wd-qa > li > p {
+  margin: 0 0 .8rem;
+  padding-inline-start: 1rem;
+  max-width: none;
+}
+.wd-qa > li > p:last-child { margin-bottom: 0; }
+
+/* 一題裡再分幾個小點（如「字根編碼有什麼特點」底下的單編碼／26 鍵／取形邏輯），
+   一樣用編號，跟外層題目的編號分開一階，靠瀏覽器內建 <ol> 標記就好——這層不用
+   跟標題對齊，不必比照 .wd-qa 另外用 ::before。 */
+.wd-qa .wd-sub {
+  margin: 0 0 .8rem;
+  padding-inline-start: 2.3rem;
+}
+.wd-qa .wd-sub > li { margin-bottom: .6rem; }
+.wd-qa .wd-sub > li:last-child { margin-bottom: 0; }
+
 /* 顏色圖例：紅／黃／綠／藍／紫依序對應拆碼順序第一到第五組，跟例字圖示同一套色階
    （見 .zg-altsvg 的 rb-* class），放在頁面最上面，讀圖之前先講清楚顏色的意思。 */
 .pr-legend {
