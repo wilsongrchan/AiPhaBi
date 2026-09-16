@@ -197,12 +197,35 @@ local function filter(input, env)
     elseif (c.start or 0) > segStart or (c._end or 0) < segEnd then
       part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
-    elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
-    elseif c.type == "ap_left" then exact[#exact + 1] = c  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
+    elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c }   -- 打滿四碼詞＝exact 一級
+    elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
-    elseif exactSet[c.text] then exact[#exact + 1] = c
+    elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
     else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
+  end
+
+  -- exact 這一級也要讓「選過次數」管得到：同一碼底下兩個字都是主碼（重複碼組，
+  -- 現在有 600+ 組）時，librime 交給我們的原始順序只反映碼表 weight，選字次數對它
+  -- 完全沒作用——回報過：同一碼一直選同一個字，選了六次還是排不到第一。
+  -- 不能直接照 score()（選過次數→常用度）整批重排——常用度贏的那個字常常正是被
+  -- aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個（這/記、家/衣…），照常用度重排
+  -- 會把被擠到後面的字撈回最前面，等於廢掉那個機制。做法跟 pool 同一套：只把「真的
+  -- 選過」的抽出來擺最前面、彼此照 score() 排；沒選過的維持原始相對順序（該擠在後面
+  -- 的還在後面，該在前面的還在前面）。
+  do
+    local boostedExact, plainExact = {}, {}
+    for _, e in ipairs(exact) do
+      if USERFREQ[e.c.text] then boostedExact[#boostedExact + 1] = e else plainExact[#plainExact + 1] = e end
+    end
+    for i, e in ipairs(boostedExact) do e.i = i end
+    table.sort(boostedExact, function(a, b)
+      local sa, sb = score(a.c.text), score(b.c.text)
+      if sa ~= sb then return sa > sb end
+      return a.i < b.i
+    end)
+    exact = boostedExact
+    for _, e in ipairs(plainExact) do exact[#exact + 1] = e end
   end
 
   -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
@@ -261,7 +284,7 @@ local function filter(input, env)
   end)
 
   for _, c in ipairs(short) do yield(c) end              -- 1. 簡碼
-  for _, c in ipairs(exact) do yield(c) end              -- 2. 主碼 exact
+  for _, e in ipairs(exact) do yield(e.c) end            -- 2. 主碼 exact（照 選過→常用度）
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
   for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
   for _, c in ipairs(demoted) do yield(c) end            -- 5. 沒打 ` 前綴卻冒出來的部件字，壓到這

@@ -351,6 +351,27 @@ do
 end
 
 print()
+print("== 兩個字天生同一個主碼（重複碼組）時，選過次數也要管得到，不是只管猜出來的池子 ==")
+do
+  -- 回報過：母／红 天生都是主碼 gi（見 codes.json），一直選 母，還是排不到第一——
+  -- 因為 exact 這一級（主碼 exact match）以前完全不排序，直接照 librime 給的原始順序
+  -- 出去，選字次數對它沒有作用。母（freq 較高）本來就該排第一；這裡故意把 红 塞在
+  -- 候選最前面模擬「這次剛好不是」，驗證選過 母 之後能把它拉回第一。
+  local order_mod = require("aiphabi_order")
+  for i = 1, 6 do order_mod._bump("母") end
+  local out = h.run{
+    schema = "aiphabi", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  order_mod._USERFREQ["母"] = nil
+  h.checkAt("打 GI：選過 母 六次後排第一（不受 librime 原始順序擋住）", out, 1, "母")
+
+  -- 不能矯枉過正：約定簡碼撞碼demote（這/記）不靠 USERFREQ，兩邊都沒選過時要維持
+  -- aiphabi_hint 已經排好的相對順序，不能被這裡新加的 exact 排序打散——這個案例
+  -- 前面「約定簡碼字本身主碼撞碼」那組測試已經覆蓋，這裡只是註明兩者不衝突。
+end
+
+print()
 print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
 do
   local ac = require("aiphabi_autocommit")
