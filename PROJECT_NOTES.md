@@ -845,6 +845,14 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-16 (second time)**, after merging Side A's biggest single-day batch yet
+  (159+269 new chars, recodes: 主/住/注/註/燕/駐/驻/蛀/炷/亜 and the 海/每/母/毒/梅/繁/敏 family),
+  pushing 字 9712→**10,139** (first ship over 10k) and 碼 13262→13852. `N=10500` now **crashes**.
+  Re-bisected: 9,000 passes, 9,125 fails — margin ~125, steady. Shipped at **`N=9000`**. 主's own
+  main/alt code swapped in the recode (`IF` now main, `QE` now alt — previously the reverse), which
+  broke one hardcoded test (`tests/run_tests.lua`'s 兼容碼 example used the old assignment); fixed
+  the test to match, not a real regression. Same verification pattern, plus a direct check that
+  `data.char2code["主"] == "if"` in the shipped bytes.
 - **Cliff re-checked 2026-09-16**, after merging a large batch of Side A commits (77+39+11+65+24+9+29+5
   new chars across the week, plus recodes: 橘/敍/牆/嗇/薔/穡/墻/録/兡/哥/临, and 〇 made codable),
   pushing 字 9513→9712, 碼 12950→13262. Common-only whitelist coverage also grew 6472→6494 (mostly
