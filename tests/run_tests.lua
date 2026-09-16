@@ -355,16 +355,87 @@ print("== 兩個字天生同一個主碼（重複碼組）時，選過次數也�
 do
   -- 回報過：母／红 天生都是主碼 gi（見 codes.json），一直選 母，還是排不到第一——
   -- 因為 exact 這一級（主碼 exact match）以前完全不排序，直接照 librime 給的原始順序
-  -- 出去，選字次數對它沒有作用。母（freq 較高）本來就該排第一；這裡故意把 红 塞在
-  -- 候選最前面模擬「這次剛好不是」，驗證選過 母 之後能把它拉回第一。
+  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 83857），
+  -- 這裡的 bug 不是「母 要追過 红」，是「librime 給的原始順序恰好把常用度較低的 红
+  -- 排第一」，選字次數只需要跨過「防手滑」這個下限（EXACT_MIN_EFF）就能把 母 拉回它
+  -- 本來就該有的第一名——不需要额外的加分去追差距，因為它從一開始就沒有落後。
+  -- 「差距越大，需要的次數越多」測的是另一種情況：選的字本身常用度真的比對手低，見
+  -- 下面 孑／子 那組。
   local order_mod = require("aiphabi_order")
-  for i = 1, 6 do order_mod._bump("母") end
-  local out = h.run{
+
+  local function reset(...)
+    for _, ch in ipairs({ ... }) do
+      order_mod._USERFREQ[ch] = nil
+      order_mod._EXACTFREQ[ch] = nil
+    end
+  end
+
+  -- 選一次不算：eff(1) < EXACT_MIN_EFF（防手滑），排序完全不動，紅還在第一。
+  reset("母")
+  order_mod._bump("母")
+  local out1 = h.run{
     schema = "aiphabi", code = "gi", options = {},
     cands = { { text = "红" }, { text = "母" } },
   }
-  order_mod._USERFREQ["母"] = nil
-  h.checkAt("打 GI：選過 母 六次後排第一（不受 librime 原始順序擋住）", out, 1, "母")
+  h.checkAt("打 GI：只選 母 一次——手滑不算，紅還是排第一", out1, 1, "红")
+  reset("母")
+
+  -- 選兩次：跨過 EXACT_MIN_EFF 下限，母本來常用度就贏 红，一跨過門檻就排回第一——
+  -- 不需要額外加分去追差距，因為它從一開始就沒有落後（見上面說明）。
+  order_mod._bump("母"); order_mod._bump("母")
+  local out2 = h.run{
+    schema = "aiphabi", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  h.checkAt("打 GI：選 母 兩次——跨過防手滑門檻，母排回第一（它本來就比較常用）", out2, 1, "母")
+  reset("母")
+
+  -- 真正的「差距越大，需要的次數越多」：孑（96322）想贏過常用度懸殊高出很多的
+  -- 子（379935，log 差 1.3+，比 母/紅 的 0.58 大超過一倍），選六次遠遠不夠。
+  reset("孑")
+  for i = 1, 6 do order_mod._bump("孑") end
+  local outBig = h.run{
+    schema = "aiphabi", code = "pi", options = {},
+    cands = { { text = "子" }, { text = "孑" } },
+  }
+  h.checkAt("打 PI：孑 想贏過懸殊常用的 子，選六次還不夠（差距很大）", outBig, 1, "子")
+  reset("孑")
+
+  -- 但選夠多次還是追得過去——不是「贏不了」，是「要選更多次」。孑/子 差距要選到
+  -- 15 次才夠（(12.848-11.475)/0.1 ≈ 13.7，取整數往上抓 15 次留點餘裕）。
+  reset("孑")
+  for i = 1, 15 do order_mod._bump("孑") end
+  local outBigEnough = h.run{
+    schema = "aiphabi", code = "pi", options = {},
+    cands = { { text = "子" }, { text = "孑" } },
+  }
+  h.checkAt("打 PI：孑 選到 15 次，差距夠大的次數終於追過 子", outBigEnough, 1, "孑")
+  reset("孑")
+
+  -- 差距小的話，跨過防手滑門檻就夠：孑（96322）跟 孒（93037）常用度很接近
+  -- （log 差只有 0.03），選兩次（剛跨過門檻）就該追過去，不用選到 15 次那麼多。
+  reset("孑")
+  order_mod._bump("孑"); order_mod._bump("孑")
+  local outClose = h.run{
+    schema = "aiphabi", code = "pi", options = {},
+    cands = { { text = "孒" }, { text = "孑" } },
+  }
+  h.checkAt("打 PI：孑 跟 孒 常用度接近，選兩次就夠追過去（差距小，門檻夠用）", outClose, 1, "孑")
+  reset("孑")
+
+  -- 選過的分數會隨時間衰減：模擬「很久以前選過六次、後來都沒再選」——EXACTFREQ 直接
+  -- 塞一個很舊的時間戳，過了好幾個半衰期，就算原始次數是 6，衰減後 eff 也該掉到
+  -- EXACT_MIN_EFF 以下，回到跟沒選過一樣。
+  order_mod._EXACTFREQ["母"] = { score = 6, ts = os.time() - 20 * 24 * 3600 }  -- 20 天前，半衰期 2.5 天
+  local effOld = order_mod._exact_eff("母")
+  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 EXACT_MIN_EFF 以下",
+    effOld < order_mod._EXACT_MIN_EFF, string.format("got eff=%.4f", effOld))
+  local outDecayed = h.run{
+    schema = "aiphabi", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  h.checkAt("打 GI：20 天前選過 母 六次、之後沒再選——退回跟沒選過一樣，紅還是第一", outDecayed, 1, "红")
+  reset("母")
 
   -- 不能矯枉過正：約定簡碼撞碼demote（這/記）不靠 USERFREQ，兩邊都沒選過時要維持
   -- aiphabi_hint 已經排好的相對順序，不能被這裡新加的 exact 排序打散——這個案例

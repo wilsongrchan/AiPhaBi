@@ -62,14 +62,56 @@ local function save()
   f:close()
 end
 
+-- exact 這一級（主碼天生撞碼，見下面 filter() 裡的說明）另外用一套會衰減的分數，跟
+-- USERFREQ（池子用，選一次就整批衝最前）分開——選一次生僻字不能直接贏過很常用的字，
+-- 半衰期跟 aiphabi_order_plus.lua 同一個常數，選過的分數會隨時間慢慢退回去。
+local HALFLIFE = 2.5 * 24 * 3600
+local function now() local ok, t = pcall(os.time); return ok and t or 0 end
+local function decay(dt) return 0.5 ^ (dt / HALFLIFE) end
+
+local EXACTFREQ = {}   -- text -> { score, ts }
+local EXACT_PATH = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/aiphabi_exactfreq.tsv")) or nil
+
+local function exact_load()
+  if not EXACT_PATH then return end
+  local f = io.open(EXACT_PATH, "r"); if not f then return end
+  for line in f:lines() do
+    local ch, s, ts = line:match("^(.-)\t([%d.]+)\t(%d+)$")
+    if ch and ch ~= "" then EXACTFREQ[ch] = { score = tonumber(s), ts = tonumber(ts) } end
+  end
+  f:close()
+end
+
+local function exact_save()
+  if not EXACT_PATH then return end
+  local f = io.open(EXACT_PATH, "w"); if not f then return end
+  for ch, e in pairs(EXACTFREQ) do f:write(ch, "\t", string.format("%.4f", e.score), "\t", e.ts, "\n") end
+  f:close()
+end
+
+local function exact_eff(text)             -- 衰減後的「有效選過分數」，沒選過就是 0
+  local e = EXACTFREQ[text]; if not e then return 0 end
+  return e.score * decay(now() - e.ts)
+end
+
+local function exact_bump(text)
+  local e = EXACTFREQ[text]
+  if e then e.score = e.score * decay(now() - e.ts) + 1; e.ts = now()
+  else EXACTFREQ[text] = { score = 1, ts = now() } end
+end
+
 local function bump(text)                 -- 詞本身也要加分，不能只拆單字——不然選詞候選
   USERFREQ[text] = (USERFREQ[text] or 0) + 1  -- （score() 查的是整個候選的 text）永遠選不進去，
+  exact_bump(text)                            -- exact 那一級自己另一套會衰減的分數，見上面說明。
   local i = 1                                 -- 次數全記在拆出來的單字頭上，詞卡在原地不會升。
   while i <= #text do
     local b = text:byte(i)
     local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
     local ch = text:sub(i, i + len - 1)
-    if ch ~= text then USERFREQ[ch] = (USERFREQ[ch] or 0) + 1 end  -- 單字本身避免跟上面重複加
+    if ch ~= text then
+      USERFREQ[ch] = (USERFREQ[ch] or 0) + 1  -- 單字本身避免跟上面重複加
+      exact_bump(ch)
+    end
     i = i + len
   end
 end
@@ -85,10 +127,12 @@ local function note_commit(text)
   push_history(text)
   bump(text)
   pcall(save)                             -- 每次上屏就寫回，重開也記得
+  pcall(exact_save)
 end
 
 local function init(env)
   pcall(load)                             -- 開機讀回上次的選字次數
+  pcall(exact_load)
   local ok, ctx = pcall(function() return env.engine.context end)
   if not ok or not ctx then return end
   pcall(function()
@@ -119,6 +163,17 @@ end
 -- 機率極低；真翻到了，超過的部分維持原始順序（碼表已經照 weight 排過／萬用鍵維持
 -- pairs() 原序，還是堪用，只是沒精排）接在後面。
 local MAX_SORT = 40
+
+-- exact 這一級的爬升校準：常用度先取 log，把懸殊的倍數差壓成加減關係（回報過的真實案例：
+-- 母 149276 vs 紅 83857，log 差 0.58；孑/孒/衛 都幾萬，子 卻 37 萬，log 差到 1.3+）。
+-- EXACT_BOOST：選過一次（衰減後）在這個 log 尺度上加的量。校準依據：想让「選 6 次」
+-- 剛好夠打平 母/紅 那組真實案例的差距（0.58），所以取 0.58/6 ≈ 0.097，抓整數感的 0.1——
+-- 差距小的字（log 差 <0.2，同一組裡常見）兩三次就能追過去；差距大的字（子 那種）要選
+-- 到十次以上才追得過去，越生僻、想贏過越常用的字，需要的次數越多。
+-- EXACT_MIN_EFF：選過次數（衰減後）低於這個值完全不算分——選一次（eff=1）就是 <1.5，
+-- 不會動；要「連續選到第二次」才開始起作用，防手滑誤觸一次就霸榜。
+local EXACT_BOOST = 0.1
+local EXACT_MIN_EFF = 1.5
 
 local function filter(input, env)
   local cands = {}
@@ -205,27 +260,36 @@ local function filter(input, env)
     else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
   end
 
-  -- exact 這一級也要讓「選過次數」管得到：同一碼底下兩個字都是主碼（重複碼組，
+  -- exact 這一級也要讓「選過次數」慢慢管得到：同一碼底下兩個字都是主碼（重複碼組，
   -- 現在有 600+ 組）時，librime 交給我們的原始順序只反映碼表 weight，選字次數對它
   -- 完全沒作用——回報過：同一碼一直選同一個字，選了六次還是排不到第一。
-  -- 不能直接照 score()（選過次數→常用度）整批重排——常用度贏的那個字常常正是被
-  -- aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個（這/記、家/衣…），照常用度重排
-  -- 會把被擠到後面的字撈回最前面，等於廢掉那個機制。做法跟 pool 同一套：只把「真的
-  -- 選過」的抽出來擺最前面、彼此照 score() 排；沒選過的維持原始相對順序（該擠在後面
-  -- 的還在後面，該在前面的還在前面）。
+  -- 但不能照 pool 那套「選過一次就整批衝最前面」：exact 撞碼常常懸殊（母 149276 vs
+  -- 紅 83857；孑/孒/衛 都幾萬，子 卻 37 萬）——選一次生僻字就贏過很常用的字，不合理，
+  -- 也不是回報要的效果（見上面 EXACT_BOOST／EXACT_MIN_EFF 的校準說明）。也不能整批照
+  -- log 常用度重排——這樣會把 aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個字（這/記、
+  -- 家/衣，兩個字都沒被選過）撈回最前面，等於廢掉那個機制。
+  -- 做法：插入排序，只移動「有算分」（eff ≥ EXACT_MIN_EFF）的那些字，一個一個往前追——
+  -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
+  -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
   do
-    local boostedExact, plainExact = {}, {}
-    for _, e in ipairs(exact) do
-      if USERFREQ[e.c.text] then boostedExact[#boostedExact + 1] = e else plainExact[#plainExact + 1] = e end
+    local function logf(text) return math.log(cf(text) + 1) end
+    local function key(e)
+      local eff = exact_eff(e.c.text)
+      if eff < EXACT_MIN_EFF then eff = 0 end
+      return logf(e.c.text) + EXACT_BOOST * eff
     end
-    for i, e in ipairs(boostedExact) do e.i = i end
-    table.sort(boostedExact, function(a, b)
-      local sa, sb = score(a.c.text), score(b.c.text)
-      if sa ~= sb then return sa > sb end
-      return a.i < b.i
-    end)
-    exact = boostedExact
-    for _, e in ipairs(plainExact) do exact[#exact + 1] = e end
+    for _, e in ipairs(exact) do
+      e.mover = exact_eff(e.c.text) >= EXACT_MIN_EFF
+    end
+    for i = 2, #exact do
+      if exact[i].mover then
+        local j = i
+        while j > 1 and key(exact[j - 1]) < key(exact[j]) do
+          exact[j - 1], exact[j] = exact[j], exact[j - 1]
+          j = j - 1
+        end
+      end
+    end
   end
 
   -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
@@ -291,8 +355,9 @@ local function filter(input, env)
   for _, e in ipairs(part) do yield(e.c) end             -- 6. 只吃前綴的切分候選，墊底
 end
 
--- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
+-- _USERFREQ／_bump／_EXACTFREQ／_exact_eff：只給 tests/run_tests.lua 用，不影響正式行為。
 -- get_last_commit／note_commit：給 aiphabi_wildcard／aiphabi_autocommit 用，是正式行為的一部分。
 return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
          get_last_commit = get_last_commit, note_commit = note_commit, get_last_n = get_last_n,
-         _MAX_SORT = MAX_SORT }
+         _MAX_SORT = MAX_SORT, _EXACTFREQ = EXACTFREQ, _exact_eff = exact_eff,
+         _EXACT_BOOST = EXACT_BOOST, _EXACT_MIN_EFF = EXACT_MIN_EFF }
