@@ -845,6 +845,13 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Cliff re-checked 2026-09-16**, after merging a large batch of Side A commits (77+39+11+65+24+9+29+5
+  new chars across the week, plus recodes: 橘/敍/牆/嗇/薔/穡/墻/録/兡/哥/临, and 〇 made codable),
+  pushing 字 9513→9712, 碼 12950→13262. Common-only whitelist coverage also grew 6472→6494 (mostly
+  異體 backfill 109→131), breaking the plateau noted a few ships back. `N=10500` (post-si4_pre2
+  value) now **crashes**. Re-bisected: 9,625 passes, 9,750 fails — margin ~125, healthy. Shipped at
+  **`N=9625`**. Same verification pattern, now including the jwej/qoq/qq ordering checks from the
+  last three fixes as a standing regression set for every ship going forward.
 - **四碼快打 (si4) hint extended to 2 typed letters, 2026-09-15** — follow-up to the exact-vs-partial
   split below: typing just 2 of a si4 signature (e.g. `qq` for 容祖兒's `qqfl`) showed nothing
   si4-related at all — `si4_on` only fired at `#code == 3 or 4`, so the candidate bar looked like a
