@@ -2568,6 +2568,10 @@
       [
         "E:虐#6,7,8",
         "F:南#6,7,8"
+      ],
+      [
+        "N:對#0,1",
+        "V:鯗#0,1"
       ]
     ],
     "note_thresholds": "merge_threshold 是全域門檻；個別字根可用 thr 收緊（由「確實不同」的裁決自動設定）。"
@@ -3943,7 +3947,7 @@
                 ]
               },
               "ex": "比",
-              "count": 127,
+              "count": 130,
               "seen": [
                 "比",
                 "階",
@@ -3985,6 +3989,13 @@
                     9,
                     10
                   ]
+                },
+                {
+                  "src": "藨",
+                  "strokes": [
+                    11,
+                    12
+                  ]
                 }
               ]
             }
@@ -3994,23 +4005,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "藨",
-                "strokes": [
-                  11,
-                  12
-                ]
-              },
-              "ex": "藨",
-              "count": 3,
-              "seen": [
-                "藨"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -6821,7 +6816,7 @@
                 ]
               },
               "ex": "萬",
-              "count": 177,
+              "count": 179,
               "seen": [
                 "萬",
                 "觀",
@@ -6858,6 +6853,15 @@
                     1,
                     2,
                     3
+                  ]
+                },
+                {
+                  "src": "鋩",
+                  "strokes": [
+                    8,
+                    9,
+                    10,
+                    14
                   ]
                 }
               ]
@@ -7528,25 +7532,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "鋩",
-                "strokes": [
-                  8,
-                  9,
-                  10,
-                  14
-                ]
-              },
-              "ex": "鋩",
-              "count": 2,
-              "seen": [
-                "鋩"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -10052,7 +10038,7 @@
                 ]
               },
               "ex": "美",
-              "count": 239,
+              "count": 244,
               "seen": [
                 "美",
                 "候",
@@ -10096,6 +10082,14 @@
                     7,
                     8,
                     9
+                  ]
+                },
+                {
+                  "src": "喚",
+                  "strokes": [
+                    9,
+                    10,
+                    11
                   ]
                 }
               ]
@@ -10592,26 +10586,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "喚",
-                "strokes": [
-                  9,
-                  10,
-                  11
-                ]
-              },
-              "ex": "喚",
-              "count": 5,
-              "seen": [
-                "喚",
-                "渙",
-                "瘓"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -10630,7 +10605,7 @@
                 ]
               },
               "ex": "甚",
-              "count": 133,
+              "count": 136,
               "seen": [
                 "縣",
                 "網",
@@ -10664,6 +10639,12 @@
                   "src": "贏",
                   "strokes": [
                     2
+                  ]
+                },
+                {
+                  "src": "檵",
+                  "strokes": [
+                    17
                   ]
                 }
               ]
@@ -11180,23 +11161,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "檵",
-                "strokes": [
-                  17
-                ]
-              },
-              "ex": "檵",
-              "count": 3,
-              "seen": [
-                "檵",
-                "㡭"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -12847,12 +12812,13 @@
                 ]
               },
               "ex": "號",
-              "count": 7,
+              "count": 8,
               "seen": [
                 "號",
                 "虒",
                 "遞",
-                "喨"
+                "喨",
+                "猇"
               ],
               "learned": true,
               "thr": 0.005,
@@ -12862,6 +12828,13 @@
                   "strokes": [
                     8,
                     9
+                  ]
+                },
+                {
+                  "src": "猇",
+                  "strokes": [
+                    9,
+                    10
                   ]
                 }
               ]
@@ -12951,23 +12924,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "猇",
-                "strokes": [
-                  9,
-                  10
-                ]
-              },
-              "ex": "猇",
-              "count": 1,
-              "seen": [
-                "猇"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -15317,7 +15274,7 @@
                 ]
               },
               "ex": "於",
-              "count": 154,
+              "count": 156,
               "seen": [
                 "於",
                 "方",
@@ -15387,6 +15344,13 @@
                   "strokes": [
                     4,
                     5
+                  ]
+                },
+                {
+                  "src": "臱",
+                  "strokes": [
+                    13,
+                    14
                   ]
                 }
               ]
@@ -15555,23 +15519,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "臱",
-                "strokes": [
-                  13,
-                  14
-                ]
-              },
-              "ex": "臱",
-              "count": 2,
-              "seen": [
-                "臱"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -16196,7 +16144,7 @@
                 ]
               },
               "ex": "出",
-              "count": 157,
+              "count": 159,
               "seen": [
                 "出",
                 "離",
@@ -16223,7 +16171,17 @@
                 "噸",
                 "拙"
               ],
-              "learned": true
+              "learned": true,
+              "alts": [
+                {
+                  "src": "襾",
+                  "strokes": [
+                    3,
+                    4,
+                    5
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -16486,24 +16444,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "襾",
-                "strokes": [
-                  3,
-                  4,
-                  5
-                ]
-              },
-              "ex": "襾",
-              "count": 2,
-              "seen": [
-                "襾"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -17233,6 +17174,22 @@
                   ]
                 }
               ]
+            },
+            {
+              "glyph": {
+                "src": "鯗",
+                "strokes": [
+                  0,
+                  1
+                ]
+              },
+              "ex": "鯗",
+              "count": 2,
+              "seen": [
+                "鯗"
+              ],
+              "learned": true,
+              "thr": 0.1181
             }
           ]
         },
@@ -17474,7 +17431,7 @@
                 ]
               },
               "ex": "校",
-              "count": 437,
+              "count": 439,
               "seen": [
                 "其",
                 "只",
@@ -17643,6 +17600,13 @@
                     10,
                     11
                   ]
+                },
+                {
+                  "src": "爇",
+                  "strokes": [
+                    7,
+                    8
+                  ]
                 }
               ]
             },
@@ -17655,7 +17619,7 @@
                 ]
               },
               "ex": "換",
-              "count": 49,
+              "count": 51,
               "seen": [
                 "邊",
                 "換",
@@ -17732,6 +17696,13 @@
                   "strokes": [
                     7,
                     8
+                  ]
+                },
+                {
+                  "src": "譫",
+                  "strokes": [
+                    11,
+                    12
                   ]
                 }
               ]
@@ -18054,53 +18025,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "譫",
-                "strokes": [
-                  11,
-                  12
-                ]
-              },
-              "ex": "譫",
-              "count": 2,
-              "seen": [
-                "譫"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "鯗",
-                "strokes": [
-                  0,
-                  1
-                ]
-              },
-              "ex": "鯗",
-              "count": 2,
-              "seen": [
-                "鯗"
-              ],
-              "learned": true
-            },
-            {
-              "glyph": {
-                "src": "爇",
-                "strokes": [
-                  7,
-                  8
-                ]
-              },
-              "ex": "爇",
-              "count": 2,
-              "seen": [
-                "爇"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
@@ -19398,7 +19323,7 @@
                 ]
               },
               "ex": "趁",
-              "count": 73,
+              "count": 77,
               "seen": [
                 "定",
                 "起",
@@ -19451,6 +19376,13 @@
                 },
                 {
                   "src": "蹙",
+                  "strokes": [
+                    16,
+                    17
+                  ]
+                },
+                {
+                  "src": "鞮",
                   "strokes": [
                     16,
                     17
@@ -20799,23 +20731,7 @@
           "desc": "",
           "auto": true,
           "tier": "primary",
-          "shapes": [
-            {
-              "glyph": {
-                "src": "鞮",
-                "strokes": [
-                  16,
-                  17
-                ]
-              },
-              "ex": "鞮",
-              "count": 4,
-              "seen": [
-                "鞮"
-              ],
-              "learned": true
-            }
-          ]
+          "shapes": []
         }
       ]
     },
