@@ -136,12 +136,13 @@ do
   }
   h.checkComment("打 JKXQ → 我 標 簡碼 JKQ（無括號）", out2, "我", "簡碼 JKQ")
 
-  -- 兼容碼：打 IF 出 主，標「兼容 (QE)」而不是「主碼 (QE)」
+  -- 兼容碼：主 改碼後主碼是 IF、兼容碼是 QE（a1b90ea）——打 QE 出 主，
+  -- 標「兼容 (IF)」而不是「主碼 (IF)」
   local out3 = h.run{
-    schema = "aiphabi", code = "if", options = ALL_ON,
+    schema = "aiphabi", code = "qe", options = ALL_ON,
     cands = { { text = "主" } },
   }
-  h.checkComment("打 IF → 主 標 兼容 (QE)", out3, "主", "兼容 (QE)")
+  h.checkComment("打 QE → 主 標 兼容 (IF)", out3, "主", "兼容 (IF)")
 end
 
 print()
