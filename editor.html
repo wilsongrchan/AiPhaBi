@@ -373,6 +373,10 @@
   #srcIn { width:70px; font-size:26px; text-align:center; padding:4px;
     border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink);
     font-family:"PingFang TC",serif; }
+  .vfregion { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px;
+    color:var(--muted); }
+  .vfreg { font-size:11px; padding:2px 8px; border-radius:6px; }
+  .vfreg.on { background:var(--accent); border-color:var(--accent); color:#fff; }
   #strokeGrid { display:flex; flex-wrap:wrap; gap:6px; max-width:400px; }
   .sk { width:62px; height:62px; border:1px solid var(--line); border-radius:8px;
     background:var(--bg); cursor:pointer; position:relative; }
@@ -496,6 +500,11 @@
         <div>
           <input id="srcIn" maxlength="2" placeholder="笑">
           <div id="srcMsg" style="font-size:11px;color:var(--muted);margin-top:4px;width:70px"></div>
+          <div id="pkregion" class="vfregion">
+            <button class="vfreg on" data-reg="" title="大陸筆順（makemeahanzi）">大陸</button>
+            <button class="vfreg" data-reg="tw" title="台灣教育部筆順——只在兩地寫法不同時才需要">台灣</button>
+            <button class="vfreg" data-reg="hk" title="香港教育局筆順——只在兩地寫法不同時才需要">香港</button>
+          </div>
         </div>
         <div id="strokeGrid"></div>
         <div>
@@ -574,7 +583,8 @@ const touch = () => { dirty = true; $('#status').textContent = '未儲存'; $('#
 /* A shape is EITHER  {z:"日"}  (a Unicode glyph)
    OR                 {glyph:{src:"笑", strokes:[0,1,2]}}  (a stroke subset of a source char).
    The second form is what lets 字根 exist that Unicode has no codepoint for. */
-const shapeKey = s => s.z || `${s.glyph.src}#${s.glyph.strokes.join(',')}`;
+const shapeKey = s => s.z ||
+  `${s.glyph.src}${s.glyph.region ? ':' + s.glyph.region : ''}#${s.glyph.strokes.join(',')}`;
 const TIERS = [
   ['primary',   '優等字根'],
   ['secondary', '次等 · 孤立字根'],
@@ -595,7 +605,7 @@ async function computeDuplicates() {
   const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
   const items = [];
   for (const { letter, s } of allShapes()) {
-    if (!s.glyph) continue;
+    if (!s.glyph || s.glyph.region) continue;   /* 台灣／香港來源沒有中線，不能比對 */
     const g = await Zigen.getGlyph(s.glyph.src);
     if (!g) continue;
     const med = s.glyph.strokes.map(i => g.medians[i]);
@@ -654,6 +664,68 @@ function bboxOf(strokes, sel) {
   if (x1 < x0) return '0 0 1024 1024';
   const pad = 60, w = x1 - x0 + pad * 2, h = y1 - y0 + pad * 2, m = Math.max(w, h);
   return `${x0 - pad - (m - w) / 2} ${y0 - pad - (m - h) / 2} ${m} ${m}`;
+}
+
+/* ---------- 字根定義來源也可以是台灣／香港字形 ----------
+   makemeahanzi（大陸）是 1024 方框＋Y 軸翻轉（SVG_TF）；台灣教育部只有輪廓、
+   2048 方框、不翻轉；香港教育局是逐字各自的 viewBox，每筆還帶自己的
+   tx/ty 位移（見 hk.py）。三者座標系不同，不能互套 transform，所以統一成
+   {paths:[{d,tx,ty}], viewBox, tf} 再畫 —— tf 只有大陸那份需要。
+   也因為台灣／香港沒有中線資料，這樣收的字根不能參與 medians 比對
+   （重複偵測／預測／建議歸類），只能當範例 —— 各處呼叫 Zigen.getGlyph 取中線
+   的地方要自己跳過 form.region 存在的形狀，見那幾處的 continue/return。 */
+const regionGlyphCache = new Map();
+async function formGlyph(form) {
+  if (!form) return null;
+  if (!form.region) {
+    const st = await getGlyph(form.src);
+    return st && { paths: st.map(d => ({ d })), viewBox: '0 0 1024 1024', tf: SVG_TF };
+  }
+  const key = form.region + ':' + form.src;
+  if (!regionGlyphCache.has(key)) {
+    const url = (form.region === 'hk' ? '/api/hk?c=' : '/api/tw?c=') + encodeURIComponent(form.src);
+    regionGlyphCache.set(key, fetch(url).then(r => r.ok ? r.json() : null).then(j => {
+      if (!j || !j.strokes) return null;
+      return form.region === 'hk'
+        ? { paths: j.strokes.map(s => ({ d: s.d, tx: s.tx, ty: s.ty })), viewBox: j.viewBox, tf: '' }
+        : { paths: j.strokes.map(d => ({ d })), viewBox: '0 0 2048 2048', tf: '' };
+    }));
+  }
+  return regionGlyphCache.get(key);
+}
+/* 不裁切、顯示整個字形（跟 glyphSvg 不同，這裡是「這個形狀在哪個字裡」的完整視圖用） */
+function formSvg(fg, sel, cls = 'gly') {
+  if (!fg) return `<svg class="${cls}" viewBox="0 0 1024 1024"></svg>`;
+  const draw = (p, i) => {
+    const path = `<path class="${sel.includes(i) ? 'on' : 'off'}" d="${p.d}"/>`;
+    return p.tx != null ? `<g transform="translate(${p.tx},${p.ty})">${path}</g>` : path;
+  };
+  const body = fg.paths.map(draw).join('');
+  return fg.tf
+    ? `<svg class="${cls}" viewBox="${fg.viewBox}"><g transform="${fg.tf}">${body}</g></svg>`
+    : `<svg class="${cls}" viewBox="${fg.viewBox}">${body}</svg>`;
+}
+/* 三個共用的「定義來源→畫出來」封裝：大陸走原本裁切好的 glyphSvg/rootIconSvg
+   （行為不變），台灣／香港走上面的 formSvg（不裁切，樸素一點，換來能收字根）。 */
+async function formGlyphHtml(src, region, sel) {
+  if (!region) { const st = await getGlyph(src); return st ? glyphSvg(st, sel) : ''; }
+  const fg = await formGlyph({ src, region });
+  return fg ? formSvg(fg, sel) : '';
+}
+async function formIconHtml(src, region, sel) {
+  if (!region) { const st = await getGlyph(src); return st ? rootIconSvg(st, sel) : ''; }
+  const fg = await formGlyph({ src, region });
+  return fg ? formSvg(fg, sel, 'gly') : '';
+}
+async function formFullHtml(src, region, sel) {
+  if (!region) {
+    const st = await getGlyph(src);
+    if (!st) return '';
+    return `<svg viewBox="0 0 1024 1024"><g transform="${SVG_TF}">` +
+      st.map((d, k) => `<path class="${sel.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') + '</g></svg>';
+  }
+  const fg = await formGlyph({ src, region });
+  return fg ? formSvg(fg, sel) : '';
 }
 
 /* ============================== render ============================== */
@@ -811,7 +883,7 @@ async function fillExampleCell(td, it, letter) {
       /* ex 剛好就是定義來源本字 → 不必查碼表，這幾筆本來就是準的
          （查碼表反而可能因為那個字後來被重新取碼、已經不是這個字母而找不到）。 */
       let hit = s.glyph.src === s.ex
-        ? { ch: s.ex, seg: { strokes: s.glyph.strokes }, code: null }
+        ? { ch: s.ex, seg: { strokes: s.glyph.strokes }, code: null, region: s.glyph.region }
         : null;
       if (!hit) {
         const users = await charsUsing(s, letter);
@@ -820,11 +892,7 @@ async function fillExampleCell(td, it, letter) {
       if (hit) {
         const holder = el('span', 'exglyph');
         holder.title = `${hit.ch}${hit.code ? `（${hit.code}）` : ''}　第 ${hit.seg.strokes.map(k => k + 1).join('、')} 筆`;
-        const g = await Zigen.getGlyph(hit.ch);
-        holder.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${SVG_TF}">` +
-          g.strokes.map((d, k) =>
-            `<path class="${hit.seg.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
-          '</g></svg>';
+        holder.innerHTML = await formFullHtml(hit.ch, hit.region, hit.seg.strokes);
         td.append(holder);
         continue;
       }
@@ -947,7 +1015,8 @@ function renderChart() {
         const holder = el('span', 'cglyph' + (s.glyph ? '' : ' ctext'));
         if (s.glyph) {
           holder.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
-          getGlyph(s.glyph.src).then(st => { if (st) holder.innerHTML = rootIconSvg(st, s.glyph.strokes); });
+          formIconHtml(s.glyph.src, s.glyph.region, s.glyph.strokes)
+            .then(html => { if (html) holder.innerHTML = html; });
         } else {
           holder.textContent = s.z || '';
         }
@@ -1015,11 +1084,10 @@ function chip(arr, i, s, dup, L, it) {
   if (s.glyph) {                                   /* stroke-subset 字根 */
     const holder = el('div');
     holder.innerHTML = '<svg class="gly" viewBox="0 0 1024 1024"></svg>';
-    getGlyph(s.glyph.src).then(st => {
-      if (st) holder.innerHTML = glyphSvg(st, s.glyph.strokes);
-    });
-    holder.title = `${s.glyph.src} 第 ${s.glyph.strokes.map(n => n + 1).join(',')} 筆\n` +
-      '點一下：看有哪些字用到它';
+    formGlyphHtml(s.glyph.src, s.glyph.region, s.glyph.strokes)
+      .then(html => { if (html) holder.innerHTML = html; });
+    holder.title = `${s.glyph.src}${s.glyph.region ? '（' + (s.glyph.region === 'hk' ? '香港' : '台灣') + '字形）' : ''} ` +
+      `第 ${s.glyph.strokes.map(n => n + 1).join(',')} 筆\n點一下：看有哪些字用到它`;
     holder.style.cursor = 'pointer';
     holder.onclick = () => openUsage(arr, s, L);
     c.append(holder);
@@ -1454,6 +1522,7 @@ async function findApplications(shape, letter) {
   /* 這個字根（含變體）的向量與頭尾結構 */
   const forms = [];
   for (const f of [shape.glyph, ...(shape.alts || [])].filter(Boolean)) {
+    if (f.region) continue;   /* 台灣／香港來源沒有中線，不能比對 */
     const g = await Zigen.getGlyph(f.src);
     if (!g) continue;
     const med = f.strokes.map(i => g.medians[i]);
@@ -1621,7 +1690,7 @@ async function openUsage(arr, shape, L) {
 
   const users = letter ? await charsUsing(shape, letter) : [];
   const views = [
-    { ch: shape.glyph.src, strokes: shape.glyph.strokes, tag: '定義來源' },
+    { ch: shape.glyph.src, strokes: shape.glyph.strokes, tag: '定義來源', region: shape.glyph.region },
     ...users.filter(u => u.ch !== shape.glyph.src)
       .map(u => ({ ch: u.ch, strokes: u.seg.strokes, tag: u.code || '' })),
   ];
@@ -1635,11 +1704,7 @@ async function openUsage(arr, shape, L) {
 
   const draw = async () => {
     const v = views[at];
-    const g = await Zigen.getGlyph(v.ch);
-    $('#uglyph').innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${Shape.SVG_TF}">` +
-      g.strokes.map((d, k) =>
-        `<path class="${v.strokes.includes(k) ? 'on' : 'off'}" d="${d}"/>`).join('') +
-      '</g></svg>';
+    $('#uglyph').innerHTML = await formFullHtml(v.ch, v.region, v.strokes);
     $('#ugcap').innerHTML =
       `<b>${v.ch}</b> 第 ${v.strokes.map(k => k + 1).join('、')} 筆` +
       (v.tag ? `　<span class="rvtag">${v.tag}</span>` : '') +
@@ -1675,6 +1740,7 @@ async function charsUsing(shape, letter) {
   const thr = data.meta.merge_threshold || Zigen.SAME_SHAPE;
   const forms = [];
   for (const f of [shape.glyph, ...(shape.alts || [])].filter(Boolean)) {
+    if (f.region) continue;   /* 台灣／香港來源沒有中線，不能比對 */
     const g = await Zigen.getGlyph(f.src);
     if (!g) continue;
     const med = f.strokes.map(i => g.medians[i]);
@@ -1721,6 +1787,7 @@ async function buildSugLib() {
       for (const sh of it.shapes) {
         if (!sh.glyph) continue;
         for (const form of [sh.glyph, ...(sh.alts || [])]) {
+          if (form.region) continue;   /* 台灣／香港來源沒有中線，不能比對 */
           const g = await Zigen.getGlyph(form.src);
           if (!g) continue;
           const med = form.strokes.map(i => g.medians[i]);
@@ -1736,7 +1803,7 @@ async function buildSugLib() {
 
 async function suggestIntention(L, shape) {
   if (!sugLib) await buildSugLib();
-  if (!shape.glyph) return null;
+  if (!shape.glyph || shape.glyph.region) return null;   /* 台灣／香港來源沒有中線，不能比對 */
   const g = await Zigen.getGlyph(shape.glyph.src);
   if (!g) return null;
   const med = shape.glyph.strokes.map(i => g.medians[i]);
@@ -1796,6 +1863,7 @@ async function vecsOf(shapes) {
   for (const s of shapes) {
     if (!s.glyph) continue;
     for (const form of [s.glyph, ...(s.alts || [])]) {
+      if (form.region) continue;   /* 台灣／香港來源沒有中線，不能比對 */
       const g = await Zigen.getGlyph(form.src);
       if (!g) continue;
       const med = form.strokes.map(i => g.medians[i]);
@@ -1876,9 +1944,8 @@ function renderMergeBar() {
   for (const s of picked) {
     const holder = el('span');
     holder.innerHTML = '<svg viewBox="0 0 1024 1024"></svg>';
-    if (s.glyph) getGlyph(s.glyph.src).then(st => {
-      if (st) holder.innerHTML = glyphSvg(st, s.glyph.strokes);
-    });
+    if (s.glyph) formGlyphHtml(s.glyph.src, s.glyph.region, s.glyph.strokes)
+      .then(html => { if (html) holder.innerHTML = html; });
     prev.append(holder);
   }
   $('#domerge').disabled = picked.size < 2;
@@ -2230,7 +2297,7 @@ async function renderDupes(dup) {
 }
 
 /* ====================== modal: stroke picker ====================== */
-let targetArr = null, editing = null, srcStrokes = null, sel = [];
+let targetArr = null, editing = null, srcStrokes = null, sel = [], pkRegion = '';
 
 function showPane(which) {
   $('#paneStroke').classList.toggle('on', which === 'stroke');
@@ -2245,6 +2312,8 @@ async function openPicker(arr, shape) {
   targetArr = arr; editing = shape;
   $('#modal').classList.add('on'); showPane('stroke');
   const src = shape && shape.glyph ? shape.glyph.src : '';
+  pkRegion = (shape && shape.glyph && shape.glyph.region) || '';
+  document.querySelectorAll('#pkregion .vfreg').forEach(b => b.classList.toggle('on', b.dataset.reg === pkRegion));
   $('#srcIn').value = src;
   sel = shape && shape.glyph ? [...shape.glyph.strokes] : [];
   await loadSrc(src);
@@ -2252,19 +2321,30 @@ async function openPicker(arr, shape) {
   if (!src) $('#srcIn').focus();
 }
 
+/* 源字的筆畫可以是大陸（有中線，能參與比對／預測）或台灣／香港（只有輪廓，
+   純範例——見上面 formGlyph 那段註解）。三者座標系不同，畫格子跟預覽都走
+   formGlyph／formSvg 統一處理，不能沿用只認 1024 方框的舊寫法。 */
 async function loadSrc(c) {
   const grid = $('#strokeGrid'); grid.innerHTML = ''; srcStrokes = null;
   $('#preview').innerHTML = '';
   if (!c) { $('#srcMsg').textContent = ''; return; }
-  const st = await getGlyph(c);
-  if (!st) { $('#srcMsg').textContent = '沒有筆畫資料'; return; }
-  srcStrokes = st;
-  $('#srcMsg').textContent = `${st.length} 筆`;
-  st.forEach((d, i) => {
+  const fg = await formGlyph({ src: c, region: pkRegion });
+  if (!fg) {
+    $('#srcMsg').textContent = pkRegion ? '這個字沒有這個地區的筆畫資料——換別的地區或字試試。' : '沒有筆畫資料';
+    return;
+  }
+  srcStrokes = fg.paths;
+  $('#srcMsg').textContent = `${fg.paths.length} 筆`;
+  const draw1 = (p, cls) => {
+    const path = `<path class="${cls}" d="${p.d}"/>`;
+    return p.tx != null ? `<g transform="translate(${p.tx},${p.ty})">${path}</g>` : path;
+  };
+  fg.paths.forEach((p, i) => {
     const b = el('div', 'sk' + (sel.includes(i) ? ' sel' : ''));
-    b.innerHTML = `<svg viewBox="0 0 1024 1024"><g transform="${SVG_TF}">` +
-      st.slice(0, i).map(p => `<path class="prev" d="${p}"/>`).join('') +
-      `<path class="this" d="${d}"/></g></svg><b>${i + 1}</b>`;
+    const inner = fg.paths.slice(0, i).map(pp => draw1(pp, 'prev')).join('') + draw1(p, 'this');
+    b.innerHTML = (fg.tf
+      ? `<svg viewBox="${fg.viewBox}"><g transform="${fg.tf}">${inner}</g></svg>`
+      : `<svg viewBox="${fg.viewBox}">${inner}</svg>`) + `<b>${i + 1}</b>`;
     b.onclick = () => {
       const k = sel.indexOf(i);
       k < 0 ? sel.push(i) : sel.splice(k, 1);
@@ -2273,16 +2353,25 @@ async function loadSrc(c) {
     };
     grid.append(b);
   });
-  $('#preview').outerHTML = glyphSvg(st, sel, '').replace('<svg', '<svg id="preview"');
+  $('#preview').outerHTML = formSvg(fg, sel, '').replace('<svg', '<svg id="preview"');
 }
 $('#srcIn').oninput = e => {
   const c = [...e.target.value.trim()][0] || '';
   if (c) { sel = []; loadSrc(c); }
 };
+document.querySelectorAll('#pkregion .vfreg').forEach(b => b.onclick = () => {
+  pkRegion = b.dataset.reg;
+  document.querySelectorAll('#pkregion .vfreg').forEach(x => x.classList.toggle('on', x === b));
+  sel = [];
+  const c = [...$('#srcIn').value.trim()][0] || '';
+  if (c) loadSrc(c);
+});
 $('#addStroke').onclick = () => {
   const c = [...$('#srcIn').value.trim()][0];
   if (!c || !srcStrokes || !sel.length) return;
-  const shape = { glyph: { src: c, strokes: [...sel] }, ex: (editing && editing.ex) || c };
+  const glyph = { src: c, strokes: [...sel] };
+  if (pkRegion) glyph.region = pkRegion;
+  const shape = { glyph, ex: (editing && editing.ex) || c };
   if (editing) { delete editing.z; delete editing.glyph; delete editing.uncertain;
                  Object.assign(editing, shape); }
   else targetArr.push(shape);
@@ -2397,7 +2486,8 @@ async function save() {
 }
 function exportTxt() {
   const out = [`# ${data.meta.name} 字根表 v${data.meta.version}`, ''];
-  const show = s => (s.z || `${s.glyph.src}[${s.glyph.strokes.map(n => n + 1).join('')}]`) +
+  const show = s => (s.z ||
+    `${s.glyph.src}${s.glyph.region ? '/' + s.glyph.region : ''}[${s.glyph.strokes.map(n => n + 1).join('')}]`) +
     (s.ex ? `(${s.ex})` : '');
   for (const L of data.letters) {
     out.push(L.letter);
