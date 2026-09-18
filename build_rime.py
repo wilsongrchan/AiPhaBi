@@ -681,6 +681,9 @@ def main():
                     # （跟簡碼／左簡碼同一套反向提醒；5+ 字詞兩式都收，提醒只留第一式＝前四字首碼，
                     # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒；alts 生出的
                     # 額外簽名一律不提醒——提醒只教「最好記的那條」，不是每條路都講）
+    si4_full = {}   # 詞 -> 四碼：跟 si4_rev 同一份 base 簽名，但不管「有沒有比平常打法短」，
+                    # 每個進過 si4 的詞都收——純粹給「還差幾碼」補全提示用（見 aiphabi_hint.lua），
+                    # 跟 si4_rev 那個「值不值得提醒」的篩選是兩回事，故意分開兩張表。
     si4_alt_words = 0   # 統計用：多虧 alts 才多出額外簽名的詞數，蓋建置報告一行
     for _w, _wt in phrase_w.items():
         _chs = list(_w)
@@ -700,6 +703,12 @@ def main():
         for _c4 in _codes4:
             si4[_c4].append((_wt, _w))        # 完整四碼
             si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
+            si4[_c4[:2]].append((_wt, _w))    # 前兩碼——回報過：打 QQ（容祖兒＝QQFL 的前兩碼）候選欄
+                                               # 只看得到不相干的字，會誤以為打錯；容祖兒的正常詞組碼
+                                               # 是 qvoqmeffl，跟 qq 完全不沾邊，只有靠這張表才找得到，
+                                               # 兩碼就先冒出來當「確實有這條路」的提示，不用等到第三碼。
+        si4_full[_w] = _codes4[0]             # base 簽名（每個位置的第一選項），不管值不值得反向提醒，
+                                               # 每個進過 si4 的詞都收——給「還差幾碼」的補全提示用。
         _wc = _word_codes(_w)                 # 只有「四碼真的比平常打法短」才提醒，不然沒省到
         if _wc and min(len(_c) for _c in _wc) > 4:
             si4_rev[_w] = _codes4[0]          # base 簽名（每個位置的第一選項），最好記的那條
@@ -815,6 +824,9 @@ def main():
         dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
     dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
     for w, sig in sorted(si4_rev.items()):
+        dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
+    dl += ["}", "M.si4_full = {"]       # 詞 → 四碼：不篩選版的 si4_rev，補全提示（還差幾碼）專用
+    for w, sig in sorted(si4_full.items()):
         dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：

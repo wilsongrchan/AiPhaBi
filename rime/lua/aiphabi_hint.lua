@@ -102,9 +102,11 @@ local function filter(input, env)
   -- 那種 #code 閘門，直接拿整串碼查表。查不到就沒事，是一次雜湊查詢而已。
   local left_on = ok and ctx:get_option("aiphabi_left_short")
   -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
-  -- 打到第 3 碼就先補全（四碼的前三碼），第 4 碼是完整四碼。
+  -- 打到第 2 碼就先補全（回報：容祖兒＝QQFL，正常詞組連打碼是 qvoqmeffl，跟 qq 完全不沾邊，
+  -- 打 QQ 時候選欄只看得到不相干的字，會誤以為打錯——兩碼就該先冒出來，證明「這條路是通的」，
+  -- 不用等到第三碼；第 4 碼是完整四碼）。
   local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
-  local si4_on    = ok and (#code == 3 or #code == 4) and phrase_on
+  local si4_on    = ok and (#code == 2 or #code == 3 or #code == 4) and phrase_on
   -- 四碼反向提醒：跟簡碼／左簡碼同一套「教你少打幾碼」，但不鎖 #code==3/4 那個閘門——
   -- 這個提醒是打「詞組連打」的完整長碼（通常遠超過 4 碼）拿到詞當正常候選時才附註的。
   local si4_rev_on = ok and phrase_on
@@ -195,7 +197,7 @@ local function filter(input, env)
       end
     end
     if si4_on then                       -- 四碼快打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
-                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴＝補全（ap_pool，墊底）。
+                                          -- 蓋過容錯猜測／補全）；#code==2／3 是四碼前綴＝補全（ap_pool，墊底）。
       local exact4 = #code == 4
       for _, w in ipairs(data.si4[code] or {}) do
         if not seen[w] then
@@ -203,7 +205,13 @@ local function filter(input, env)
           if exact4 then
             extra[#extra + 1] = Candidate("ap_si4", s, e, w, "四碼")
           else
-            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, "四碼")
+            -- 還差幾碼：從 si4_full 查這個詞的完整四碼簽名，扣掉已經打的這幾碼，剩下的
+            -- 就是還差幾碼——回報過喜歡這個（手機上見過），比單純標「四碼」更有信心：
+            -- 明講「還差 -FL」，不是只丟一個候選讓人猜對不對。查不到（理論上不會，si4_full
+            -- 收了每個進過 si4 的詞）就退回單純標「四碼」，不讓提示消失。
+            local full = data.si4_full[w]
+            local cmt = (full and #full > #code) and ("四碼 -" .. full:sub(#code + 1):upper()) or "四碼"
+            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, cmt)
           end
         end
       end

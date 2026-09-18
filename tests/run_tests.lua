@@ -443,6 +443,58 @@ do
 end
 
 print()
+print("== 四碼快打補全提前到第 2 碼，附「還差幾碼」提示（回報：QQ 只看得到 中庸，誤以為打錯）==")
+do
+  -- 容祖兒＝QQFL 是靠四碼快打表才找得到的，跟它自己正常的詞組連打碼（qvoqmeffl）完全
+  -- 不沾邊——打 QQ 以前完全不會冒出來，候選欄只有不相干的字，會誤以為打錯。門檻降到
+  -- 2 碼（不降到 1 碼——1 碼一次要排的候選以千計，見 build_rime.py 的說明），並且用
+  -- si4_full 查出完整簽名、標「還差幾碼」，不只是單標「四碼」。
+  local out2 = h.run{
+    schema = "aiphabi", code = "qq", options = { aiphabi_phrase = true },
+    cands = { { text = "中庸", type = "completion" } },
+  }
+  local found, cmt
+  for _, c in ipairs(out2) do
+    if c.text == "容祖兒" then found, cmt = true, c.comment end
+  end
+  h.check("打 QQ：容祖兒（四碼快打 QQFL 的前兩碼）該冒出來，不是只有 中庸",
+    found, "容祖兒 not found in candidates")
+  h.check("打 QQ：容祖兒 該標「還差幾碼」＝四碼 -FL（不是只有籠統的「四碼」）",
+    cmt == "四碼 -FL", string.format("got comment=%s", tostring(cmt)))
+
+  local out3 = h.run{
+    schema = "aiphabi", code = "qqf", options = { aiphabi_phrase = true },
+    cands = { { text = "中庸", type = "completion" } },
+  }
+  local cmt3
+  for _, c in ipairs(out3) do
+    if c.text == "容祖兒" then cmt3 = c.comment end
+  end
+  h.check("打 QQF：容祖兒 該標 四碼 -L（只差最後一碼）",
+    cmt3 == "四碼 -L", string.format("got comment=%s", tostring(cmt3)))
+
+  -- 打滿的四碼（exact 一級）不受這個影響，還是標單純的「四碼」，不是「還差 0 碼」那種怪話。
+  local out4 = h.run{
+    schema = "aiphabi", code = "qqfl", options = { aiphabi_phrase = true },
+    cands = {},
+  }
+  local cmt4
+  for _, c in ipairs(out4) do
+    if c.text == "容祖兒" then cmt4 = c.comment end
+  end
+  h.check("打滿 QQFL：容祖兒 標單純「四碼」（打滿了，不是還差幾碼）",
+    cmt4 == "四碼", string.format("got comment=%s", tostring(cmt4)))
+
+  -- 真的有字的完整碼剛好是這兩三碼時，那個字（exact 一級）要贏過四碼補全（pool 一級）——
+  -- 真實案例：汏 的主碼就是 ZY，剛好也是「沒什麼」等一串四碼快打詞的前兩碼。
+  local outReal = h.run{
+    schema = "aiphabi", code = "zy", options = { aiphabi_phrase = true },
+    cands = { { text = "汏" } },
+  }
+  h.checkAt("打 ZY：汏（真的主碼就是 ZY）該贏過 沒什麼 等四碼補全", outReal, 1, "汏")
+end
+
+print()
 print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
 do
   local ac = require("aiphabi_autocommit")
