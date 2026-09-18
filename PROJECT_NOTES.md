@@ -845,6 +845,68 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged three more of Wilson's own commits, 2026-09-18 (second merge same day)** — simplified-
+  character frequency floor, `ap_variant` merged into the exact tier, and si4 completion
+  unification, plus a Side A data pull that (among other things) silently dropped 沒's `WX`
+  shortcode (`rules.json` edit — a plain Side A change, nothing to do with any of this; the
+  shortcode just hadn't been merged in yet, which is why "wx is no longer a quick code" showed up
+  as a report before this merge landed).
+  - **Simplified-character frequency floor** (`SIMP_FREQ_DISCOUNT = 0.7`, `build_rime.py`):
+    `charfreq`/`freq.json` (both essay/news-corpus-derived) systematically undervalue simplified
+    characters — measured across 4,200 traditional/simplified pairs, 80% of the simplified side
+    scored lower than its traditional counterpart, 27% at less than half. Common simplified chars
+    (竞/众/导…) were losing to obscure traditional/variant-borrowed characters purely because the
+    frequency sources don't see them. Fix: a simplified character's score floors at 0.7× the best
+    of its traditional source(s)' score — not full parity (Wilson: this is a traditional-first IME,
+    a simplified character has no claim to outranking its own traditional form) but enough to stop
+    it from losing to genuinely obscure competitors. 0.7 was picked by scanning every same-code
+    collision group: 0.6 saved none of the 12 found boundary cases (incl. this report's ivojl 竞/兗),
+    0.65 saved 6, 0.7 saved 10, 0.75 saved all 12 but ranked common simplified chars too high
+    (导 in the top 1.8% of the whole character table).
+  - **`ap_variant` (打繁出簡／打簡出繁) merged into the exact tier** instead of always trailing it
+    (`aiphabi_order.lua`): previously tagged `ap_pool`, so a simplified/traditional variant
+    unconditionally sorted after every real exact-tier match regardless of frequency (报告:
+    汎[exact] 排在 泛[打繁出簡帶出來，其實更常用] 前面). Now tagged `ap_variant`, folded into the
+    exact tier, and always treated as a "mover" in the tier's insertion-sort positioning (no
+    `EXACT_MIN_EFF` fumble-prevention gate — a variant has no "native arrival order" worth
+    preserving, unlike a real same-code collision, so it should always land at its frequency-
+    correct slot from the moment it appears).
+  - **si4 completion unified onto plain `type=completion`, dropping `ap_si4_partial`/`si4_pre`/
+    `si4_pre2`** (`build_rime.py`, `aiphabi_hint.lua`): the 2026-09-15 fix's separate type/tables
+    for "still-typing" si4 signatures are superseded by a simpler design — one `M.si4` table keyed
+    by variable-length code prefixes (2/3/4 letters), naturally disambiguated by the user's typed
+    code length at lookup time (a 4-letter lookup can only match 4-letter keys). Partial matches
+    now get the same `type=completion` librime uses for its own native "still typing" candidates,
+    reasoning that they're genuinely the same category and should compete purely by usage
+    frequency (回報: QQ's 中庸, a real completion, was losing to si4 guesses because they were
+    structurally separated instead of competing on frequency in the same pool).
+  - **Reconciliation this merge needed, beyond the mechanical parts**: auto-merge briefly dropped
+    the `elseif c.type == "completion" then comp[...]` classification branch entirely while
+    resolving the adjacent `ap_variant` conflict — caught via the base regression suite (碰巧/碰瓷
+    tier-separation test failed outright, not just si4-specific tests). The old tiebreak
+    (real completions beat si4 guesses on a score tie — matters on mobile, where `M.wordfreq={}`
+    means multi-char completions routinely tie at 0) had no replacement after `ap_si4_partial`
+    was dropped; restored it keyed on the candidate's comment prefix (`"四碼"`) instead of type,
+    in both `aiphabi_order.lua` and `aiphabi_order_plus.lua`. Most substantively: the exact tier's
+    insertion-sort (only lets a "mover" climb past its immediate left neighbor, stops as soon as
+    it loses one comparison) implicitly assumed movers arrive *after* the peers they need to beat.
+    This branch's earlier hints-before-main-loop reorder (needed so hint candidates land inside
+    `MAX_SORT`'s window — see the 2026-08-29 K/大 fix) can place an always-mover `ap_variant`
+    candidate at position 1, where nothing ever compares against it from the correct direction —
+    reproduced directly with `za` 導/汐/汎/泛 (泛 landed #1, ahead of 導, and stayed there because
+    nothing downstream of it in the array was itself a mover). Rewrote the sort as backbone
+    (non-movers, original relative order preserved exactly) + movers each inserted at their
+    correct `key()`-sorted position via a scan — independent of where they started. All 189 tests
+    pass against a freshly rebuilt (non-essay) `aiphabi_data.lua`; also re-verified end-to-end
+    against the literal bytes in the reshipped mobile zip (jwej/qoq/qq regression set plus a new
+    za 導/汐/汎/泛 check added to the verification harness).
+  - **Cliff moved hard this ship**: the si4 restructuring (each phrase now generates 3 keys instead
+    of 1 full-signature key + 2 packed-string entries in separate tables) plus 字 10,139→10,533
+    growth pushed the crash point way down — `N=9000` (last ship) now **crashes immediately**.
+    Rebisected from scratch: 8,375 passes, 8,437 fails — margin ~62. Shipped at **`N=8375`**, a
+    large drop from 9,000. **Re-bisect again next ship regardless of how small the accompanying
+    data change looks** — a Lua-side restructuring of `M.si4` can move the cliff by thousands even
+    with no new characters at all, independent of the usual character-growth-driven erosion.
 - **aiphabi_order.lua: exact tier rewritten around EXACTFREQ decay (Wilson's own commits, merged
   2026-09-18)** — Wilson replaced this session's 2026-09-14 `table.sort(exact, score())` fix
   (see below) with a proper decay-based mechanism: a separate `EXACTFREQ` table (text → {score,
