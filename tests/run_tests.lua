@@ -459,8 +459,8 @@ do
   end
   h.check("打 QQ：容祖兒（四碼快打 QQFL 的前兩碼）該冒出來，不是只有 中庸",
     found, "容祖兒 not found in candidates")
-  h.check("打 QQ：容祖兒 該標「還差幾碼」＝四碼 -FL（不是只有籠統的「四碼」）",
-    cmt == "四碼 -FL", string.format("got comment=%s", tostring(cmt)))
+  h.check("打 QQ：容祖兒 該標「還差幾碼」＝四碼 - FL（不是只有籠統的「四碼」）",
+    cmt == "四碼 - FL", string.format("got comment=%s", tostring(cmt)))
 
   local out3 = h.run{
     schema = "aiphabi", code = "qqf", options = { aiphabi_phrase = true },
@@ -470,8 +470,8 @@ do
   for _, c in ipairs(out3) do
     if c.text == "容祖兒" then cmt3 = c.comment end
   end
-  h.check("打 QQF：容祖兒 該標 四碼 -L（只差最後一碼）",
-    cmt3 == "四碼 -L", string.format("got comment=%s", tostring(cmt3)))
+  h.check("打 QQF：容祖兒 該標 四碼 - L（只差最後一碼）",
+    cmt3 == "四碼 - L", string.format("got comment=%s", tostring(cmt3)))
 
   -- 打滿的四碼（exact 一級）不受這個影響，還是標單純的「四碼」，不是「還差 0 碼」那種怪話。
   local out4 = h.run{
