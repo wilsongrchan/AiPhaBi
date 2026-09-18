@@ -109,9 +109,9 @@ local function filter(input, env)
   -- 那種 #code 閘門，直接拿整串碼查表。查不到就沒事，是一次雜湊查詢而已。
   local left_on = ok and ctx:get_option("aiphabi_left_short")
   -- 四碼詞組：跟著詞組走——二合一（aiphabi_plus）詞組恆開故恆有；純愛發筆看 aiphabi_phrase。
-  -- 打到第 2 碼就先補全（還差兩碼），第 3 碼再補全一次（還差一碼），第 4 碼是完整四碼——
-  -- 只到第 3 碼才有提示的話，打完第 2 碼候選欄會看起來斷頭（沒別的東西可打了），使用者
-  -- 會誤以為這條路打錯（回報：QQ 打到一半看起來沒東西，第三碼 QQF 才冒出來）。
+  -- 打到第 2 碼就先補全（回報：容祖兒＝QQFL，正常詞組連打碼是 qvoqmeffl，跟 qq 完全不沾邊，
+  -- 打 QQ 時候選欄只看得到不相干的字，會誤以為打錯——兩碼就該先冒出來，證明「這條路是通的」，
+  -- 不用等到第三碼；第 4 碼是完整四碼）。
   local phrase_on = env.engine.schema.schema_id == "aiphabi_plus" or ctx:get_option("aiphabi_phrase")
   local si4_on    = ok and (#code == 2 or #code == 3 or #code == 4) and phrase_on
   -- 四碼反向提醒：跟簡碼／左簡碼同一套「教你少打幾碼」，但不鎖 #code==3/4 那個閘門——
@@ -145,7 +145,13 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, v, refMark("簡", sc))
+              -- 標 ap_variant，不是 ap_pool：這個字不是猜的（不像同類／偏旁碼／三簡碼那些
+              -- 自動配對），是同一個字的另一種寫法，跟這個碼本身撞碼的其他字一樣「確定」——
+              -- 只是剛好不是這個碼的主碼而已。回報過：撞碼的簡體字明明比繁體某些字常用
+              -- （汎的簡體 泛 freq 98277，比同碼的 汐 95951 還高），卻因為被歸進 ap_pool，
+              -- 硬性排在所有 exact 一級的字之後（A B C D E a b c d e），見
+              -- aiphabi_order.lua 那邊把 ap_variant 併進 exact 一級照常用度排的處理。
+              extra[#extra + 1] = Candidate("ap_variant", s, e, v, refMark("簡", sc))
             end
           end
         end
@@ -154,7 +160,7 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, v, refMark("繁", sc))
+              extra[#extra + 1] = Candidate("ap_variant", s, e, v, refMark("繁", sc))
             end
           end
         end
@@ -204,33 +210,28 @@ local function filter(input, env)
       end
     end
     if si4_on then                       -- 四碼快打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
-                                          -- 蓋過容錯猜測／補全）；#code==3 是四碼前綴——還沒打完，算補全，
-                                          -- 標「- X」提示還差哪一碼，跟主碼／左簡碼的補全同一級（比 exact
-                                          -- 低一級），不能跟打滿的四碼混在同一池（回報：qoq 打到一半的
-                                          -- 「福田康夫」被當成打滿處理，蓋過真的打滿主碼的「中國」）。
-      if #code == 4 then
-        for _, w in ipairs(data.si4[code] or {}) do
-          if not seen[w] then
-            seen[w] = true
+                                          -- 蓋過容錯猜測／補全）；#code==2／3 是四碼前綴，還沒打完，標 completion——
+                                          -- 跟 librime 自己標的「碼還沒打完」（如打 QQ 冒出的 中庸＝qqrh 的前綴）
+                                          -- 是同一類事（都還差幾碼），該一起比常用度，不能讓四碼快打的猜測无條件
+                                          -- 贏過真的還沒打完、但可能更常用的字（回報：QQ 只顧著看四碼猜測，
+                                          -- 中庸 這種本來就打得到的候選反而被擠到最後）。標 ap_pool 的話會跟
+                                          -- 「已經打滿的候選」同池比字頻，那才是真正該墊底的地方（見上面
+                                          -- aiphabi_autocommit.lua 的 INCOMPLETE_TYPE，那邊本來就把 ap_pool／
+                                          -- completion 當同一類「還沒定案」，這裡的排序該跟上）。
+      local exact4 = #code == 4
+      for _, w in ipairs(data.si4[code] or {}) do
+        if not seen[w] then
+          seen[w] = true
+          if exact4 then
             extra[#extra + 1] = Candidate("ap_si4", s, e, w, "四碼")
-          end
-        end
-      elseif #code == 3 then
-        for _, packed in ipairs(data.si4_pre[code] or {}) do
-          -- packed = 詞 + 還差的那一碼（單一 ASCII 字母黏在字尾，見 build_rime.py 註解）
-          local w, missing = packed:sub(1, -2), packed:sub(-1)
-          if not seen[w] then
-            seen[w] = true
-            extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. missing:upper())
-          end
-        end
-      elseif #code == 2 then
-        for _, packed in ipairs(data.si4_pre2[code] or {}) do
-          -- packed = 詞 + 還差的兩碼（兩個 ASCII 字母黏在字尾，跟前三碼那條同一套編碼）
-          local w, missing = packed:sub(1, -3), packed:sub(-2)
-          if not seen[w] then
-            seen[w] = true
-            extra4[#extra4 + 1] = Candidate("ap_si4_partial", s, e, w, "四碼 - " .. missing:upper())
+          else
+            -- 還差幾碼：從 si4_full 查這個詞的完整四碼簽名，扣掉已經打的這幾碼，剩下的
+            -- 就是還差幾碼——回報過喜歡這個（手機上見過），比單純標「四碼」更有信心：
+            -- 明講「還差 -FL」，不是只丟一個候選讓人猜對不對。查不到（理論上不會，si4_full
+            -- 收了每個進過 si4 的詞）就退回單純標「四碼」，不讓提示消失。
+            local full = data.si4_full[w]
+            local cmt = (full and #full > #code) and ("四碼 -" .. full:sub(#code + 1):upper()) or "四碼"
+            extra4[#extra4 + 1] = Candidate("completion", s, e, w, cmt)
           end
         end
       end

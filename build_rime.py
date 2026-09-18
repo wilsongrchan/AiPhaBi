@@ -107,16 +107,55 @@ def main():
     except FileNotFoundError:
         charfreq = {}
 
+    # 打繁出簡／打簡出繁：跟試打頁共用同一份繁簡對照（data/opencc.json）。搬到這裡（原本在
+    # 更後面）是因為 freq_w 需要它——見下面「簡體字常用度地板」。
+    try:
+        opencc = json.loads((DATA / "opencc.json").read_text("utf-8"))
+    except FileNotFoundError:
+        opencc = {"t2s": {}, "s2t": {}}
+    t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
+
     max_rule = next((r for r in rules["rules"]
                      if r["id"] == "max_code_length" and r.get("enabled")), None)
 
     # 字 → 它所有打得出來的碼（去重、保持順序）
     NATIVE = 100_000_000     # 自己的碼永遠排在「別的字形借用同一個碼」之前（留足空間給字頻）
 
-    def freq_w(c):
+    # 簡體字常用度地板：charfreq（台港新聞）跟 freq.json（rime-essay）兩個字頻來源都明顯
+    # 偏繁體——量過 4200 組繁簡對照，80%（3356 組）簡體字分數比繁體來源低，27%
+    # （1149 組）不到繁體的一半。回報案例：兗（生僻地名用字，兩個來源都沒收，純靠
+    # essay 排名打底）freq 94936，硬是贏過 竞（常用簡體字，同樣沒被 charfreq 收）的
+    # 83978——不是 竞 真的比 兗 冷門，是量測來源系統性看不到簡體字。
+    # 修法：簡體字的分數至少要有繁體來源（可能不只一個，多對一簡化取最高）分數打過
+    # SIMP_FREQ_DISCOUNT 折後的值——不是跟繁體來源完全打平（Wilson 定案：這本來就是
+    # 繁體為主的輸入法，簡體字沒理由跟它對應的繁體字排序相等，稍微退一步是合理的），
+    # 只是不能墊底墊到輸給生僻／異體／外文借形字——那些字兩個語料庫本來就沒收，分數
+    # 常常只是essay排名墊出來的個位數到幾萬，簡體打過折後仍遠遠贏過它們。0.75 試過一輪
+    # 實測：地板值換算排名太高（导 落在全字表前 1.8%，跟 只／老／手 同一級，Wilson
+    # 覺得對一個繁體為主的輸入法來說太高）；0.6 又太低——量過全部撞碼組，量到 12 組
+    # 「簡體字目前輸給同碼撞碼對手」的邊界案例（含這次回報案例 ivojl 竞/兗），0.6 一組
+    # 都救不了，0.65 救 6 組，0.7 救 10 組，0.75 全救。Wilson 定案 0.7：介於兩者之間，
+    # 比 0.75 溫和，但仍救得到絕大多數（10/12）邊界案例，只剩兩組（xx 友/双/爻、
+    # nxf 怪/坚/恠）還差一點，需要到 0.75 才會翻過來。
+    SIMP_FREQ_DISCOUNT = 0.7
+    _simp_source = defaultdict(list)     # 簡體字 → 對應的繁體來源（可能不只一個）
+    for _t, _ss in t2s_map.items():
+        for _s in _ss:
+            _simp_source[_s].append(_t)
+
+    def _raw_freq_w(c):
         # 現代字頻優先（每一計次值 10000，主導排序），rime-essay 次序打平手。
         base = max(1, 100000 - rank.get(c, 99999))
         return charfreq.get(c, 0) * 10000 + base
+
+    def freq_w(c):
+        raw = _raw_freq_w(c)
+        srcs = _simp_source.get(c)
+        if srcs:
+            floor = max(_raw_freq_w(t) for t in srcs) * SIMP_FREQ_DISCOUNT
+            if floor > raw:
+                return floor
+        return raw
 
     weight = {}             # (碼, 字) -> 權重（重複時取最大）
 
@@ -367,12 +406,7 @@ def main():
 
     _tw_common = _load_standard("tw_common_4808.txt")
 
-    # 打繁出簡／打簡出繁：跟試打頁共用同一份繁簡對照（data/opencc.json）。
-    try:
-        opencc = json.loads((DATA / "opencc.json").read_text("utf-8"))
-    except FileNotFoundError:
-        opencc = {"t2s": {}, "s2t": {}}
-    t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
+    # opencc／t2s_map／s2t_map 已經在檔案前面（freq_w 那邊）載入了，這裡沿用同一份。
     # 不打簡體：只濾掉「一對一純簡化字」（馬→马、魚→鱼），不動「歸併字」——
     # 這些字本身就是獨立傳承字，只是剛好也被拿來簡化別的字（后＝王后／後的簡化…）。
     # s2t_map 光看資料分不出這兩種，白名單放在 data/dual_use_merged.json（跟
@@ -703,22 +737,13 @@ def main():
         return list(dict.fromkeys(_sigs))          # 去重，保序（base 永遠是第一個）
 
     si4 = defaultdict(list)
-    si4_pre = defaultdict(list)   # 四碼前三碼（打到第三碼，還差最後一碼）-> [(權重, 詞, 還差的那一碼), ...]
-                                   # 跟 si4 分開存，因為完整四碼不需要「還差哪碼」，前三碼才需要——
-                                   # 直接掛在 si4[前三碼] 底下的話，每個詞真正的第四碼是誰就沒地方
-                                   # 記了（回報：qoq 打到一半的「福田康夫」被當成打滿的四碼處理，
-                                   # 標成 exact 一級，蓋過真的打滿的 中國——四碼快打「還沒打完」
-                                   # 跟左簡碼「還沒打完」該是同一種處理：算補全，不算 exact）。
-    si4_pre2 = defaultdict(list)  # 四碼前兩碼（打到第二碼，還差最後兩碼）-> [(權重, 詞, 還差的兩碼), ...]
-                                   # 只到前三碼才有提示的話，打完第二碼、候選欄看起來像斷頭（沒別的
-                                   # 東西可打了），使用者會以為自己打錯——回報：QQ 打到一半看起來
-                                   # 沒東西，第三碼 QQF 才冒出來，誤以為 QQ 這條路不通。前兩碼比三碼
-                                   # 更早出現、也更容易撞到一堆詞，所以是「另一張表」而非沿用
-                                   # si4_pre 的前綴——量體不同，各自去重、各自上限 24，互不影響。
     si4_rev = {}    # 詞 -> 四碼：打了詞組連打的完整碼，剛好有四碼快打可用，就提醒「其實有四碼」
                     # （跟簡碼／左簡碼同一套反向提醒；5+ 字詞兩式都收，提醒只留第一式＝前四字首碼，
                     # 從頭打起最好記，另一式留給真的靠它找到詞的人，不必兩個都提醒；alts 生出的
                     # 額外簽名一律不提醒——提醒只教「最好記的那條」，不是每條路都講）
+    si4_full = {}   # 詞 -> 四碼：跟 si4_rev 同一份 base 簽名，但不管「有沒有比平常打法短」，
+                    # 每個進過 si4 的詞都收——純粹給「還差幾碼」補全提示用（見 aiphabi_hint.lua），
+                    # 跟 si4_rev 那個「值不值得提醒」的篩選是兩回事，故意分開兩張表。
     si4_alt_words = 0   # 統計用：多虧 alts 才多出額外簽名的詞數，蓋建置報告一行
     _si4_source = phrase_w
     if MOBILE_SI4_TOPN:
@@ -739,9 +764,14 @@ def main():
         if any(_c in char_alt_codes for _c in (set(_chs[:4]) | {_chs[-1]})):
             si4_alt_words += 1
         for _c4 in _codes4:
-            si4[_c4].append((_wt, _w))                       # 完整四碼
-            si4_pre[_c4[:3]].append((_wt, _w, _c4[3]))       # 前三碼＋還差的第四碼（打到第三碼算補全）
-            si4_pre2[_c4[:2]].append((_wt, _w, _c4[2:4]))    # 前兩碼＋還差的後兩碼（打到第二碼算補全）
+            si4[_c4].append((_wt, _w))        # 完整四碼
+            si4[_c4[:3]].append((_wt, _w))    # 前三碼（打到第三碼就先補全出來，跟拼音簡拼同場競爭）
+            si4[_c4[:2]].append((_wt, _w))    # 前兩碼——回報過：打 QQ（容祖兒＝QQFL 的前兩碼）候選欄
+                                               # 只看得到不相干的字，會誤以為打錯；容祖兒的正常詞組碼
+                                               # 是 qvoqmeffl，跟 qq 完全不沾邊，只有靠這張表才找得到，
+                                               # 兩碼就先冒出來當「確實有這條路」的提示，不用等到第三碼。
+        si4_full[_w] = _codes4[0]             # base 簽名（每個位置的第一選項），不管值不值得反向提醒，
+                                               # 每個進過 si4 的詞都收——給「還差幾碼」的補全提示用。
         _wc = _word_codes(_w)                 # 只有「四碼真的比平常打法短」才提醒，不然沒省到
         if _wc and min(len(_c) for _c in _wc) > 4:
             si4_rev[_w] = _codes4[0]          # base 簽名（每個位置的第一選項），最好記的那條
@@ -751,25 +781,6 @@ def main():
             if _w not in _seen:
                 _seen.add(_w); _out.append(_w)
         si4[_c] = _out[:24]
-    for _c in list(si4_pre):                  # 同上，但去重鍵是「詞＋還差的碼」——同一詞在同一
-        _seen, _out = set(), []               # 前三碼底下可能有兩種不同第四碼（來自不同 alts 簽名），
-        for _, _w, _last in sorted(si4_pre[_c], key=lambda x: -x[0]):   # 兩條都值得留、給不同提醒
-            if (_w, _last) not in _seen:
-                _seen.add((_w, _last))
-                # 詞＋還差的那一碼編成一個字串（單一 ASCII 字母黏在 UTF-8 中文詞尾），
-                # 不用 {w=,n=} 這種每筆一個 table——量過：每個 si4_pre 條目多一層 table
-                # constructor，LuaJIT 常數上限一口氣從 N=11700 掉到 N<9000，划不來。
-                # Lua 端用 w:sub(1,-2) 去掉最後一 byte 還原詞、w:sub(-1) 取出那一碼即可
-                # （中文字在 UTF-8 都是多 byte，最後一 byte 加的 ASCII 字母不會被撞到）。
-                _out.append(_w + _last)
-        si4_pre[_c] = _out[:24]
-    for _c in list(si4_pre2):                 # 同上，還差的是兩碼（一樣黏在詞尾，一次取兩個 byte）
-        _seen, _out = set(), []
-        for _, _w, _last2 in sorted(si4_pre2[_c], key=lambda x: -x[0]):
-            if (_w, _last2) not in _seen:
-                _seen.add((_w, _last2))
-                _out.append(_w + _last2)
-        si4_pre2[_c] = _out[:24]
     print(f"四碼快打 {sum(len(v) for v in si4.values())} 詞 → {len(si4)} 個四碼；"
           f"其中 {len(si4_rev)} 詞真的比平常打法短，才給「四碼」提醒")
     if si4_alt_words:
@@ -883,16 +894,11 @@ def main():
     dl += ["}", "M.si4 = {"]            # 四碼 → [詞]（四碼快打；aiphabi_phrase 開關控制，依詞頻排）
     for sig, ws in sorted(si4.items()):
         dl.append(f'  [{lua_str(sig)}]={lua_arr(ws)},')
-    dl += ["}", "M.si4_pre = {"]        # 前三碼 → [詞+還差的第四碼(黏在字尾的單一 ASCII 字母)]
-                                         # （打到第三碼算補全，不是打滿——見上面 si4_pre 的註解）
-    for pre, ws in sorted(si4_pre.items()):
-        dl.append(f'  [{lua_str(pre)}]={lua_arr(ws)},')
-    dl += ["}", "M.si4_pre2 = {"]       # 前兩碼 → [詞+還差的後兩碼(黏在字尾的兩個 ASCII 字母)]
-                                         # （打到第二碼算補全——見上面 si4_pre2 的註解）
-    for pre, ws in sorted(si4_pre2.items()):
-        dl.append(f'  [{lua_str(pre)}]={lua_arr(ws)},')
     dl += ["}", "M.si4_rev = {"]        # 詞 → 四碼（打完整詞組連打碼時提醒「其實有四碼」；跟著詞組開關走）
     for w, sig in sorted(si4_rev.items()):
+        dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
+    dl += ["}", "M.si4_full = {"]       # 詞 → 四碼：不篩選版的 si4_rev，補全提示（還差幾碼）專用
+    for w, sig in sorted(si4_full.items()):
         dl.append(f'  [{lua_str(w)}]={lua_str(sig)},')
     # ---- 詞頻（真語料 essay.txt）：字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），
     #      多字詞一律查真語料計次，再「校準」到單字常用度的同一把尺（跟字頻可直接比大小）：

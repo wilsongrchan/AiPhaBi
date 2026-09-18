@@ -96,11 +96,12 @@ print("== 四碼快打只打到前三碼＝補全，不是打滿：不能跟打�
 for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 打 QOQ：中國 的詞組碼剛好是 QOQ（中q + 國oq，國有約定簡碼）；同一個前三碼底下也收了
   -- 好幾個四碼快打詞（福田康夫＝QOQI、家喻户晓＝QOQB…），都只打到前三碼，還差最後一碼，
-  -- 標 type=ap_si4_partial。這些「還沒打完」的不該跟打滿主碼的 中國 同級（回報：福田康夫
+  -- 標 type=completion（跟 librime 原生補全同一個 type，見 aiphabi_hint.lua）。這些
+  -- 「還沒打完」的是補全一級，不該跟打滿主碼、exact 一級的 中國 同級（回報：福田康夫
   -- 排到 中國 前面，因為前三碼曾經被當「打滿的四碼」處理，沒有跟真的打滿四碼分開）。
   -- 福田康夫／家喻户晓 不用自己塞進 cands——它們是 aiphabi_hint.lua 自己從真實的
-  -- data.si4_pre['qoq'] 查出來、動態生成 extra4 候選的（type/comment 都是那邊決定），
-  -- 塞一個「假裝已經是 ap_si4_partial」的候選進 cands 反而不寫實：cands 代表的是碼表
+  -- data.si4['qoq'] 查出來、動態生成 extra4 候選的（type/comment 都是那邊決定），
+  -- 塞一個「假裝已經是 completion」的候選進 cands 反而不寫實：cands 代表的是碼表
   -- 吐出來的原始候選，真實情況下 Rime 不會吐出這個 type，會被主迴圈的 markHints 誤當
   -- 一般候選重新處理、蓋掉本來該有的「- I」提示。
   local out = h.run{
@@ -108,7 +109,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     cands = { { text = "中國" } },
   }
   h.checkAt(schema .. " · 打滿主碼 中國 排在還沒打完的四碼快打前面", out, 1, "中國")
-  h.checkComment(schema .. " · 福田康夫 標「四碼 - I」（還差哪一碼）", out, "福田康夫", "四碼 - I")
+  h.checkComment(schema .. " · 福田康夫 標「四碼 -I」（還差哪一碼）", out, "福田康夫", "四碼 -I")
   h.checkPresent(schema .. " · 福田康夫 還在（只是排後面）", out, "福田康夫", true)
 end
 
@@ -123,7 +124,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     cands = {},
   }
   h.checkPresent(schema .. " · 打 QQ 找得到 容祖兒（四碼快打前兩碼）", out, "容祖兒", true)
-  h.checkComment(schema .. " · 容祖兒 標「四碼 - FL」（還差哪兩碼）", out, "容祖兒", "四碼 - FL")
+  h.checkComment(schema .. " · 容祖兒 標「四碼 -FL」（還差哪兩碼）", out, "容祖兒", "四碼 -FL")
 end
 
 print()
@@ -537,6 +538,87 @@ do
   -- 不能矯枉過正：約定簡碼撞碼demote（這/記）不靠 USERFREQ，兩邊都沒選過時要維持
   -- aiphabi_hint 已經排好的相對順序，不能被這裡新加的 exact 排序打散——這個案例
   -- 前面「約定簡碼字本身主碼撞碼」那組測試已經覆蓋，這裡只是註明兩者不衝突。
+end
+
+print()
+print("== 四碼快打補全提前到第 2 碼，附「還差幾碼」提示（回報：QQ 只看得到 中庸，誤以為打錯）==")
+do
+  -- 容祖兒＝QQFL 是靠四碼快打表才找得到的，跟它自己正常的詞組連打碼（qvoqmeffl）完全
+  -- 不沾邊——打 QQ 以前完全不會冒出來，候選欄只有不相干的字，會誤以為打錯。門檻降到
+  -- 2 碼（不降到 1 碼——1 碼一次要排的候選以千計，見 build_rime.py 的說明），並且用
+  -- si4_full 查出完整簽名、標「還差幾碼」，不只是單標「四碼」。
+  local out2 = h.run{
+    schema = "aiphabi", code = "qq", options = { aiphabi_phrase = true },
+    cands = { { text = "中庸", type = "completion" } },
+  }
+  local found, cmt
+  for _, c in ipairs(out2) do
+    if c.text == "容祖兒" then found, cmt = true, c.comment end
+  end
+  h.check("打 QQ：容祖兒（四碼快打 QQFL 的前兩碼）該冒出來，不是只有 中庸",
+    found, "容祖兒 not found in candidates")
+  h.check("打 QQ：容祖兒 該標「還差幾碼」＝四碼 -FL（不是只有籠統的「四碼」）",
+    cmt == "四碼 -FL", string.format("got comment=%s", tostring(cmt)))
+
+  local out3 = h.run{
+    schema = "aiphabi", code = "qqf", options = { aiphabi_phrase = true },
+    cands = { { text = "中庸", type = "completion" } },
+  }
+  local cmt3
+  for _, c in ipairs(out3) do
+    if c.text == "容祖兒" then cmt3 = c.comment end
+  end
+  h.check("打 QQF：容祖兒 該標 四碼 -L（只差最後一碼）",
+    cmt3 == "四碼 -L", string.format("got comment=%s", tostring(cmt3)))
+
+  -- 打滿的四碼（exact 一級）不受這個影響，還是標單純的「四碼」，不是「還差 0 碼」那種怪話。
+  local out4 = h.run{
+    schema = "aiphabi", code = "qqfl", options = { aiphabi_phrase = true },
+    cands = {},
+  }
+  local cmt4
+  for _, c in ipairs(out4) do
+    if c.text == "容祖兒" then cmt4 = c.comment end
+  end
+  h.check("打滿 QQFL：容祖兒 標單純「四碼」（打滿了，不是還差幾碼）",
+    cmt4 == "四碼", string.format("got comment=%s", tostring(cmt4)))
+
+  -- 真的有字的完整碼剛好是這兩三碼時，那個字（exact 一級）要贏過四碼補全（pool 一級）——
+  -- 真實案例：汏 的主碼就是 ZY，剛好也是「沒什麼」等一串四碼快打詞的前兩碼。
+  local outReal = h.run{
+    schema = "aiphabi", code = "zy", options = { aiphabi_phrase = true },
+    cands = { { text = "汏" } },
+  }
+  h.checkAt("打 ZY：汏（真的主碼就是 ZY）該贏過 沒什麼 等四碼補全", outReal, 1, "汏")
+end
+
+print()
+print("== 打繁出簡／打簡出繁帶出來的字，別無條件墊在所有 exact 撞碼字之後 ==")
+do
+  -- 回報：ZA 撞碼 导(exact，字本身也是簡體，常用度地板打七折後 258602，還是遠贏
+  -- 繁體來源 導 打折前的 369432 乘 0.7——見下面「簡體字常用度地板」）／汐(95951)／
+  -- 汎(93158)，汎 打繁出簡帶出 泛(98277，贏過 汐/汎)——以前 泛 標 ap_pool，無條件墊在
+  -- 這些 exact 一級之後（A B C D E a b c d e 那種盲目分組）；改標 ap_variant，併進
+  -- exact 一級照常用度插進正確位置：贏得過的（汐/汎）就插到前面，贏不過的（导，常用度
+  -- 打折後仍真的更高）就留在後面，不是無條件衝第一。
+  local outZa = h.run{
+    schema = "aiphabi", code = "za", options = { aiphabi_t2s = true },
+    cands = { { text = "导" }, { text = "汐" }, { text = "汎" } },
+  }
+  h.checkAt("打 ZA：导（exact，打折後常用度仍真的更高）還是排第一", outZa, 1, "导")
+  h.checkAt("打 ZA：泛（打繁出簡，98277）贏過 汐/汎，插到第二", outZa, 2, "泛")
+
+  -- 不是無條件衝第一——常用度沒贏過的字該插在正確的中間位置，不是前面也不是最後。
+  -- 市(1159887) 示(638997) 巿(94627) 都是 im 的 exact 撞碼字、都不是簡體字（避免用簡體字
+  -- 常用度地板修過的字當基準組，基準組才不會因為地板校正又要跟著調）；众（簡體，繁體
+  -- 來源 眾 235241 打七折後 164668.7，這裡用它模擬一個打繁出簡帶出來的字）該插進
+  -- 示 跟 巿 中間。
+  local outMid = h.run{
+    schema = "aiphabi", code = "im", options = { aiphabi_t2s = true },
+    cands = { { text = "市" }, { text = "示" }, { text = "巿" }, { text = "众", type = "ap_variant" } },
+  }
+  h.checkAt("打 IM：众（模擬變體字，235241）該插在 示(638997) 跟 巿(94627) 中間", outMid, 3, "众")
+  h.checkAt("打 IM：示 還是第二（沒被插進來的字擠掉排序）", outMid, 2, "示")
 end
 
 print()

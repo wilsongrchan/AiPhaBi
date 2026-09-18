@@ -4,19 +4,23 @@
 --   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
 --      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
 --      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
---      那個是猜的，留在下面。）這一層內部也照常用度排——四碼快打詞（常是生僻地名
---      這類拼出來的固定詞組）不該單純因為候選提供者先吐出來，就壓過常用單字的主碼
---      exact（例：jwej 打滿 爭 的主碼，也剛好是「群島」系列地名的四碼簽名，沒排序
---      前會照候選來源順序出，地名排到常用字前面；回報：jwej 打「爭」被「J群島」蓋過）。
+--      那個是猜的，留在下面。）打繁出簡／打簡出繁帶出來的字（ap_variant）也併進這
+--      一級，照常用度插入正確位置，不整批墊在後面——跟這個碼 exact 撞碼的字一樣
+--      確定，只是剛好不是這個碼的主碼（回報：汎[exact] 硬性排在 泛[simp，其實較常用]
+--      前面）。這一層內部先按「主碼真的打中的字／ap_variant」在前、「ap_si4 四碼快打
+--      湊巧撞同簽名的詞」在後分兩批（各自維持候選來源原序），再照常用度插入正確位置——
+--      不然四碼快打詞（常是生僻地名這類拼出來的固定詞組）會單純因為候選提供者先吐
+--      出來，就壓過常用單字的主碼 exact（回報：jwej 打「爭」被「群島」系列地名蓋過）。
 --   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
 --      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
 --      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
---   4. 補全（type=completion，librime 標的「碼還沒打完」；type=ap_si4_partial，四碼快打只
---      打到前三碼、還差最後一碼）—— 整批墊在第 3 層之後。打滿的 碰巧（jovnvis）不該輸給
---      還差一碼、但詞頻較高的 碰瓷（jovnvisq）；四碼快打同理：qoq 打到一半的「福田康夫」
---      （還差 I）不該蓋過打滿主碼的「中國」（回報：福田康夫 排到中國前面，因為前三碼一律
---      當「打滿」處理，沒有分「已經四碼都對上」跟「只對到三碼」——現在兩者分開，只有真的
---      四碼都打滿才算第 2 層，前三碼一律降到這一層，附「四碼 - X」提示還差哪一碼）。
+--   4. 補全（type=completion：librime 標的「碼還沒打完」，也是四碼快打打到前兩／三碼、
+--      還沒打滿的詞共用的同一個 type）—— 跟第 3 層一樣照「選過幾次→常用度」同池比，
+--      不整批墊在後面：打滿的 碰巧（jovnvis）不該輸給還差一碼、但詞頻較高的 碰瓷
+--      （jovnvisq）；四碼快打同理：qoq 打到一半的「福田康夫」不該蓋過打滿主碼的「中國」，
+--      但也不能無條件輸給本來就打得到、可能更常用的字（回報：QQ 的 中庸 被擠到最後）——
+--      只有真的四碼都打滿才算第 2 層 exact，前二／三碼一律降到這一層，附「四碼 - X」
+--      提示還差哪幾碼。
 --   5. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
@@ -276,8 +280,8 @@ local function filter(input, env)
     elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c, si4 = true }   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
-    elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
-    elseif c.type == "ap_si4_partial" then comp[#comp + 1] = { c = c }  -- 四碼前三碼＝還沒打完，跟 completion 同一級（不能跟打滿的 ap_si4 混在 exact，也不能跟打滿整段的 ap_pool 混在池子——見 aiphabi_hint.lua 同名註解）
+    elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」（也是四碼快打前二／三碼共用的 type）：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
+    elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, variant = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
     else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
@@ -295,11 +299,11 @@ local function filter(input, env)
   -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
   -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
   --
-  -- 插入排序前先把「主碼真的打中的字」（含 ap_left 推出來的）跟「四碼快打湊巧撞同簽名
-  -- 的詞」（ap_si4）分兩批、前者在前，兩批各自維持原序——不然常用單字會被候選來源
-  -- 剛好先吐出來的生僻四碼詞蓋過（回報：jwej 打「爭」被地名「万山群島」蓋過，兩邊
-  -- 都沒被選過，插入排序不會動它們，得靠這個分批墊底）。跟 comp 那一級「真正的詞組
-  -- 補全該贏四碼前三碼補全」（上面 pa/pb 那段）同一個道理：四碼快打是撞出來的巧合，
+  -- 插入排序前先把「主碼真的打中的字」（含 ap_left／ap_variant 推出來的）跟「四碼快打
+  -- 湊巧撞同簽名的詞」（ap_si4）分兩批、前者在前，兩批各自維持原序——不然常用單字會被
+  -- 候選來源剛好先吐出來的生僻四碼詞蓋過（回報：jwej 打「爭」被地名「万山群島」蓋過，
+  -- 兩邊都沒被選過，插入排序不會動它們，得靠這個分批墊底）。跟 comp 那一級「真正的
+  -- 詞組補全該贏四碼前三碼補全」（上面 pa/pb 那段）同一個道理：四碼快打是撞出來的巧合，
   -- 不該蓋過真的打中主碼的字，哪個更常用才追得動之後那個插入排序。
   do
     local primary, si4Group = {}, {}
@@ -309,6 +313,11 @@ local function filter(input, env)
     exact = primary
     for _, e in ipairs(si4Group) do exact[#exact + 1] = e end
   end
+  -- ap_variant（打繁出簡／打簡出繁帶出來的字）永遠算「有算分」，不用先跨過 EXACT_MIN_EFF
+  -- 那個防手滑門檻——它不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度
+  -- 插進正確位置（本來就不是這個碼的主碼，沒有「原始順序」這回事可以維持，插進去
+  -- 對的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
+  -- 選過的話一樣吃 USERFREQ 加分。
   do
     local function logf(text) return math.log(cf(text) + 1) end
     local function key(e)
@@ -317,17 +326,32 @@ local function filter(input, env)
       return logf(e.c.text) + EXACT_BOOST * eff
     end
     for _, e in ipairs(exact) do
-      e.mover = exact_eff(e.c.text) >= EXACT_MIN_EFF
+      e.mover = e.variant or exact_eff(e.c.text) >= EXACT_MIN_EFF
     end
-    for i = 2, #exact do
-      if exact[i].mover then
-        local j = i
-        while j > 1 and key(exact[j - 1]) < key(exact[j]) do
-          exact[j - 1], exact[j] = exact[j], exact[j - 1]
-          j = j - 1
-        end
+    -- 不能只跟插入點當下的正前方比、贏了就停：ap_variant 一律是 mover，但它在候選陣列
+    -- 裡的起始位置是「hint 那邊湊巧排第幾個」（extra 系列——偏旁碼／同類／簡繁——先於
+    -- 主迴圈 yield，見上面 MAX_SORT 視窗那個理由），不是「已經跟其他 exact 成員比過」，
+    -- 可能天生就卡在很前面。只跟正前方比、贏了就停的寫法，遇到 mover 一開始就排在最前面
+    -- 時完全沒有機會被拉回它真正該在的位置（回報：ZA 撞碼 导/汐/汎，泛(ap_variant，
+    -- 常用度其實比 汐/汎 高、但比 导 低) 湊巧排第一，卻贏不了正前方——因為它前面沒有
+    -- 東西可比，永遠卡在第一名，蓋過真的更常用的 导）。
+    -- 改法：不動的（non-mover）先抽成一條 backbone，維持彼此原始相對順序；movers 逐一
+    -- 照 key() 插進 backbone 該在的位置（掃到第一個 key 更低的就插在它前面）——不管
+    -- mover 原本卡在陣列哪個位置，都能找到正確的名次；movers 之間也會因為先插入的
+    -- 已經在 backbone 裡，後插入的照樣比得到，彼此順序一樣正確。
+    local backbone, movers = {}, {}
+    for _, e in ipairs(exact) do
+      if e.mover then movers[#movers + 1] = e else backbone[#backbone + 1] = e end
+    end
+    for _, m in ipairs(movers) do
+      local mk = key(m)
+      local pos = #backbone + 1
+      for i, e in ipairs(backbone) do
+        if key(e) < mk then pos = i; break end
       end
+      table.insert(backbone, pos, m)
     end
+    exact = backbone
   end
 
   -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
@@ -375,11 +399,13 @@ local function filter(input, env)
     if sa ~= sb then return sa > sb end
     -- 分數打平時（手機上 M.wordfreq 清空成 {}，多字詞一律 0 分，常有這種情況），
     -- 真正的詞組補全（碼表本來就收的詞，常用度來自 essay 真語料）優先於四碼快打的
-    -- 前三碼補全（不少是巧合湊出來的生僻詞，四碼本來就只是「順便」的機制）——不然
+    -- 前二／三碼補全（不少是巧合湊出來的生僻詞，四碼本來就只是「順便」的機制）——不然
     -- 兩邊都是 0 分時退回候選來源順序，四碼快打剛好先吐出來，會蓋過更常用的完整詞
-    -- 補全（回報：qoq 打「中國人」被還沒打完的「福田康夫」蓋過）。
-    local pa = a.c.type ~= "ap_si4_partial"
-    local pb = b.c.type ~= "ap_si4_partial"
+    -- 補全（回報：qoq 打「中國人」被還沒打完的「福田康夫」蓋過）。四碼快打補全跟
+    -- librime 原生補全現在共用同一個 type=completion（見 aiphabi_hint.lua），分不出
+    -- 來源，改認 comment 開頭是不是「四碼」（si4 的提示固定這樣起頭）。
+    local pa = not (a.c.comment and a.c.comment:find("^四碼"))
+    local pb = not (b.c.comment and b.c.comment:find("^四碼"))
     if pa ~= pb then return pa end
     return a.i < b.i
   end)

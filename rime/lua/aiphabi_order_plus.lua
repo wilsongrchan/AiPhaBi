@@ -137,7 +137,7 @@ local function filter(input, env)
   -- 判斷候選是「形碼」還是「拼音」：形碼 preedit 是大寫字母（HOYJBT）；拼音是小寫音節。
   local function isFormCand(c)
     if c.type == "ap_short" or c.type == "ap_pool" or c.type == "ap_si4"
-       or c.type == "ap_si4_partial" or c.type == "ap_left" then return true end
+       or c.type == "ap_left" then return true end
     local mc = data.char2code[c.text]
     if mc and mc:sub(1, #code) == code then return true end
     local pe = c.preedit
@@ -188,7 +188,7 @@ local function filter(input, env)
           -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞不算
           if pyRank > PY_TOPK and ulen(c.text) == 1 then w = w * PY_OBSCURE end
         end
-        if c.type == "completion" or c.type == "ap_si4_partial" then  -- 碼還沒打完：不進 pool，整批墊在 pool 之後
+        if c.type == "completion" then          -- 碼還沒打完：不進 pool，整批墊在 pool 之後
           comp[#comp + 1] = { c = c, i = i, w = w }
         else
           pool[#pool + 1] = { c = c, i = i, w = w }
@@ -224,12 +224,12 @@ local function filter(input, env)
     end)
   end
   -- 補全彼此照常用度；整批排在 pool 之後。同樣吃 MAX_SORT 上限（見上面）。
-  -- 分數打平時優先真正的詞組補全，勝過四碼快打前三碼補全——理由跟 aiphabi_order.lua
+  -- 分數打平時優先真正的詞組補全，勝過四碼快打前二／三碼補全——理由跟 aiphabi_order.lua
   -- 同一段註解：手機上 M.wordfreq 清空，多字詞常打平在 0 分，四碼快打不該靠來源順序贏。
   local function compCmp(a, b)
     if a.w ~= b.w then return a.w > b.w end
-    local pa = a.c.type ~= "ap_si4_partial"
-    local pb = b.c.type ~= "ap_si4_partial"
+    local pa = not (a.c.comment and a.c.comment:find("^四碼"))
+    local pb = not (b.c.comment and b.c.comment:find("^四碼"))
     if pa ~= pb then return pa end
     return a.i < b.i
   end
