@@ -173,16 +173,24 @@
   /* 圈裡的區塊標籤疊在色塊上，色塊深淺隨主題／重疊層數變化——用跟卡片同色的
      文字描邊當「光暈」，不管疊了幾層色都讀得到，不必為了對比度去反推透明度。 */
   .venn .rname,.venn .rex,.venn .rnone{paint-order:stroke;stroke:var(--card);stroke-width:3.5px;stroke-linejoin:round;pointer-events:none;}
-  .venn .rname{font-size:13px;font-weight:600;fill:var(--ink);}
+  .venn .rname{font-size:13px;font-weight:600;fill:var(--ink);transition:fill .12s;}
+  .venn .rname.hover{fill:var(--accent);}
   .venn .rex{font-size:11px;fill:var(--muted);}
   .venn .rnone{font-size:10.5px;fill:var(--faint);font-style:italic;}
-  .venn .samp{font-size:13px;fill:var(--muted);pointer-events:none;letter-spacing:1px;}
+  /* 例字「灑」在區塊實際範圍裡（見 sprinkleChars()）——用拒絕採樣在對應的圓交/差
+     區域內找點，不是疊在標籤下面排成一行；滑過整塊會一起亮，呼應「這塊可以點」。 */
+  .venn .spr{font-size:12.5px;fill:var(--muted);pointer-events:none;opacity:.82;paint-order:stroke;
+    stroke:var(--card);stroke-width:2.5px;stroke-linejoin:round;transition:fill .12s,opacity .12s;}
+  .venn .spr.hover{fill:var(--ink);opacity:1;font-weight:600;}
   .venn .cA{fill:var(--s2);stroke:var(--s2);}
   .venn .cB{fill:var(--accent);stroke:var(--accent);}
   .venn .cC{fill:var(--s4);stroke:var(--s4);}
   .venn circle.set{fill-opacity:.32;stroke-width:1.6;stroke-opacity:.9;}
-  .venn{cursor:pointer;}
   .venn .mark{fill:var(--ink);pointer-events:none;}
+  /* 精確形狀的 hover 高亮（見 buildRegionOverlay）——巢狀 clip-path／mask 算出來
+     的那一塊本身，不是整顆圓，滑過哪塊只有那塊會亮。 */
+  .venn .regionfill{fill:var(--ink);opacity:0;pointer-events:none;transition:opacity .12s;}
+  .venn .regionfill.hover{opacity:.14;}
   .venn .coded-bound{fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1.8;stroke-dasharray:6 5;pointer-events:none;}
   .vlegend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:4px;}
   .vlegend span{display:inline-flex;align-items:center;gap:5px;}
@@ -673,6 +681,14 @@ function renderCats(data){
 const VW=700,VH=620;
 const VLABEL={simp_rare:'簡體字',simp_common:'簡體常用字',trad_rare:'繁體字',
   trad_common:'繁體常用字',inherited_rare:'傳承字',inherited_common:'傳承常用字'};
+// 六個區塊各自「必須落在哪些圓內／必須落在哪些圓外」——跟 pointRegion() 判斷邏輯
+// 是同一套規則，換一種資料形狀而已：算 hover 要精準點亮的那塊形狀（見
+// buildRegionOverlay()）、跟灑點／標籤要避開邊界（見 insideMargin()）都靠它。
+const REGION_DEF={
+  simp_rare:{in:['A'],out:['B','C']},simp_common:{in:['A','C'],out:['B']},
+  trad_rare:{in:['B'],out:['A','C']},trad_common:{in:['B','C'],out:['A']},
+  inherited_rare:{in:['A','B'],out:['C']},inherited_common:{in:['A','B','C'],out:[]},
+};
 let VENN=null,vennSel=null;
 
 fetch('/api/venn').then(r=>r.json()).then(d=>{VENN=d; drawVenn(d);}).catch(e=>{
@@ -729,7 +745,14 @@ function computeVenn(regions){
   const cosA=Math.max(-1,Math.min(1,(dAB*dAB+dAC*dAC-dBC*dBC)/(2*dAB*dAC||1)));
   const angA=Math.acos(cosA);
   const C=[dAC*Math.cos(angA),dAC*Math.sin(angA)];
-
+  // 常用字白名單裡沒有「既不簡不繁、純傳承外」的字，C 理論上一定是 A∪B 的子集——
+  // 但上面只顧兩兩重疊面積相等，沒管三圓合起來蓋不蓋住 C，C 露一角在 A、B 外面
+  // 是常態。試過把 C 往 A、B 中間拉到不露為止，代價是把 A∩B\C、A\B∩C 這兩塊
+  // 擠到幾乎消失——三個約束（兩兩重疊面積、C⊆A∪B、六塊都要有意義的大小）沒辦法
+  // 用三個圓同時滿足，硬解只是把問題挪到別的區塊。改成別的招：不動位置，畫 C
+  // 的時候直接把「露出去」的那一小角遮住（見 drawVenn 的 cMask）——反正那塊本來
+  // 就不是六個標了名字的區塊之一（pointRegion 對它回傳 null），純粹是視覺上會
+  // 讓人誤會「有純常用字」，遮起來就沒有這個誤會，其他五塊的相對大小完全不受影響。
   const pts=[[A,rA],[B,rB],[C,rC]];
   const minX=Math.min(...pts.map(([p,r])=>p[0]-r)),maxX=Math.max(...pts.map(([p,r])=>p[0]+r));
   const minY=Math.min(...pts.map(([p,r])=>p[1]-r)),maxY=Math.max(...pts.map(([p,r])=>p[1]+r));
@@ -756,6 +779,66 @@ function pointRegion(x,y,layout){
   return cat+'_'+(inC?'common':'rare');
 }
 
+// 跟 pointRegion 判斷同一套規則，但每個圓的邊界都內縮 margin——用來擺標籤／灑
+// 例字：一定要「明顯」落在圓內或圓外，貼著邊界線的點直接不算，才不會讓文字看起
+// 來像是疊在分界線上、不知道算哪一塊。點擊／hover 判斷仍用 pointRegion（margin
+// 0），可點的範圍還是整塊區域，只是視覺內容自己讓出一圈安全邊。
+function insideMargin(x,y,layout,key,margin){
+  const def=REGION_DEF[key];
+  for(const id of def.in) if(Math.hypot(x-layout[id].cx,y-layout[id].cy)>layout[id].r-margin) return false;
+  for(const id of def.out) if(Math.hypot(x-layout[id].cx,y-layout[id].cy)<layout[id].r+margin) return false;
+  return true;
+}
+
+// 以 seed 為圓心、半徑不夠就長大的拒絕採樣，找一個滿足 insideMargin 且離 taken
+// 裡每一點都夠遠的點；標籤定位／灑例字共用同一招，差別只在 margin／minDist。
+function sampleNear(layout,key,seed,margin,taken,minDist,exclude){
+  let attempts=0,sinceHit=0,maxR=50;
+  const rCap=Math.max(VW,VH);
+  while(attempts<4000){
+    attempts++;sinceHit++;
+    const ang=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random())*maxR;
+    const x=seed[0]+Math.cos(ang)*rad,y=seed[1]+Math.sin(ang)*rad;
+    if(sinceHit>150&&maxR<rCap){ maxR=Math.min(maxR*1.4,rCap); sinceHit=0; }
+    if(!insideMargin(x,y,layout,key,margin)) continue;
+    if(exclude&&exclude(x,y)) continue;
+    if(taken&&taken.some(p=>Math.hypot(x-p[0],y-p[1])<minDist)) continue;
+    return [x,y];
+  }
+  return null;
+}
+
+// hover 要精準點亮「這一塊」而不是整個圓——用巢狀 clip-path 對 in 清單裡每個圓
+// 各包一層（clip-path 疊起來天生是交集），再用 mask（白底＋out 清單的圓塗黑）
+// 扣掉不該有的部分。畫出來的形狀跟 pointRegion／REGION_DEF 是同一套規則，不是
+// 用面積或距離去湊近似——三圓怎麼擺，這塊形狀就精確跟著怎麼變。
+function buildRegionOverlay(svg,layout,key){
+  const def=REGION_DEF[key],uid=key+Math.random().toString(36).slice(2,7);
+  let rect=mk('rect',{x:0,y:0,width:VW,height:VH,class:'regionfill','data-region':key});
+  if(def.out.length){
+    const maskId='vm_'+uid;
+    const mask=mk('mask',{id:maskId});
+    mask.appendChild(mk('rect',{x:0,y:0,width:VW,height:VH,fill:'white'}));
+    def.out.forEach(id=>{
+      const c=layout[id];
+      mask.appendChild(mk('circle',{cx:c.cx,cy:c.cy,r:c.r,fill:'black'}));
+    });
+    svg.appendChild(mask);
+    rect.setAttribute('mask',`url(#${maskId})`);
+  }
+  let node=rect;
+  def.in.forEach(id=>{
+    const clipId='vc_'+uid+'_'+id,c=layout[id];
+    const cp=mk('clipPath',{id:clipId});
+    cp.appendChild(mk('circle',{cx:c.cx,cy:c.cy,r:c.r}));
+    svg.appendChild(cp);
+    const g=mk('g',{'clip-path':`url(#${clipId})`});
+    g.appendChild(node);
+    node=g;
+  });
+  svg.appendChild(node);
+}
+
 function drawVenn(data){
   const regions=data.regions||{};
   const layout=computeVenn(regions);
@@ -766,7 +849,21 @@ function drawVenn(data){
   const {A,B,C}=layout;
   svg.appendChild(mk('circle',{class:'set cA',cx:A.cx,cy:A.cy,r:A.r}));
   svg.appendChild(mk('circle',{class:'set cB',cx:B.cx,cy:B.cy,r:B.r}));
-  svg.appendChild(mk('circle',{class:'set cC',cx:C.cx,cy:C.cy,r:C.r}));
+  // 常用字白名單裡沒有「既不簡不繁」的字，C 理論上一定是 A∪B 的子集，但兩兩重疊
+  // 距離是各自獨立反解出來的，C 常常會露一角在 A、B 外面——不是資料錯，是三個圓
+  // 湊不出跟資料完全一致的位置。露出來的那一角看起來會像存在一塊「純常用字」
+  // （現實中沒有），所以畫 C 的時候直接罩一層 mask，只讓落在 A∪B 裡的部分顯示。
+  const cMaskId='vennCMask';
+  const cMask=mk('mask',{id:cMaskId});
+  cMask.appendChild(mk('rect',{x:0,y:0,width:VW,height:VH,fill:'black'}));
+  cMask.appendChild(mk('circle',{cx:A.cx,cy:A.cy,r:A.r,fill:'white'}));
+  cMask.appendChild(mk('circle',{cx:B.cx,cy:B.cy,r:B.r,fill:'white'}));
+  svg.appendChild(cMask);
+  svg.appendChild(mk('circle',{class:'set cC',cx:C.cx,cy:C.cy,r:C.r,mask:`url(#${cMaskId})`}));
+
+  // 每個區塊各自的精確形狀（巢狀 clip-path＋mask 算出來的交／差集），先鋪好、
+  // 預設透明——hover 時只讓對應那塊變顯眼，不是整顆圓一起亮（見 setHover()）。
+  Object.keys(REGION_DEF).forEach(key=>buildRegionOverlay(svg,layout,key));
 
   // 已取碼邊界：面積 ∝ 已取碼字數，圓心落在三圓形心——目前常用字白名單已 100%
   // 取碼，這圈通常會整個包住上面三圓，是誠實的現狀，不是畫錯。
@@ -811,21 +908,56 @@ function drawVenn(data){
   const REGION_PT={simp_rare:ptSimpRare,simp_common:ptSimpCommon,trad_rare:ptTradRare,
     trad_common:ptTradCommon,inherited_rare:ptInhRare,inherited_common:ptInhCommon};
 
+  // 灑點密度直接跟區塊實際字數掛勾（開根號縮放，8～32 顆）——圓圈重疊的幾何面積
+  // 已經照字數反解距離了，但為了三圈不擠成一團有 ×1.18 撐開（見 computeVenn()
+  // 開頭註解），幾何上不再是嚴格等比例；灑點數改成直接讀字數，不管幾何走了多少
+  // 折扣，六塊「哪塊字多、哪塊字少」還是一眼看得出來。
+  const totals=Object.keys(REGION_PT).map(k=>regions[k]&&regions[k].total||0).filter(Boolean);
+  const minT=Math.min(...totals), maxT=Math.max(...totals);
+  const wantFor=t=>{
+    if(!totals.length||maxT===minT) return 16;
+    const frac=(Math.sqrt(t)-Math.sqrt(minT))/(Math.sqrt(maxT)-Math.sqrt(minT));
+    return Math.round(8+frac*24);
+  };
+
+  // 標籤錨點：形心關係估出來的點，貼近邊界時用同一套拒絕採樣往內挪，確保標籤
+  // 整塊都在安全距離內、不會有一半疊在分界線上看不出算哪塊。少數區塊（如簡體
+  // 常用字）本來面積就窄，30px 的安全邊可能整塊都不夠——margin 逐步放寬到還
+  // 找得到點為止，退到 0 都找不到才真的用原始錨點（幾何本身容不下任何安全邊）。
   Object.keys(REGION_PT).forEach(key=>{
     const r=regions[key]; if(!r||!r.total) return;
-    const [x,y]=REGION_PT[key];
-    const rn=mk('text',{class:'rname',x,y:y-7,'text-anchor':'middle'});
+    const seed=REGION_PT[key];
+    let x=seed[0],y=seed[1];
+    for(const m of [30,18,8,0]){
+      if(insideMargin(seed[0],seed[1],layout,key,m)){ [x,y]=seed; break; }
+      const p=sampleNear(layout,key,seed,m,null,0);
+      if(p){ [x,y]=p; break; }
+    }
+    const rn=mk('text',{class:'rname','data-region':key,x,y,'text-anchor':'middle'});
     rn.textContent=`${VLABEL[key]}　${r.total.toLocaleString()}字`+
       (r.coded<r.total?`（${r.coded.toLocaleString()} 已取碼）`:'');
     svg.appendChild(rn);
-    if(r.chars.length){
-      const samp=mk('text',{class:'samp',x,y:y+11,'text-anchor':'middle'});
-      samp.textContent=r.chars.slice(0,6).join('');
-      svg.appendChild(samp);
-    }
+    sprinkleChars(svg,key,layout,r.chars,[x,y],wantFor(r.total));
   });
 
   $('#vennr').textContent=`已取碼 ${data.codedTotal.toLocaleString()} ／常用字白名單相關字 ${data.universeTotal.toLocaleString()}`;
+
+  let hoverKey=null;
+  const setHover=key=>{
+    if(key===hoverKey) return;
+    hoverKey=key;
+    svg.querySelectorAll('[data-region]').forEach(el=>
+      el.classList.toggle('hover', el.getAttribute('data-region')===key));
+    svg.style.cursor=key?'pointer':'default';
+  };
+  svg.style.cursor='default';
+  svg.onmousemove=e=>{
+    const pt=svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
+    const loc=pt.matrixTransform(svg.getScreenCTM().inverse());
+    const key=pointRegion(loc.x,loc.y,layout);
+    setHover(key&&regions[key]&&regions[key].total?key:null);
+  };
+  svg.onmouseleave=()=>setHover(null);
 
   svg.onclick=e=>{
     const pt=svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
@@ -834,6 +966,30 @@ function drawVenn(data){
     if(!key||!regions[key]||!regions[key].total){ hideVennPanel(); return; }
     showVennPanel(key,regions[key]);
   };
+}
+
+/* 在區塊實際範圍內灑例字，繞著標籤錨點由近到遠找點（sampleNear）：六個區塊裡
+   最小的（如繁體字，兩兩相交外扣三方交集）面積可能只是整張圖的一小塊，錨點本身
+   落在（或非常靠近）目標區塊裡，繞著它找，命中率跟著面積走；灑到的顆數（want）
+   由呼叫端依實際字數算好傳進來，面積真的小，配額湊不滿也就少灑幾顆，不會硬擠
+   爆。每顆字都要跟邊界（insideMargin）、跟標籤本身、跟已經放好的字保持安全距
+   離，字一律正立不轉——一堆歪字看起來像雜訊，不像「一眼看出這塊是什麼字」。 */
+function sprinkleChars(svg,key,layout,chars,anchor,want){
+  if(!chars.length||!want) return;
+  want=Math.min(want,chars.length);
+  const margin=12,minDist=20;
+  const pts=[];
+  for(let n=0;n<want;n++){
+    const p=sampleNear(layout,key,anchor,margin,pts,minDist,
+      (x,y)=>Math.abs(x-anchor[0])<80&&Math.abs(y-anchor[1])<17);
+    if(p) pts.push(p);
+  }
+  pts.forEach(([x,y],i)=>{
+    const t=mk('text',{class:'spr','data-region':key,x:x.toFixed(1),y:y.toFixed(1),
+      'text-anchor':'middle'});
+    t.textContent=chars[i];
+    svg.appendChild(t);
+  });
 }
 
 function hideVennPanel(){ vennSel=null; const p=$('#vpanel'); p.hidden=true; p.innerHTML=''; }
