@@ -3960,13 +3960,13 @@
     "segments": [
       {
         "strokes": [
-          0
+          0,
+          1
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
-          1,
           2,
           3,
           4
@@ -3974,28 +3974,29 @@
         "letter": "M"
       }
     ],
-    "code": "QM",
-    "final": "QM",
+    "code": "IM",
+    "final": "IM",
     "alts": [
       {
-        "code": "IM",
+        "code": "QM",
         "segments": [
           {
             "strokes": [
-              0,
-              1
+              0
             ],
-            "letter": "I"
+            "letter": "Q"
           },
           {
             "strokes": [
+              1,
               2,
               3,
               4
             ],
             "letter": "M"
           }
-        ]
+        ],
+        "skipped": []
       }
     ]
   },
@@ -59436,13 +59437,13 @@
       },
       {
         "strokes": [
-          10
+          10,
+          11
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
-          11,
           12,
           13,
           14
@@ -59450,61 +59451,62 @@
         "letter": "M"
       }
     ],
-    "code": "JEEJQM",
+    "code": "JEEJIM",
     "final": "JEEJM",
     "compliant": [
       "comp:鬥:0"
     ],
     "alts": [
       {
-        "code": "JEEJIM",
+        "code": "JEEJQM",
         "segments": [
           {
-            "letter": "J",
             "strokes": [
               0
-            ]
+            ],
+            "letter": "J"
           },
           {
-            "letter": "E",
             "strokes": [
               1,
               2,
               3,
               4
-            ]
+            ],
+            "letter": "E"
           },
           {
-            "letter": "E",
             "strokes": [
               5,
               6,
               7,
               8
-            ]
+            ],
+            "letter": "E"
           },
           {
-            "letter": "J",
             "strokes": [
               9
-            ]
+            ],
+            "letter": "J"
           },
           {
-            "letter": "I",
             "strokes": [
-              10,
-              11
-            ]
+              10
+            ],
+            "letter": "Q"
           },
           {
-            "letter": "M",
             "strokes": [
+              11,
               12,
               13,
               14
-            ]
+            ],
+            "letter": "M"
           }
-        ]
+        ],
+        "skipped": []
       }
     ]
   },
@@ -197858,13 +197860,13 @@
       },
       {
         "strokes": [
-          3
+          3,
+          4
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
-          4,
           5,
           6,
           7
@@ -197872,41 +197874,42 @@
         "letter": "M"
       }
     ],
-    "code": "QCQM",
-    "final": "QCQM",
+    "code": "QCIM",
+    "final": "QCIM",
     "alts": [
       {
-        "code": "QCIM",
+        "code": "QCQM",
         "segments": [
           {
-            "letter": "Q",
             "strokes": [
               0,
               1
-            ]
+            ],
+            "letter": "Q"
           },
           {
-            "letter": "C",
             "strokes": [
               2
-            ]
+            ],
+            "letter": "C"
           },
           {
-            "letter": "I",
             "strokes": [
-              3,
-              4
-            ]
+              3
+            ],
+            "letter": "Q"
           },
           {
-            "letter": "M",
             "strokes": [
+              4,
               5,
               6,
               7
-            ]
+            ],
+            "letter": "M"
           }
-        ]
+        ],
+        "skipped": []
       }
     ]
   },
@@ -238897,13 +238900,13 @@
       },
       {
         "strokes": [
-          4
+          4,
+          5
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
-          5,
           6,
           7,
           8
@@ -238911,37 +238914,38 @@
         "letter": "M"
       }
     ],
-    "code": "TQM",
-    "final": "TQM",
+    "code": "TIM",
+    "final": "TIM",
     "alts": [
       {
-        "code": "TIM",
+        "code": "TQM",
         "segments": [
           {
-            "letter": "T",
             "strokes": [
               0,
               1,
               2,
               3
-            ]
+            ],
+            "letter": "T"
           },
           {
-            "letter": "I",
             "strokes": [
-              4,
-              5
-            ]
+              4
+            ],
+            "letter": "Q"
           },
           {
-            "letter": "M",
             "strokes": [
+              5,
               6,
               7,
               8
-            ]
+            ],
+            "letter": "M"
           }
-        ]
+        ],
+        "skipped": []
       }
     ]
   },
@@ -373075,13 +373079,13 @@
       },
       {
         "strokes": [
-          5
+          5,
+          6
         ],
-        "letter": "Q"
+        "letter": "I"
       },
       {
         "strokes": [
-          6,
           7,
           8,
           9
@@ -373089,8 +373093,8 @@
         "letter": "M"
       }
     ],
-    "code": "YEQM",
-    "final": "YEQM"
+    "code": "YEIM",
+    "final": "YEIM"
   },
   "铊": {
     "segments": [
@@ -425276,6 +425280,41 @@
   "嚾": {
     "code": "OHOOYIF",
     "final": "OHOOF",
+    "manual": true
+  },
+  "噂": {
+    "code": "OVHIA",
+    "final": "OVHIA",
+    "manual": true
+  },
+  "噊": {
+    "code": "OPJJUVO",
+    "final": "OPJJO",
+    "manual": true
+  },
+  "噆": {
+    "code": "OXLXLB",
+    "final": "OXLXB",
+    "manual": true
+  },
+  "噚": {
+    "code": "OEIOA",
+    "final": "OEIOA",
+    "manual": true
+  },
+  "坰": {
+    "code": "FUO",
+    "final": "FUO",
+    "manual": true
+  },
+  "媬": {
+    "code": "LJYOT",
+    "final": "LJYOT",
+    "manual": true
+  },
+  "婼": {
+    "code": "LJHXO",
+    "final": "LJHXO",
     "manual": true
   }
 }
