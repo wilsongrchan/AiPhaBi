@@ -58,10 +58,10 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 
 裝之前先知道哪些字要多按一次選字鍵：
 
-* `nx` → 收攸殳収凤风
-* `in` → 井亢亓亣开
-* `is` → 方巧万亏亐
-* `ouy` → 吶呐呗员呙
+* `nx` → 收风攸殳収凤
+* `in` → 开井亢亓亣
+* `is` → 方万巧亏亐
+* `ouy` → 员吶呐呗呙
 * `ye` → 全任仨仼仺
 * `yvt` → 針侎籴伞伻
 * `bf` → 里旱旰圼
@@ -69,19 +69,19 @@ python3 build_rime.py --install     # 把 schema 與碼表複製到 ~/Library/Ri
 * `fz` → 圮圯赱乤
 * `hqrhm` → 薦蔗藨蓆
 * `ihi` → 西亞酉亜
-* `jk` → 夭豕夬长
+* `jk` → 长夭豕夬
 * `ohi` → 啞哂咁唒
-* `pi` → 子孑孒卫
-* `si` → 勻卐与匀
+* `pi` → 子卫孑孒
+* `si` → 与勻卐匀
 * `sj` → 引弔乃勿
-* `tq` → 寸朴朮术
+* `tq` → 术寸朴朮
 * `vyvyt` → 榮煢檾燊
 * `vyvyy` → 熒焱欻燚
-* `xq` → 戈叉弋处
+* `xq` → 处戈叉弋
 * `ym` → 尓尒仦伂
 * `yw` → 仙缶伈仚
 * `aasj` → 第笏笫
-* `ba` → 旳时㝵
+* `ba` → 时旳㝵
 * `bsj` → 易昜畅
 
 ## iOS（仓／Hamster）

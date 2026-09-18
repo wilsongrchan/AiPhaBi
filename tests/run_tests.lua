@@ -497,25 +497,30 @@ end
 print()
 print("== 打繁出簡／打簡出繁帶出來的字，別無條件墊在所有 exact 撞碼字之後 ==")
 do
-  -- 回報：ZA 撞碼 汐(95951)／汎(93158)／导(85620)，汎 打繁出簡帶出 泛(98277，比三個
-  -- exact 撞碼字都常用)——以前 泛 標 ap_pool，無條件墊在 汐/汎/导 這些 exact 一級之後
-  -- （A B C D E a b c d e 那種盲目分組）；改標 ap_variant，併進 exact 一級照常用度插
-  -- 進正確位置，泛 常用度贏過全部三個，該排第一。
+  -- 回報：ZA 撞碼 导(exact，字本身也是簡體，常用度地板打七五折後 277074，還是遠贏
+  -- 繁體來源 導 打折前的 369432 乘 0.75——見下面「簡體字常用度地板」）／汐(95951)／
+  -- 汎(93158)，汎 打繁出簡帶出 泛(98277，贏過 汐/汎)——以前 泛 標 ap_pool，無條件墊在
+  -- 這些 exact 一級之後（A B C D E a b c d e 那種盲目分組）；改標 ap_variant，併進
+  -- exact 一級照常用度插進正確位置：贏得過的（汐/汎）就插到前面，贏不過的（导，常用度
+  -- 打折後仍真的更高）就留在後面，不是無條件衝第一。
   local outZa = h.run{
     schema = "aiphabi", code = "za", options = { aiphabi_t2s = true },
-    cands = { { text = "汐" }, { text = "汎" }, { text = "导" } },
+    cands = { { text = "导" }, { text = "汐" }, { text = "汎" } },
   }
-  h.checkAt("打 ZA：泛（打繁出簡，freq 98277）該排第一，贏過三個 exact 撞碼字", outZa, 1, "泛")
+  h.checkAt("打 ZA：导（exact，打折後常用度仍真的更高）還是排第一", outZa, 1, "导")
+  h.checkAt("打 ZA：泛（打繁出簡，98277）贏過 汐/汎，插到第二", outZa, 2, "泛")
 
   -- 不是無條件衝第一——常用度沒贏過的字該插在正確的中間位置，不是前面也不是最後。
-  -- 子(379935) 孑(96322) 卫(86062) 都是 pi 的 exact 撞碼字（已照 freq 排好）；孒(93037，
-  -- 這裡用它模擬一個打繁出簡帶出來的字）該插進 孑 跟 卫 中間。
+  -- 市(1159887) 示(638997) 巿(94627) 都是 im 的 exact 撞碼字、都不是簡體字（避免用簡體字
+  -- 常用度地板修過的字當基準組，基準組才不會因為地板校正又要跟著調）；众（簡體，繁體
+  -- 來源 眾 235241 打七五折後 176430.75，這裡用它模擬一個打繁出簡帶出來的字）該插進
+  -- 示 跟 巿 中間。
   local outMid = h.run{
-    schema = "aiphabi", code = "pi", options = { aiphabi_t2s = true },
-    cands = { { text = "子" }, { text = "孑" }, { text = "卫" }, { text = "孒", type = "ap_variant" } },
+    schema = "aiphabi", code = "im", options = { aiphabi_t2s = true },
+    cands = { { text = "市" }, { text = "示" }, { text = "巿" }, { text = "众", type = "ap_variant" } },
   }
-  h.checkAt("打 PI：孒（模擬變體字，93037）該插在 孑(96322) 跟 卫(86062) 中間", outMid, 3, "孒")
-  h.checkAt("打 PI：孑 還是第二（沒被插進來的字擠掉排序）", outMid, 2, "孑")
+  h.checkAt("打 IM：众（模擬變體字，235241）該插在 示(638997) 跟 巿(94627) 中間", outMid, 3, "众")
+  h.checkAt("打 IM：示 還是第二（沒被插進來的字擠掉排序）", outMid, 2, "示")
 end
 
 print()

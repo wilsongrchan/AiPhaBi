@@ -99,16 +99,49 @@ def main():
     except FileNotFoundError:
         charfreq = {}
 
+    # 打繁出簡／打簡出繁：跟試打頁共用同一份繁簡對照（data/opencc.json）。搬到這裡（原本在
+    # 更後面）是因為 freq_w 需要它——見下面「簡體字常用度地板」。
+    try:
+        opencc = json.loads((DATA / "opencc.json").read_text("utf-8"))
+    except FileNotFoundError:
+        opencc = {"t2s": {}, "s2t": {}}
+    t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
+
     max_rule = next((r for r in rules["rules"]
                      if r["id"] == "max_code_length" and r.get("enabled")), None)
 
     # 字 → 它所有打得出來的碼（去重、保持順序）
     NATIVE = 100_000_000     # 自己的碼永遠排在「別的字形借用同一個碼」之前（留足空間給字頻）
 
-    def freq_w(c):
+    # 簡體字常用度地板：charfreq（台港新聞）跟 freq.json（rime-essay）兩個字頻來源都明顯
+    # 偏繁體——量過 4200 組繁簡對照，80%（3356 組）簡體字分數比繁體來源低，27%
+    # （1149 組）不到繁體的一半。回報案例：兗（生僻地名用字，兩個來源都沒收，純靠
+    # essay 排名打底）freq 94936，硬是贏過 竞（常用簡體字，同樣沒被 charfreq 收）的
+    # 83978——不是 竞 真的比 兗 冷門，是量測來源系統性看不到簡體字。
+    # 修法：簡體字的分數至少要有繁體來源（可能不只一個，多對一簡化取最高）分數打過
+    # SIMP_FREQ_DISCOUNT 折後的值——不是跟繁體來源完全打平（Wilson 定案：這本來就是
+    # 繁體為主的輸入法，簡體字沒理由跟它對應的繁體字排序相等，稍微退一步是合理的），
+    # 只是不能墊底墊到輸給生僻／異體／外文借形字——那些字兩個語料庫本來就沒收，分數
+    # 常常只是essay排名墊出來的個位數到幾萬，簡體打過折後仍遠遠贏過它們。
+    SIMP_FREQ_DISCOUNT = 0.75
+    _simp_source = defaultdict(list)     # 簡體字 → 對應的繁體來源（可能不只一個）
+    for _t, _ss in t2s_map.items():
+        for _s in _ss:
+            _simp_source[_s].append(_t)
+
+    def _raw_freq_w(c):
         # 現代字頻優先（每一計次值 10000，主導排序），rime-essay 次序打平手。
         base = max(1, 100000 - rank.get(c, 99999))
         return charfreq.get(c, 0) * 10000 + base
+
+    def freq_w(c):
+        raw = _raw_freq_w(c)
+        srcs = _simp_source.get(c)
+        if srcs:
+            floor = max(_raw_freq_w(t) for t in srcs) * SIMP_FREQ_DISCOUNT
+            if floor > raw:
+                return floor
+        return raw
 
     weight = {}             # (碼, 字) -> 權重（重複時取最大）
 
@@ -359,12 +392,7 @@ def main():
 
     _tw_common = _load_standard("tw_common_4808.txt")
 
-    # 打繁出簡／打簡出繁：跟試打頁共用同一份繁簡對照（data/opencc.json）。
-    try:
-        opencc = json.loads((DATA / "opencc.json").read_text("utf-8"))
-    except FileNotFoundError:
-        opencc = {"t2s": {}, "s2t": {}}
-    t2s_map, s2t_map = opencc.get("t2s", {}), opencc.get("s2t", {})
+    # opencc／t2s_map／s2t_map 已經在檔案前面（freq_w 那邊）載入了，這裡沿用同一份。
     # 不打簡體：只濾掉「一對一純簡化字」（馬→马、魚→鱼），不動「歸併字」——
     # 這些字本身就是獨立傳承字，只是剛好也被拿來簡化別的字（后＝王后／後的簡化…）。
     # s2t_map 光看資料分不出這兩種，白名單放在 data/dual_use_merged.json（跟

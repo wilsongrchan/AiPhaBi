@@ -203,7 +203,14 @@ local function filter(input, env)
       end
     end
     if si4_on then                       -- 四碼快打：#code==4 是「打滿的四碼」＝exact（標 ap_si4，重排時當 exact 排高，
-                                          -- 蓋過容錯猜測／補全）；#code==2／3 是四碼前綴＝補全（ap_pool，墊底）。
+                                          -- 蓋過容錯猜測／補全）；#code==2／3 是四碼前綴，還沒打完，標 completion——
+                                          -- 跟 librime 自己標的「碼還沒打完」（如打 QQ 冒出的 中庸＝qqrh 的前綴）
+                                          -- 是同一類事（都還差幾碼），該一起比常用度，不能讓四碼快打的猜測无條件
+                                          -- 贏過真的還沒打完、但可能更常用的字（回報：QQ 只顧著看四碼猜測，
+                                          -- 中庸 這種本來就打得到的候選反而被擠到最後）。標 ap_pool 的話會跟
+                                          -- 「已經打滿的候選」同池比字頻，那才是真正該墊底的地方（見上面
+                                          -- aiphabi_autocommit.lua 的 INCOMPLETE_TYPE，那邊本來就把 ap_pool／
+                                          -- completion 當同一類「還沒定案」，這裡的排序該跟上）。
       local exact4 = #code == 4
       for _, w in ipairs(data.si4[code] or {}) do
         if not seen[w] then
@@ -217,7 +224,7 @@ local function filter(input, env)
             -- 收了每個進過 si4 的詞）就退回單純標「四碼」，不讓提示消失。
             local full = data.si4_full[w]
             local cmt = (full and #full > #code) and ("四碼 -" .. full:sub(#code + 1):upper()) or "四碼"
-            extra4[#extra4 + 1] = Candidate("ap_pool", s, e, w, cmt)
+            extra4[#extra4 + 1] = Candidate("completion", s, e, w, cmt)
           end
         end
       end
