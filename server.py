@@ -517,9 +517,19 @@ def venn_data():
         cat = "simp" if ch in simp_only else "trad" if ch in t2s else "inherited"
         regions[f"{cat}_{'common' if ch in common else 'rare'}"].append(ch)
 
+    # freq.json 的 order 是從偏繁體的語料算出來的排名，簡體專屬字（过/会/对/为/
+    # 说/话…）在那份語料裡幾乎不出現，rank 會落到墊底，讓「簡體常用字」區塊挑
+    # 出來的例字反而都是些生僻字。簡體字排序改用它對應的繁體字（s2t）去查 rank
+    # ——繁簡本來就是同一個詞位，用繁體那邊的真實排名才對得上「多常用」。
+    def sort_key(c):
+        if c not in simp_only:
+            return rank.get(c, far)
+        cands = s2t.get(c) or [c]  # s2t 是一對多（簡體字可能對應好幾個繁體候選）
+        return min(rank.get(t, far) for t in cands)
+
     out = {}
     for key, chars in regions.items():
-        chars.sort(key=lambda c: rank.get(c, far))
+        chars.sort(key=sort_key)
         out[key] = {"label": LABELS[key], "chars": chars,
                     "coded": sum(1 for c in chars if c in coded), "total": len(chars)}
 
