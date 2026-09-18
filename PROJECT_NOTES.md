@@ -845,6 +845,45 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **aiphabi_order.lua: exact tier rewritten around EXACTFREQ decay (Wilson's own commits, merged
+  2026-09-18)** — Wilson replaced this session's 2026-09-14 `table.sort(exact, score())` fix
+  (see below) with a proper decay-based mechanism: a separate `EXACTFREQ` table (text → {score,
+  ts}, persisted to `~/Library/Rime/aiphabi_exactfreq.tsv`, independent of the pool/completion
+  tier's raw unbounded `USERFREQ`), `HALFLIFE=2.5*24*3600` exponential decay, `EXACT_BOOST=0.1`/
+  `EXACT_MIN_EFF=1.5` calibrated so one accidental selection ("手滑") never moves anything and a
+  genuine repeat (≥2 effective, decay-weighted selections) climbs at a rate proportional to how
+  close the frequency gap already is (log-compressed: 0.58 log-gap closes in ~6 selections, a
+  1.3+ gap needs 10+). Sort mechanism is a targeted insertion sort that only moves entries whose
+  decayed `eff` clears the threshold ("movers") — everything else keeps candidate-provider arrival
+  order untouched, specifically so it doesn't fight `short_demote`'s intentional demotion (see the
+  2026-09-13 entry) of an unselected shortcode-collision pair.
+  **Merge conflict, not just a textual one**: my old fix's full frequency resort directly
+  contradicted this — it would have promoted an unselected-but-more-common character (like 母 over
+  紅) on arrival alone, breaking Wilson's own new test (打 GI，只選 母 一次不算，紅還是第一).
+  Deleted the leftover old sort block outright (it was also mechanically broken post-merge: it
+  re-wrapped already-`{c=...}`-wrapped entries from the updated classification loop, so
+  `yield(e.c)` would have shipped the wrapper table instead of the real candidate — a hard crash
+  path, not just a ranking regression). Removing it reopened the original jwej/爭 bug this fix was
+  for in the first place (爭's own main-code exact match losing to never-selected si4 phrases that
+  happen to arrive first) — with no selections on either side, insertion-sort-for-movers-only does
+  nothing, so raw arrival order won again. Fixed by partitioning the exact tier into primary
+  code/`ap_left` matches before `ap_si4` phrase matches (each group keeping its own arrival order)
+  *before* the insertion sort runs — mirrors the existing comp-tier precedent (real completions
+  before `ap_si4_partial` ones on a score tie, see 2026-09-15 below) instead of reintroducing a
+  frequency resort. All 180 tests pass, including Wilson's new GI/PI decay tests and the standing
+  jwej/qoq/qq regression set, against a freshly rebuilt (non-essay) `aiphabi_data.lua`.
+  Reviewed the rest of the ranking machinery while in there (simplified-character handling,
+  fumble prevention, the log-compression/half-life calibration) — simplified-char filtering
+  (`aiphabi_no_simp`) runs entirely in `aiphabi_hint.lua`, upstream of and independent from
+  `aiphabi_order.lua`'s ranking, so it has no interaction with this rewrite.
+- **Cliff re-checked 2026-09-18**, after the EXACTFREQ merge above — no new characters landed
+  alongside it (字/碼 unchanged at 10,139/13,852, same as the previous ship), and the rewrite is
+  pure `aiphabi_order.lua` logic with no new `aiphabi_data.lua` tables, so the cliff was not
+  expected to move. Confirmed rather than assumed: re-ran the bisection endpoints with `luajit`,
+  **`N=9000` still passes, `N=9125` still fails** — identical to the last ship. Shipped at
+  `N=9000` again. Same verification pattern: `luajit` load check on the stripped file + end-to-end
+  filter run against the literal bytes extracted from the shipped zip (component/whitelist/
+  wordfreq-empty/主-swap checks plus jwej/qoq/qq).
 - **Cliff re-checked 2026-09-16 (second time)**, after merging Side A's biggest single-day batch yet
   (159+269 new chars, recodes: 主/住/注/註/燕/駐/驻/蛀/炷/亜 and the 海/每/母/毒/梅/繁/敏 family),
   pushing 字 9712→**10,139** (first ship over 10k) and 碼 13262→13852. `N=10500` now **crashes**.
