@@ -69,14 +69,56 @@ local function save()
   f:close()
 end
 
+-- exact 這一級（主碼天生撞碼，見下面 filter() 裡的說明）另外用一套會衰減的分數，跟
+-- USERFREQ（池子用，選一次就整批衝最前）分開——選一次生僻字不能直接贏過很常用的字，
+-- 半衰期跟 aiphabi_order_plus.lua 同一個常數，選過的分數會隨時間慢慢退回去。
+local HALFLIFE = 2.5 * 24 * 3600
+local function now() local ok, t = pcall(os.time); return ok and t or 0 end
+local function decay(dt) return 0.5 ^ (dt / HALFLIFE) end
+
+local EXACTFREQ = {}   -- text -> { score, ts }
+local EXACT_PATH = (os.getenv("HOME") and (os.getenv("HOME") .. "/Library/Rime/aiphabi_exactfreq.tsv")) or nil
+
+local function exact_load()
+  if not EXACT_PATH then return end
+  local f = io.open(EXACT_PATH, "r"); if not f then return end
+  for line in f:lines() do
+    local ch, s, ts = line:match("^(.-)\t([%d.]+)\t(%d+)$")
+    if ch and ch ~= "" then EXACTFREQ[ch] = { score = tonumber(s), ts = tonumber(ts) } end
+  end
+  f:close()
+end
+
+local function exact_save()
+  if not EXACT_PATH then return end
+  local f = io.open(EXACT_PATH, "w"); if not f then return end
+  for ch, e in pairs(EXACTFREQ) do f:write(ch, "\t", string.format("%.4f", e.score), "\t", e.ts, "\n") end
+  f:close()
+end
+
+local function exact_eff(text)             -- 衰減後的「有效選過分數」，沒選過就是 0
+  local e = EXACTFREQ[text]; if not e then return 0 end
+  return e.score * decay(now() - e.ts)
+end
+
+local function exact_bump(text)
+  local e = EXACTFREQ[text]
+  if e then e.score = e.score * decay(now() - e.ts) + 1; e.ts = now()
+  else EXACTFREQ[text] = { score = 1, ts = now() } end
+end
+
 local function bump(text)                 -- 詞本身也要加分，不能只拆單字——不然選詞候選
   USERFREQ[text] = (USERFREQ[text] or 0) + 1  -- （score() 查的是整個候選的 text）永遠選不進去，
+  exact_bump(text)                            -- exact 那一級自己另一套會衰減的分數，見上面說明。
   local i = 1                                 -- 次數全記在拆出來的單字頭上，詞卡在原地不會升。
   while i <= #text do
     local b = text:byte(i)
     local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
     local ch = text:sub(i, i + len - 1)
-    if ch ~= text then USERFREQ[ch] = (USERFREQ[ch] or 0) + 1 end  -- 單字本身避免跟上面重複加
+    if ch ~= text then
+      USERFREQ[ch] = (USERFREQ[ch] or 0) + 1  -- 單字本身避免跟上面重複加
+      exact_bump(ch)
+    end
     i = i + len
   end
 end
@@ -101,11 +143,13 @@ local function note_commit(text)
   if dirty >= DIRTY_FLUSH then
     dirty = 0
     pcall(save)
+    pcall(exact_save)                     -- 兩份選字紀錄一起攢、一起寫回，同一套節流
   end
 end
 
 local function init(env)
   pcall(load)                             -- 開機讀回上次的選字次數
+  pcall(exact_load)
   local ok, ctx = pcall(function() return env.engine.context end)
   if not ok or not ctx then return end
   pcall(function()
@@ -119,7 +163,11 @@ local function init(env)
 end
 
 local function fini(env)
-  if dirty > 0 then dirty = 0; pcall(save) end   -- 收起來前把攢著沒寫的存回去，別漏掉
+  if dirty > 0 then                              -- 收起來前把攢著沒寫的存回去，別漏掉
+    dirty = 0
+    pcall(save)
+    pcall(exact_save)
+  end
   if env.ap_order_notifier then pcall(function() env.ap_order_notifier:disconnect() end) end
 end
 
@@ -137,6 +185,17 @@ end
 -- 機率極低；真翻到了，超過的部分維持原始順序（碼表已經照 weight 排過／萬用鍵維持
 -- pairs() 原序，還是堪用，只是沒精排）接在後面。
 local MAX_SORT = 40
+
+-- exact 這一級的爬升校準：常用度先取 log，把懸殊的倍數差壓成加減關係（回報過的真實案例：
+-- 母 149276 vs 紅 83857，log 差 0.58；孑/孒/衛 都幾萬，子 卻 37 萬，log 差到 1.3+）。
+-- EXACT_BOOST：選過一次（衰減後）在這個 log 尺度上加的量。校準依據：想让「選 6 次」
+-- 剛好夠打平 母/紅 那組真實案例的差距（0.58），所以取 0.58/6 ≈ 0.097，抓整數感的 0.1——
+-- 差距小的字（log 差 <0.2，同一組裡常見）兩三次就能追過去；差距大的字（子 那種）要選
+-- 到十次以上才追得過去，越生僻、想贏過越常用的字，需要的次數越多。
+-- EXACT_MIN_EFF：選過次數（衰減後）低於這個值完全不算分——選一次（eff=1）就是 <1.5，
+-- 不會動；要「連續選到第二次」才開始起作用，防手滑誤觸一次就霸榜。
+local EXACT_BOOST = 0.1
+local EXACT_MIN_EFF = 1.5
 
 local function filter(input, env)
   local cands = {}
@@ -215,13 +274,60 @@ local function filter(input, env)
     elseif (c.start or 0) > segStart or (c._end or 0) < segEnd then
       part[#part + 1] = { c = c, cov = (c._end or 0) - (c.start or 0) }
     elseif c.type == "ap_short" then short[#short + 1] = c
-    elseif c.type == "ap_si4" then exact[#exact + 1] = c   -- 打滿四碼詞＝exact 一級
-    elseif c.type == "ap_left" then exact[#exact + 1] = c  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
+    elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c, si4 = true }   -- 打滿四碼詞＝exact 一級
+    elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
     elseif c.type == "ap_si4_partial" then comp[#comp + 1] = { c = c }  -- 四碼前三碼＝還沒打完，跟 completion 同一級（不能跟打滿的 ap_si4 混在 exact，也不能跟打滿整段的 ap_pool 混在池子——見 aiphabi_hint.lua 同名註解）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
-    elseif exactSet[c.text] then exact[#exact + 1] = c
+    elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
     else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
+  end
+
+  -- exact 這一級也要讓「選過次數」慢慢管得到：同一碼底下兩個字都是主碼（重複碼組，
+  -- 現在有 600+ 組）時，librime 交給我們的原始順序只反映碼表 weight，選字次數對它
+  -- 完全沒作用——回報過：同一碼一直選同一個字，選了六次還是排不到第一。
+  -- 但不能照 pool 那套「選過一次就整批衝最前面」：exact 撞碼常常懸殊（母 149276 vs
+  -- 紅 83857；孑/孒/衛 都幾萬，子 卻 37 萬）——選一次生僻字就贏過很常用的字，不合理，
+  -- 也不是回報要的效果（見上面 EXACT_BOOST／EXACT_MIN_EFF 的校準說明）。也不能整批照
+  -- log 常用度重排——這樣會把 aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個字（這/記、
+  -- 家/衣，兩個字都沒被選過）撈回最前面，等於廢掉那個機制。
+  -- 做法：插入排序，只移動「有算分」（eff ≥ EXACT_MIN_EFF）的那些字，一個一個往前追——
+  -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
+  -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
+  --
+  -- 插入排序前先把「主碼真的打中的字」（含 ap_left 推出來的）跟「四碼快打湊巧撞同簽名
+  -- 的詞」（ap_si4）分兩批、前者在前，兩批各自維持原序——不然常用單字會被候選來源
+  -- 剛好先吐出來的生僻四碼詞蓋過（回報：jwej 打「爭」被地名「万山群島」蓋過，兩邊
+  -- 都沒被選過，插入排序不會動它們，得靠這個分批墊底）。跟 comp 那一級「真正的詞組
+  -- 補全該贏四碼前三碼補全」（上面 pa/pb 那段）同一個道理：四碼快打是撞出來的巧合，
+  -- 不該蓋過真的打中主碼的字，哪個更常用才追得動之後那個插入排序。
+  do
+    local primary, si4Group = {}, {}
+    for _, e in ipairs(exact) do
+      if e.si4 then si4Group[#si4Group + 1] = e else primary[#primary + 1] = e end
+    end
+    exact = primary
+    for _, e in ipairs(si4Group) do exact[#exact + 1] = e end
+  end
+  do
+    local function logf(text) return math.log(cf(text) + 1) end
+    local function key(e)
+      local eff = exact_eff(e.c.text)
+      if eff < EXACT_MIN_EFF then eff = 0 end
+      return logf(e.c.text) + EXACT_BOOST * eff
+    end
+    for _, e in ipairs(exact) do
+      e.mover = exact_eff(e.c.text) >= EXACT_MIN_EFF
+    end
+    for i = 2, #exact do
+      if exact[i].mover then
+        local j = i
+        while j > 1 and key(exact[j - 1]) < key(exact[j]) do
+          exact[j - 1], exact[j] = exact[j], exact[j - 1]
+          j = j - 1
+        end
+      end
+    end
   end
 
   -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
@@ -281,21 +387,6 @@ local function filter(input, env)
     for _, e in ipairs(compTail) do compHead[#compHead + 1] = e end
   end
   comp = compHead
-  -- exact 一級內部排序：見上面第 2 層的說明，不然候選提供者的原始順序（跟常用度無關）
-  -- 會決定誰排前面。量通常很小（同一碼底下能打滿的字/詞不多），不用 MAX_SORT 上限。
-  -- 約定簡碼撞碼字（data.short_demote，見 aiphabi_hint.lua 同名邏輯）仍得先擠到這一級
-  -- 最後面——那是刻意的「逼你改用簡碼」，不能被這裡新加的常用度排序蓋過去。
-  local short_on = env.engine.context:get_option("aiphabi_short100")
-  local demoteSet = short_on and data.short_demote[code]
-  for i, c in ipairs(exact) do exact[i] = { c = c, i = i } end
-  table.sort(exact, function(a, b)
-    local da = demoteSet and demoteSet[a.c.text] or false
-    local db = demoteSet and demoteSet[b.c.text] or false
-    if da ~= db then return db end   -- 沒被撞碼標記的排前面
-    local sa, sb = score(a.c.text), score(b.c.text)
-    if sa ~= sb then return sa > sb end
-    return a.i < b.i
-  end)
 
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
@@ -304,15 +395,16 @@ local function filter(input, env)
   end)
 
   for _, c in ipairs(short) do yield(c) end              -- 1. 簡碼
-  for _, e in ipairs(exact) do yield(e.c) end            -- 2. 主碼 exact
+  for _, e in ipairs(exact) do yield(e.c) end            -- 2. 主碼 exact（照 選過→常用度）
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
   for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
   for _, c in ipairs(demoted) do yield(c) end            -- 5. 沒打 ` 前綴卻冒出來的部件字，壓到這
   for _, e in ipairs(part) do yield(e.c) end             -- 6. 只吃前綴的切分候選，墊底
 end
 
--- _USERFREQ／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
+-- _USERFREQ／_bump／_EXACTFREQ／_exact_eff：只給 tests/run_tests.lua 用，不影響正式行為。
 -- get_last_commit／note_commit：給 aiphabi_wildcard／aiphabi_autocommit 用，是正式行為的一部分。
 return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
          get_last_commit = get_last_commit, note_commit = note_commit, get_last_n = get_last_n,
-         _MAX_SORT = MAX_SORT }
+         _MAX_SORT = MAX_SORT, _EXACTFREQ = EXACTFREQ, _exact_eff = exact_eff,
+         _EXACT_BOOST = EXACT_BOOST, _EXACT_MIN_EFF = EXACT_MIN_EFF }
