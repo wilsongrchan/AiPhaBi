@@ -495,6 +495,30 @@ do
 end
 
 print()
+print("== 打繁出簡／打簡出繁帶出來的字，別無條件墊在所有 exact 撞碼字之後 ==")
+do
+  -- 回報：ZA 撞碼 汐(95951)／汎(93158)／导(85620)，汎 打繁出簡帶出 泛(98277，比三個
+  -- exact 撞碼字都常用)——以前 泛 標 ap_pool，無條件墊在 汐/汎/导 這些 exact 一級之後
+  -- （A B C D E a b c d e 那種盲目分組）；改標 ap_variant，併進 exact 一級照常用度插
+  -- 進正確位置，泛 常用度贏過全部三個，該排第一。
+  local outZa = h.run{
+    schema = "aiphabi", code = "za", options = { aiphabi_t2s = true },
+    cands = { { text = "汐" }, { text = "汎" }, { text = "导" } },
+  }
+  h.checkAt("打 ZA：泛（打繁出簡，freq 98277）該排第一，贏過三個 exact 撞碼字", outZa, 1, "泛")
+
+  -- 不是無條件衝第一——常用度沒贏過的字該插在正確的中間位置，不是前面也不是最後。
+  -- 子(379935) 孑(96322) 卫(86062) 都是 pi 的 exact 撞碼字（已照 freq 排好）；孒(93037，
+  -- 這裡用它模擬一個打繁出簡帶出來的字）該插進 孑 跟 卫 中間。
+  local outMid = h.run{
+    schema = "aiphabi", code = "pi", options = { aiphabi_t2s = true },
+    cands = { { text = "子" }, { text = "孑" }, { text = "卫" }, { text = "孒", type = "ap_variant" } },
+  }
+  h.checkAt("打 PI：孒（模擬變體字，93037）該插在 孑(96322) 跟 卫(86062) 中間", outMid, 3, "孒")
+  h.checkAt("打 PI：孑 還是第二（沒被插進來的字擠掉排序）", outMid, 2, "孑")
+end
+
+print()
 print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
 do
   local ac = require("aiphabi_autocommit")

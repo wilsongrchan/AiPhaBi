@@ -4,7 +4,10 @@
 --   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
 --      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
 --      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
---      那個是猜的，留在下面。）
+--      那個是猜的，留在下面。）打繁出簡／打簡出繁帶出來的字（ap_variant）也併進這
+--      一級，照常用度插入正確位置，不整批墊在後面——跟這個碼 exact 撞碼的字一樣
+--      確定，只是剛好不是這個碼的主碼（回報：汎[exact] 硬性排在 泛[simp，其實較常用]
+--      前面）。
 --   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
 --      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
 --      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
@@ -255,6 +258,7 @@ local function filter(input, env)
     elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c }   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
+    elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, variant = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
     else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
@@ -271,6 +275,11 @@ local function filter(input, env)
   -- 做法：插入排序，只移動「有算分」（eff ≥ EXACT_MIN_EFF）的那些字，一個一個往前追——
   -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
   -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
+  -- ap_variant（打繁出簡／打簡出繁帶出來的字）永遠算「有算分」，不用先跨過 EXACT_MIN_EFF
+  -- 那個防手滑門檻——它不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度
+  -- 插進正確位置（本來就不是這個碼的主碼，沒有「原始順序」這回事可以維持，插進去
+  -- 對的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
+  -- 選過的話一樣吃 USERFREQ 加分。
   do
     local function logf(text) return math.log(cf(text) + 1) end
     local function key(e)
@@ -279,7 +288,7 @@ local function filter(input, env)
       return logf(e.c.text) + EXACT_BOOST * eff
     end
     for _, e in ipairs(exact) do
-      e.mover = exact_eff(e.c.text) >= EXACT_MIN_EFF
+      e.mover = e.variant or exact_eff(e.c.text) >= EXACT_MIN_EFF
     end
     for i = 2, #exact do
       if exact[i].mover then

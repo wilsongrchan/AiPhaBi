@@ -138,7 +138,13 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, v, refMark("簡", sc))
+              -- 標 ap_variant，不是 ap_pool：這個字不是猜的（不像同類／偏旁碼／三簡碼那些
+              -- 自動配對），是同一個字的另一種寫法，跟這個碼本身撞碼的其他字一樣「確定」——
+              -- 只是剛好不是這個碼的主碼而已。回報過：撞碼的簡體字明明比繁體某些字常用
+              -- （汎的簡體 泛 freq 98277，比同碼的 汐 95951 還高），卻因為被歸進 ap_pool，
+              -- 硬性排在所有 exact 一級的字之後（A B C D E a b c d e），見
+              -- aiphabi_order.lua 那邊把 ap_variant 併進 exact 一級照常用度排的處理。
+              extra[#extra + 1] = Candidate("ap_variant", s, e, v, refMark("簡", sc))
             end
           end
         end
@@ -147,7 +153,7 @@ local function filter(input, env)
             if not seen[v] then
               seen[v] = true
               local sc = data.char2code[v]
-              extra[#extra + 1] = Candidate("ap_pool", s, e, v, refMark("繁", sc))
+              extra[#extra + 1] = Candidate("ap_variant", s, e, v, refMark("繁", sc))
             end
           end
         end
