@@ -480,13 +480,29 @@ def _load_common_whitelist():
     return grab("common") or grab("biaonei") or set()
 
 
+def _official_table_chars():
+    """官方字表聯集（教育部常用＋次常用甲乙表 ∪ GB2312 一二級）——跟取碼進度頁
+    「官方字表覆蓋率」長條圖同一份定義，不是全部 CJK 統一表意文字（那兩萬多字裡
+    九成沒人打過，見 STANDARDS 開頭的說明）。范氏圖拿它補常用字白名單之外「還
+    沒取但在乎」的例字：白名單本身遲早會被取滿（見 venn_data），到時候「較少
+    見」那幾塊要是只認白名單，例字池就乾了，明明佇列裡還有一大票字沒取。"""
+    chars = set()
+    for spec in STANDARDS:
+        if spec["id"] in ("tw", "gb2312"):
+            for seg in spec["segments"]:
+                chars.update(_standard_segment_chars(seg))
+    return chars
+
+
 def venn_data():
     """簡體字／繁體字／傳承字 × 常用字 × 已取碼，給取碼進度頁的范氏圖用。
 
-    範圍（universe）＝已取碼字 ∪ 只打常用字白名單——不是全部 CJK 統一表意文字
-    （那兩萬多字裡九成沒人打過，「傳承字，較少見」會被灌到失真）。常用字白名單
-    剛好也是「不打簡體／只打常用字」關掉時會篩掉哪些字的那個定義，拿來當「還沒
-    取碼但在乎」那一側的邊界最貼題——多出來的缺口本身就是看得懂、有意義的清單。
+    範圍（universe）＝已取碼字 ∪ 只打常用字白名單 ∪ 官方字表聯集（見
+    _official_table_chars）——不是全部 CJK 統一表意文字（那兩萬多字裡九成沒人
+    打過，「傳承字，較少見」會被灌到失真）。常用字白名單本身遲早會被取到 100%
+    （已經是了），純靠它劃「還沒取碼但在乎」的邊界會讓「較少見」幾塊的例字池
+    乾涸；官方字表聯集（甲乙表＋GB2312）補進真的還沒取、但仍是有意義清單（不是
+    罕用字亂數）的那些字，讓「較少見」的例字持續有東西可灑。
     """
     s2t = _load_s2t()
     simp_only = _load_simp_only(s2t)
@@ -499,7 +515,7 @@ def venn_data():
         coded_map = {}
     coded = {c for c, r in coded_map.items() if isinstance(r, dict) and r.get("code")}
 
-    universe = coded | common
+    universe = coded | common | _official_table_chars()
 
     try:
         rank = {c: i for i, c in enumerate(json.loads(FREQ.read_text("utf-8")).get("order", []))}
@@ -530,8 +546,16 @@ def venn_data():
     out = {}
     for key, chars in regions.items():
         chars.sort(key=sort_key)
+        # 例字灑點要分池：已取碼邊界（見進度頁 drawVenn 的虛線圓）只是「面積 ∝
+        # 已取碼字數」的示意，不是逐字判斷——灑到線外的點如果照舊從 chars 頭幾個
+        # 取，可能剛好是已取碼字，看起來像「這個字明明有碼，怎麼畫在還沒取碼那
+        # 側」。分成 codedChars／uncodedChars 兩份，前端按點落在線內/線外各自的
+        # 池子挑，才不會文不對題。
+        coded_chars = [c for c in chars if c in coded]
+        uncoded_chars = [c for c in chars if c not in coded]
         out[key] = {"label": LABELS[key], "chars": chars,
-                    "coded": sum(1 for c in chars if c in coded), "total": len(chars)}
+                    "codedChars": coded_chars, "uncodedChars": uncoded_chars,
+                    "coded": len(coded_chars), "total": len(chars)}
 
     return {"regions": out, "codedTotal": len(coded), "universeTotal": len(universe)}
 
