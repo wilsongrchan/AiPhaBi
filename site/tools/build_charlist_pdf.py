@@ -555,28 +555,6 @@ class Flow:
         if col:
             self.y += self.row_h
 
-    def grid_labeled(self, label, chars):
-        """跟 grid 一樣，但第一列留一格放標籤（四角號碼第一碼）；換行後的接續列
-        仍空出同一格，讓字一路對齊到標籤右邊那一欄——不會跟標籤疊在一起，也
-        不會退到最左邊、跟上一列的字對不齊。"""
-        indent = 1 if label else 0
-        col = indent
-        self._room(self.row_h)
-        if label:
-            green = (0.055, 0.486, 0.451)
-            self.page.insert_text((ML + (CELL - CHAR_SIZE * 0.8) / 2, self.y + CHAR_SIZE),
-                                  str(label), fontname="hebo",
-                                  fontsize=CHAR_SIZE * 0.8, color=green)
-        for ch in chars:
-            if col == COLS:
-                col = indent
-                self.y += self.row_h
-                self._room(self.row_h)
-            self._cell(ML + col * CELL, self.y, ch)
-            col += 1
-        if col > indent:
-            self.y += self.row_h
-
     def grid_cols(self, groups, ncols=2, gutter=22.0):
         """把一串「一行一組」的字堆排成 ncols 直欄，欄間留 gutter 寬的溝——不
         留溝的話兩欄之間的字剛好隔一格，看起來就像一整排 26 欄硬被切兩半，
@@ -1125,17 +1103,22 @@ def build(with_code=False, preview_page1=False):
             flow.grid(comp)
         if others:
             flow.subhead(f"其他（{len(others)} 字，四角號碼序）")
-            # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行（Wilson）；查無四角碼
-            # 的幾個字沒有第一碼可分，自成一行擺最末。
-            first = lambda c: fc.get(c, "")[:1] or "?"
-            buckets = []
+            # 四角號碼前兩碼第一次出現時，格子正上方標個小綠色兩位數
+            # （00／01／02…）——跟拼音／注音首見小標同一套機制（_cell 的
+            # pinyin 參數），借用列間本來就有的空白，不佔額外欄位、不吃
+            # row_h（Wilson，2026-09-19；原本用 grid_labeled 每列多留一格
+            # 當標籤欄，白白吃掉版面）。查無四角碼的字沒有碼可分桶，不標。
+            seen_bucket = set()
+            items = []
             for c in others:
-                k = first(c)
-                if not buckets or buckets[-1][0] != k:
-                    buckets.append([k, []])
-                buckets[-1][1].append(c)
-            for k, chars in buckets:
-                flow.grid_labeled(k, chars)
+                code = fc.get(c, "")
+                bucket = code[:2] if len(code) >= 2 and code[:2].isdigit() else None
+                label = None
+                if bucket and bucket not in seen_bucket:
+                    seen_bucket.add(bucket)
+                    label = bucket
+                items.append((c, None, False, label))
+            flow.grid_cells(items)
 
     bopo_section("一、台灣教育部《常用國字標準字體表》甲表", jiabiao, toc="一、台灣教育部國字甲表")
 
