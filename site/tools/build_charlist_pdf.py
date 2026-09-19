@@ -1103,22 +1103,32 @@ def build(with_code=False, preview_page1=False):
             flow.grid(comp)
         if others:
             flow.subhead(f"其他（{len(others)} 字，四角號碼序）")
-            # 四角號碼前兩碼第一次出現時，格子正上方標個小綠色兩位數
+            # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行，跟原本一樣
+            # （Wilson）；查無四角碼的幾個字沒有第一碼可分，自成一行擺最末。
+            # 行內遇到前兩碼變化時，格子正上方再標個小綠色兩位數
             # （00／01／02…）——跟拼音／注音首見小標同一套機制（_cell 的
             # pinyin 參數），借用列間本來就有的空白，不佔額外欄位、不吃
-            # row_h（Wilson，2026-09-19；原本用 grid_labeled 每列多留一格
-            # 當標籤欄，白白吃掉版面）。查無四角碼的字沒有碼可分桶，不標。
-            seen_bucket = set()
-            items = []
+            # row_h（原本用 grid_labeled 每列多留一格當標籤欄，白白吃掉版面，
+            # 現在兩位數小標本身就表明第一碼是誰，不必再留欄）。
+            major = lambda c: fc.get(c, "")[:1] or "?"
+            buckets = []
             for c in others:
-                code = fc.get(c, "")
-                bucket = code[:2] if len(code) >= 2 and code[:2].isdigit() else None
-                label = None
-                if bucket and bucket not in seen_bucket:
-                    seen_bucket.add(bucket)
-                    label = bucket
-                items.append((c, None, False, label))
-            flow.grid_cells(items)
+                k = major(c)
+                if not buckets or buckets[-1][0] != k:
+                    buckets.append([k, []])
+                buckets[-1][1].append(c)
+            seen_bucket = set()
+            for _, chars in buckets:
+                items = []
+                for c in chars:
+                    code = fc.get(c, "")
+                    bucket = code[:2] if len(code) >= 2 and code[:2].isdigit() else None
+                    label = None
+                    if bucket and bucket not in seen_bucket:
+                        seen_bucket.add(bucket)
+                        label = bucket
+                    items.append((c, None, False, label))
+                flow.grid_cells(items)
 
     bopo_section("一、台灣教育部《常用國字標準字體表》甲表", jiabiao, toc="一、台灣教育部國字甲表")
 
