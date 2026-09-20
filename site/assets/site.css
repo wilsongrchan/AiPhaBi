@@ -93,20 +93,16 @@
   --rb-5: #f26fde;   /* 粉紅（Wilson 指定的值）——超過五組筆畫的字（藍 HCKAMI 六組）
                          才用得到，不然照 RAINBOW.length 循環到第六組會撞回紅色 */
 
-  /* 〈字根練習〉第三關專用：六組字根／碼格全部改成冷色系（青～綠，195°→105°，
-     同一個「不刺眼」家族）分色相，不沿用全站的分組色 --rb-0…5（Wilson：測驗
-     情境裡紅／橙／黃這幾色會讓人誤以為打錯了）。第一版只靠深淺分不夠明顯——
-     深色主題下第一、二組幾乎看不出差別（Wilson 回報），改成色相也一起變，
-     每組間隔 18°，前三組（最常用到的）差距最大最好認。只在 lianxi.js 掛
-     #xz-glyph／#xz-typed 的地方覆蓋，不動字根表／試打頁共用的
-     .tz-z0…5／.tz-chip.z0…5（那些還是全站分組色）。跟文字對比：淺色底跟白字
-     （--surface）都 ≥4.5:1，深色底跟深字都 ≥6.7:1。 */
-  --quiz-g0: #156884;   /* 青藍 195° */
-  --quiz-g1: #15847e;   /* 青 177° */
-  --quiz-g2: #15845d;   /* 青綠 159° */
-  --quiz-g3: #15843c;   /* 綠 141° */
-  --quiz-g4: #15841b;   /* 深綠 123° */
-  --quiz-g5: #318415;   /* 黃綠 105°（很少用到——超過五組筆畫的字才會到這個） */
+  /* 〈字根練習〉第三關專用：字根／碼格改用愛發筆主色青（175°）三種深淺，不
+     沿用全站的分組色 --rb-0…5（Wilson：測驗情境裡紅／橙／黃這幾色會讓人誤以
+     為打錯了）。只有三個顏色夠明顯，超過三組筆畫的字循環回來（第 4 組跟第 1
+     組同色、第 5 組跟第 2 組同色，見 lianxi.js 的 gi % 3）。Wilson 給的定案值
+     （z1 就是 --accent 本身）。只在 lianxi.js 掛 #xz-glyph／#xz-typed 的地方
+     覆蓋，不動字根表／試打頁共用的 .tz-z0…2／.tz-chip.z0…2（那些還是全站
+     分組色）。 */
+  --quiz-g0: #109388;
+  --quiz-g1: #0e7c73;   /* = --accent */
+  --quiz-g2: #07403b;
 
   /* 打錯／警告的紅。要比第一組的筆畫紅（--rb-0）更深，兩種紅才分得開（Wilson）——
      試打頁同一畫面上就會同時出現：第一條字根的筆畫是 rb-0，打歪的那幾碼是這個。
@@ -153,14 +149,11 @@
     --rb-3: #0096ff;   /* 本來就夠亮，深淺主題共用 */
     --rb-4: #c084fc;
     --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
-    /* 第三關六色深色版：跟淺色底同一組色相（195°→105°），飽和度／明度調到在
-       深底上夠亮，見上面 --quiz-g0 的註解。全部跟深字 #1b2020 對比 ≥6.7:1。 */
-    --quiz-g0: #59b1cf;   /* 青藍 195° */
-    --quiz-g1: #59cfc9;   /* 青 177° */
-    --quiz-g2: #59cfa6;   /* 青綠 159° */
-    --quiz-g3: #59cf82;   /* 綠 141° */
-    --quiz-g4: #59cf5f;   /* 深綠 123° */
-    --quiz-g5: #76cf59;   /* 黃綠 105° */
+    /* 第三關三色深色版：跟淺色底同一顆青（172.7°），深色底往亮走（跟深字
+       --surface 對比才夠）。Wilson 給的定案值（z1 就是 --accent 本身）。 */
+    --quiz-g0: #339e91;
+    --quiz-g1: #3fc0b0;   /* = --accent */
+    --quiz-g2: #61ccbf;
     /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
        （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
        只剩 4.47，低於 4.5 就不收。 */
@@ -198,12 +191,9 @@
     --rb-3: #0096ff;   /* 本來就夠亮，深淺主題共用 */
     --rb-4: #c084fc;
     --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
-    --quiz-g0: #59b1cf;
-    --quiz-g1: #59cfc9;
-    --quiz-g2: #59cfa6;
-    --quiz-g3: #59cf82;
-    --quiz-g4: #59cf5f;
-    --quiz-g5: #76cf59;
+    --quiz-g0: #339e91;
+    --quiz-g1: #3fc0b0;
+    --quiz-g2: #61ccbf;
     /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
        （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
        只剩 4.47，低於 4.5 就不收。 */
@@ -4282,47 +4272,19 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 /* 打錯的時候抖的是碼格，不是按鍵 —— 錯的是「這個字母不是下一個」 */
 .xz-typed.is-bad { animation: xz-shake .26s ease; }
 
-/* 第三關六組字根／碼格全部改成愛發筆主色青的深淺漸層，不用全站分組色
-   --rb-0…5（見上面 --quiz-g0 的註解）；只在 #xz-glyph／#xz-typed 這兩塊
-   （lianxi.js 專用的 id）生效，不動字根表／試打頁那些地方共用的
-   .tz-z0…5／.tz-chip.z0…5。 */
+/* 第三關字根／碼格改用愛發筆主色青的三種深淺，不用全站分組色 --rb-0…5
+   （見上面 --quiz-g0 的註解）；只在 #xz-glyph／#xz-typed 這兩塊（lianxi.js
+   專用的 id）生效，不動字根表／試打頁那些地方共用的 .tz-z0…2／.tz-chip.z0…2。
+   超過三組筆畫的字循環回來（gi % 3，見 lianxi.js），不需要另外三個顏色。 */
 #xz-glyph .tz-z0 { fill: var(--quiz-g0); }
 #xz-glyph .tz-z1 { fill: var(--quiz-g1); }
 #xz-glyph .tz-z2 { fill: var(--quiz-g2); }
-#xz-glyph .tz-z3 { fill: var(--quiz-g3); }
-#xz-glyph .tz-z4 { fill: var(--quiz-g4); }
-#xz-glyph .tz-z5 { fill: var(--quiz-g5); }
 #xz-typed .tz-chip.z0 { background: var(--quiz-g0); }
 #xz-typed .tz-chip.z1 { background: var(--quiz-g1); }
 #xz-typed .tz-chip.z2 { background: var(--quiz-g2); }
-#xz-typed .tz-chip.z3 { background: var(--quiz-g3); }
-#xz-typed .tz-chip.z4 { background: var(--quiz-g4); }
-#xz-typed .tz-chip.z5 { background: var(--quiz-g5); }
 #xz-typed .tz-chip.z0.is-blank { color: var(--quiz-g0); }
 #xz-typed .tz-chip.z1.is-blank { color: var(--quiz-g1); }
 #xz-typed .tz-chip.z2.is-blank { color: var(--quiz-g2); }
-#xz-typed .tz-chip.z3.is-blank { color: var(--quiz-g3); }
-#xz-typed .tz-chip.z4.is-blank { color: var(--quiz-g4); }
-#xz-typed .tz-chip.z5.is-blank { color: var(--quiz-g5); }
-
-/* 打對的格子疊一個小綠勾，強化「這是對的」——尤其六組字根改成深淺不同的
-   青色之前，紅／橙／黃這幾色容易讓人誤會成「打錯了」（Wilson）。沿用這一頁
-   「答對」本來就在用的 --accent（字母鍵答對是同一顆綠，見 .xz-key.is-right）。 */
-.xz-slot.is-on { position: relative; }
-.xz-slot.is-on::after {
-  content: '\2713';
-  position: absolute;
-  top: -.4rem; right: -.4rem;
-  width: .95rem; height: .95rem;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--surface);
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: .62rem;
-  font-weight: 700;
-  line-height: .95rem;
-  text-align: center;
-}
 
 /* 打整個字那一種題目：整個字都是正常墨色，不標任何一段 */
 .xz-tianzi .xz-ink { fill: var(--ink); }
