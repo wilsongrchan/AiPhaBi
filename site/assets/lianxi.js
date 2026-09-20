@@ -92,6 +92,11 @@
      題目可以跳過，還有別的可以練（Wilson 2026-09-01）。所以「過關」看的是答對
      幾題，不是把整關的題目都答完。 */
   var PASS = 8;             // 建置會蓋掉這個值（lianxi.json 的 pass）
+  /* 答對過的題目（mastered）本來會被完全排除，直到整關都答對過才重新出現——
+     早期大量測試過某一關的人，之後打開永遠只看到剩下沒學會的那幾題，像壞掉
+     一樣（Wilson 回報：第一關一直只出十/乙/區/史/檢）。這裡讓已學會的題目也
+     有小機率（1/5）混進來複習，不用整關答完或清掉練習紀錄才會再出現。 */
+  var REVIEW_CHANCE = 0.2;
   var forcedLevel = null;   // 按過「下一關」之後暫時鎖在那一關
   /* 這一輪看過答案的題目。⚠️ 不寫進 localStorage：它只管「這一關能不能往下走」，
      不是學會了。看過答案（或猜滿三次）就算走過，不然一直按「看答案」的人會卡在
@@ -211,7 +216,15 @@
      兩種都沒有（整關都答對了）回 null，換下一關。 */
   function levelSource(li) {
     var a = levelLeft(li);                                  // 沒答對過也沒看過的
-    if (a.length) return a;
+    if (a.length) {
+      // 小機率把已經答對過、這一輪還沒看過的題目混進來複習，不然學會的題目
+      // 永遠沉在池底，直到整關答完才重新出現（見上面 REVIEW_CHANCE 的註解）。
+      var review = levelPool(li).filter(function (q) {
+        return mastered[keyOf(q)] && !seenThisRound[keyOf(q)];
+      });
+      if (review.length && Math.random() < REVIEW_CHANCE) return review;
+      return a;
+    }
     var b = levelPool(li).filter(function (q) { return !mastered[keyOf(q)]; });
     if (b.length) return b;                                 // 看過但還沒答對過的
     // 以前全部答對過了，但**這一輪**還沒過關 —— 照樣要出題給他打
