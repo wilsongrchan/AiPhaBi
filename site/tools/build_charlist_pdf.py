@@ -905,6 +905,13 @@ def build(with_code=False, preview_page1=False):
             sys.exit("沒讀到 data/codes.json，附碼版做不出來")
         code_map = {c: rec.get("final") for c, rec in cj_raw.items()
                     if isinstance(rec, dict) and rec.get("final")}
+        # 部件字：codes.json 存的 final 是純碼（不含反引號），但打字時非得靠
+        # 反引號 ` 前綴才叫得出來，不然打裸碼只會打到跟它同碼的獨立字（見
+        # gongnengjian.html「打 `K` 才是「爿」，單獨 K 只有「水」」）。標籤跟
+        # 實際打法不一致等於教錯，加回反引號（Wilson，2026-09-19）。
+        for c, rec in cj_raw.items():
+            if isinstance(rec, dict) and rec.get("componentOnly") and c in code_map:
+                code_map[c] = "`" + code_map[c]
 
     doc = fitz.open()
     flow = Flow(doc, code_map=code_map)
