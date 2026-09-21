@@ -181,10 +181,24 @@ local MAX_SORT = 40
 -- 剛好夠打平 母/紅 那組真實案例的差距（0.58），所以取 0.58/6 ≈ 0.097，抓整數感的 0.1——
 -- 差距小的字（log 差 <0.2，同一組裡常見）兩三次就能追過去；差距大的字（子 那種）要選
 -- 到十次以上才追得過去，越生僻、想贏過越常用的字，需要的次數越多。
--- EXACT_MIN_EFF：選過次數（衰減後）低於這個值完全不算分——選一次（eff=1）就是 <1.5，
--- 不會動；要「連續選到第二次」才開始起作用，防手滑誤觸一次就霸榜。
+-- MIN_EFF：選過次數（衰減後）低於這個值完全不算分，防手滑誤觸一次就霸榜——但這個
+-- 「防手滑」門檻本身也該看這個字有多冷僻：名／合 這種很常用的字（幾十萬等級），選
+-- 一兩次就該起作用，不用刻意懷疑；志／忑、孑／孒 這種本來就不算常用的字（十萬上下），
+-- 隨手選一兩次的訊號沒那麼可信，該拉高門檻到選三次才算數（回報：志/忑 只選一次就
+-- 被 Rime 內建的 userdb 學習機制搶排到前面，但那次選字很可能只是隨手測試）。
+-- 校準：以「合」389799 這個量級當基準（門檻維持 1.5，等於現狀不變），常用度每往下差
+-- 一個 log 單位，門檻多加 0.5——母（149276，跟基準差 0.96 個 log 單位）門檻落在 ~1.98，
+-- 維持「選兩次就夠」這個已驗證過的真實案例不變；志／忑／孑／孒（十萬上下，跟基準差
+-- 1.3～1.4 個 log 單位）門檻落在 ~2.2，剛好卡在「兩次不夠、第三次才夠」。
 local EXACT_BOOST = 0.1
-local EXACT_MIN_EFF = 1.5
+local MIN_EFF_BASE = 1.5
+local MIN_EFF_REF_LOGF = math.log(389799)
+local MIN_EFF_SLOPE = 0.5
+local function min_eff(text)
+  local gap = MIN_EFF_REF_LOGF - math.log(cf(text) + 1)
+  if gap < 0 then gap = 0 end
+  return MIN_EFF_BASE + MIN_EFF_SLOPE * gap
+end
 
 local function filter(input, env)
   local cands = {}
@@ -280,13 +294,13 @@ local function filter(input, env)
   -- 完全沒作用——回報過：同一碼一直選同一個字，選了六次還是排不到第一。
   -- 但不能照 pool 那套「選過一次就整批衝最前面」：exact 撞碼常常懸殊（母 149276 vs
   -- 紅 83857；孑/孒/衛 都幾萬，子 卻 37 萬）——選一次生僻字就贏過很常用的字，不合理，
-  -- 也不是回報要的效果（見上面 EXACT_BOOST／EXACT_MIN_EFF 的校準說明）。也不能整批照
+  -- 也不是回報要的效果（見上面 EXACT_BOOST／min_eff() 的校準說明）。也不能整批照
   -- log 常用度重排——這樣會把 aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個字（這/記、
   -- 家/衣，兩個字都沒被選過）撈回最前面，等於廢掉那個機制。
-  -- 做法：插入排序，只移動「有算分」（eff ≥ EXACT_MIN_EFF）的那些字，一個一個往前追——
+  -- 做法：插入排序，只移動「有算分」（eff ≥ min_eff(這個字)）的那些字，一個一個往前追——
   -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
   -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
-  -- ap_variant（打繁出簡／打簡出繁帶出來的字）永遠算「有算分」，不用先跨過 EXACT_MIN_EFF
+  -- ap_variant（打繁出簡／打簡出繁帶出來的字）永遠算「有算分」，不用先跨過 min_eff()
   -- 那個防手滑門檻——它不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度
   -- 插進正確位置（本來就不是這個碼的主碼，沒有「原始順序」這回事可以維持，插進去
   -- 對的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
@@ -295,11 +309,11 @@ local function filter(input, env)
     local function logf(text) return math.log(cf(text) + 1) end
     local function key(e)
       local eff = exact_eff(e.c.text)
-      if eff < EXACT_MIN_EFF then eff = 0 end
+      if eff < min_eff(e.c.text) then eff = 0 end
       return logf(e.c.text) + EXACT_BOOST * eff
     end
     for _, e in ipairs(exact) do
-      e.mover = e.always_score or exact_eff(e.c.text) >= EXACT_MIN_EFF
+      e.mover = e.always_score or exact_eff(e.c.text) >= min_eff(e.c.text)
     end
     for i = 2, #exact do
       if exact[i].mover then
@@ -380,4 +394,4 @@ end
 return { init = init, fini = fini, func = filter, _USERFREQ = USERFREQ, _bump = bump,
          get_last_commit = get_last_commit, note_commit = note_commit, get_last_n = get_last_n,
          _MAX_SORT = MAX_SORT, _EXACTFREQ = EXACTFREQ, _exact_eff = exact_eff,
-         _EXACT_BOOST = EXACT_BOOST, _EXACT_MIN_EFF = EXACT_MIN_EFF }
+         _EXACT_BOOST = EXACT_BOOST, _min_eff = min_eff }

@@ -879,11 +879,23 @@ def main():
                 if _n > 0:
                     _essay[_p[0]] = _n
         _single = [c for c in _essay if len(c) == 1]
+        # R 是「essay 計次比這個詞高的單字有幾個」，本來就該拿「essay 排名第 R 的那個字」
+        # 自己的 freq_w，不能把兩份清單各自獨立排序再各取第 R 個值——freq_w 的排序摻了
+        # charfreq.json（現代字頻，只收 1645 字），一個字只要在裡面隨便計次 1，就因為
+        # ×10000 而衝到 freq_w 排序很前面，即使它 essay 計次其實很低；獨立排序會把這種
+        # 字的高 freq_w 值錯配給某個 essay 計次相近、但沒被 charfreq 收錄、freq_w 因此較低
+        # 的詞，等於詞頻章白白吃到不相干字的 charfreq 加成（回報案例：下山 essay 計次 2139，
+        # 真正排名相當的單字是 霧＝essay 計次 2138、freq_w 98283，卻被錯配到 遂——charfreq
+        # 計次只有 1、essay 排名其實差了 700+ 名，freq_w 卻因為那顆 ×10000 衝到 107717，
+        # 讓 下山 的詞頻贏過常用字 志＝99288，不合理）。修法：兩份資料照同一把「essay
+        # 計次」尺排列、配對著查，R 對到的字是誰，就用那個字自己的 freq_w，不是隨便一個
+        # 排序後位置相同的值。
+        _single_by_essay = sorted(_single, key=lambda c: -_essay[c])
         _neg = sorted(-_essay[c] for c in _single)                 # 單字 essay 計次（升序負值，供 bisect）
-        _fw = sorted((freq_w(c) for c in _single), reverse=True)   # 單字 freq_w（降序）
+        _fw_by_essay_rank = [freq_w(c) for c in _single_by_essay]  # 跟上面同一把尺，逐一對齊
         def _wscore(n):
             R = bisect.bisect_left(_neg, -n)                       # essay 計次 > n 的單字數
-            return _fw[min(R, len(_fw) - 1)] if _fw else 0
+            return _fw_by_essay_rank[min(R, len(_fw_by_essay_rank) - 1)] if _fw_by_essay_rank else 0
         _words = [(_n, _w) for _w, _n in _essay.items() if 2 <= len(_w) <= 4]
         _words.sort(reverse=True)                                  # 依計次由高到低，取前 N
         for _n, _w in _words[:WORDFREQ_TOPN]:
