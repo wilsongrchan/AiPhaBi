@@ -33032,7 +33032,12 @@
       }
     ],
     "code": "OORINEX",
-    "final": "OORIX"
+    "final": "OORIX",
+    "alts": [
+      {
+        "code": "OORCX"
+      }
+    ]
   },
   "竟": {
     "segments": [
@@ -93421,6 +93426,12 @@
             "letter": "Q"
           }
         ]
+      },
+      {
+        "code": "GQPQ"
+      },
+      {
+        "code": "GPQQ"
       }
     ]
   },
@@ -155794,7 +155805,12 @@
       }
     ],
     "code": "TCNEX",
-    "final": "TCNEX"
+    "final": "TCNEX",
+    "alts": [
+      {
+        "code": "TINEX"
+      }
+    ]
   },
   "擱": {
     "segments": [
@@ -169656,6 +169672,12 @@
             ]
           }
         ]
+      },
+      {
+        "code": "GQPQI"
+      },
+      {
+        "code": "GPQQI"
       }
     ]
   },
@@ -172870,7 +172892,12 @@
       }
     ],
     "code": "CNEXW",
-    "final": "CNEXW"
+    "final": "CNEXW",
+    "alts": [
+      {
+        "code": "INEXW"
+      }
+    ]
   },
   "遁": {
     "segments": [
@@ -259359,7 +259386,7 @@
           10,
           11
         ],
-        "letter": "Z"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -259371,7 +259398,7 @@
         "letter": "X"
       }
     ],
-    "code": "DICNZX",
+    "code": "DICNEX",
     "final": "DICNX",
     "compliant": [
       "lone:1",
@@ -259380,7 +259407,15 @@
     "compliantWhy": {
       "lone:1": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。",
       "comp:目:0": "目字旁在最左方，依目字旁原則不略過（凌駕孤筆略過），跟月字旁 D 做區別。"
-    }
+    },
+    "overrides": [
+      "comp:敢:5"
+    ],
+    "alts": [
+      {
+        "code": "DIINX"
+      }
+    ]
   },
   "萸": {
     "segments": [
@@ -279717,7 +279752,7 @@
           9,
           10
         ],
-        "letter": "P"
+        "letter": "J"
       },
       {
         "strokes": [
@@ -279748,8 +279783,8 @@
         "letter": "O"
       }
     ],
-    "code": "IOPPJUVO",
-    "final": "IOPPO"
+    "code": "IOPJJUVO",
+    "final": "IOPJO"
   },
   "遘": {
     "segments": [
@@ -326814,6 +326849,9 @@
           }
         ]
       }
+    ],
+    "overrides": [
+      "merge:3-4"
     ]
   },
   "冏": {
@@ -427279,6 +427317,31 @@
   "弣": {
     "code": "SYA",
     "final": "SYA",
+    "manual": true
+  },
+  "釙": {
+    "code": "YVQ",
+    "final": "YVQ",
+    "manual": true
+  },
+  "峬": {
+    "code": "WDQ",
+    "final": "WDQ",
+    "manual": true
+  },
+  "崚": {
+    "code": "WFVX",
+    "final": "WFVX",
+    "manual": true
+  },
+  "嵑": {
+    "code": "WBSYL",
+    "final": "WBSYL",
+    "manual": true
+  },
+  "幧": {
+    "code": "MOOOT",
+    "final": "MOOOT",
     "manual": true
   }
 }
