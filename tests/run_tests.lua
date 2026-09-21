@@ -275,11 +275,13 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
   -- 「占16000」代表「超過 RAW_CAP」的候選，該整個消失，連補全都補不出來——這是刻意的
   -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。（沒用「一」是因為它主碼剛好是 i，
-  -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西。）
+  -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西；標 ap_pool 是因為這裡要測的
+  -- 是池子的容量／排序上限，不是「打滿整段的字典詞一律 exact」那條規則——未標類型的
+  -- 候選現在也會被歸進 exact 一級，見 aiphabi_order.lua 該處註解，不再落進這個池子。）
   local cands = {}
-  for i = 1, 20000 do cands[i] = { text = "占" .. i } end
-  cands[10] = { text = "的" }
-  cands[midPos] = { text = "是" }
+  for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
+  cands[10] = { text = "的", type = "ap_pool" }
+  cands[midPos] = { text = "是", type = "ap_pool" }
 
   local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
 
@@ -311,7 +313,7 @@ do
   order_mod._USERFREQ[key] = 99   -- 直接塞：模擬「這個字選過很多次」
 
   local cands = {}
-  for i = 1, 20000 do cands[i] = { text = "占" .. i } end
+  for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
   local out = h.run{ schema = "aiphabi", code = "i", options = {}, cands = cands }
   order_mod._USERFREQ[key] = nil   -- 用完清掉，不要汙染其他測試
 
@@ -521,6 +523,40 @@ do
   }
   h.checkAt("打 IM：众（模擬變體字，235241）該插在 示(638997) 跟 巿(94627) 中間", outMid, 3, "众")
   h.checkAt("打 IM：示 還是第二（沒被插進來的字擠掉排序）", outMid, 2, "示")
+end
+
+print()
+print("== 碼表裡打滿整段的詞（多字，不在單字碼表 exactSet 裡）該算 exact，不能跟容錯同池 ==")
+do
+  -- 回報：JQIJ 打出「研究方向」（ap_si4，四碼快打）跟「不要」（碼表本身就有 jqij 這條
+  -- 縮寫碼，weight 98959）都是「打中」的，前者標 ap_si4 沒問題；後者以前沒有任何 ap_* 標記
+  -- （table_translator 的普通候選），又不在只收單字碼的 code2chars["jqij"] 裡，掉進最後的
+  -- else 分支被當成池子貨——結果跟「手」「丕」這種 ap_pool 容錯猜測（多打一碼／少打一碼）
+  -- 同池比字頻，字頻表尺度不同（字頻 vs 詞頻），容錯猜測反而贏，把真的打中的詞擠到後面。
+  -- 改法：這個 else 分支現在併進 exact 一級（跟 ap_variant 一樣一律算分，不用等選字次數
+  -- 累積），ap_pool 維持在池子——exact 永遠先贏，池子內才比字頻。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "jqij", options = {},
+      cands = {
+        { text = "研究方向", type = "ap_si4" },
+        { text = "手", type = "ap_pool" },
+        { text = "丕", type = "ap_pool" },
+        { text = "不要" },   -- 碼表本身打滿 jqij 的詞，沒有任何 ap_* 標記
+      },
+    }
+    local pos = {}
+    for i, c in ipairs(out) do if not pos[c.text] then pos[c.text] = i end end
+    h.check(schema .. " · 不要（碼表打滿 jqij，非容錯）排在 手/丕（ap_pool 容錯猜測）前面",
+      pos["不要"] and pos["手"] and pos["丕"] and pos["不要"] < pos["手"] and pos["不要"] < pos["丕"],
+      h.fmt(out))
+    h.check(schema .. " · 研究方向（ap_si4，同為 exact）也排在 手/丕 前面",
+      pos["研究方向"] and pos["研究方向"] < pos["手"] and pos["研究方向"] < pos["丕"],
+      h.fmt(out))
+    h.check(schema .. " · exact 一級內部照常用度排：不要（詞頻 639813）該排在 研究方向（詞頻 138747）前面",
+      pos["不要"] and pos["研究方向"] and pos["不要"] < pos["研究方向"],
+      h.fmt(out))
+  end
 end
 
 print()

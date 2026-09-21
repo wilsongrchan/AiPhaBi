@@ -1,18 +1,19 @@
 -- 愛發筆 · 候選重排（filter，排在 hint / fuzzy 之後、simplifier 之前）
 -- 順序固定成幾層：
 --   1. 約定簡碼（type=ap_short）—— 認定過「就這個字」，永遠第一。
---   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
---      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
---      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
---      那個是猜的，留在下面。）打繁出簡／打簡出繁帶出來的字（ap_variant）也併進這
---      一級，照常用度插入正確位置，不整批墊在後面——跟這個碼 exact 撞碼的字一樣
---      確定，只是剛好不是這個碼的主碼（回報：汎[exact] 硬性排在 泛[simp，其實較常用]
---      前面）。
---   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
---      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
---      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
+--   2. 主碼 exact match —— 你打的碼剛好是某字／某詞的完整碼：單字在 code2chars[碼] 裡，
+--      或碼表裡就有詞打滿這整段（如 不要＝jqij、碰巧＝jovnvis，碼表收了但只在單字表
+--      code2chars 查不到）。打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：
+--      都是推得出來的碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」
+--      的補全不算，那個是猜的，留在下面。）打繁出簡／打簡出繁帶出來的字（ap_variant）
+--      也併進這一級，跟多字詞一樣一律照常用度插入正確位置，不整批墊在後面——跟這個
+--      碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼（回報：汎[exact] 硬性排在
+--      泛[simp，其實較常用] 前面；不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面）。
+--   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool）。一律照「本次
+--      開機選過幾次（降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水
+--      補全常用，排前面。
 --   4. 補全（type=completion，librime 標的「碼還沒打完」）—— 整批墊在第 3 層之後。
---      打滿的 碰巧（jovnvis）不該輸給還差一碼、但詞頻較高的 碰瓷（jovnvisq）。
+--      打滿的 碰巧（jovnvis，屬第 2 層）不該輸給還差一碼、但詞頻較高的 碰瓷（jovnvisq，第 4 層）。
 --   5. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
@@ -258,10 +259,13 @@ local function filter(input, env)
     elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c }   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
-    elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, variant = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
+    elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, always_score = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
-    else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
+    else exact[#exact + 1] = { c = c, always_score = true } end  -- 打滿整段、非容錯／非補全：碼表裡有詞打滿這個碼（如 不要＝jqij、碰巧＝jovnvis），
+                                                                   -- 不在 exactSet 只因那張表只收單字碼；打中就是打中，不是猜的，該跟單字 exact 同級，
+                                                                   -- 不能跟 ap_pool 的容錯猜測擠同一池（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯]
+                                                                   -- 擠到後面——exact 永遠先赢，同級內才比常用度，所以跟 ap_variant 一樣一律算分）
   end
 
   -- exact 這一級也要讓「選過次數」慢慢管得到：同一碼底下兩個字都是主碼（重複碼組，
@@ -288,7 +292,7 @@ local function filter(input, env)
       return logf(e.c.text) + EXACT_BOOST * eff
     end
     for _, e in ipairs(exact) do
-      e.mover = e.variant or exact_eff(e.c.text) >= EXACT_MIN_EFF
+      e.mover = e.always_score or exact_eff(e.c.text) >= EXACT_MIN_EFF
     end
     for i = 2, #exact do
       if exact[i].mover then

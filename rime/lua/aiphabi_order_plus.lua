@@ -176,8 +176,13 @@ local function filter(input, env)
       part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
-      -- 打滿的四碼詞、打滿的左簡碼都是 exact 一級（左簡碼是推得出來的碼，不是猜的）
+      -- 打滿的四碼詞、打滿的左簡碼都是 exact 一級（左簡碼是推得出來的碼，不是猜的）；打滿
+      -- 整段、非容錯(ap_pool)／非補全(completion) 的也算——碼表裡就有詞打滿這個碼（如
+      -- 不要＝jqij），只是不在單字碼表 exactSet 裡，打中就是打中，不是猜的，不能跟 ap_pool
+      -- 的容錯猜測同池比字頻（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面，
+      -- 跟 aiphabi_order.lua 同一條修法，見那邊註解）
       local isExact = exactSet[c.text] or c.type == "ap_si4" or c.type == "ap_left"
+        or (c.type ~= "ap_pool" and c.type ~= "ap_short" and c.type ~= "completion")
       local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
       if eu >= PROMOTE_MIN then
         top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
