@@ -100,9 +100,9 @@
      （z1 就是 --accent 本身）。只在 lianxi.js 掛 #xz-glyph／#xz-typed 的地方
      覆蓋，不動字根表／試打頁共用的 .tz-z0…2／.tz-chip.z0…2（那些還是全站
      分組色）。 */
-  --quiz-g0: #109388;
+  --quiz-g0: #15bcae;
   --quiz-g1: #0e7c73;   /* = --accent */
-  --quiz-g2: #07403b;
+  --quiz-g2: #053631;
 
   /* 打錯／警告的紅。要比第一組的筆畫紅（--rb-0）更深，兩種紅才分得開（Wilson）——
      試打頁同一畫面上就會同時出現：第一條字根的筆畫是 rb-0，打歪的那幾碼是這個。
@@ -151,9 +151,9 @@
     --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
     /* 第三關三色深色版：跟淺色底同一顆青（172.7°），深色底往亮走（跟深字
        --surface 對比才夠）。Wilson 給的定案值（z1 就是 --accent 本身）。 */
-    --quiz-g0: #339e91;
+    --quiz-g0: #287b72;
     --quiz-g1: #3fc0b0;   /* = --accent */
-    --quiz-g2: #61ccbf;
+    --quiz-g2: #68e8d8;
     /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
        （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
        只剩 4.47，低於 4.5 就不收。 */
@@ -161,6 +161,9 @@
     --warn-soft: #3a1f22;
     --icon-invert: invert(1);
   }
+  /* 深色主題不套淺色那條「淡一階」，撥回 --ink（見上面 .xz-tianzi .xz-ink 的
+     淺色覆寫）。 */
+  :root:not([data-theme="light"]) .xz-tianzi .xz-ink { fill: var(--ink); }
 }
 :root[data-theme="dark"] {
     --icon-invert: invert(1);
@@ -191,9 +194,9 @@
     --rb-3: #0096ff;   /* 本來就夠亮，深淺主題共用 */
     --rb-4: #c084fc;
     --rb-5: #f26fde;   /* 本來就夠亮，深淺主題共用 */
-    --quiz-g0: #339e91;
+    --quiz-g0: #287b72;
     --quiz-g1: #3fc0b0;
-    --quiz-g2: #61ccbf;
+    --quiz-g2: #68e8d8;
     /* 深色底下「更深」會直接吃掉對比，所以取「還過得了 AA 的最深」：4.84:1
        （rb-0 是 5.78），亮度差 5.5，看得出是另一個紅。再深一階 #e6404d
        只剩 4.47，低於 4.5 就不收。 */
@@ -4263,7 +4266,8 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
   font-size: 1.25rem;
   color: var(--accent);
 }
-.xz-slot.is-on { border-bottom-color: var(--accent); }
+/* 填上小方塊之後，格子本來的底線沒必要再疊一條在色塊正下方——拿掉，兩個主題都一樣。 */
+.xz-slot.is-on { border-bottom-color: transparent; }
 /* 打對的字母是反白小方塊，底色就是那條字根在圖上的顏色（.tz-chip 見上面），
    所以格子裡不要再壓一層字色。 */
 .xz-slot .tz-chip { font-size: 1.05rem; min-width: 1.8rem; padding: .18rem .4rem; }
@@ -4286,8 +4290,10 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 #xz-typed .tz-chip.z1.is-blank { color: var(--quiz-g1); }
 #xz-typed .tz-chip.z2.is-blank { color: var(--quiz-g2); }
 
-/* 打整個字那一種題目：整個字都是正常墨色，不標任何一段 */
-.xz-tianzi .xz-ink { fill: var(--ink); }
+/* 打整個字那一種題目：整個字都是正常墨色，不標任何一段
+   淺色主題改用比 --ink 淡一階的深灰（--ink-dim），純黑太重（Wilson）；
+   深色主題不動，兩份 dark 覆寫都撥回 --ink（跟本檔其他深色雙份覆寫同理）。 */
+.xz-tianzi .xz-ink { fill: var(--ink-dim); }
 
 /* 「轉轉看」：真的把字根轉過來看（只有要轉、要翻的那些題目才出現）。
    ⚠️ 轉的是筆畫那一層（.xz-spin），田字格留在原地 —— 格子是參考線，
