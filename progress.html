@@ -874,11 +874,10 @@ function drawVenn(data){
   // 已取碼邊界：面積 ∝ 已取碼字數，圓心落在三圓形心——目前常用字白名單已 100%
   // 取碼，這圈通常會整個包住上面三圓，是誠實的現狀，不是畫錯。這條虛線圓心不是
   // A/B/C 任何一個，跟六個區塊的分界線完全是兩套獨立幾何，標籤／灑字避開 A/B/C
-  // 邊界不會順便避開它——下面 nearCoded() 額外擋這條虛線，兩套都要躲。
+  // 邊界不會順便避開它——sprinkleChars() 自己另外擋這條虛線，兩套都要躲。
   const rCoded=layout.k*Math.sqrt(Math.max(data.codedTotal||0,1));
   const cx0=(A.cx+B.cx+C.cx)/3, cy0=(A.cy+B.cy+C.cy)/3;
   svg.appendChild(mk('circle',{class:'coded-bound',cx:cx0,cy:cy0,r:rCoded}));
-  const nearCoded=(x,y)=>Math.abs(Math.hypot(x-cx0,y-cy0)-rCoded)<16;
 
   // 集合名稱：A／B 各自往外撇（跟原本示意圖同一招——两邊圈靠太近，疊在正上方會
   // 兩塊標籤互撞），C 貼在圈的下緣。
@@ -930,11 +929,13 @@ function drawVenn(data){
   };
 
   // 灑例字：錨點本身不畫任何東西（名稱／字數搬到右下角圖例，見下面），不用再
-  // 顧「標籤有沒有安全邊」，直接拿形心估出來的點當拒絕採樣的起點就好；還是要躲
-  // 開已取碼虛線圓（nearCoded），字才不會疊在那條線上。
+  // 顧「標籤有沒有安全邊」，直接拿形心估出來的點當拒絕採樣的起點就好；灑到哪個
+  // 池子（已取碼／還沒取碼）由 sprinkleChars 自己按點落在線內外決定，見那邊的
+  // 說明。
+  const codedBound={cx0,cy0,rCoded};
   Object.keys(REGION_PT).forEach(key=>{
     const r=regions[key]; if(!r||!r.total) return;
-    sprinkleChars(svg,key,layout,r.chars,REGION_PT[key],wantFor(r.total),nearCoded);
+    sprinkleChars(svg,key,layout,r,REGION_PT[key],wantFor(r.total),codedBound);
   });
 
   $('#vennr').textContent=`已取碼 ${data.codedTotal.toLocaleString()} ／常用字白名單相關字 ${data.universeTotal.toLocaleString()}`;
@@ -1000,24 +1001,37 @@ function drawVenn(data){
    六個區塊裡最小的（如繁體字，兩兩相交外扣三方交集）面積可能只是整張圖的一
    小塊，錨點本身落在（或非常靠近）目標區塊裡，繞著它找，命中率跟著面積走；
    灑到的顆數（want）由呼叫端依實際字數算好傳進來，面積真的小，配額湊不滿也
-   就少灑幾顆，不會硬擠爆。每顆字都要跟邊界（insideMargin）、跟 avoidExtra
-   （已取碼虛線圓）、跟已經放好的字保持安全距離，字一律正立不轉——一堆歪字看
-   起來像雜訊，不像「一眼看出這塊是什麼字」。 */
-function sprinkleChars(svg,key,layout,chars,anchor,want,avoidExtra){
-  if(!chars.length||!want) return;
-  want=Math.min(want,chars.length);
+   就少灑幾顆，不會硬擠爆。每顆字都要跟邊界（insideMargin）、跟已取碼虛線圓、
+   跟已經放好的字保持安全距離，字一律正立不轉——一堆歪字看起來像雜訊，不像
+   「一眼看出這塊是什麼字」。
+
+   已取碼虛線圓只是「面積 ∝ 已取碼字數」的示意，不是逐字判斷——不能假設灑到線
+   外的點就該配到還沒取碼的字。每顆點找到位置之後，先算它實際落在線內還是線
+   外，再各自從 r.codedChars／r.uncodedChars 兩個池子挑，這樣「線外＝還沒取碼」
+   才名副其實；哪個池子挑完了，該側再抽到的點就不畫字，不硬塞一個文不對題的。 */
+function sprinkleChars(svg,key,layout,r,anchor,want,codedBound){
+  const total=r.total;
+  if(!total||!want) return;
+  want=Math.min(want,total);
   const margin=12,minDist=20;
+  const {cx0,cy0,rCoded}=codedBound;
+  const nearCoded=(x,y)=>Math.abs(Math.hypot(x-cx0,y-cy0)-rCoded)<16;
+  const codedChars=r.codedChars||[],uncodedChars=r.uncodedChars||[];
+  let ci=0,ui=0;
   const pts=[];
   for(let n=0;n<want;n++){
-    const p=sampleNear(layout,key,anchor,margin,pts,minDist,avoidExtra);
-    if(p) pts.push(p);
-  }
-  pts.forEach(([x,y],i)=>{
-    const t=mk('text',{class:'spr','data-region':key,x:x.toFixed(1),y:y.toFixed(1),
+    const p=sampleNear(layout,key,anchor,margin,pts,minDist,nearCoded);
+    if(!p) continue;
+    const inside=Math.hypot(p[0]-cx0,p[1]-cy0)<=rCoded;
+    const ch=inside?(ci<codedChars.length?codedChars[ci++]:null)
+                   :(ui<uncodedChars.length?uncodedChars[ui++]:null);
+    if(ch==null) continue;   // 這一側的池子已經挑完了，寧可少畫一顆也不錯配
+    pts.push(p);
+    const t=mk('text',{class:'spr','data-region':key,x:p[0].toFixed(1),y:p[1].toFixed(1),
       'text-anchor':'middle'});
-    t.textContent=chars[i];
+    t.textContent=ch;
     svg.appendChild(t);
-  });
+  }
 }
 
 function hideVennPanel(){ vennSel=null; const p=$('#vpanel'); p.hidden=true; p.innerHTML=''; }
@@ -1026,9 +1040,12 @@ function showVennPanel(key,r){
   vennSel=key;
   const p=$('#vpanel'); p.hidden=false;
   const chars=r.chars||[];
+  // 「先取這些 →」要指到還沒取碼的那些字，不是這個區塊全部（含已取碼）的前 200
+  // 個——不然點過去的佇列裡混著早就取過碼的字，白工一場。
+  const todo=r.uncodedChars||[];
   p.innerHTML=`<div class="vhead"><h3>${VLABEL[key]}</h3>` +
     `<span class="vn">${r.total.toLocaleString()} 字，其中 ${r.coded.toLocaleString()} 已取碼` +
-    (r.coded<r.total?`　<a class="view" href="/annotate?q=${encodeURIComponent(chars.slice(0,200).join(''))}">先取這些 →</a>`:'') +
+    (todo.length?`　<a class="view" href="/annotate?q=${encodeURIComponent(todo.slice(0,200).join(''))}">先取這些 →</a>`:'') +
     `</span></div>` +
     `<div class="vchars">${chars.map(c=>`<a href="/annotate?q=${encodeURIComponent(c)}" title="${c}">${c}</a>`).join('')}</div>`;
 }

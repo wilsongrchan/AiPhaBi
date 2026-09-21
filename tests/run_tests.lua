@@ -109,7 +109,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     cands = { { text = "中國" } },
   }
   h.checkAt(schema .. " · 打滿主碼 中國 排在還沒打完的四碼快打前面", out, 1, "中國")
-  h.checkComment(schema .. " · 福田康夫 標「四碼 -I」（還差哪一碼）", out, "福田康夫", "四碼 -I")
+  h.checkComment(schema .. " · 福田康夫 標「四碼 - I」（還差哪一碼）", out, "福田康夫", "四碼 - I")
   h.checkPresent(schema .. " · 福田康夫 還在（只是排後面）", out, "福田康夫", true)
 end
 
@@ -124,7 +124,7 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     cands = {},
   }
   h.checkPresent(schema .. " · 打 QQ 找得到 容祖兒（四碼快打前兩碼）", out, "容祖兒", true)
-  h.checkComment(schema .. " · 容祖兒 標「四碼 -FL」（還差哪兩碼）", out, "容祖兒", "四碼 -FL")
+  h.checkComment(schema .. " · 容祖兒 標「四碼 - FL」（還差哪兩碼）", out, "容祖兒", "四碼 - FL")
 end
 
 print()
@@ -353,11 +353,13 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
   -- 「占16000」代表「超過 RAW_CAP」的候選，該整個消失，連補全都補不出來——這是刻意的
   -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。（沒用「一」是因為它主碼剛好是 i，
-  -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西。）
+  -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西；標 ap_pool 是因為這裡要測的
+  -- 是池子的容量／排序上限，不是「打滿整段的字典詞一律 exact」那條規則——未標類型的
+  -- 候選現在也會被歸進 exact 一級，見 aiphabi_order.lua 該處註解，不再落進這個池子。）
   local cands = {}
-  for i = 1, 20000 do cands[i] = { text = "占" .. i } end
-  cands[10] = { text = "的" }
-  cands[midPos] = { text = "是" }
+  for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
+  cands[10] = { text = "的", type = "ap_pool" }
+  cands[midPos] = { text = "是", type = "ap_pool" }
 
   local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
 
@@ -389,7 +391,7 @@ do
   order_mod._USERFREQ[key] = 99   -- 直接塞：模擬「這個字選過很多次」
 
   local cands = {}
-  for i = 1, 20000 do cands[i] = { text = "占" .. i } end
+  for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
   local out = h.run{ schema = "aiphabi", code = "i", options = {}, cands = cands }
   order_mod._USERFREQ[key] = nil   -- 用完清掉，不要汙染其他測試
 
@@ -401,10 +403,18 @@ print()
 print("== 偏旁碼／同類等提示不能被埋在補全堆裡（2026-08-29 回報：K 打不到 大）==")
 do
   -- extra/extra3/extraL/extra4（偏旁碼／同類／三簡／左簡／四碼前綴）以前排在 cands
-  -- 之後才 yield：aiphabi_order.lua 的 MAX_SORT 只把「排進來的前 40 個」真的排序，
-  -- 其餘維持原序墊底。K／W 這種常見字根一次補全可能上千個候選，這些提示（人工挑過，
-  -- 數量本來就少）排在後面，會被擠到第 1000+ 名，MAX_SORT／RAW_CAP 都構不到，等於
-  -- 提示完全失效。修法：extra 系列先 yield，才能真的排進會被排序的那前 40 名。
+  -- 之後才 yield：K／W 這種常見字根一次補全可能上千個候選，這些提示（人工挑過，數量
+  -- 本來就少）排在後面，會被擠到第 1000+ 名，等於提示完全失效。修法：extra 系列先
+  -- yield，才能真的排進會被排序的那前段。
+  -- 上限現在不是單純 MAX_SORT=40：打滿整段、不在 exactSet 的候選（如 不要／碰巧）
+  -- 改併進 exact 一級（見上面「打繁出簡」那個 always_score 的說明），這批「占N」假詞
+  -- 沒有 type，一樣落進 exact；exact 一級也吃 MAX_SORT 上限（同一套保護），但 大 本身
+  -- 是 ap_pool（偏旁碼提示），落在 exact 之後的 pool 一級——真正的上限是 hint.lua 的
+  -- RAW_CAP（進 order.lua 之前就砍到這個數字，見那邊定義），exact 一級最多吃滿 RAW_CAP
+  -- 個，大 落在 pool 第一個，位置頂多是 RAW_CAP + 1。跟這條回報原本要防的「1000+ 名、
+  -- 完全構不到」比，RAW_CAP+1（現在這個量級）還是很淺、滑一兩下就到，不是同一種故障。
+  local hint_mod = require("aiphabi_hint")
+  local RAW_CAP = hint_mod._RAW_CAP
   local cands = {}
   for i = 1, 3000 do cands[i] = { text = "占" .. i, start = 0, _end = 1 } end
   local out = h.run{ schema = "aiphabi", code = "k", options = { aiphabi_comp = true }, cands = cands }
@@ -412,9 +422,9 @@ do
   for i, c in ipairs(out) do
     if c.text == "大" then pos = i; break end
   end
-  h.check("K 打「大」的偏旁碼提示：混進 3000 個雜訊候選也該排到前面（不是第 1000+ 名）",
-    pos ~= nil and pos <= 40,
-    string.format("大 landed at #%s", tostring(pos)))
+  h.check("K 打「大」的偏旁碼提示：混進 3000 個雜訊候選也該淺（不是第 1000+ 名，最深 RAW_CAP+1）",
+    pos ~= nil and pos <= RAW_CAP + 1,
+    string.format("大 landed at #%s (RAW_CAP=%s)", tostring(pos), tostring(RAW_CAP)))
 end
 
 print()
@@ -557,8 +567,8 @@ do
   end
   h.check("打 QQ：容祖兒（四碼快打 QQFL 的前兩碼）該冒出來，不是只有 中庸",
     found, "容祖兒 not found in candidates")
-  h.check("打 QQ：容祖兒 該標「還差幾碼」＝四碼 -FL（不是只有籠統的「四碼」）",
-    cmt == "四碼 -FL", string.format("got comment=%s", tostring(cmt)))
+  h.check("打 QQ：容祖兒 該標「還差幾碼」＝四碼 - FL（不是只有籠統的「四碼」）",
+    cmt == "四碼 - FL", string.format("got comment=%s", tostring(cmt)))
 
   local out3 = h.run{
     schema = "aiphabi", code = "qqf", options = { aiphabi_phrase = true },
@@ -568,8 +578,8 @@ do
   for _, c in ipairs(out3) do
     if c.text == "容祖兒" then cmt3 = c.comment end
   end
-  h.check("打 QQF：容祖兒 該標 四碼 -L（只差最後一碼）",
-    cmt3 == "四碼 -L", string.format("got comment=%s", tostring(cmt3)))
+  h.check("打 QQF：容祖兒 該標 四碼 - L（只差最後一碼）",
+    cmt3 == "四碼 - L", string.format("got comment=%s", tostring(cmt3)))
 
   -- 打滿的四碼（exact 一級）不受這個影響，還是標單純的「四碼」，不是「還差 0 碼」那種怪話。
   local out4 = h.run{
@@ -619,6 +629,73 @@ do
   }
   h.checkAt("打 IM：众（模擬變體字，235241）該插在 示(638997) 跟 巿(94627) 中間", outMid, 3, "众")
   h.checkAt("打 IM：示 還是第二（沒被插進來的字擠掉排序）", outMid, 2, "示")
+end
+
+print()
+print("== 碼表裡打滿整段的詞（多字，不在單字碼表 exactSet 裡）該算 exact，不能跟容錯同池 ==")
+do
+  -- 回報：JQIJ 打出「研究方向」（ap_si4，四碼快打）跟「不要」（碼表本身就有 jqij 這條
+  -- 縮寫碼，weight 98959）都是「打中」的，前者標 ap_si4 沒問題；後者以前沒有任何 ap_* 標記
+  -- （table_translator 的普通候選），又不在只收單字碼的 code2chars["jqij"] 裡，掉進最後的
+  -- else 分支被當成池子貨——結果跟「手」「丕」這種 ap_pool 容錯猜測（多打一碼／少打一碼）
+  -- 同池比字頻，字頻表尺度不同（字頻 vs 詞頻），容錯猜測反而贏，把真的打中的詞擠到後面。
+  -- 改法：這個 else 分支現在併進 exact 一級（跟 ap_variant 一樣一律算分，不用等選字次數
+  -- 累積），ap_pool 維持在池子——exact 永遠先贏，池子內才比字頻。
+  --
+  -- 詞頻（M.wordfreq）是 essay.txt 校準出來的（見 build_rime.py），essay.txt 只在原作者
+  -- 機器上有——這個沙盒建置時讀不到，wordfreq 全數退回同一個地板值（PLACE_FLOOR），不要／
+  -- 研究方向 在這裡會打平分數，測不出「詞頻內部排序」這件事本身。用回報當下量到的真實
+  -- 詞頻（不要 639813、研究方向 138747）暫時蓋掉，讓這個測試不管在哪台機器建置都測得到
+  -- 真正要測的東西，不受這個環境有沒有 essay.txt 影響。
+  local savedWF_yao, savedWF_yjfx = data.wordfreq["不要"], data.wordfreq["研究方向"]
+  data.wordfreq["不要"], data.wordfreq["研究方向"] = 639813, 138747
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "jqij", options = {},
+      cands = {
+        { text = "研究方向", type = "ap_si4" },
+        { text = "手", type = "ap_pool" },
+        { text = "丕", type = "ap_pool" },
+        { text = "不要" },   -- 碼表本身打滿 jqij 的詞，沒有任何 ap_* 標記
+      },
+    }
+    local pos = {}
+    for i, c in ipairs(out) do if not pos[c.text] then pos[c.text] = i end end
+    h.check(schema .. " · 不要（碼表打滿 jqij，非容錯）排在 手/丕（ap_pool 容錯猜測）前面",
+      pos["不要"] and pos["手"] and pos["丕"] and pos["不要"] < pos["手"] and pos["不要"] < pos["丕"],
+      h.fmt(out))
+    h.check(schema .. " · 研究方向（ap_si4，同為 exact）也排在 手/丕 前面",
+      pos["研究方向"] and pos["研究方向"] < pos["手"] and pos["研究方向"] < pos["丕"],
+      h.fmt(out))
+    h.check(schema .. " · exact 一級內部照常用度排：不要（詞頻 639813）該排在 研究方向（詞頻 138747）前面",
+      pos["不要"] and pos["研究方向"] and pos["不要"] < pos["研究方向"],
+      h.fmt(out))
+  end
+  data.wordfreq["不要"], data.wordfreq["研究方向"] = savedWF_yao, savedWF_yjfx
+end
+
+print()
+print("== 多打一碼容錯：最後一鍵如果也是別的詞正在打到一半的合法前綴，別蓋過那些完成候選 ==")
+do
+  -- 回報：打 NADNN——愉＝NADN，多打一碼容錯砍掉最後那個 N 就對得上；但 nadnn 剛好也是
+  -- 愉快（nadnncy）／愉悅（nadnnvl／nadnnvojl）正在打到一半的合法前綴，librime 自己就會
+  -- 給出這兩個 completion 候選。連續打兩次同一鍵（打到一半、還沒來得及換下一碼）比「手滑
+  -- 多打一鍵」更常見，「最後這鍵是多打的」不該無條件蓋過詞頻更高、真的還在打的 愉快／愉悅。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "nadnn", options = { aiphabi_fuzzy = true },
+      cands = {
+        { text = "愉快", type = "completion", comment = "- CY" },
+        { text = "愉悅", type = "completion", comment = "- VL" },
+      },
+    }
+    local pos = {}
+    for i, c in ipairs(out) do if not pos[c.text] then pos[c.text] = i end end
+    h.check(schema .. " · NADNN：愉（容錯，字頻 97019）排在 愉快（完成，149312）之後",
+      pos["愉"] and pos["愉快"] and pos["愉快"] < pos["愉"], h.fmt(out))
+    h.check(schema .. " · NADNN：愉（容錯）也排在 愉悅（完成，127957）之後",
+      pos["愉"] and pos["愉悅"] and pos["愉悅"] < pos["愉"], h.fmt(out))
+  end
 end
 
 print()

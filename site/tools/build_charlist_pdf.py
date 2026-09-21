@@ -137,17 +137,23 @@ BOPO_TONE_MARKS = "ˊˇˋ˙"   # 注音的調號，去掉才是要比對「首�
 # 常用粵語字——Wilson 手挑、手分組的定稿（2026-09-10）。大致依部首歸堆
 # （口／人／目・言／手／水／火／…），每一堆在 PDF 裡另起一行。用這份的順序
 # 排，不重排。data/standards/canton_common.txt（餵輸入法白名單那份）比這裡多
-# 收幾個更生僻的（嚡 攋 嗮 掕 咔 呦），那幾個會落到「其他」節。
+# 收幾個更生僻的（2026-09-19 核對：乸 呦 咔 掕 攋），那幾個會落到「其他」節。
+#
+# 兩欄排版（grid_cols，見 grouped_section）：組的先後順序決定左右欄怎麼分——
+# 12 字一行，滿 12 就換行；欄與欄之間不會拆散一組。2026-09-19 Wilson 調過一次
+# 版面：「拎…撩」砍到剛好 12 字一行（原本 16 字會多溢一行到左欄），溢出的
+# 「撳揗摷攞」搬去右欄開頭；「氹淰湴潲」+「慳錫」、「焗焫煀燶」+「嬲郁」
+# 各併成一行省一行，兩欄各剛好 6 行。
 CANTON_GROUPS = [
     list("吖呃呔咗咁咩咧咯唞啲啡啋喎啩喵啵喏㗎喺喇喔嘅嗰嗌嗒嗲嘥嗟嘢嘞嘈嘜嘑嘟嘛噏嘭嚟嚫嚦嚹嚿囉嗮嚡"),
-    list("佢冇冚冧攰"),
-    list("睇瞓諗"),
-    list("拎拗拃掂掗揸揀揈搲揦搣撩撳揗摷攞"),
-    list("氹淰湴潲"),
-    list("焗焫煀燶"),
-    list("嬲郁慳錫"),
+    list("佢冇冚冧攰睇瞓諗"),
+    list("拎拗拃掂掗揸揀揈搲揦搣撩"),
+    list("撳揗摷攞"),
+    list("氹淰湴潲慳錫"),
+    list("焗焫煀燶嬲郁"),
     list("埞孭罅窿"),
     list("靚餸髀齙"),
+    list("尻屄屌戇閪"),   # 2026-09-19 canton_common.txt 回填加的 5 字
 ]
 
 # 《百家姓》宋本的複姓（雙字姓）。baijiaxing.txt 的複姓段把共用的首字（公冶／
@@ -549,10 +555,12 @@ class Flow:
         if col:
             self.y += self.row_h
 
-    def grid_labeled(self, label, chars):
-        """跟 grid 一樣，但第一列留一格放標籤（四角號碼第一碼）；換行後的接續列
-        仍空出同一格，讓字一路對齊到標籤右邊那一欄——不會跟標籤疊在一起，也
-        不會退到最左邊、跟上一列的字對不齊。"""
+    def grid_labeled(self, label, items):
+        """跟 grid 一樣，但第一列留一格放大字標籤（四角號碼第一碼，粗體）；換行後
+        的接續列仍空出同一格，讓字對齊到標籤右邊那一欄——不會跟標籤疊在一起，也
+        不會退到最左邊、跟上一列的字對不齊。items＝(字, 小標或 None) 的序列，
+        小標疊在格子正上方——跟拼音首見小標同一套機制（_cell 的 pinyin 參數），
+        用來標四角號碼前兩碼首見（00／01／02…），不佔額外欄位、不吃 row_h。"""
         indent = 1 if label else 0
         col = indent
         self._room(self.row_h)
@@ -561,12 +569,12 @@ class Flow:
             self.page.insert_text((ML + (CELL - CHAR_SIZE * 0.8) / 2, self.y + CHAR_SIZE),
                                   str(label), fontname="hebo",
                                   fontsize=CHAR_SIZE * 0.8, color=green)
-        for ch in chars:
+        for ch, sub in items:
             if col == COLS:
                 col = indent
                 self.y += self.row_h
                 self._room(self.row_h)
-            self._cell(ML + col * CELL, self.y, ch)
+            self._cell(ML + col * CELL, self.y, ch, pinyin=sub)
             col += 1
         if col > indent:
             self.y += self.row_h
@@ -897,6 +905,13 @@ def build(with_code=False, preview_page1=False):
             sys.exit("沒讀到 data/codes.json，附碼版做不出來")
         code_map = {c: rec.get("final") for c, rec in cj_raw.items()
                     if isinstance(rec, dict) and rec.get("final")}
+        # 部件字：codes.json 存的 final 是純碼（不含反引號），但打字時非得靠
+        # 反引號 ` 前綴才叫得出來，不然打裸碼只會打到跟它同碼的獨立字（見
+        # gongnengjian.html「打 `K` 才是「爿」，單獨 K 只有「水」」）。標籤跟
+        # 實際打法不一致等於教錯，加回反引號（Wilson，2026-09-19）。
+        for c, rec in cj_raw.items():
+            if isinstance(rec, dict) and rec.get("componentOnly") and c in code_map:
+                code_map[c] = "`" + code_map[c]
 
     doc = fitz.open()
     flow = Flow(doc, code_map=code_map)
@@ -1119,17 +1134,30 @@ def build(with_code=False, preview_page1=False):
             flow.grid(comp)
         if others:
             flow.subhead(f"其他（{len(others)} 字，四角號碼序）")
-            # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行（Wilson）；查無四角碼
-            # 的幾個字沒有第一碼可分，自成一行擺最末。
-            first = lambda c: fc.get(c, "")[:1] or "?"
+            # 0 字頭一行、1 字頭一行……依四角號碼第一碼分行、大字粗體標在行首
+            # 那一格，跟原本一樣（Wilson）；查無四角碼的幾個字沒有第一碼可分，
+            # 自成一行擺最末。行內遇到前兩碼變化時，格子正上方再疊個小綠色
+            # 兩位數（00／01／02…）——跟拼音／注音首見小標同一套機制（_cell 的
+            # pinyin 參數），借用列間本來就有的空白，不佔額外欄位、不吃 row_h。
+            major = lambda c: fc.get(c, "")[:1] or "?"
             buckets = []
             for c in others:
-                k = first(c)
+                k = major(c)
                 if not buckets or buckets[-1][0] != k:
                     buckets.append([k, []])
                 buckets[-1][1].append(c)
+            seen_bucket = set()
             for k, chars in buckets:
-                flow.grid_labeled(k, chars)
+                items = []
+                for c in chars:
+                    code = fc.get(c, "")
+                    bucket = code[:2] if len(code) >= 2 and code[:2].isdigit() else None
+                    label = None
+                    if bucket and bucket not in seen_bucket:
+                        seen_bucket.add(bucket)
+                        label = bucket
+                    items.append((c, label))
+                flow.grid_labeled(k, items)
 
     bopo_section("一、台灣教育部《常用國字標準字體表》甲表", jiabiao, toc="一、台灣教育部國字甲表")
 

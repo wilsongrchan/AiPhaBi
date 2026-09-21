@@ -3317,6 +3317,14 @@ async function manualComponentParts(ch, depth = 4) {
   const out = [];
   for (let i = 0; i < raw.length; i++) {
     const p = raw[i];
+    /* 約定表「作為偏旁時的碼」凌駕一切（跟 buildComponentIndex 的 asComp 同一套
+       規則）——土 單獨成字 TI，當偏旁另有 compCode＝F（notComponent），這裡漏查
+       約定表的話，猜出來的部件碼會照抄土自己的拆法，變成錯的 T。 */
+    const cv = convOf(p);
+    if (cv && cv.compCode) {
+      out.push({ ch: p, code: cv.compCode });
+      continue;
+    }
     const r = codes[p];
     if (r && r.segments && r.segments.length) {
       const segs = await pruneEdge(p, r.segments, i === 0, i === raw.length - 1);

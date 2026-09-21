@@ -230,7 +230,7 @@ local function filter(input, env)
             -- 明講「還差 -FL」，不是只丟一個候選讓人猜對不對。查不到（理論上不會，si4_full
             -- 收了每個進過 si4 的詞）就退回單純標「四碼」，不讓提示消失。
             local full = data.si4_full[w]
-            local cmt = (full and #full > #code) and ("四碼 -" .. full:sub(#code + 1):upper()) or "四碼"
+            local cmt = (full and #full > #code) and ("四碼 - " .. full:sub(#code + 1):upper()) or "四碼"
             extra4[#extra4 + 1] = Candidate("completion", s, e, w, cmt)
           end
         end

@@ -10,12 +10,17 @@
 --   每個候選的有效分數 = max(自己的衰減選過次數, floor)；先比這個，再比常用度。
 --   所以「簡碼 > exact > 池」是預設；但你對某字（含拼音詞，如 BD→病毒）近期猛選、
 --   衝過門檻（>6 壓過 exact、>9 壓過簡碼），它就會蓋過去；停一陣子衰減掉，又自動讓回來。
--- 其餘打滿整段的候選（形碼容錯＋拼音）混在同一池，照「常用度分數」排，分數是同一把尺：
+-- 其餘打滿整段、故意的捷徑候選（偏旁碼／同類／三簡＋拼音）混在同一池，照「常用度分數」排，
+--   分數是同一把尺：
 --     * 單字 —— 字頻（data.freq）。
 --     * 多字詞 —— 真語料詞頻（data.wordfreq，essay 校準到單字同尺）；沒收錄的罕詞打折。
 --   字頻推不出詞頻（無性 兩字常用詞卻冷、武俠 反之），所以詞一律查真詞頻。
 --   唯一保險：拼音的冷讀音（於＝wū 對 wu，拼音自己排很後面）字頻雖高、要打折，免得爬到前面。
 -- 碼還沒打完的補全（type=completion）不進這池，整批墊在它之後——見下方 comp bucket。
+--   aiphabi_fuzzy 猜的「打錯了」（漏碼／多碼／隔壁鍵／打反）現在也標 completion、併進這一批：
+--   猜你打錯了終究是猜的，不該無條件蓋過故意的捷徑，也不該蓋過「你可能還在打更長的詞」，
+--   跟真的補全一起比常用度公平決勝（回報：NADNN 打 愉[容錯] 曾蓋過詞頻更高、真的還在打
+--   的 愉快／愉悅）。
 -- 升頂門檻 PROMOTE_MIN = 3：池裡的字要「近期選過 ≥3 次」才升到 top 區、開始壓過整池；手滑選一兩次
 --   （如剛剛的 於）不算，留在池裡照常用度排。簡碼(9)／exact(6) 靠 floor 本來就 ≥3，永遠在 top。
 -- 選過次數存在 ~/Library/Rime/aiphabi_plus_userfreq.tsv（字\t分數\t時間戳），
@@ -176,8 +181,13 @@ local function filter(input, env)
       part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
-      -- 打滿的四碼詞、打滿的左簡碼都是 exact 一級（左簡碼是推得出來的碼，不是猜的）
+      -- 打滿的四碼詞、打滿的左簡碼都是 exact 一級（左簡碼是推得出來的碼，不是猜的）；打滿
+      -- 整段、非容錯(ap_pool)／非補全(completion) 的也算——碼表裡就有詞打滿這個碼（如
+      -- 不要＝jqij），只是不在單字碼表 exactSet 裡，打中就是打中，不是猜的，不能跟 ap_pool
+      -- 的容錯猜測同池比字頻（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面，
+      -- 跟 aiphabi_order.lua 同一條修法，見那邊註解）
       local isExact = exactSet[c.text] or c.type == "ap_si4" or c.type == "ap_left"
+        or (c.type ~= "ap_pool" and c.type ~= "ap_short" and c.type ~= "completion")
       local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
       if eu >= PROMOTE_MIN then
         top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }

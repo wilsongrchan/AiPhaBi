@@ -1,26 +1,36 @@
 -- 愛發筆 · 候選重排（filter，排在 hint / fuzzy 之後、simplifier 之前）
 -- 順序固定成幾層：
 --   1. 約定簡碼（type=ap_short）—— 認定過「就這個字」，永遠第一。
---   2. 主碼 exact match —— 你打的碼剛好是某字的完整碼（在 code2chars[碼] 裡）。
---      打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：都是推得出來的
---      碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」的補全不算，
---      那個是猜的，留在下面。）打繁出簡／打簡出繁帶出來的字（ap_variant）也併進這
---      一級，照常用度插入正確位置，不整批墊在後面——跟這個碼 exact 撞碼的字一樣
---      確定，只是剛好不是這個碼的主碼（回報：汎[exact] 硬性排在 泛[simp，其實較常用]
---      前面）。這一層內部先按「主碼真的打中的字／ap_variant」在前、「ap_si4 四碼快打
+--   2. 主碼 exact match —— 你打的碼剛好是某字／某詞的完整碼：單字在 code2chars[碼] 裡，
+--      或碼表裡就有詞打滿這整段（如 不要＝jqij、碰巧＝jovnvis，碼表收了但只在單字表
+--      code2chars 查不到）。打滿的四碼快打（ap_si4）、打滿的左簡碼（ap_left）也算這一級：
+--      都是推得出來的碼、確定性跟打中主碼同級，不該跟猜測同池。（左簡碼「還沒打完」
+--      的補全不算，那個是猜的，留在下面。）打繁出簡／打簡出繁帶出來的字（ap_variant）
+--      也併進這一級，跟多字詞一樣一律照常用度插入正確位置，不整批墊在後面——跟這個
+--      碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼（回報：汎[exact] 硬性排在
+--      泛[simp，其實較常用] 前面；不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面）。
+--      這一層內部先按「主碼真的打中的字／多字詞／ap_variant」在前、「ap_si4 四碼快打
 --      湊巧撞同簽名的詞」在後分兩批（各自維持候選來源原序），再照常用度插入正確位置——
 --      不然四碼快打詞（常是生僻地名這類拼出來的固定詞組）會單純因為候選提供者先吐
 --      出來，就壓過常用單字的主碼 exact（回報：jwej 打「爭」被「群島」系列地名蓋過）。
---   3. 其餘打滿整段的一池：偏旁碼、同類、三簡、容錯（都標 type=ap_pool），加上碼表
---      收了、但不在 code2chars 的多字詞（如 碰巧＝jovnvis）。一律照「本次開機選過幾次
---      （降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水補全常用，排前面。
+--   3. 其餘打滿整段、故意的捷徑一池：偏旁碼、同類、三簡（都標 type=ap_pool，見
+--      aiphabi_hint.lua）——這些是你故意選的另一種打法，不是猜的。一律照「本次開機
+--      選過幾次（降冪）→ 常用度（降冪）」排。例：打 W，心（偏旁碼）比冷僻的三點水
+--      補全常用，排前面。
 --   4. 補全（type=completion：librime 標的「碼還沒打完」，也是四碼快打打到前兩／三碼、
---      還沒打滿的詞共用的同一個 type）—— 跟第 3 層一樣照「選過幾次→常用度」同池比，
---      不整批墊在後面：打滿的 碰巧（jovnvis）不該輸給還差一碼、但詞頻較高的 碰瓷
---      （jovnvisq）；四碼快打同理：qoq 打到一半的「福田康夫」不該蓋過打滿主碼的「中國」，
---      但也不能無條件輸給本來就打得到、可能更常用的字（回報：QQ 的 中庸 被擠到最後）——
---      只有真的四碼都打滿才算第 2 層 exact，前二／三碼一律降到這一層，附「四碼 - X」
---      提示還差哪幾碼。
+--      還沒打滿的詞、aiphabi_fuzzy 猜的「打錯了」共用的同一個 type）—— 跟第 3 層一樣
+--      照「選過幾次→常用度」同池比，不整批墊在後面：
+--      a. librime 標的「碼還沒打完」（如打 QQ 冒出 中庸 的前綴）；打滿的 碰巧（jovnvis，
+--         屬第 2 層）不該輸給還差一碼、但詞頻較高的 碰瓷（jovnvisq，第 4 層）。
+--      b. 四碼快打同理：qoq 打到一半的「福田康夫」不該蓋過打滿主碼的「中國」，但也不能
+--         無條件輸給本來就打得到、可能更常用的字（回報：QQ 的 中庸 被擠到最後）——只有
+--         真的四碼都打滿才算第 2 層 exact，前二／三碼一律降到這一層，附「四碼 - X」提示
+--         還差哪幾碼。
+--      c. aiphabi_fuzzy 猜的「打錯了」（漏碼／多碼／隔壁鍵／打反）也併進這一級，不再
+--         跟第 3 層的故意捷徑同池——猜你打錯了，終究是猜的，不該無條件蓋過「你可能
+--         還在打一個更長的詞」；兩者一起比常用度，公平（回報：NADNN 打 愉[容錯，多打
+--         一碼] 排第一，蓋過詞頻更高、真的還在打的 愉快／愉悅——Wilson 定案：容錯輸給
+--         還沒打完，不只是剛好衝突才輸，是規則）。
 --   5. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
@@ -280,11 +290,14 @@ local function filter(input, env)
     elseif c.type == "ap_short" then short[#short + 1] = c
     elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c, si4 = true }   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
-    elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」（也是四碼快打前二／三碼共用的 type）：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
-    elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, variant = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
+    elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」（也是四碼快打前二／三碼、aiphabi_fuzzy 容錯共用的 type）：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
+    elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, always_score = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
-    else pool[#pool + 1] = { c = c } end                 -- 打滿整段、碼表沒收進 exactSet 的（多字詞如 碰巧）也丟進池子
+    else exact[#exact + 1] = { c = c, always_score = true } end  -- 打滿整段、非容錯／非補全：碼表裡有詞打滿這個碼（如 不要＝jqij、碰巧＝jovnvis），
+                                                                   -- 不在 exactSet 只因那張表只收單字碼；打中就是打中，不是猜的，該跟單字 exact 同級，
+                                                                   -- 不能跟 ap_pool 的容錯猜測擠同一池（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯]
+                                                                   -- 擠到後面——exact 永遠先赢，同級內才比常用度，所以跟 ap_variant 一樣一律算分）
   end
 
   -- exact 這一級也要讓「選過次數」慢慢管得到：同一碼底下兩個字都是主碼（重複碼組，
@@ -313,10 +326,25 @@ local function filter(input, env)
     exact = primary
     for _, e in ipairs(si4Group) do exact[#exact + 1] = e end
   end
-  -- ap_variant（打繁出簡／打簡出繁帶出來的字）永遠算「有算分」，不用先跨過 EXACT_MIN_EFF
-  -- 那個防手滑門檻——它不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度
-  -- 插進正確位置（本來就不是這個碼的主碼，沒有「原始順序」這回事可以維持，插進去
-  -- 對的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
+  -- exact 一級上限：見上面 MAX_SORT 定義處的說明。以前這一級量天生就小（同一碼底下的
+  -- 主碼撞碼、si4／左簡碼，本來就有各自的產生上限），不需要另外設上限；碼表裡打滿這整段
+  -- 但不在 exactSet 的多字詞併進來之後（always_score，見上面），這一級理論上不再天生有界
+  -- ——跟 pool 一樣，同一套上限保護：只有前 MAX_SORT 個進插入排序，超過的維持原序墊底，
+  -- 不然插入排序本身（movers 逐一线性掃 backbone）也會跟著量爆炸而變慢（回報：K 打「大」
+  -- 這個偏旁碼提示，混進大量候選時被擠到 1000+ 名——當時是 pool 的上限沒顧到，現在換
+  -- exact 也要顧到，不然同一種擠壓換個地方重演）。
+  local exactHead, exactTail = exact, nil
+  if #exact > MAX_SORT then
+    exactHead, exactTail = {}, {}
+    for i = 1, MAX_SORT do exactHead[i] = exact[i] end
+    for i = MAX_SORT + 1, #exact do exactTail[#exactTail + 1] = exact[i] end
+  end
+  exact = exactHead
+  -- always_score（ap_variant 打繁出簡／打簡出繁帶出來的字，以及碼表裡打滿這整段但不在
+  -- exactSet 的多字詞，如 不要／碰巧）永遠算「有算分」，不用先跨過 EXACT_MIN_EFF 那個
+  -- 防手滑門檻——它們不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度插進
+  -- 正確位置（本來就不是這個碼的單字主碼，沒有「原始順序」這回事可以維持，插進去對
+  -- 的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
   -- 選過的話一樣吃 USERFREQ 加分。
   do
     local function logf(text) return math.log(cf(text) + 1) end
@@ -325,12 +353,13 @@ local function filter(input, env)
       if eff < EXACT_MIN_EFF then eff = 0 end
       return logf(e.c.text) + EXACT_BOOST * eff
     end
-    for _, e in ipairs(exact) do
-      e.mover = e.variant or exact_eff(e.c.text) >= EXACT_MIN_EFF
+    for i, e in ipairs(exact) do
+      e.mover = e.always_score or exact_eff(e.c.text) >= EXACT_MIN_EFF
+      e.origIdx = i    -- 原始相對順序（含上面主碼／si4 分批的結果），打平分數時當决勝負
     end
-    -- 不能只跟插入點當下的正前方比、贏了就停：ap_variant 一律是 mover，但它在候選陣列
-    -- 裡的起始位置是「hint 那邊湊巧排第幾個」（extra 系列——偏旁碼／同類／簡繁——先於
-    -- 主迴圈 yield，見上面 MAX_SORT 視窗那個理由），不是「已經跟其他 exact 成員比過」，
+    -- 不能只跟插入點當下的正前方比、贏了就停：always_score 的成員一律是 mover，但它在
+    -- 候選陣列裡的起始位置是「hint 那邊湊巧排第幾個」（extra 系列——偏旁碼／同類／簡繁——
+    -- 先於主迴圈 yield，見上面 MAX_SORT 視窗那個理由），不是「已經跟其他 exact 成員比過」，
     -- 可能天生就卡在很前面。只跟正前方比、贏了就停的寫法，遇到 mover 一開始就排在最前面
     -- 時完全沒有機會被拉回它真正該在的位置（回報：ZA 撞碼 导/汐/汎，泛(ap_variant，
     -- 常用度其實比 汐/汎 高、但比 导 低) 湊巧排第一，卻贏不了正前方——因為它前面沒有
@@ -339,6 +368,10 @@ local function filter(input, env)
     -- 照 key() 插進 backbone 該在的位置（掃到第一個 key 更低的就插在它前面）——不管
     -- mover 原本卡在陣列哪個位置，都能找到正確的名次；movers 之間也會因為先插入的
     -- 已經在 backbone 裡，後插入的照樣比得到，彼此順序一樣正確。
+    -- 分數打平時（回報：不要／研究方向，essay 空缺時 wordfreq 都退回同一個地板值，
+    -- 真常用度分不出高下）要照 origIdx 決勝負，不能無條件插到打平對象前面——不然會
+    -- 蓋掉上面主碼／si4 分批已經排好的順序（不要 該排在 研究方向 前面，即使兩個都是
+    -- mover／打平，也不能讓後插入的 mover 反過來擠到已經排在前面的另一個 mover 之前）。
     local backbone, movers = {}, {}
     for _, e in ipairs(exact) do
       if e.mover then movers[#movers + 1] = e else backbone[#backbone + 1] = e end
@@ -347,11 +380,15 @@ local function filter(input, env)
       local mk = key(m)
       local pos = #backbone + 1
       for i, e in ipairs(backbone) do
-        if key(e) < mk then pos = i; break end
+        local ek = key(e)
+        if ek < mk or (ek == mk and e.origIdx > m.origIdx) then pos = i; break end
       end
       table.insert(backbone, pos, m)
     end
     exact = backbone
+  end
+  if exactTail then
+    for _, e in ipairs(exactTail) do exact[#exact + 1] = e end
   end
 
   -- 選過的字別被上限擋住：USERFREQ 命中的（這台機器上真的選過的字，跟字根補全量無關，
