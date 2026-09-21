@@ -1025,4 +1025,27 @@
     vaTag.src = '/_vercel/insights/script.js';
     document.head.appendChild(vaTag);
   }
+
+  /* ---------- 本機／測試站的圖示改灰階 ----------
+     Wilson：全彩只留給正式網域（aiphabi.com），其餘（本機、vercel.app 預覽、
+     GitHub Pages 專案站…）一律灰階，分頁一排開就知道哪一個是真的上線版，
+     不用看網址列。.brand-logo 那顆用 CSS filter（見 site.css 的
+     html.is-preview .brand-logo），瀏覽器分頁上的 favicon／apple-touch-icon
+     CSS 管不到，只能真的換一張灰階圖檔（assets/img/*-gray.png）。 */
+  if (!/(^|\.)aiphabi\.com$/.test(vaHost)) {
+    document.documentElement.classList.add('is-preview');
+    var grayIconMap = {
+      'favicon-32.png': 'favicon-32-gray.png',
+      'favicon-512.png': 'favicon-512-gray.png',
+      'logo-180.png': 'logo-180-gray.png'
+    };
+    Array.prototype.forEach.call(
+      document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]'),
+      function (link) {
+        var href = link.getAttribute('href') || '';
+        var base = href.split('/').pop();
+        if (grayIconMap[base]) link.setAttribute('href', href.slice(0, -base.length) + grayIconMap[base]);
+      }
+    );
+  }
 })();

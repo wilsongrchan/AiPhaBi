@@ -370,6 +370,10 @@ body { padding-inline-start: calc(var(--page-pad) + var(--nav-w) + var(--nav-gap
   width: 2.1rem;
   height: 2.1rem;
 }
+/* 本機／測試站（非 aiphabi.com）才灰階，class 由 site.js 判網域後掛在
+   <html> 上——見 site.js 的「本機／測試站的圖示改灰階」那段，favicon 也是
+   同一份判斷換的圖。 */
+html.is-preview .brand-logo { filter: grayscale(1); }
 
 .brand .en {
   display: block;
