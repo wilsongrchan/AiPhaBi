@@ -845,6 +845,71 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged Wilson's next batch, 2026-09-21** — a large Side A character/recode pull (字
+  10,533→10,696) plus three of his own `aiphabi_order.lua`/`aiphabi_hint.lua`/`aiphabi_fuzzy.lua`
+  changes, committed under generic "更新取碼字與碼表" messages (worth remembering: that commit
+  title doesn't always mean "just a data rebuild" — check the diff, not just the message, before
+  assuming a commit is routine).
+  - **The si4 "還差幾碼" hint's missing space restored** (`"四碼 -X"` → `"四碼 - X"`), matching
+    the `"- Q"`/left-short convention used everywhere else for this kind of hint. Own follow-up to
+    the previous merge's no-space version — that was matched to his test at the time, but he later
+    added the space back and updated his own test to match, so no-space was never the intended
+    final state.
+  - **`aiphabi_fuzzy`'s typo-correction candidates now always tagged `type=completion`** (dropped
+    the old conditional "only if a real completion also exists" logic) — a fuzzy guess should always
+    compete on frequency with "you might still be typing something longer," not just when one
+    happens to already be present (回報：NADNN 打 愉[容錯，多打一碼] 排第一，蓋過詞頻更高、真的
+    還在打的 愉快／愉悅). Self-contained in `aiphabi_fuzzy.lua`; `aiphabi_order.lua`'s existing
+    `completion` classification already handled it, no change needed there.
+  - **Phrase-dict candidates that fill the whole code but aren't in `code2chars`** (like 不要＝jqij,
+    碰巧＝jovnvis) **moved from the pool tier into the exact tier**, via a flag renamed from this
+    branch's `ap_variant`-only `variant` to the more general `always_score` (回報：不要[jqij,
+    98959] 曾被 手/丕[ap_pool 容錯猜測] 擠到後面——完整字頻 vs 詞頻兩把不同的尺，容錯猜測反而
+    贏). Same "always positioned by frequency the moment it appears" treatment `ap_variant` already
+    got.
+  - **Reconciliation needed, same pattern as last time**: merged both header-comment descriptions
+    of the tier system rather than picking one side. More substantively, two real interaction bugs
+    surfaced by the base regression suite:
+    - The `always_score` catch-all has no size cap, unlike `pool`/`comp` — any full-span,
+      unrecognized-type candidate now joins the exact tier unconditionally, so a flood of them
+      (2026-08-29's K/大 MAX_SORT regression test simulates exactly this with 3,000 synthetic
+      candidates) can crowd out legitimate hint-tier entries queued right after, even though those
+      hints still land correctly *within their own pool-tier window*. Gave the exact tier the same
+      `MAX_SORT` windowing `pool`/`comp` already use (bounds the insertion-sort's cost too, not
+      just position). The test's own bound needed updating to match — `pos <= 40` no longer holds
+      structurally once the exact tier can legitimately absorb this many entries; the real
+      guarantee is now `pos <= RAW_CAP + 1` (hint.lua's hard intake cap), which is what the test
+      checks now. **This isn't a regression to "fix away" — it's a genuine consequence of the
+      exact tier no longer being inherently small; don't reuse the old 40-based assumption
+      elsewhere.**
+    - The exact tier's primary-vs-si4 partition (added last merge, for the jwej/爭 fix) and the
+      movers/backbone insertion sort (added the same merge, for the za 導/汐/汎/泛 fix) don't know
+      about each other: a mover can leapfrog a non-mover the partition had deliberately placed
+      ahead of it whenever their `key()`s tie exactly, silently undoing the partition's guarantee.
+      Caught by Wilson's own new 不要-vs-研究方向 test (both `always_score`, so both movers — a
+      tie between two movers has no "partition order" to fall back to unless something tracks it).
+      Fixed by recording each entry's post-partition original index and using it as an explicit
+      tiebreaker instead of letting ties resolve based on which side of the movers/backbone split
+      an entry happened to land on.
+  - **That same test is untestable as-authored in this sandbox**: it needs `不要` (639,813) and
+    `研究方向` (138,747) to have genuinely distinct `M.wordfreq` scores, but `M.wordfreq`
+    calibration reads `essay.txt` from a macOS-only path (`build_rime.py`'s `wordfreq` block, not
+    the `phrase_w`/si4 generation's `phrases_preview.tsv` fallback — that fallback only covers
+    si4/phrase-weight generation, not `wordfreq` itself) — when it's missing, *every* phrase word
+    in `wordfreq` gets the same flat `PLACE_FLOOR`, so 不要 and 研究方向 tie exactly and the test
+    can't tell "sorts by real frequency" from "sorts by exact-tier tiebreak" apart. Rather than
+    touch Wilson's own passing-on-real-hardware code to chase a sandbox artifact, made the test
+    inject the real reported frequencies for its own duration (same pattern the existing mobile-
+    wordfreq-stripped test already uses) — environment-independent either way now.
+  - Re-verified end-to-end against the literal shipped bytes: jwej/qoq/qq/za regression set plus a
+    new 不要-vs-手/丕 check, all passing. All 199 offline tests pass against a freshly rebuilt
+    (non-essay) `aiphabi_data.lua`.
+- **Cliff re-checked 2026-09-21**, after the above (字 10,533→10,696, plus the exact-tier `always_
+  score`/MAX_SORT-windowing addition — more Lua logic, no new `aiphabi_data.lua` tables, so no
+  reason to expect the cliff itself to move from logic alone, only from the character growth).
+  `N=8375` (last ship) now **crashes**. Re-bisected: 8,150 passes, 8,200 fails — margin ~50, thin.
+  Shipped at **`N=8150`**. Same verification pattern: `luajit` load check + end-to-end filter run
+  against the literal bytes extracted from the shipped zip.
 - **Merged three more of Wilson's own commits, 2026-09-18 (second merge same day)** — simplified-
   character frequency floor, `ap_variant` merged into the exact tier, and si4 completion
   unification, plus a Side A data pull that (among other things) silently dropped 沒's `WX`
