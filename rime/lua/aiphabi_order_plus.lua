@@ -168,6 +168,24 @@ local function filter(input, env)
 
   -- top = 選過(衰減)/簡碼/exact；pool = 其餘打滿整段的同池照 cf；comp = 碼還沒打完的補全，
   -- 墊在 pool 之後（打滿的 碰巧 不該輸給還差一碼的 碰瓷）；part = 同源裡吃不滿的，降到最後。
+  --
+  -- top 內部以前整批照 (eu,w) table.sort——這樣一來，簡碼／主碼 exact／左簡碼／四碼這種
+  -- 「沒被近期選過」的候選（eu 全靠 floor 撐、彼此打平）也會照常用度重排，把 aiphabi_hint
+  -- 的約定簡碼撞碼demote（這/記、麼/魔…：開了簡碼、打主碼 IOZ 時故意把 這 擠到 記 後面，
+  -- 逼你改打簡碼 IZ 打 這）整個廢掉——這 常用度比 記 高，一重排就排回第一，demote 形同
+  -- 虛設（回報：Wilson 期待 aiphabi_plus 打 IOZ 也該看到 記 排第一，結果沒有；aiphabi_order.lua
+  -- 那邊本來就用插入排序保住這個機制，這裡沒有）。
+  -- 改法：跟 aiphabi_order.lua 同一套「只移動有算分的候選（mover）」插入排序——
+  --   * ap_variant（打繁出簡打簡出繁）、碼表打滿整段但不在 exactSet 裡的詞（如 不要＝
+  --     jqij）永遠算 mover：一出現就該照常用度插進對的位置，沒有「原始順序」這回事
+  --     可以維持（跟 aiphabi_order.lua 的 always_score 同一條理由）。
+  --   * 簡碼／主碼 exact／左簡碼／四碼：只有「近期真的被選過 ≥ PROMOTE_MIN 次」（eff，
+  --     不是 floor 撐出來的 eu）才算 mover；沒被選過就完全不移動，維持 aiphabi_hint 給的
+  --     原始順序——這才保得住上面說的 demote 機制。
+  --   * 原本在 pool／comp 池子裡、近期被選過 ≥ PROMOTE_MIN 次的候選，一樣拉進 top、永遠
+  --     算 mover（pool／comp 沒有「原始順序」需要保護，是使用者自己選出來的訊號）。
+  -- eu＝max(eff,floor) 這把尺不變，所以「選超過 9 次才壓得過簡碼、超過 6 次才壓得過
+  -- exact」這個既有的爬升門檻也不變——只是「沒被選過的候選之間」不再無條件比常用度。
   local top, pool, comp, part = {}, {}, {}, {}
   local pyRank = 0
   for i, c in ipairs(cands) do
@@ -181,16 +199,26 @@ local function filter(input, env)
       part[#part + 1] = { c = c, i = i, cov = en - st, w = cf(c.text) }
     else
       local isShort = c.type == "ap_short"
-      -- 打滿的四碼詞、打滿的左簡碼都是 exact 一級（左簡碼是推得出來的碼，不是猜的）；打滿
-      -- 整段、非容錯(ap_pool)／非補全(completion) 的也算——碼表裡就有詞打滿這個碼（如
-      -- 不要＝jqij），只是不在單字碼表 exactSet 裡，打中就是打中，不是猜的，不能跟 ap_pool
-      -- 的容錯猜測同池比字頻（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面，
-      -- 跟 aiphabi_order.lua 同一條修法，見那邊註解）
-      local isExact = exactSet[c.text] or c.type == "ap_si4" or c.type == "ap_left"
-        or (c.type ~= "ap_pool" and c.type ~= "ap_short" and c.type ~= "completion")
-      local eu = math.max(effUf(c.text), isShort and S_FLOOR or (isExact and E_FLOOR or 0))
+      local isVariant = c.type == "ap_variant"
+      local isSi4OrLeft = c.type == "ap_si4" or c.type == "ap_left"
+      local isPool = c.type == "ap_pool"
+      local isComp = c.type == "completion"
+      -- 打滿整段、非容錯(ap_pool)／非補全(completion) 的也算 exact——碼表裡就有詞打滿這個
+      -- 碼（如 不要＝jqij），只是不在單字碼表 exactSet 裡，打中就是打中，不是猜的，不能跟
+      -- ap_pool 的容錯猜測同池比字頻（跟 aiphabi_order.lua 同一條修法，見那邊註解）；
+      -- 這種「不在 exactSet」的情況（isFallback）跟 ap_variant 一樣永遠算 mover。
+      local isFallback = (not isShort) and (not isVariant) and (not isSi4OrLeft)
+        and (not isPool) and (not isComp) and (not exactSet[c.text])
+      local isExactSetMember = (not isShort) and (not isVariant) and (not isSi4OrLeft)
+        and (not isPool) and (not isComp) and exactSet[c.text]
+      local alwaysMover = isVariant or isFallback
+      local floor = isShort and S_FLOOR
+        or ((isSi4OrLeft or isExactSetMember or alwaysMover) and E_FLOOR or 0)
+      local eff = effUf(c.text)
+      local eu = math.max(eff, floor)
       if eu >= PROMOTE_MIN then
-        top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text) }
+        top[#top + 1] = { c = c, i = i, eu = eu, w = cf(c.text),
+          mover = alwaysMover or eff >= PROMOTE_MIN }
       else
         local w = cf(c.text)
         if not form then
@@ -198,7 +226,7 @@ local function filter(input, env)
           -- 冷讀音打折只針對「單字」拼音候選（於＝wū）；多字詞不算
           if pyRank > PY_TOPK and ulen(c.text) == 1 then w = w * PY_OBSCURE end
         end
-        if c.type == "completion" then          -- 碼還沒打完：不進 pool，整批墊在 pool 之後
+        if isComp then          -- 碼還沒打完：不進 pool，整批墊在 pool 之後
           comp[#comp + 1] = { c = c, i = i, w = w }
         else
           pool[#pool + 1] = { c = c, i = i, w = w }
@@ -206,11 +234,18 @@ local function filter(input, env)
       end
     end
   end
-  table.sort(top, function(a, b)
-    if a.eu ~= b.eu then return a.eu > b.eu end
-    if a.w ~= b.w then return a.w > b.w end
-    return a.i < b.i
-  end)
+  -- 插入排序：只有 mover 會往前追，追過「贏過正前方」的位置就停；non-mover 之間（含
+  -- non-mover 對 non-mover、non-mover 被動待在原地）的相對順序完全不碰。
+  for i = 2, #top do
+    if top[i].mover then
+      local j = i
+      while j > 1 and (top[j - 1].eu < top[j].eu
+            or (top[j - 1].eu == top[j].eu and top[j - 1].w < top[j].w)) do
+        top[j - 1], top[j] = top[j], top[j - 1]
+        j = j - 1
+      end
+    end
+  end
   -- 池子上限：跟 aiphabi_order.lua 同理（見那邊註解）——候選欄一次只顯示 8～10 個，
   -- 沒人會不打字一路翻好幾十頁；I／J 這種常見字根補全一次可能上萬個候選，全排會卡頓
   -- （量過 17727 個時排序要 ~15ms，還沒算前面分類的開銷，Squirrel 裡的真實 Candidate
@@ -262,4 +297,6 @@ local function filter(input, env)
   for _, r in ipairs(part) do yield(r.c) end
 end
 
-return { init = init, fini = fini, func = filter }
+-- _UF／_bump：只給 tests/run_tests.lua 用，不影響正式行為。
+return { init = init, fini = fini, func = filter, _UF = UF, _bump = bump,
+         _S_FLOOR = S_FLOOR, _E_FLOOR = E_FLOOR, _PROMOTE_MIN = PROMOTE_MIN }

@@ -1145,6 +1145,71 @@ do
 end
 
 print()
+print("== aiphabi_plus 的 top bucket 以前整批照常用度重排，把約定簡碼撞碼demote 廢掉了 ==")
+do
+  -- 回報：aiphabi_order.lua 用插入排序只移動「有算分」的候選，保住 aiphabi_hint 的
+  -- 約定簡碼撞碼demote（這/記：開了簡碼、打主碼 IOZ 時故意把 這 擠到 記 後面，逼你改打
+  -- 簡碼 IZ）；但 aiphabi_order_plus.lua 以前不管三七二十一，top bucket 整批照 (eu,w)
+  -- table.sort，等於無條件把常用度較高的 這 排回第一，demote 形同虛設。Wilson 明講：
+  -- 打 IOZ 該看到 記 排第一。修法：跟 aiphabi_order.lua 同一套插入排序，只移動 mover。
+  local order_mod = require("aiphabi_order_plus")
+  local function reset(ch) order_mod._UF[ch] = nil end
+  local function bumpN(ch, n) for _ = 1, n do order_mod._bump(ch) end end
+
+  -- 候選餵入順序模擬真正 librime 的原始 weight 順序（這 489985 比 記 219687 常用，
+  -- 這 該先出現）——demote 要能把它「從前面挪到後面」才算真的生效，不是本來就墊底。
+  local out1 = h.run{
+    schema = "aiphabi_plus", code = "ioz", options = { aiphabi_short100 = true },
+    cands = { { text = "這" }, { text = "記" } },
+  }
+  h.checkAt("打 IOZ（簡碼開）：記 排第一，這 被 demote 擠到後面", out1, 1, "記")
+
+  -- 沒開簡碼開關時，短碼表完全不查（見 aiphabi_hint 開頭），demote 也不該發生——
+  -- 常用度較高的 這 照常排第一，這裡是防呆，不是這次修的重點。
+  local out2 = h.run{
+    schema = "aiphabi_plus", code = "ioz", options = {},
+    cands = { { text = "這" }, { text = "記" } },
+  }
+  h.checkAt("打 IOZ（簡碼關）：demote 不查表，這 常用度較高排第一", out2, 1, "這")
+
+  -- 這/記 都沒被近期選過（effUf<PROMOTE_MIN）時 demote 才有效——這是插入排序「不動
+  -- non-mover」的前提，跟 aiphabi_order.lua 那邊「兩個都沒算分」的案例同一個道理。
+  reset("這"); reset("記")
+
+  -- 主碼 exact 撞碼字（腳踏車／不要 那組）近期真的被選過、跨過 PROMOTE_MIN(3) 次時，
+  -- 照舊能贏過懸殊常用度的對手——跟 aiphabi_order.lua 的 exact_eff／min_eff 是不同一套
+  -- （aiphabi_plus 用固定門檻 PROMOTE_MIN=3，不看常用度懸殊，這是既有設計，這次沒改）。
+  bumpN("母", 7)   -- 母 149276 vs 紅 104772.5：選 7 次跨過 E_FLOOR(6)，母本來就比較常用
+  local out3 = h.run{
+    schema = "aiphabi_plus", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  h.checkAt("打 GI：母 選 7 次（跨過 E_FLOOR）——本來就比較常用，贏過 红", out3, 1, "母")
+  reset("母")
+
+  -- 既有的「選超過 9 次才壓得過簡碼」爬升門檻沒被這次改動動到：池子候選（的）選 7 次
+  -- （跨過 exact 的 E_FLOOR=6，但還沒到簡碼的 S_FLOOR=9）還是輸給簡碼（我）。
+  local out4 = h.run{
+    schema = "aiphabi_plus", code = "jkq", options = { aiphabi_short100 = true },
+    cands = { { text = "我", type = "ap_short" }, { text = "的", type = "ap_pool" } },
+  }
+  h.checkAt("打 JKQ（簡碼開，無選字紀錄）：簡碼 我 排第一", out4, 1, "我")
+  bumpN("的", 7)
+  local out5 = h.run{
+    schema = "aiphabi_plus", code = "jkq", options = { aiphabi_short100 = true },
+    cands = { { text = "我", type = "ap_short" }, { text = "的", type = "ap_pool" } },
+  }
+  h.checkAt("打 JKQ：的 選 7 次——跨過 exact 門檻，但還沒到簡碼的 9 次，我 還是第一", out5, 1, "我")
+  bumpN("的", 3)   -- 累計到 10 次，跨過 S_FLOOR(9)
+  local out6 = h.run{
+    schema = "aiphabi_plus", code = "jkq", options = { aiphabi_short100 = true },
+    cands = { { text = "我", type = "ap_short" }, { text = "的", type = "ap_pool" } },
+  }
+  h.checkAt("打 JKQ：的 選滿 10 次——跨過簡碼的 9 次門檻，贏過簡碼 我", out6, 1, "的")
+  reset("的")
+end
+
+print()
 print("== 只打常用字：白名單只留甲表∪GB一級∪回填（異體／詞庫／姓名／百家姓／粵語／手動）==")
 do
   h.check("常用字在白名單裡（的／我／學）",
