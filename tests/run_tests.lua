@@ -560,6 +560,30 @@ do
 end
 
 print()
+print("== 多打一碼容錯：最後一鍵如果也是別的詞正在打到一半的合法前綴，別蓋過那些完成候選 ==")
+do
+  -- 回報：打 NADNN——愉＝NADN，多打一碼容錯砍掉最後那個 N 就對得上；但 nadnn 剛好也是
+  -- 愉快（nadnncy）／愉悅（nadnnvl／nadnnvojl）正在打到一半的合法前綴，librime 自己就會
+  -- 給出這兩個 completion 候選。連續打兩次同一鍵（打到一半、還沒來得及換下一碼）比「手滑
+  -- 多打一鍵」更常見，「最後這鍵是多打的」不該無條件蓋過詞頻更高、真的還在打的 愉快／愉悅。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "nadnn", options = { aiphabi_fuzzy = true },
+      cands = {
+        { text = "愉快", type = "completion", comment = "- CY" },
+        { text = "愉悅", type = "completion", comment = "- VL" },
+      },
+    }
+    local pos = {}
+    for i, c in ipairs(out) do if not pos[c.text] then pos[c.text] = i end end
+    h.check(schema .. " · NADNN：愉（容錯，字頻 97019）排在 愉快（完成，149312）之後",
+      pos["愉"] and pos["愉快"] and pos["愉快"] < pos["愉"], h.fmt(out))
+    h.check(schema .. " · NADNN：愉（容錯）也排在 愉悅（完成，127957）之後",
+      pos["愉"] and pos["愉悅"] and pos["愉悅"] < pos["愉"], h.fmt(out))
+  end
+end
+
+print()
 print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
 do
   local ac = require("aiphabi_autocommit")

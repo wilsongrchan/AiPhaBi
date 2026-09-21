@@ -54,9 +54,10 @@ return function(input, env)
     return
   end
 
-  local seen, s, e = {}, nil, nil
+  local seen, s, e, hasCompletion = {}, nil, nil, false
   for cand in input:iter() do
     seen[cand.text] = true
+    if cand.type == "completion" then hasCompletion = true end
     s = s or cand.start
     e = cand._end
     yield(cand)
@@ -65,13 +66,13 @@ return function(input, env)
   e = e or #code
   local n = #code
 
-  local function emit(candidates, test)
+  local function emit(candidates, test, kind)
     for _, c in ipairs(candidates or {}) do
       if test(c) then
         for _, ch in ipairs(data.code2chars[c] or {}) do
           if not seen[ch] then
             seen[ch] = true
-            yield(Candidate("ap_pool", s, e, ch, "[ " .. c:upper() .. " ]"))
+            yield(Candidate(kind or "ap_pool", s, e, ch, "[ " .. c:upper() .. " ]"))
           end
         end
       end
@@ -79,7 +80,13 @@ return function(input, env)
   end
 
   emit(data.by_len[n + 1], function(c) return one_missing(code, c) end)         -- 漏打一碼
-  emit(data.by_len[n - 1], function(c) return one_missing(c, code) end)         -- 多打一碼
+  -- 多打一碼：這碼砍掉最後一鍵才對得上，但如果打的這整串本身也是別的詞正在打到一半的
+  -- 合法前綴（這次候選裡已經有真的 completion 存在佐證），「最後這鍵是多打的」就不比
+  -- 「還在往下打更長的詞」更可信——兩種解讀併同一級，照常用度比，別讓容錯猜測無條件
+  -- 蓋過詞頻更高的完成候選（回報：NADNN 打 愉[NADN，多打一碼容錯] 排第一，蓋過 愉快／
+  -- 愉悅 這種打到一半、詞頻明明更高的候選——重複打最後一鍵是很正常的「還在打下去」，
+  -- 不是打錯）。
+  emit(data.by_len[n - 1], function(c) return one_missing(c, code) end, hasCompletion and "completion" or nil)
   emit(data.by_len[n], function(c)                                              -- 隔壁鍵／打反
     return c ~= code and (adjacent_typo(code, c) or transpose(code, c))
   end)

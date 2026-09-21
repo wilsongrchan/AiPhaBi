@@ -76,7 +76,9 @@ local function normalize(cands, code)
   return out
 end
 
--- 依序跑 aiphabi_hint → aiphabi_order（或 _plus），回傳最後的候選陣列
+-- 依序跑 aiphabi_hint → aiphabi_fuzzy → aiphabi_order（或 _plus），回傳最後的候選陣列。
+-- 跟真正的 filter 鏈（見 aiphabi.schema.yaml）同順序。aiphabi_fuzzy 預設不開（跟真機一樣，
+-- 選項沒給 aiphabi_fuzzy=true 就直接 passthrough），現有測試不會因為加了這一步而變動。
 function M.run(opts)
   local code = opts.code
   local schema = opts.schema or "aiphabi"
@@ -84,6 +86,7 @@ function M.run(opts)
   local cands = normalize(opts.cands or {}, code)
 
   local hint = require("aiphabi_hint")
+  local fuzzy = require("aiphabi_fuzzy")
   local order = require(schema == "aiphabi_plus" and "aiphabi_order_plus" or "aiphabi_order")
   local charset = require("aiphabi_charset")
   local env = makeEnv(schema, code, options)
@@ -93,7 +96,11 @@ function M.run(opts)
   local afterHint = sink
 
   sink = {}
-  order.func(makeInput(afterHint), env)
+  fuzzy(makeInput(afterHint), env)
+  local afterFuzzy = sink
+
+  sink = {}
+  order.func(makeInput(afterFuzzy), env)
   local afterOrder = sink
 
   -- schema 的 filter 鏈：order 之後、uniquifier 之前掛 aiphabi_charset（只打常用字）
