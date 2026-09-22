@@ -888,6 +888,50 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged Wilson's next batch, 2026-09-22** — a large Side A character/recode pull (字
+  10,696→10,882) plus two logic fixes.
+  - **`aiphabi_order_plus.lua`'s `top` bucket used to `table.sort` everything by `(eu, w)`
+    unconditionally**, which silently undid `aiphabi_hint.lua`'s shortcode-collision demote
+    (這/記 etc. — deliberately pushing an unselected shortcode-eligible character behind its
+    collision partner to nudge you toward the shortcut) for the plus schema, since 這's plain
+    frequency beats 記's and a full resort just puts it back at #1 every time. The pure
+    `aiphabi_order.lua` side was already protected (its insertion-sort-for-movers design leaves
+    non-movers' arrival order untouched) — this brings `aiphabi_order_plus.lua`'s `top` bucket in
+    line with the same approach: `ap_variant`/phrase-dict-fallback entries always move, everything
+    else only moves once actually reselected ≥ `PROMOTE_MIN` times recently.
+  - **`M.wordfreq` calibration bug**: a word's essay rank was being paired with the wrong single
+    character's `freq_w` — two independently-sorted lists were indexed by position instead of
+    doing a rank-aligned lookup — so words could pick up an unrelated character's
+    `charfreq.json` bonus (real case: 下山's essay rank landed on 遂's `freq_w`, not the
+    essay-rank-matched 霧's, inflating 下山 past 志 despite 志 being far more common). Fixed by
+    building both lists from the same essay-count-sorted key order and indexing them together.
+    Also scaled the exact tier's fumble-prevention threshold (`EXACT_MIN_EFF` constant →
+    `min_eff(text)` function) by how common the candidate already is — a single accidental
+    selection is a much weaker signal for a genuinely obscure character (志/忑, 孑/孒) than for a
+    common one (名/合), so the threshold now rises the further a character's frequency sits below
+    a reference point, rather than using one fixed value for every character regardless of how
+    rare it is.
+  - **Reconciliation needed beyond the mechanical merge**: applying `order_plus.lua`'s new
+    insertion-sort-for-movers design (needed for the demote fix above) reopened the jwej/爭 bug
+    there too — `order_plus.lua` never had this branch's primary-vs-si4 partition (added for
+    `aiphabi_order.lua` only, two merges back), so with neither 爭 nor a same-signature si4 phrase
+    counting as a "mover" (both unselected), ordering fell back to raw candidate-arrival order
+    again — the exact bug the partition exists to prevent. Added the same partition to
+    `order_plus.lua`'s `top` bucket. Also merged both sides' comments on the 不要/腳踏車 exact-
+    tier frequency test: Wilson swapped the example word from 研究方向 to 腳踏車 to dodge a
+    separate `charfreq` calibration trap (a word's essay rank landing on a barely-charfreq'd
+    character can inflate it past a genuinely more common word); kept this branch's `wordfreq`
+    override for the test's duration regardless, since this sandbox has no `essay.txt` and both
+    words would tie at the same placeholder score no matter which pair is chosen — the trap
+    Wilson dodged and the sandbox limitation this branch works around are two different problems,
+    not the same one.
+  - All 213 tests pass against a freshly rebuilt (non-essay) `aiphabi_data.lua`; re-verified
+    end-to-end against the literal shipped bytes (jwej/qoq/qq/za/不要 regression set).
+- **Cliff re-checked 2026-09-22**, after the above (字 10,696→10,882, plus the two logic fixes —
+  no new `aiphabi_data.lua` tables from either, so the cliff move is purely from character
+  growth). `N=8150` (last ship) now **crashes**. Re-bisected: 7,750 passes, 7,875 fails — margin
+  ~125. Shipped at **`N=7750`**. Same verification pattern: `luajit` load check + end-to-end
+  filter run against the literal bytes extracted from the shipped zip.
 - **Merged Wilson's next batch, 2026-09-21** — a large Side A character/recode pull (字
   10,533→10,696) plus three of his own `aiphabi_order.lua`/`aiphabi_hint.lua`/`aiphabi_fuzzy.lua`
   changes, committed under generic "更新取碼字與碼表" messages (worth remembering: that commit
