@@ -713,6 +713,49 @@ Adding a third list means one row in `STANDARDS` plus a file in `data/standards/
 - `data/backups/` — timestamped snapshot taken on *every* PUT, pruned to the last 200 per stem
   (currently ~500 files across stems).
 
+### 重複率跟其他輸入法比較（2026-09-21 分析，未落成腳本）
+
+**基準**：以 `data/freq.json` 常用度排序，交集「有官方倉頡碼（`data/cangjie.json`，rime-cangjie
+base+extended）且 AiPhaBi 已取碼且非 `componentOnly`」，得一份 9245 字的排序池；「前 N 字」都是
+（⚠️ **這裡的「倉頡」specifically 是倉頡五代**——`rime-cangjie` 這個 repo 只收五代碼表，
+`cangjie5.base.dict.yaml` 檔頭寫明「單字碼表《五倉世紀》來自 www.chinesecj.com、倉頡五代構詞碼
+碼表，由惜緣兄製作，佛振修訂於 2012-04-08」，repo 裡沒有三代或六代的檔案。六代改動幅度較大，
+這份分析的數字不能直接套用到六代，三代大概也有落差；要比六代得另外找表，這個 repo 沒有。）
+從這個池子切的，不是純粹常用度前 N 字。**只算主碼，不算兼容碼／alts**——理由：倉頡的 `X`
+從這個池子切的，不是純粹常用度前 N 字。**只算主碼，不算兼容碼／alts**——理由：倉頡的 `X`
+識別碼是換掉那個字唯一顯示的碼，碰撞真的消失；AiPhaBi 的 alt 只是另開一條路，主碼原本的碰撞
+（打 UH 還是會看到 用/曲/冊 三個候選）並沒有消失，把 alt 算進去會把兩種機制混為一談
+（見 [[aiphabi-alts-blind-spot]] 的另一面：alt 解決得了「打得出來」，解決不了「主碼不撞」）。
+
+比較倉頡要先去識別碼：`cjNatural()`（`stats.html`）把倉頡的前導 `X` 剝掉——保留 `X` 的話碰撞率
+灑假近 0%（`X` 本來就是為了消歧才加的），剝掉才看到「如果沒有這個消歧機制」的真實碰撞。
+
+大易（`data/dayi.json`，rime-dayi）本身沒有 alt 機制，直接算主碼；表沒收全的字用 coveredOnly
+（分母只算大易有收的字，見 `cumulativeDup()` 的 `coveredOnly` 邏輯，跟大易資料的坑一致）。
+
+無蝦米沒有官方公開表，但兩個獨立來源（`irime-liur` 的 `liur_Trad.dict.yaml`、
+fcitx-table-extra／Bluebat 整理的 `boshiamy.txt`）在同一份 6000 字池子上算出**完全一致**的
+16.71%，可信；两表都用「前導 `~` 或後綴消歧碼」標記非標準拆字，跟倉頡的 `X`同一個道理，一樣要
+剝掉才算主碼。這兩份表都還沒進 `data/`，只在對話裡臨時抓來算，要重驗自己重抓。
+
+| N | AiPhaBi | Cangjie(natural) | Dayi | Boshiamy | A/C | A/B |
+|---|---|---|---|---|---|---|
+| 1000 | 2.40% | 1.00% | — | 3.60% | 2.40x | 0.67x |
+| 3000 | 4.33% | 2.87% | — | 9.17% | 1.51x | 0.47x |
+| 6000 | 7.42% | 3.87% | 6.56% | 16.71% | 1.92x | 0.44x |
+| 6926 | 8.39% | 4.19% | — | 18.80% | 2.00x | 0.45x |
+| 9245（全池） | 10.65% | 6.43% | — | 23.73% | 1.66x | 0.45x |
+
+**結論（跨樣本量都算穩定）**：AiPhaBi 主碼碰撞率大概是倉頡的 **1.7～2x**（N 越大越靠近 1.7x，
+N=6926 附近最接近 2x），是無蝦米的 **0.44～0.45x**（幾乎整條曲線都穩定在這個比例，N<2000 例外，
+那段 AiPhaBi 反而比無蝦米低，因為 AiPhaBi 把最乾淨的碼留給最常用的一批字）。大易介於倉頡跟
+AiPhaBi 之間，比 AiPhaBi 略低。
+
+若排除「前 3500 常用字跟 3501～6000 名之間」及「純粹發生在 3501～6000 名之間」的碰撞（只算
+兩個前 3500 常用字互撞才算數），N=6000 三邊的碰撞率都腰斬：倉頡 3.87%→1.87%、AiPhaBi
+7.42%→3.32%、無蝦米 16.71%→5.69%——三邊原本碰撞裡本來就有約 2/3 是「跟罕用字撞」，不是
+「兩個常用字互撞」。這個篩選下無蝦米降幅最大，AiPhaBi/倉頡 比例幾乎不變（1.78x）。
+
 ---
 
 ## B · User side — IME, code table & candidate bar

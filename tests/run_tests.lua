@@ -463,10 +463,13 @@ print("== 兩個字天生同一個主碼（重複碼組）時，選過次數也�
 do
   -- 回報過：母／红 天生都是主碼 gi（見 codes.json），一直選 母，還是排不到第一——
   -- 因為 exact 這一級（主碼 exact match）以前完全不排序，直接照 librime 給的原始順序
-  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 83857），
-  -- 這裡的 bug 不是「母 要追過 红」，是「librime 給的原始順序恰好把常用度較低的 红
-  -- 排第一」，選字次數只需要跨過「防手滑」這個下限（EXACT_MIN_EFF）就能把 母 拉回它
-  -- 本來就該有的第一名——不需要额外的加分去追差距，因為它從一開始就沒有落後。
+  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 104772.5，
+  -- 红 是簡體字，常用度打過折），這裡的 bug 不是「母 要追過 红」，是「librime 給的
+  -- 原始順序恰好把常用度較低的 红 排第一」，選字次數只需要跨過「防手滑」這個下限
+  -- （min_eff()，見 aiphabi_order.lua 校準說明）就能把 母 拉回它本來就該有的第一名——
+  -- 不需要额外的加分去追差距，因為它從一開始就沒有落後。母（149276）離 min_eff() 的
+  -- 常用度基準（合 389799）不算太遠，門檻只略高於 1.5（~1.98），選兩次就跨得過去；
+  -- 志／忑、孑／孒 那種更冷僻的字（十萬上下）門檻更高（~2.2），選兩次還不夠，見下面。
   -- 「差距越大，需要的次數越多」測的是另一種情況：選的字本身常用度真的比對手低，見
   -- 下面 孑／子 那組。
   local order_mod = require("aiphabi_order")
@@ -478,7 +481,7 @@ do
     end
   end
 
-  -- 選一次不算：eff(1) < EXACT_MIN_EFF（防手滑），排序完全不動，紅還在第一。
+  -- 選一次不算：eff(1) < min_eff("母")（防手滑），排序完全不動，紅還在第一。
   reset("母")
   order_mod._bump("母")
   local out1 = h.run{
@@ -488,7 +491,7 @@ do
   h.checkAt("打 GI：只選 母 一次——手滑不算，紅還是排第一", out1, 1, "红")
   reset("母")
 
-  -- 選兩次：跨過 EXACT_MIN_EFF 下限，母本來常用度就贏 红，一跨過門檻就排回第一——
+  -- 選兩次：跨過 min_eff("母") 下限，母本來常用度就贏 红，一跨過門檻就排回第一——
   -- 不需要額外加分去追差距，因為它從一開始就沒有落後（見上面說明）。
   order_mod._bump("母"); order_mod._bump("母")
   local out2 = h.run{
@@ -521,23 +524,34 @@ do
   reset("孑")
 
   -- 差距小的話，跨過防手滑門檻就夠：孑（96322）跟 孒（93037）常用度很接近
-  -- （log 差只有 0.03），選兩次（剛跨過門檻）就該追過去，不用選到 15 次那麼多。
+  -- （log 差只有 0.03）——但孑／孒 本身都不算常用（十萬上下，離 min_eff() 的常用度
+  -- 基準「合」389799 有 1.3+ 個 log 單位的距離），門檻本身被拉高到 ~2.2（見
+  -- aiphabi_order.lua 的 min_eff() 校準說明），選兩次（eff=2.0）還跨不過，要選到
+  -- 第三次（eff=3.0）才算數；門檻一跨過，差距小的話馬上就追過去，不用選到 15 次。
   reset("孑")
   order_mod._bump("孑"); order_mod._bump("孑")
-  local outClose = h.run{
+  local outClose2 = h.run{
     schema = "aiphabi", code = "pi", options = {},
     cands = { { text = "孒" }, { text = "孑" } },
   }
-  h.checkAt("打 PI：孑 跟 孒 常用度接近，選兩次就夠追過去（差距小，門檻夠用）", outClose, 1, "孑")
+  h.checkAt("打 PI：孑 跟 孒 常用度接近，但兩字都冷僻，選兩次還不夠跨過門檻", outClose2, 1, "孒")
+  reset("孑")
+
+  order_mod._bump("孑"); order_mod._bump("孑"); order_mod._bump("孑")
+  local outClose3 = h.run{
+    schema = "aiphabi", code = "pi", options = {},
+    cands = { { text = "孒" }, { text = "孑" } },
+  }
+  h.checkAt("打 PI：孑 跟 孒 常用度接近，選三次跨過門檻後，差距小馬上就追過去", outClose3, 1, "孑")
   reset("孑")
 
   -- 選過的分數會隨時間衰減：模擬「很久以前選過六次、後來都沒再選」——EXACTFREQ 直接
   -- 塞一個很舊的時間戳，過了好幾個半衰期，就算原始次數是 6，衰減後 eff 也該掉到
-  -- EXACT_MIN_EFF 以下，回到跟沒選過一樣。
+  -- min_eff("母") 以下，回到跟沒選過一樣。
   order_mod._EXACTFREQ["母"] = { score = 6, ts = os.time() - 20 * 24 * 3600 }  -- 20 天前，半衰期 2.5 天
   local effOld = order_mod._exact_eff("母")
-  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 EXACT_MIN_EFF 以下",
-    effOld < order_mod._EXACT_MIN_EFF, string.format("got eff=%.4f", effOld))
+  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 min_eff(\"母\") 以下",
+    effOld < order_mod._min_eff("母"), string.format("got eff=%.4f", effOld))
   local outDecayed = h.run{
     schema = "aiphabi", code = "gi", options = {},
     cands = { { text = "红" }, { text = "母" } },
@@ -548,6 +562,45 @@ do
   -- 不能矯枉過正：約定簡碼撞碼demote（這/記）不靠 USERFREQ，兩邊都沒選過時要維持
   -- aiphabi_hint 已經排好的相對順序，不能被這裡新加的 exact 排序打散——這個案例
   -- 前面「約定簡碼字本身主碼撞碼」那組測試已經覆蓋，這裡只是註明兩者不衝突。
+
+  -- min_eff() 門檻本身也該看常用度：名／合 這種很常用的字（幾十萬等級）維持原本
+  -- 1.5（選兩次就算數）；志／忑、孑／孒 這種本來就不算常用的字（十萬上下）門檻該
+  -- 拉高到 ~2.2（選兩次還不夠，要選到第三次）——回報案例：志/忑 天生同碼 fw，Wilson
+  -- 只選過 忑 一次，就被 Rime 內建 userdb 學習機制搶排到 志 前面，但那次選字很可能
+  -- 只是隨手測試，門檻該抓嚴一點。
+  h.check("min_eff(名) 維持常用字基準 1.5", order_mod._min_eff("名") == 1.5,
+    string.format("got %.4f", order_mod._min_eff("名")))
+  h.check("min_eff(合) 維持常用字基準 1.5", order_mod._min_eff("合") == 1.5,
+    string.format("got %.4f", order_mod._min_eff("合")))
+  h.check("min_eff(志) 冷僻字門檻該拉高（> 2）", order_mod._min_eff("志") > 2,
+    string.format("got %.4f", order_mod._min_eff("志")))
+  h.check("min_eff(忑) 冷僻字門檻該拉高（> 2）", order_mod._min_eff("忑") > 2,
+    string.format("got %.4f", order_mod._min_eff("忑")))
+
+  reset("忑")
+  order_mod._bump("忑")
+  local outFw1 = h.run{
+    schema = "aiphabi", code = "fw", options = {},
+    cands = { { text = "志" }, { text = "忑" } },
+  }
+  h.checkAt("打 FW：忑 只選一次——冷僻字門檻更高，手滑不算，志還是第一", outFw1, 1, "志")
+  reset("忑")
+
+  order_mod._bump("忑"); order_mod._bump("忑")
+  local outFw2 = h.run{
+    schema = "aiphabi", code = "fw", options = {},
+    cands = { { text = "志" }, { text = "忑" } },
+  }
+  h.checkAt("打 FW：忑 選兩次——常用字只要兩次，但冷僻字門檻拉高到要三次，兩次還不夠", outFw2, 1, "志")
+  reset("忑")
+
+  order_mod._bump("忑"); order_mod._bump("忑"); order_mod._bump("忑")
+  local outFw3 = h.run{
+    schema = "aiphabi", code = "fw", options = {},
+    cands = { { text = "志" }, { text = "忑" } },
+  }
+  h.checkAt("打 FW：忑 選三次——冷僻字門檻跨過，差距小（log 差 0.05）馬上追過去", outFw3, 1, "忑")
+  reset("忑")
 end
 
 print()
@@ -634,7 +687,7 @@ end
 print()
 print("== 碼表裡打滿整段的詞（多字，不在單字碼表 exactSet 裡）該算 exact，不能跟容錯同池 ==")
 do
-  -- 回報：JQIJ 打出「研究方向」（ap_si4，四碼快打）跟「不要」（碼表本身就有 jqij 這條
+  -- 回報：JQIJ 打出「腳踏車」（ap_si4，四碼快打）跟「不要」（碼表本身就有 jqij 這條
   -- 縮寫碼，weight 98959）都是「打中」的，前者標 ap_si4 沒問題；後者以前沒有任何 ap_* 標記
   -- （table_translator 的普通候選），又不在只收單字碼的 code2chars["jqij"] 裡，掉進最後的
   -- else 分支被當成池子貨——結果跟「手」「丕」這種 ap_pool 容錯猜測（多打一碼／少打一碼）
@@ -642,18 +695,26 @@ do
   -- 改法：這個 else 分支現在併進 exact 一級（跟 ap_variant 一樣一律算分，不用等選字次數
   -- 累積），ap_pool 維持在池子——exact 永遠先贏，池子內才比字頻。
   --
+  -- 測試字選用注意：這裡選的兩個詞（不要／腳踏車）essay 計次差距夠大（98959 vs 609），
+  -- 且對齊到的單字（嗯／亊）都沒有 charfreq.json 計次，不會踩到 freq_w() 的 charfreq
+  -- 門檻陷阱（見下面「跟上 build_rime.py 詞頻校準修正」那組測試的說明）；原本這裡用
+  -- 研究方向 當例字，essay 計次 3521 遠低於 不要，但對齊到的字「宏」剛好在 charfreq.json
+  -- 有計次 2，靠 ×10000 硬是把分數衝到 118519、蓋過 不要 的 99214——這不是這個測試要
+  -- 驗證的東西（這裡要驗證的是「exact 一級內部照常用度排」本身的排序邏輯，不是
+  -- freq_w() 的資料品質），換一個沒踩到那個陷阱的例字比較乾淨。
+  --
   -- 詞頻（M.wordfreq）是 essay.txt 校準出來的（見 build_rime.py），essay.txt 只在原作者
   -- 機器上有——這個沙盒建置時讀不到，wordfreq 全數退回同一個地板值（PLACE_FLOOR），不要／
-  -- 研究方向 在這裡會打平分數，測不出「詞頻內部排序」這件事本身。用回報當下量到的真實
-  -- 詞頻（不要 639813、研究方向 138747）暫時蓋掉，讓這個測試不管在哪台機器建置都測得到
-  -- 真正要測的東西，不受這個環境有沒有 essay.txt 影響。
-  local savedWF_yao, savedWF_yjfx = data.wordfreq["不要"], data.wordfreq["研究方向"]
-  data.wordfreq["不要"], data.wordfreq["研究方向"] = 639813, 138747
+  -- 腳踏車 在這裡會打平分數，測不出「詞頻內部排序」這件事本身，就算換了不踩 charfreq
+  -- 陷阱的例字也一樣。用回報當下量到的真實詞頻（不要 99214、腳踏車 92750）暫時蓋掉，
+  -- 讓這個測試不管在哪台機器建置都測得到真正要測的東西，不受這個環境有沒有 essay.txt 影響。
+  local savedWF_yao, savedWF_jtc = data.wordfreq["不要"], data.wordfreq["腳踏車"]
+  data.wordfreq["不要"], data.wordfreq["腳踏車"] = 99214, 92750
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     local out = h.run{
       schema = schema, code = "jqij", options = {},
       cands = {
-        { text = "研究方向", type = "ap_si4" },
+        { text = "腳踏車", type = "ap_si4" },
         { text = "手", type = "ap_pool" },
         { text = "丕", type = "ap_pool" },
         { text = "不要" },   -- 碼表本身打滿 jqij 的詞，沒有任何 ap_* 標記
@@ -664,14 +725,14 @@ do
     h.check(schema .. " · 不要（碼表打滿 jqij，非容錯）排在 手/丕（ap_pool 容錯猜測）前面",
       pos["不要"] and pos["手"] and pos["丕"] and pos["不要"] < pos["手"] and pos["不要"] < pos["丕"],
       h.fmt(out))
-    h.check(schema .. " · 研究方向（ap_si4，同為 exact）也排在 手/丕 前面",
-      pos["研究方向"] and pos["研究方向"] < pos["手"] and pos["研究方向"] < pos["丕"],
+    h.check(schema .. " · 腳踏車（ap_si4，同為 exact）也排在 手/丕 前面",
+      pos["腳踏車"] and pos["腳踏車"] < pos["手"] and pos["腳踏車"] < pos["丕"],
       h.fmt(out))
-    h.check(schema .. " · exact 一級內部照常用度排：不要（詞頻 639813）該排在 研究方向（詞頻 138747）前面",
-      pos["不要"] and pos["研究方向"] and pos["不要"] < pos["研究方向"],
+    h.check(schema .. " · exact 一級內部照常用度排：不要（詞頻 99214）該排在 腳踏車（詞頻 92750）前面",
+      pos["不要"] and pos["腳踏車"] and pos["不要"] < pos["腳踏車"],
       h.fmt(out))
   end
-  data.wordfreq["不要"], data.wordfreq["研究方向"] = savedWF_yao, savedWF_yjfx
+  data.wordfreq["不要"], data.wordfreq["腳踏車"] = savedWF_yao, savedWF_jtc
 end
 
 print()
@@ -1197,6 +1258,71 @@ do
   h.check("重複上字不參與常用度排序，永遠排最前面",
     afterOrder2[1] and afterOrder2[1].type == "ap_repeat" and afterOrder2[1].text == "嶸",
     "expected 嶸 (ap_repeat) first, got " .. h.fmt(afterOrder2))
+end
+
+print()
+print("== aiphabi_plus 的 top bucket 以前整批照常用度重排，把約定簡碼撞碼demote 廢掉了 ==")
+do
+  -- 回報：aiphabi_order.lua 用插入排序只移動「有算分」的候選，保住 aiphabi_hint 的
+  -- 約定簡碼撞碼demote（這/記：開了簡碼、打主碼 IOZ 時故意把 這 擠到 記 後面，逼你改打
+  -- 簡碼 IZ）；但 aiphabi_order_plus.lua 以前不管三七二十一，top bucket 整批照 (eu,w)
+  -- table.sort，等於無條件把常用度較高的 這 排回第一，demote 形同虛設。Wilson 明講：
+  -- 打 IOZ 該看到 記 排第一。修法：跟 aiphabi_order.lua 同一套插入排序，只移動 mover。
+  local order_mod = require("aiphabi_order_plus")
+  local function reset(ch) order_mod._UF[ch] = nil end
+  local function bumpN(ch, n) for _ = 1, n do order_mod._bump(ch) end end
+
+  -- 候選餵入順序模擬真正 librime 的原始 weight 順序（這 489985 比 記 219687 常用，
+  -- 這 該先出現）——demote 要能把它「從前面挪到後面」才算真的生效，不是本來就墊底。
+  local out1 = h.run{
+    schema = "aiphabi_plus", code = "ioz", options = { aiphabi_short100 = true },
+    cands = { { text = "這" }, { text = "記" } },
+  }
+  h.checkAt("打 IOZ（簡碼開）：記 排第一，這 被 demote 擠到後面", out1, 1, "記")
+
+  -- 沒開簡碼開關時，短碼表完全不查（見 aiphabi_hint 開頭），demote 也不該發生——
+  -- 常用度較高的 這 照常排第一，這裡是防呆，不是這次修的重點。
+  local out2 = h.run{
+    schema = "aiphabi_plus", code = "ioz", options = {},
+    cands = { { text = "這" }, { text = "記" } },
+  }
+  h.checkAt("打 IOZ（簡碼關）：demote 不查表，這 常用度較高排第一", out2, 1, "這")
+
+  -- 這/記 都沒被近期選過（effUf<PROMOTE_MIN）時 demote 才有效——這是插入排序「不動
+  -- non-mover」的前提，跟 aiphabi_order.lua 那邊「兩個都沒算分」的案例同一個道理。
+  reset("這"); reset("記")
+
+  -- 主碼 exact 撞碼字（腳踏車／不要 那組）近期真的被選過、跨過 PROMOTE_MIN(3) 次時，
+  -- 照舊能贏過懸殊常用度的對手——跟 aiphabi_order.lua 的 exact_eff／min_eff 是不同一套
+  -- （aiphabi_plus 用固定門檻 PROMOTE_MIN=3，不看常用度懸殊，這是既有設計，這次沒改）。
+  bumpN("母", 7)   -- 母 149276 vs 紅 104772.5：選 7 次跨過 E_FLOOR(6)，母本來就比較常用
+  local out3 = h.run{
+    schema = "aiphabi_plus", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  h.checkAt("打 GI：母 選 7 次（跨過 E_FLOOR）——本來就比較常用，贏過 红", out3, 1, "母")
+  reset("母")
+
+  -- 既有的「選超過 9 次才壓得過簡碼」爬升門檻沒被這次改動動到：池子候選（的）選 7 次
+  -- （跨過 exact 的 E_FLOOR=6，但還沒到簡碼的 S_FLOOR=9）還是輸給簡碼（我）。
+  local out4 = h.run{
+    schema = "aiphabi_plus", code = "jkq", options = { aiphabi_short100 = true },
+    cands = { { text = "我", type = "ap_short" }, { text = "的", type = "ap_pool" } },
+  }
+  h.checkAt("打 JKQ（簡碼開，無選字紀錄）：簡碼 我 排第一", out4, 1, "我")
+  bumpN("的", 7)
+  local out5 = h.run{
+    schema = "aiphabi_plus", code = "jkq", options = { aiphabi_short100 = true },
+    cands = { { text = "我", type = "ap_short" }, { text = "的", type = "ap_pool" } },
+  }
+  h.checkAt("打 JKQ：的 選 7 次——跨過 exact 門檻，但還沒到簡碼的 9 次，我 還是第一", out5, 1, "我")
+  bumpN("的", 3)   -- 累計到 10 次，跨過 S_FLOOR(9)
+  local out6 = h.run{
+    schema = "aiphabi_plus", code = "jkq", options = { aiphabi_short100 = true },
+    cands = { { text = "我", type = "ap_short" }, { text = "的", type = "ap_pool" } },
+  }
+  h.checkAt("打 JKQ：的 選滿 10 次——跨過簡碼的 9 次門檻，贏過簡碼 我", out6, 1, "的")
+  reset("的")
 end
 
 print()
