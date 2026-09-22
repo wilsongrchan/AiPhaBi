@@ -41912,7 +41912,6 @@ M.common = {
   ["嶺"]=true,
   ["嶼"]=true,
   ["嶽"]=true,
-  ["巋"]=true,
   ["巍"]=true,
   ["巒"]=true,
   ["巔"]=true,
