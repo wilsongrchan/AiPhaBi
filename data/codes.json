@@ -1020,9 +1020,6 @@
       }
     ],
     "code": "JF",
-    "conventional": [
-      "merge:1-2"
-    ],
     "final": "JF"
   },
   "用": {
@@ -124503,29 +124500,70 @@
         "strokes": [
           0,
           1,
-          2
+          2,
+          3
         ],
         "letter": "H"
       },
       {
         "strokes": [
-          3,
           4,
-          5
+          5,
+          6
         ],
         "letter": "O"
       },
       {
         "strokes": [
-          6,
-          7,
-          8
+          7
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          8,
+          9,
+          10
         ],
         "letter": "O"
       }
     ],
-    "code": "HOO",
-    "final": "HOO"
+    "code": "HOJO",
+    "final": "HOJO",
+    "variants": [
+      {
+        "display": "莒",
+        "form": "cn",
+        "code": "HOO",
+        "segments": [
+          {
+            "strokes": [
+              0,
+              1,
+              2
+            ],
+            "letter": "H"
+          },
+          {
+            "strokes": [
+              3,
+              4,
+              5
+            ],
+            "letter": "O"
+          },
+          {
+            "strokes": [
+              6,
+              7,
+              8
+            ],
+            "letter": "O"
+          }
+        ]
+      }
+    ],
+    "glyphForm": "tw"
   },
   "昀": {
     "segments": [
@@ -326850,7 +326888,7 @@
         ]
       }
     ],
-    "overrides": [
+    "compliant": [
       "merge:3-4"
     ]
   },
@@ -427342,6 +427380,46 @@
   "幧": {
     "code": "MOOOT",
     "final": "MOOOT",
+    "manual": true
+  },
+  "崣": {
+    "code": "WJTLJ",
+    "final": "WJTLJ",
+    "manual": true
+  },
+  "嵾": {
+    "code": "WGGGYJJ",
+    "final": "WGGGJ",
+    "manual": true
+  },
+  "嶞": {
+    "code": "PXIDW",
+    "final": "PXIDW",
+    "manual": true
+  },
+  "弤": {
+    "code": "SCXQ",
+    "final": "SCXQ",
+    "manual": true
+  },
+  "悁": {
+    "code": "NOD",
+    "final": "NOD",
+    "manual": true
+  },
+  "悀": {
+    "manual": true,
+    "code": "NPUH",
+    "final": "NPUH"
+  },
+  "恀": {
+    "code": "NAA",
+    "final": "NAA",
+    "manual": true
+  },
+  "恌": {
+    "code": "NKLK",
+    "final": "NKLK",
     "manual": true
   }
 }
