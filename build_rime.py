@@ -664,6 +664,23 @@ def main():
         if phrase_w.get(_sw, -1) < _wt:
             phrase_w[_sw] = _wt
 
+    # 為／爲：兩個字在 codes.json 是分開取碼的獨立字（不是同一字的顯示變體），essay
+    # 語料卻幾乎全部只收 爲（U+7232）這個寫法——爲何／爲什麼／爲了…上千條，對應的
+    # 為 版本幾乎全無，打 為 的人詞組連打完全連不上、essay 權重也吃不到。逐詞比照
+    # 前面簡體展開同一套：詞裡有這兩字之一，就多收一份换成另一個字的版本，同權重
+    # （Wilson 回報，2026-09-24；只做這一對，其餘傳承異體字沒收到類似回報，不预先擴大）。
+    _WEI_SWAP = {"為": "爲", "爲": "為"}
+    _wei_added = {}
+    for _w, _wt in list(phrase_w.items()):
+        if not any(c in _WEI_SWAP for c in _w):
+            continue
+        _ww = "".join(_WEI_SWAP.get(c, c) for c in _w)
+        if _ww == _w or _word_codes(_ww) is None:
+            continue
+        if phrase_w.get(_ww, -1) < _wt and _wei_added.get(_ww, -1) < _wt:
+            _wei_added[_ww] = _wt
+    phrase_w.update(_wei_added)
+
     phrase_entries, _seen_wc = [], set()
     for _w, _wt in phrase_w.items():
         for _c in (_word_codes(_w) or ()):
@@ -675,6 +692,8 @@ def main():
             for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
                 _f.write(f"{_w}\t{_code}\t{_wt}\n")
         print(f"詞組 {len(phrase_entries)} 條（essay 前 {PHRASE_TOPN} + 精選詞庫 data/phrases_*.txt）")
+        if _wei_added:
+            print(f"  為／爲互通 {len(_wei_added)} 個詞（語料只收一種寫法，另一寫法補上同權重）")
         _alt_words = sum(1 for _w in phrase_w if any(_c in char_alt_codes for _c in _w))
         if _alt_words:
             print(f"  含兼容碼路徑的詞 {_alt_words} 個（alts 也能接上詞組連打，不再只認主碼）")
