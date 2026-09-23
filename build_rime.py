@@ -247,8 +247,9 @@ def main():
             code2chars[code].append(ch)
     # 兼容碼提示：這個字用「兼容碼」（手動收的另一種拆法，比主碼略遜一籌）打出來時，
     # Squirrel candidate 旁邊加個 [碼] 提醒——跟主碼路徑分清楚。兼容字型不算，
-    # 那是另一地區的正常寫法，不分優劣。
+    # 那是另一地區的正常寫法，不分優劣，所以另外用 variant_code 存、標不同的籤。
     altcode = defaultdict(set)              # 字（實際輸出的字形）→ 它的兼容碼集合
+    variant_code = defaultdict(set)         # 字 → 它的兼容字型（另一地區正式寫法）碼集合
     for ch, rec in codes.items():
         if not rec.get("code"):
             continue
@@ -259,6 +260,12 @@ def main():
                 continue
             altcode[out].add(shorten(ac, max_rule).lower())
             altcode[out].add(ac.lower())
+        for v in rec.get("variants", []):
+            vc = v.get("code")
+            if not vc:
+                continue
+            variant_code[out].add(shorten(vc, max_rule).lower())
+            variant_code[out].add(vc.lower())
 
     # 約定簡碼：手動在取碼原則頁挑的字（試過自動抓常用度前 100 名，重碼太多，
     # 改回手動——的、我、是、這、就這種真的常用到不介意撞碼的字才值得收）。
@@ -829,6 +836,10 @@ def main():
     dl += ["}", "M.altcode = {"]        # 字 → {碼: true} 集合（candidate 用 [碼] 標示；查表用，不是陣列）
     for c, acs in sorted(altcode.items()):
         inner = "".join(f'[{lua_str(a)}]=true,' for a in sorted(acs))
+        dl.append(f'  [{lua_str(c)}]={{{inner}}},')
+    dl += ["}", "M.variant_code = {"]   # 字 → {碼: true} 集合（另一地區正式寫法／兼容字型，跟 altcode 分開標籤）
+    for c, vcs in sorted(variant_code.items()):
+        inner = "".join(f'[{lua_str(a)}]=true,' for a in sorted(vcs))
         dl.append(f'  [{lua_str(c)}]={{{inner}}},')
     dl += ["}", "M.shortcode = {"]      # 簡碼 → [字]（約定簡碼；aiphabi_short100 開關控制）
     for code, ch in sorted(shortcode.items()):
