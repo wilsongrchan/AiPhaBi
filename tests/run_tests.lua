@@ -145,13 +145,14 @@ do
   h.checkComment("打 QE → 主 標 兼容 (IF)", out3, "主", "兼容 (IF)")
 
   -- 兼容字型：電 主碼 MIIBL、有一條「香港字形」變體碼 MIKBL（同一個字，另一地區
-  -- 正式寫法，不是退一步的拆法）——打 MIKBL 該標「兼容字型 (MIIBL)」，跟上面
-  -- 「兼容」分開標，不然看起來像是拆法比較差，其實只是規格不同（2026-09-23 回報）。
+  -- 正式寫法，不是退一步的拆法）——以前完全沒標（空括號 (MIIBL) 看不出是什麼），
+  -- 跟兼容碼共用同一個「兼容」標籤，提示要短，不分是拆法退一步還是地區正式寫法
+  -- （2026-09-23 回報；一度分開標「兼容字型」，Wilson 要求收回共用同一個標籤）。
   local out4 = h.run{
     schema = "aiphabi", code = "mikbl", options = ALL_ON,
     cands = { { text = "電" } },
   }
-  h.checkComment("打 MIKBL → 電 標 兼容字型 (MIIBL)", out4, "電", "兼容字型 (MIIBL)")
+  h.checkComment("打 MIKBL → 電 標 兼容 (MIIBL)", out4, "電", "兼容 (MIIBL)")
 end
 
 print()
