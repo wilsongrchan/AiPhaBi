@@ -891,10 +891,10 @@ do
       cands = {
         { text = "扌" },                                   -- 殘留的部件字
         { text = "水" },                                   -- 正字
-        { text = "大", type = "ap_pool", comment = "偏旁碼" },
+        { text = "大", type = "ap_pool", comment = "偏旁" },
       },
     }
-    h.check(schema .. " · 打 K：部件字 扌 被壓到 水／偏旁碼 之後",
+    h.check(schema .. " · 打 K：部件字 扌 被壓到 水／偏旁 之後",
       (function()
         local pShou, pShui, pDa
         for i, c in ipairs(leaked) do
@@ -918,7 +918,7 @@ do
       { text = "·", type = "punct" },                        -- punctuator: ` → [ ·, `, ~ ]
       { text = "`", type = "punct" },
       { text = "~", type = "punct" },
-      { text = "候", type = "ap_repeat", comment = "重複上字" },  -- 萬用鍵：重複上字
+      { text = "候", type = "ap_repeat", comment = "重複" },  -- 萬用鍵：重複上字
       { text = "的" },                                          -- 萬用鍵掃全表的高頻雜訊
       { text = "几" },
     },
@@ -1146,7 +1146,7 @@ do
     code = "`",
     cands = {
       { text = "當" },
-      { text = "嶸", type = "ap_repeat", comment = "重複上字" },
+      { text = "嶸", type = "ap_repeat", comment = "重複" },
     },
   }
   h.check("重複上字不參與常用度排序，永遠排最前面",

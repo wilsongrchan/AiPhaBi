@@ -164,7 +164,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, refMark("偏旁碼", sc))
+          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, refMark("偏旁", sc))
         end
       end
     end
