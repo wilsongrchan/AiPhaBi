@@ -637,7 +637,12 @@ def main():
                     if _word_codes(_sw) is None:
                         simp_skipped.append(_sw)
                         continue
-                    simp_phrases.add(_sw)
+                    # 逐字簡化出來的寫法，若每個字都不是簡體專屬（甲表／dual_use 豁免過的
+                    # 傳承字，如 臺→台），代表這整個詞本身就是通行的傳承寫法（平台），
+                    # 不是簡體——不進 simp_phrases，不然 不打簡體 開著時會被誤濾掉
+                    # （跟單字的甲表豁免同一個道理，見 simp_only 那段，Wilson 回報 2026-09-24）。
+                    if any(c in simp_only for c in _sw):
+                        simp_phrases.add(_sw)
                     if phrase_w.get(_sw, -1) < phrase_w[_w]:
                         phrase_w[_sw] = phrase_w[_w]
 
@@ -657,9 +662,11 @@ def main():
         if _sw == _w or _word_codes(_sw) is None:
             continue
         _essay_simp += 1
-        if _sw in simp_phrases:
-            continue
-        simp_phrases.add(_sw)
+        # 同上：整個詞逐字簡化後若沒有真正簡體專屬的字（如 平臺→平台），這詞本身
+        # 就是傳承寫法，不算簡體，不進 simp_phrases（不然 平台 這種詞會被 不打簡體
+        # 誤濾掉——它跟 平臺 一樣是正常繁體詞，只是語料只收了 臺 那個寫法）。
+        if _sw not in simp_phrases and any(c in simp_only for c in _sw):
+            simp_phrases.add(_sw)
         _wt = max(phrase_w.get(_w, 0), _pe.get(_w, 0), PLACE_DICT_FLOOR)
         if phrase_w.get(_sw, -1) < _wt:
             phrase_w[_sw] = _wt
