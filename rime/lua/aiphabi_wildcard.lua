@@ -27,8 +27,7 @@ return function(input, seg, env)
     if n <= MAX_REPEAT then
       local last = order.get_last_n(n)
       if last and last ~= "" then
-        local label = n == 1 and "重複上字" or ("重複上" .. n .. "字")
-        yield(Candidate("ap_repeat", seg.start, seg._end, last, label))
+        yield(Candidate("ap_repeat", seg.start, seg._end, last, "重複"))
       end
     end
   end

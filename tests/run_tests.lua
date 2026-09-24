@@ -221,6 +221,16 @@ do
     cands = { { text = "主" } },
   }
   h.checkComment("打 QE → 主 標 兼容 (IF)", out3, "主", "兼容 (IF)")
+
+  -- 兼容字型：電 主碼 MIIBL、有一條「香港字形」變體碼 MIKBL（同一個字，另一地區
+  -- 正式寫法，不是退一步的拆法）——以前完全沒標（空括號 (MIIBL) 看不出是什麼），
+  -- 跟兼容碼共用同一個「兼容」標籤，提示要短，不分是拆法退一步還是地區正式寫法
+  -- （2026-09-23 回報；一度分開標「兼容字型」，Wilson 要求收回共用同一個標籤）。
+  local out4 = h.run{
+    schema = "aiphabi", code = "mikbl", options = ALL_ON,
+    cands = { { text = "電" } },
+  }
+  h.checkComment("打 MIKBL → 電 標 兼容 (MIIBL)", out4, "電", "兼容 (MIIBL)")
 end
 
 print()
@@ -997,10 +1007,10 @@ do
       cands = {
         { text = "扌" },                                   -- 殘留的部件字
         { text = "水" },                                   -- 正字
-        { text = "大", type = "ap_pool", comment = "偏旁碼" },
+        { text = "大", type = "ap_pool", comment = "偏旁" },
       },
     }
-    h.check(schema .. " · 打 K：部件字 扌 被壓到 水／偏旁碼 之後",
+    h.check(schema .. " · 打 K：部件字 扌 被壓到 水／偏旁 之後",
       (function()
         local pShou, pShui, pDa
         for i, c in ipairs(leaked) do
@@ -1024,7 +1034,7 @@ do
       { text = "·", type = "punct" },                        -- punctuator: ` → [ ·, `, ~ ]
       { text = "`", type = "punct" },
       { text = "~", type = "punct" },
-      { text = "候", type = "ap_repeat", comment = "重複上字" },  -- 萬用鍵：重複上字
+      { text = "候", type = "ap_repeat", comment = "重複" },  -- 萬用鍵：重複上字
       { text = "的" },                                          -- 萬用鍵掃全表的高頻雜訊
       { text = "几" },
     },
@@ -1252,7 +1262,7 @@ do
     code = "`",
     cands = {
       { text = "當" },
-      { text = "嶸", type = "ap_repeat", comment = "重複上字" },
+      { text = "嶸", type = "ap_repeat", comment = "重複" },
     },
   }
   h.check("重複上字不參與常用度排序，永遠排最前面",

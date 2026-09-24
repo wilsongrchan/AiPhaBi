@@ -34,8 +34,8 @@ local data = require("aiphabi_data")
 -- 候選旁邊那行字的統一寫法。整套只有兩種意思，靠圓括號分：
 --
 --   標籤 (主碼)   標籤講「你走的是哪條路」，圓括號裡一律是「這個字的主碼」，給你
---                 對照用。你剛打的不是主碼（簡碼、三簡、左簡、偏旁碼、兼容碼、
---                 同類字…都算），所以順便告訴你正牌的碼長什麼樣。
+--                 對照用。你剛打的不是主碼（簡碼、三簡、左簡、偏旁碼、兼容碼／
+--                 兼容字型、同類字…都算），所以順便告訴你正牌的碼長什麼樣。
 --                 例：打 JKQ → 我 簡碼 (JKXQ)；打 IF → 主 兼容 (QE)
 --                 括號裡永遠是主碼，所以標籤不必再說一次「主碼」——那個位置留給
 --                 「你是怎麼打到的」，資訊才不重複。
@@ -171,7 +171,7 @@ local function filter(input, env)
         if not seen[ch] then
           seen[ch] = true
           local sc = data.char2code[ch]
-          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, refMark("偏旁碼", sc))
+          extra[#extra + 1] = Candidate("ap_pool", s, e, ch, refMark("偏旁", sc))
         end
       end
     end
@@ -267,8 +267,11 @@ local function filter(input, env)
   -- （它們各自已有自己的標籤）；三簡碼那套太模糊，不比照辦理。
   local function markHints(cand)
     local acs = data.altcode[cand.text]
+    local vcs = data.variant_code[cand.text]
     local main = data.char2code[cand.text]
-    if acs and acs[code] and main then
+    -- 兼容字型（另一地區正式寫法的碼）跟兼容碼共用同一個「兼容」標籤——提示要短，
+    -- 不分是退一步的拆法還是地區正式寫法，反正括號裡的主碼才是重點。
+    if ((acs and acs[code]) or (vcs and vcs[code])) and main then
       cand.comment = refMark("兼容", main)
       return cand
     end
