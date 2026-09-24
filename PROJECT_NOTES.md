@@ -888,6 +888,34 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged Wilson's next batch, 2026-09-24** — a large Side A character/recode pull (字
+  10,882→11,014) plus three data/UX changes, no conflicts (none of it touched
+  `aiphabi_order.lua`/`aiphabi_order_plus.lua`).
+  - **Phrase-level simplified-character exemption**: 不打簡體 used to filter out a whole
+    multi-character phrase if simplifying it character-by-character produced a different string,
+    even when every one of those characters individually passes the existing 甲表 (junior-standard)
+    exemption (e.g. 臺→台 — 台 is itself a legitimate, independently-codable traditional
+    character, not a simplification-only form). That wholesale filtering caught ~93 ordinary
+    phrases (平台／舞台／裏面…) that have nothing to do with simplified Chinese. Extended the
+    existing single-character exemption logic to phrases.
+  - **為／爲 interchange**: the essay corpus only ever recorded one of these two interchangeable
+    characters for ~1,000 common phrases (爲何/爲什麼/爲了…), even though both are independently
+    codable — so phrase-typing only ever reached whichever spelling the corpus happened to use.
+    Backfilled the missing spelling for 344 phrases at the same weight, mirroring the existing
+    simplified/traditional phrase-expansion mechanism.
+  - **Candidate hint labels shortened**: 偏旁碼→偏旁, 重複上字／重複上N字→重複, and 兼容字型
+    (a region's own standard glyph, e.g. 電's Hong Kong form) folded into the same "兼容" label
+    already used for compatible codes — previously showed a bare, unlabeled `(code)` for the
+    glyph-variant case, easy to mistake for a worse fallback path rather than a legitimate
+    regional standard.
+  - All 214 tests pass against a freshly rebuilt (non-essay) `aiphabi_data.lua`; also spot-checked
+    the two hint-label changes directly against the literal shipped bytes (電 打 MIKBL → 兼容
+    (MIIBL); comp_on 偏旁 label), beyond what the offline suite already covers.
+- **Cliff re-checked 2026-09-24**, after the above (字 10,882→11,014, plus phrase/si4 growth from
+  the 為／爲 backfill — 詞組 112195→114516). `N=7750` (last ship) now **crashes**. Re-bisected:
+  7,450 passes, 7,562 fails — margin ~112. Shipped at **`N=7450`**. Same verification pattern:
+  `luajit` load check + end-to-end filter run against the literal bytes extracted from the shipped
+  zip.
 - **Merged Wilson's next batch, 2026-09-22** — a large Side A character/recode pull (字
   10,696→10,882) plus two logic fixes.
   - **`aiphabi_order_plus.lua`'s `top` bucket used to `table.sort` everything by `(eu, w)`
