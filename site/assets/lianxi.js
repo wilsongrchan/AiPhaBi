@@ -4,16 +4,24 @@
  * 這一頁把同一張表**翻過來**用 —— 先給形狀，問字母，答完才講取形意圖。
  * （Wilson 2026-09-01：首頁再多一顆「我想學習更多字根」。）
  *
- * ⚠️ **這一頁是「歡迎模式」**：首頁直接連過來的三關入門，題目是手挑的一小批。
- * 將來可能另外做一個「完整模式」把整張字根表練過一遍（Wilson 2026-09-01），
- * 那會是另一個進入點 —— 不要把這裡的題目長成幾百題，這一頁刻意保持短。
+ * ⚠️ **這一頁有兩種模式**：「歡迎模式」是首頁直接連過來的三關入門，題目是
+ * 手挑的一小批；「整張表」（Wilson 2026-09-01 提的，2026-09-24 開工）把 377
+ * 個字根都考一遍，例字自動配。進頁面先問要選哪一種（見下面的 xz-modepick），
+ * ?mode=welcome／?mode=full 可以跳過這一步（〈字根表〉逛完連過來就是
+ * ?mode=full，見 zigen.html）。兩種模式共用這一支程式，只是換一份資料檔、
+ * 換一個存進度的 localStorage key（見 startGame）——不要把歡迎模式的題目長成
+ * 幾百題，它刻意保持短，完整的那一份在 assets/lianxi_full.json（site/tools/
+ * build_site_data.py 的 build_lianxi_full 產）。
  *
- * ⚠️ **用哪個字出題、考它的哪幾條字根，全部是 Wilson 手挑的**，寫在
+ * ⚠️ **歡迎模式用哪個字出題、考它的哪幾條字根，全部是 Wilson 手挑的**，寫在
  * `site/content/lianxi.md`（`檢 = A O` 這種一行一個字的格式）。建置時對回
  * codes.json 算出「那條字根是哪幾筆」、比對出取形意圖，產生 assets/lianxi.json。
- * 這支只讀那一份，**自己不決定要考什麼、也不自己配例字**。
+ * 完整模式（assets/lianxi_full.json）反過來是**自動**出的——377 個字根各出
+ * 一題，例字借用 build_zigen() 已經替〈字根表〉挑好的代表字，不是手挑的。
+ * 不管哪一份，這支都**自己不決定要考什麼、也不自己配例字**，只負責照資料
+ * 檔玩這個遊戲。
  *
- * 因此這一頁只抓一個檔：題目與筆畫輪廓都在裡面。
+ * 因此這一頁（不管歡迎模式還是完整模式）只抓一個檔：題目與筆畫輪廓都在裡面。
  * ⚠️ 答對之後**不列出取形意圖／取自哪個字／整串碼**（Wilson 2026-09-01：每答對
  * 一次頁面就長出一塊、畫面跟著彈；那些東西在〈字根表〉看就好）。答案就是疊在
  * 字根上的那個字母，加上鍵盤上亮起來的那一顆。
@@ -36,6 +44,12 @@
   var REDUCED = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  var modePickEl = document.getElementById('xz-modepick');
+  var modeWelcomeBtn = document.getElementById('xz-mode-welcome');
+  var modeFullBtn = document.getElementById('xz-mode-full');
+  var switchModeBtn = document.getElementById('xz-switchmode');
+  var wrapEl = document.getElementById('xz-wrap');
+  var barEl = document.getElementById('xz-bar');
   var loadingEl = document.getElementById('xz-loading');
   var gameEl = document.getElementById('xz-game');
   var optsEl = document.getElementById('xz-opts');
@@ -83,11 +97,24 @@
   // 練的就不是字根而是耐性了。
   var MAX_WRONG = 3;
 
-  var OK_KEY = 'aiphabi-lianxi-ok';       // 已經一次答對的題目
+  /* 兩種模式各自的資料檔／存進度 key —— 「答對過」不能共用同一個 key，不然
+     切過去一看，分數莫名其妙已經有一半是滿的，會被當成壞掉。實際值由
+     startGame() 依選的模式指定，這裡先放歡迎模式的預設值。 */
+  var DATA_SRC = 'assets/lianxi.json';
+  var OK_KEY = 'aiphabi-lianxi-ok';
+  /* 完整模式沒有「這一題需要轉／翻才看得出來」的判斷（見上面的說明——自動出題
+     生不出這個判斷），但轉／翻的按鈕還是留著給人**自己選要不要用**（Wilson
+     2026-09-24：「even though we no longer give them the hint to rotate or
+     flip, they can choose to do it if they want」）。歡迎模式維持原本規矩：
+     只有寫了提示的題目才出現這排按鈕。 */
+  var ALWAYS_SPIN = false;
 
   var GLYPHS = null;
   var POOL = [];
   var NLEVELS = 0;          // 一共幾關（關卡只有編號，沒有名字）
+  /* 完整模式用字母範圍當關卡名稱（"A–F" 這種），跟編號式的「第一關」是兩套
+     講法，見 paintLevel()。歡迎模式的資料沒有這個欄位，維持 null。 */
+  var LEVEL_NAMES = null;
   /* 一關要答對幾題才過關。⚠️ 一關**可以有更多題**——多出來的是備胎，不喜歡的
      題目可以跳過，還有別的可以練（Wilson 2026-09-01）。所以「過關」看的是答對
      幾題，不是把整關的題目都答完。 */
@@ -130,6 +157,13 @@
   }
   var cur = null;           // 目前這一題（POOL 裡的一筆，外加 revealed/right）
   var answered = false, hinted = false, wrong = 0;
+  /* 完整模式的題目多帶一個 q.d（取形意圖，build_lianxi_full 從 zigen.json
+     的意圖說明直接借來，見那邊的說明）。歡迎模式的題目沒有這個欄位——
+     Wilson 手挑時特意不讓揭曉列出取形意圖（2026-09-01：每答對一次頁面就長
+     一塊），這裡靠 q.d 存不存在自動分流，不用另外判斷是哪個模式。
+     descShown：這一題的提示有沒有講過取形意圖（第一步）；narrowed：選項
+     有沒有縮成四個（第二步，歡迎模式沒有 q.d 時這就是唯一一步）。 */
+  var descShown = false, narrowed = false;
   var lastKey = '';
   var keyBtns = {};
   /* 出過的題目留一份，「上一題」才回得去（Wilson 2026-09-01）。回頭看的人多半是
@@ -452,6 +486,8 @@
     lastKey = keyOf(item.q);
     answered = false;
     hinted = false;
+    descShown = false;
+    narrowed = false;
     wrong = 0;
     resetPad();
     nudge('');
@@ -467,8 +503,9 @@
     paintAsk(item.q);
     paintTyped(item.q, false);
     paintScore();                     // 換關卡時上面那條要跟著換成新關卡的分數
-    spinBar.hidden = !item.q.h;
-    hintBtn.textContent = item.q.t ? '提示：標出下一條字根' : '提示：減至四個選項';
+    spinBar.hidden = !(item.q.h || ALWAYS_SPIN);
+    hintBtn.textContent = item.q.t ? '提示：標出下一條字根'
+      : (item.q.d ? '提示：說明這個字根' : '提示：減至四個選項');
     paintLevel(item.q);
     if (!fresh && item.revealed) {
       if (item.q.t) typed = item.q.code;       // 回頭看已答過的打字題，碼格填滿
@@ -506,10 +543,10 @@
   // 打對一個字母、或按了提示之後，圖跟碼格都要重畫
   function repaintType(q) { paintQuestion(q); paintTyped(q, false); }
 
-  /* 題目那一句話（兩句都是 Wilson 2026-09-01 指定的字）：
+  /* 題目那一句話：
 
-       沒有提示 → 「這個字根像哪個字母？」
-       有提示   → 提示原文 ＋「，像哪個字母？」
+       沒有提示 → 「這個字根對應哪個字母？」（Wilson 2026-09-24）
+       有提示   → 提示原文 ＋「，像哪個字母？」（Wilson 2026-09-01）
                  例：「旋轉或翻轉這個字根後，像哪個字母？」
                      「把這個字根旋轉 180 度後，像哪個字母？」
 
@@ -521,7 +558,7 @@
     // ⚠️ 提示是**一整句**（「旋轉或翻轉這個字根後」），這裡只接後半，不要再補字：
     // 補了就會變成「旋轉或翻轉這個字根後這個字根後，像哪個字母？」
     askEl.textContent = q.t ? '試一下打這個字'
-      : (q.h ? q.h + '，像哪個字母？' : '這個字根像哪個字母？');
+      : (q.h ? q.h + '，像哪個字母？' : '這個字根對應哪個字母？');
     loc(askEl);
   }
 
@@ -536,8 +573,11 @@
 
   function paintLevel(q) {
     if (!NLEVELS) { levelEl.textContent = ''; return; }
-    // 分數在上面那條進度條講過了，這裡只講在第幾關
-    levelEl.textContent = '第' + cn(q.lv + 1) + '關';
+    /* 完整模式沒有「第幾關」——那個編號暗示著要依序打完，但這裡是「想從
+       哪段字母開始都可以」（Wilson 2026-09-24），換成 LEVEL_NAMES 給的字母
+       範圍（"A–F" 這種，build_lianxi_full 算好的）。歡迎模式沒有這份資料，
+       維持原本「第一關」的講法。 */
+    levelEl.textContent = LEVEL_NAMES ? LEVEL_NAMES[q.lv] : '第' + cn(q.lv + 1) + '關';
     loc(levelEl);
   }
 
@@ -681,7 +721,12 @@
   }
 
   /* 提示：把選項收成四個字母（正解＋三個隨機）。用過提示這一題就不算學會 —— 不然
-     進度條會虛報，而虛報的進度條比沒有進度條還糟。 */
+     進度條會虛報，而虛報的進度條比沒有進度條還糟。
+
+     完整模式的題目多一步（q.d 存在時）：第一次按提示先講取形意圖，第二次
+     才縮成四個選項——跟〈線上試打〉「跟著打」按 = 鍵先說取形意圖、再給
+     字母是同一個順序（Wilson 2026-09-24）。歡迎模式沒有 q.d，直接是原本
+     唯一那一步。 */
   function hint() {
     if (answered || !cur) return;
     var q = cur.q;
@@ -695,7 +740,15 @@
       nudge('這幾筆是一組，它像哪個字母？');
       return;
     }
-    if (hinted) return;
+    if (q.d && !descShown) {
+      descShown = true;
+      hinted = true;
+      nudge(q.d);
+      hintBtn.textContent = '提示：減至四個選項';
+      return;
+    }
+    if (narrowed) return;
+    narrowed = true;
     hinted = true;
     hintBtn.disabled = true;
     var keep = {};
@@ -751,8 +804,15 @@
 
     /* ⚠️ 這裡一定要覆蓋掉那句話，不能只在猜錯時寫 —— 猜錯一次之後再答對，
        「沒關係，再試一次」會**留在畫面上**跟「答對了！」互相矛盾（Wilson 抓到）。
-       答對、看答案、猜滿三次，三條路都會走到這裡，所以在這裡寫一定蓋得到。 */
-    nudge(msg || (right ? '答對了！' : '答案是這個'), msg ? '' : (right ? 'good' : ''));
+       答對、看答案、猜滿三次，三條路都會走到這裡，所以在這裡寫一定蓋得到。
+
+       完整模式的題目（q.d 存在）揭曉時一律**連取形意圖一起講**——不管是答對、
+       看答案還是猜滿三次都一樣（Wilson 2026-09-24：「not matter if it is cuz
+       the user got it right or they got it wrong too many times too, always
+       reveal the intention description」）。歡迎模式沒有 q.d，維持 Wilson
+       2026-09-01 的原始決定：揭曉不列取形意圖。 */
+    var base = msg || (right ? '答對了！' : '答案是這個');
+    nudge(q.d ? base + '——' + q.d : base, msg ? '' : (right ? 'good' : ''));
 
     /* 第二關揭曉時**自己轉給他看**（Wilson 2026-09-02）：題目說「逆轉 45 度後
        像哪個字母」，答案卻用沒轉過的角度疊上去，形狀根本對不上那個字母。
@@ -966,34 +1026,95 @@
   });
 
   /* ---------- 起手 ----------
-     只有一個檔（20 KB 上下）：題目、字形、碼、取形意圖全在裡面。抓不到就老實說，
-     這一頁的題目**就是**那張圖，退不回文字版。 */
-  loadState();
+     兩種模式各自只抓一個檔（歡迎模式 20 KB 上下）：題目、字形、碼、取形意圖
+     全在裡面。抓不到就老實說，這一頁的題目**就是**那張圖，退不回文字版。 */
   buildPad();
 
-  fetch('assets/lianxi.json')
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      GLYPHS = (d && d.glyphs) || null;
-      POOL = (d && d.questions) || [];
-      NLEVELS = (d && d.levels) || 0;
-      PASS = (d && d.pass) || 8;
-      if (!GLYPHS || !POOL.length) {
-        // 還沒挑不是壞掉，講清楚是哪一種，不要丟一個「載入失敗」讓人去猜
-        loadingEl.textContent = '還沒挑要考哪幾題（site/content/lianxi.md）。';
-        loc(loadingEl);
-        return;
-      }
-      loadingEl.hidden = true;
-      gameEl.hidden = false;
-      optsEl.hidden = false;
-      if (creditEl) creditEl.hidden = false;
-      paintScore();
-      levelBtn.hidden = NLEVELS < 2;
-      nextQuestion();
-    })
-    .catch(function () {
-      loadingEl.textContent =
-        '題目載入失敗。本機預覽請先跑 python3 site/tools/build_site_data.py。';
-    });
+  var MODE_SRC = { welcome: 'assets/lianxi.json', full: 'assets/lianxi_full.json' };
+  var MODE_KEY = { welcome: 'aiphabi-lianxi-ok', full: 'aiphabi-lianxiquan-ok' };
+  /* 「整張表」只有一關，過關那一格原本寫的「去字根表學習所有字根！」是歡迎
+     模式最後一關的收尾詞——整張表已經是「所有字根」了，講法要換一句
+     （Wilson 2026-09-24 起）。歡迎模式維持 HTML 裡原本寫的文字，這裡不覆蓋。 */
+  var MODE_DONE_TEXT = { full: '回字根表' };
+
+  function startGame(mode) {
+    DATA_SRC = MODE_SRC[mode] || MODE_SRC.welcome;
+    OK_KEY = MODE_KEY[mode] || MODE_KEY.welcome;
+    ALWAYS_SPIN = mode === 'full';
+    if (MODE_DONE_TEXT[mode]) toZigenBtn.textContent = MODE_DONE_TEXT[mode];
+    /* ⚠️ 這些都是模組層級的變數，換模式（或帶 ?mode= 重新進來）之前一定要
+       歸零——不然歡迎模式的 mastered／roundOk 會被當成整張表模式的紀錄，
+       兩邊剛好有同一個字＋字母組合時，某一題會憑空變成「已經答對過」。 */
+    mastered = {};
+    roundOk = {};
+    seenThisRound = {};
+    stuckMiss = {};
+    stuckShown = {};
+    forcedLevel = null;
+    panelMode = '';
+    history = [];
+    histPos = -1;
+    cur = null;
+    loadState();
+    modePickEl.hidden = true;
+    wrapEl.hidden = false;
+
+    fetch(DATA_SRC)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        GLYPHS = (d && d.glyphs) || null;
+        POOL = (d && d.questions) || [];
+        NLEVELS = (d && d.levels) || 0;
+        PASS = (d && d.pass) || 8;
+        LEVEL_NAMES = (d && d.level_names) || null;
+        if (!GLYPHS || !POOL.length) {
+          // 還沒挑不是壞掉，講清楚是哪一種，不要丟一個「載入失敗」讓人去猜
+          loadingEl.textContent = '還沒挑要考哪幾題（' + DATA_SRC + '）。';
+          loc(loadingEl);
+          return;
+        }
+        loadingEl.hidden = true;
+        gameEl.hidden = false;
+        optsEl.hidden = false;
+        /* 完整模式不顯示「幾／幾題」的進度條——一號到底像在交代必須依序打完
+           的固定進度，跟這裡「想從哪段字母開始都可以」的用法不搭（Wilson
+           2026-09-24）。歡迎模式沒有 level_names，維持原本一直顯示。 */
+        if (barEl) barEl.hidden = !!LEVEL_NAMES;
+        if (creditEl) creditEl.hidden = false;
+        paintScore();
+        levelBtn.hidden = NLEVELS < 2;
+        nextQuestion();
+      })
+      .catch(function () {
+        loadingEl.textContent =
+          '題目載入失敗。本機預覽請先跑 python3 site/tools/build_site_data.py。';
+      });
+  }
+
+  modeWelcomeBtn.addEventListener('click', function () { startGame('welcome'); });
+  modeFullBtn.addEventListener('click', function () { startGame('full'); });
+  /* 換模式不是「重設這一種模式的進度」（那是「清掉練習紀錄」的事），是回到
+     選擇畫面重選一種——兩邊的進度各自留著，回來選同一種還是接著練。 */
+  switchModeBtn.addEventListener('click', function () {
+    clearAuto();
+    history = [];
+    histPos = -1;
+    cur = null;
+    gameEl.hidden = true;
+    optsEl.hidden = true;
+    loadingEl.hidden = false;
+    loadingEl.textContent = '題目載入中……';
+    wrapEl.hidden = true;
+    modePickEl.hidden = false;
+  });
+
+  /* 網址帶 ?mode=welcome／?mode=full 就跳過選擇畫面直接開始——〈字根表〉頁
+     逛完連過來就是 ?mode=full（見 zigen.html），不用再選一次。沒帶、或帶了
+     看不懂的值，就把選擇畫面留著讓人自己選。 */
+  var qmode = new URLSearchParams(location.search).get('mode');
+  if (qmode === 'welcome' || qmode === 'full') {
+    startGame(qmode);
+  } else {
+    modePickEl.hidden = false;
+  }
 })();

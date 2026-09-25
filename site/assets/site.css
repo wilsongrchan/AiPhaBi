@@ -4188,6 +4188,35 @@ textarea.cm-in { min-height: 5.4rem; resize: vertical; }
 
 .xz-loading { text-align: center; color: var(--ink-dim); font-size: .9rem; padding: 3.5rem 0; }
 
+/* 進頁面先問「歡迎模式／整張表」——兩種練法差很多（手挑一小批 vs 377 個字根
+   都考），讓人自己選一次，選錯也隨時能從下面 .xz-opts 那顆「換模式」重選
+   （Wilson 2026-09-24）。跟 .xz-done 用同一種置中版面、同一種留白高度，
+   選擇畫面跟遊戲畫面切換時版面不會抽動。 */
+.xz-modepick {
+  min-height: 19rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+.xz-modepick-ask { margin: 0; font-size: 1.3rem; font-weight: 700; }
+.xz-modepick-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
+/* .btn-primary 預設是單行置中的 inline-flex（給「看答案」那種按鈕用的），
+   這裡要塞標題＋一行說明兩行字，蓋掉方向跟對齊。 */
+.xz-modepick-btn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .35rem;
+  width: 14rem;
+  padding: 1.1rem 1.3rem;
+  text-align: left;
+}
+.xz-modepick-t { font-size: 1.05rem; font-weight: 700; }
+.xz-modepick-d { font-size: .82rem; line-height: 1.5; opacity: .85; }
+
 /* 進度條：答對過幾條 / 這個範圍裡共幾條。⚠️ 只算「第一次就答對、沒用提示」的，
    用了提示或猜錯過都不記 —— 虛報的進度條比沒有進度條還糟（見 lianxi.js 的 hint）。 */
 .xz-bar {

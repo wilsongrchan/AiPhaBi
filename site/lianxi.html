@@ -100,11 +100,30 @@
   <h1>字根練習</h1>
 
 
-  <div class="xz-wrap">
+  <!-- 進頁面先問要練哪一種：歡迎模式（三關入門，手挑的一小批）還是完整模式
+       （377 個字根都考一遍，例字自動配）。?mode=welcome／?mode=full 可以跳過
+       這一步直接進去（〈字根表〉頁逛完連過來就是 ?mode=full，見 zigen.html）。
+       選好之前 .xz-wrap 整塊藏起來——不然題目還沒決定要考哪份資料，「題目
+       載入中……」會先閃一下沒有意義的畫面。 -->
+  <div class="xz-modepick" id="xz-modepick">
+    <p class="xz-modepick-ask">請選擇練習模式</p>
+    <div class="xz-modepick-opts">
+      <button type="button" class="btn btn-primary xz-modepick-btn" id="xz-mode-welcome">
+        <span class="xz-modepick-t">歡迎模式</span>
+        <span class="xz-modepick-d">只覆蓋少量簡單字根</span>
+      </button>
+      <button type="button" class="btn btn-primary xz-modepick-btn" id="xz-mode-full">
+        <span class="xz-modepick-t">完整模式</span>
+        <span class="xz-modepick-d">覆蓋全部字根，建議先學習字根表</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="xz-wrap" id="xz-wrap" hidden>
     <p class="xz-loading" id="xz-loading">題目載入中……</p>
 
     <div class="xz-game" id="xz-game" hidden>
-      <div class="xz-bar">
+      <div class="xz-bar" id="xz-bar">
         <span class="xz-bar-t">答對過 <b id="xz-done" data-keep>0</b>／<b id="xz-total" data-keep>0</b> 題</span>
         <span class="xz-track"><i class="xz-fill" id="xz-fill"></i></span>
       </div>
@@ -121,7 +140,7 @@
            assets/lianxi.js 的 overlayLetter）。 -->
       <div class="tianzi xz-tianzi" id="xz-glyph"></div>
 
-      <p class="xz-ask" id="xz-ask">這個字根像哪個字母？</p>
+      <p class="xz-ask" id="xz-ask">這個字根對應哪個字母？</p>
 
       <!-- 真的把字根轉來看（Wilson 2026-09-01）。只有「要轉、要翻才看得出來」的
            那些題目才出現 —— 正著看就像的題目不需要，多兩顆按鈕只會分心。 -->
@@ -187,6 +206,7 @@
 
     <div class="xz-opts" id="xz-opts" hidden>
       <button type="button" class="xz-mini" id="xz-reset">清掉練習紀錄</button>
+      <button type="button" class="xz-mini" id="xz-switchmode">換模式</button>
     </div>
   </div>
 
