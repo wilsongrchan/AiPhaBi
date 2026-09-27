@@ -108,6 +108,7 @@
      flip, they can choose to do it if they want」）。歡迎模式維持原本規矩：
      只有寫了提示的題目才出現這排按鈕。 */
   var ALWAYS_SPIN = false;
+  var IS_FULL_MODE = false;   // 題目那句話的措辭要分——見 paintAsk
 
   var GLYPHS = null;
   var POOL = [];
@@ -545,10 +546,12 @@
 
   /* 題目那一句話：
 
-       沒有提示 → 「這個字根對應哪個字母？」（Wilson 2026-09-24）
-       有提示   → 提示原文 ＋「，像哪個字母？」（Wilson 2026-09-01）
-                 例：「旋轉或翻轉這個字根後，像哪個字母？」
-                     「把這個字根旋轉 180 度後，像哪個字母？」
+       沒有提示、歡迎模式 → 「這個字根像哪個字母？」（Wilson 2026-09-01 定案，
+                            2026-09-26 確認完整模式加的「對應」不要蓋過來）
+       沒有提示、完整模式 → 「這個字根對應哪個字母？」（Wilson 2026-09-24）
+       有提示            → 提示原文 ＋「，像哪個字母？」（Wilson 2026-09-01）
+                           例：「旋轉或翻轉這個字根後，像哪個字母？」
+                               「把這個字根旋轉 180 度後，像哪個字母？」
 
      要轉、要翻才看得出來的字根，**問題本身**就得把該怎麼看講出來 —— 不先講
      一聲，那題就不是在考眼力而是在考通靈。提示寫在 site/content/lianxi.md
@@ -558,7 +561,8 @@
     // ⚠️ 提示是**一整句**（「旋轉或翻轉這個字根後」），這裡只接後半，不要再補字：
     // 補了就會變成「旋轉或翻轉這個字根後這個字根後，像哪個字母？」
     askEl.textContent = q.t ? '試一下打這個字'
-      : (q.h ? q.h + '，像哪個字母？' : '這個字根對應哪個字母？');
+      : (q.h ? q.h + '，像哪個字母？'
+              : (IS_FULL_MODE ? '這個字根對應哪個字母？' : '這個字根像哪個字母？'));
     loc(askEl);
   }
 
@@ -1041,6 +1045,7 @@
     DATA_SRC = MODE_SRC[mode] || MODE_SRC.welcome;
     OK_KEY = MODE_KEY[mode] || MODE_KEY.welcome;
     ALWAYS_SPIN = mode === 'full';
+    IS_FULL_MODE = mode === 'full';
     if (MODE_DONE_TEXT[mode]) toZigenBtn.textContent = MODE_DONE_TEXT[mode];
     /* ⚠️ 這些都是模組層級的變數，換模式（或帶 ?mode= 重新進來）之前一定要
        歸零——不然歡迎模式的 mastered／roundOk 會被當成整張表模式的紀錄，
