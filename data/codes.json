@@ -71577,17 +71577,12 @@
     "segments": [
       {
         "strokes": [
-          0
-        ],
-        "letter": "J"
-      },
-      {
-        "strokes": [
+          0,
           1,
           2,
           3
         ],
-        "letter": "F"
+        "letter": "E"
       },
       {
         "strokes": [
@@ -71597,22 +71592,27 @@
         "letter": "G"
       }
     ],
-    "code": "JFG",
-    "final": "JFG",
+    "code": "EG",
+    "final": "EG",
     "variants": [
       {
         "display": "丟",
-        "form": "tw",
-        "code": "EG",
+        "form": "cn",
+        "code": "JFG",
         "segments": [
           {
             "strokes": [
-              0,
+              0
+            ],
+            "letter": "J"
+          },
+          {
+            "strokes": [
               1,
               2,
               3
             ],
-            "letter": "E"
+            "letter": "F"
           },
           {
             "strokes": [
@@ -71623,7 +71623,8 @@
           }
         ]
       }
-    ]
+    ],
+    "glyphForm": "tw"
   },
   "醉": {
     "segments": [
@@ -435486,5 +435487,220 @@
     "code": "ZWJL",
     "final": "ZWJL",
     "manual": true
+  },
+  "鄕": {
+    "code": "GJJBCP",
+    "final": "GJJBP",
+    "manual": true
+  },
+  "魖": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          5
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          3,
+          4
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          6
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          7
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          8,
+          9
+        ],
+        "letter": "G"
+      },
+      {
+        "strokes": [
+          10,
+          11
+        ],
+        "letter": "L"
+      },
+      {
+        "strokes": [
+          12,
+          13,
+          14,
+          15
+        ],
+        "letter": "R"
+      },
+      {
+        "strokes": [
+          16,
+          17,
+          18,
+          19,
+          20
+        ],
+        "letter": "H"
+      },
+      {
+        "strokes": [
+          21
+        ],
+        "letter": "I"
+      }
+    ],
+    "code": "JOTJLGLRHI",
+    "final": "JOTJI",
+    "excludeComp": [
+      "虚"
+    ],
+    "alts": [
+      {
+        "code": "JBJLI"
+      }
+    ]
+  },
+  "艫": {
+    "code": "JUILROTMI",
+    "final": "JUILI",
+    "manual": true
+  },
+  "鏄": {
+    "code": "YVBGA",
+    "final": "YVBGA",
+    "manual": true
+  },
+  "勫": {
+    "code": "JVTOTCJ",
+    "final": "JVTOJ",
+    "manual": true
+  },
+  "鶹": {
+    "segments": [
+      {
+        "strokes": [
+          0,
+          1,
+          2
+        ],
+        "letter": "G"
+      },
+      {
+        "strokes": [
+          3,
+          4
+        ],
+        "letter": "P"
+      },
+      {
+        "strokes": [
+          5,
+          6,
+          9
+        ],
+        "letter": "O"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "T"
+      },
+      {
+        "strokes": [
+          10
+        ],
+        "letter": "J"
+      },
+      {
+        "strokes": [
+          11,
+          15,
+          16
+        ],
+        "letter": "S"
+      },
+      {
+        "strokes": [
+          12,
+          13,
+          14
+        ],
+        "letter": "E"
+      },
+      {
+        "strokes": [
+          17,
+          18,
+          19,
+          20
+        ],
+        "letter": "M"
+      }
+    ],
+    "code": "GPOTJSEM",
+    "final": "GPOTM"
+  },
+  "旉": {
+    "segments": [
+      {
+        "strokes": [
+          0
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "letter": "D"
+      },
+      {
+        "strokes": [
+          5,
+          6
+        ],
+        "letter": "Q"
+      },
+      {
+        "strokes": [
+          7,
+          8
+        ],
+        "letter": "I"
+      },
+      {
+        "strokes": [
+          9,
+          10
+        ],
+        "letter": "S"
+      }
+    ],
+    "code": "IDQIS",
+    "final": "IDQIS"
   }
 }
