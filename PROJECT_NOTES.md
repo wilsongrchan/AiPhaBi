@@ -888,6 +888,33 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged Wilson's next batch, 2026-09-29** — a large Side A character/recode pull spanning 29
+  commits (字 11,014→11,884, +870 in one sweep — the biggest single-merge jump this project has
+  seen), plus 字根練習's "完整模式" (full-coverage practice mode, site-only). Pure data — none of
+  it touched `aiphabi_order.lua`/`aiphabi_order_plus.lua`/`aiphabi_hint.lua`/`aiphabi_fuzzy.lua`/
+  `build_rime.py`/`tests/run_tests.lua`, clean merge with zero conflicts. All 214 tests pass
+  against a freshly rebuilt (non-essay) `aiphabi_data.lua`.
+  - **This session's container had gone stale mid-work**: `lua`/`luajit` were missing entirely
+    (never installed in this fresh container — reinstalled via `apt-get install lua5.4 luajit`),
+    the scratchpad bisection script and verification harness were gone (recreated from the recipe
+    documented here), and — more seriously — this checkout's local branch had somehow landed on
+    `origin/main`'s tip under the `claude/project-code-completeness-qjk0wz` name instead of the
+    branch's own accumulated history, silently dropping every fix from the last several merges
+    (the `origIdx` tiebreak, the exact-tier `MAX_SORT` windowing, the `aiphabi_order_plus.lua`
+    primary-vs-si4 partition, all of it). The real branch state was never actually lost — GitHub's
+    `origin/claude/project-code-completeness-qjk0wz` still had the correct tip untouched — so
+    `git checkout -B claude/project-code-completeness-qjk0wz origin/claude/project-code-completeness-qjk0wz`
+    recovered it before anything got built or pushed from the wrong base. **Worth remembering: a
+    session picking up mid-project should verify `git rev-parse HEAD` actually matches the
+    branch's own remote-tracking ref before trusting local state, not just assume a fresh
+    container's checkout is correct** — especially since nothing about the checkout looked wrong
+    at a glance (valid commit, valid branch name, clean working tree) short of diffing content
+    against what should have been there.
+- **Cliff re-checked 2026-09-29**, after the above (字 11,014→11,884, the largest single jump yet).
+  `N=7450` (last ship) now **crashes** immediately, no margin at all. Re-bisected fresh: 6,000
+  passes, 6,062 fails — margin ~62, thin, and a big drop from 7,450. Shipped at **`N=6000`**. Same
+  verification pattern: `luajit` load check + end-to-end filter run against the literal bytes
+  extracted from the shipped zip (jwej/qoq/qq/za/不要 regression set, both schemas).
 - **Merged Wilson's next batch, 2026-09-24** — a large Side A character/recode pull (字
   10,882→11,014) plus three data/UX changes, no conflicts (none of it touched
   `aiphabi_order.lua`/`aiphabi_order_plus.lua`).
