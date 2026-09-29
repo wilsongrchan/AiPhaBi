@@ -57,15 +57,17 @@ return function(input, env)
     return
   end
 
-  local seen, s, e = {}, nil, nil
+  -- s, e 固定覆蓋 0..#code，不能抄第一個候選的 start/_end——容錯猜的是整串輸入的碼，
+  -- 但候選是在「目前這個 segment」的 filter 鏈裡跑的，segment 可能只吃到前段（打
+  -- xjix 全串沒配到，librime 切成 X／J／IX 三段，第一段只有 0..1）。抄了會讓猜中的
+  -- 字被塞進第一段當替代候選，選下去只換掉那一段、剩下的段落原封不動留在輸入框，
+  -- 見 aiphabi_hint.lua 同一條註解（那邊已經修過一次，這裡少修了）。
+  local seen = {}
   for cand in input:iter() do
     seen[cand.text] = true
-    s = s or cand.start
-    e = cand._end
     yield(cand)
   end
-  s = s or 0
-  e = e or #code
+  local s, e = 0, #code
   local n = #code
 
   -- 這整支模組猜的都是「你打錯了」（漏碼／多碼／隔壁鍵／打反），不是故意的捷徑（那是
