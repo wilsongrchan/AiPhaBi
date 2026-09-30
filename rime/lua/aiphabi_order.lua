@@ -26,7 +26,14 @@
 --      愉[容錯，多打一碼] 曾蓋過詞頻更高、真的還在打的 愉快／愉悅；回報二：yhvy 打
 --      供[容錯，多打一碼] 曾蓋過連續打好幾碼、真的打到合法前綴的 價位／供貨／價值／
 --      價錢——這是規則，不是「兩者剛好衝突時比一次」）。第 5 層內部一樣照常用度排。
---   6. 只吃前綴的切分候選，墊最底。
+--   6. librime 自己拼出來的整句（type=sentence，enable_sentence 開的整句重新分析：查無
+--      這整段的詞，就拆成幾小段各自的最佳單字，拼成一句「填滿」整段）—— 整批墊在第 5
+--      層之後：這是「查是不是詞？不是。查是不是打錯？也不是。那就只好切」的最後手段，
+--      順序上該比容錯猜測還不確定，不能因為湊出來的每個單字剛好常用就贏過真正推得出來
+--      的碼（回報：QQFL 打滿的四碼快打 容祖兒 曾被拼出來的 中中正 蓋過去——中/中/正
+--      三個字分別很常用，湊起來的整句反而排到打滿的四碼詞前面；GJHH 同理，劉德華 被
+--      鄉芈 蓋過）。第 6 層內部一樣照常用度排。
+--   7. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
@@ -275,7 +282,7 @@ local function filter(input, env)
   -- code 不含 `（含 ` 的走上面萬用鍵分支了），卻還是冒出部件字，代表是舊碼表殘留或使用者
   -- 詞典學來的——不擋掉會怪，但也不必消失得無影無蹤：壓到補全之後、切分候選之前。
   local demoted = {}
-  local short, exact, pool, comp, typo, part = {}, {}, {}, {}, {}, {}
+  local short, exact, pool, comp, typo, sentence, part = {}, {}, {}, {}, {}, {}, {}
   for _, c in ipairs(cands) do
     if data.component_chars and data.component_chars[c.text] then
       demoted[#demoted + 1] = c
@@ -286,6 +293,7 @@ local function filter(input, env)
     elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
     elseif c.type == "ap_typo" then typo[#typo + 1] = { c = c }  -- aiphabi_fuzzy 猜的「打錯了」：固定墊在 completion 之後，不跟它同池比常用度（見上面第 5 層說明）
+    elseif c.type == "sentence" then sentence[#sentence + 1] = { c = c }  -- librime 自己拼出來的整句（見上面第 6 層說明），固定墊在容錯之後——是「查無此詞、查無此形」都失敗後才生的最後手段，不該因為湊出來的單字剛好常用就贏過真正的詞／碼
     elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, always_score = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
@@ -398,6 +406,23 @@ local function filter(input, env)
     for _, e in ipairs(typoTail) do typoHead[#typoHead + 1] = e end
   end
   typo = typoHead
+  -- librime 拼出來的整句：整批墊在容錯猜測之後，彼此一樣照 選過→常用度、一樣吃 MAX_SORT 上限。
+  local sentHead, sentTail = sentence, nil
+  if #sentence > MAX_SORT then
+    sentHead, sentTail = {}, {}
+    for i = 1, MAX_SORT do sentHead[i] = sentence[i] end
+    for i = MAX_SORT + 1, #sentence do sentTail[#sentTail + 1] = sentence[i] end
+  end
+  for i, e in ipairs(sentHead) do e.i = i end
+  table.sort(sentHead, function(a, b)
+    local sa, sb = score(a.c.text), score(b.c.text)
+    if sa ~= sb then return sa > sb end
+    return a.i < b.i
+  end)
+  if sentTail then
+    for _, e in ipairs(sentTail) do sentHead[#sentHead + 1] = e end
+  end
+  sentence = sentHead
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
     if a.cov ~= b.cov then return a.cov > b.cov end
@@ -409,8 +434,9 @@ local function filter(input, env)
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
   for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
   for _, e in ipairs(typo) do yield(e.c) end             -- 5. 容錯猜測（打錯了），固定墊在補全之後
-  for _, c in ipairs(demoted) do yield(c) end            -- 6. 沒打 ` 前綴卻冒出來的部件字，壓到這
-  for _, e in ipairs(part) do yield(e.c) end             -- 7. 只吃前綴的切分候選，墊底
+  for _, e in ipairs(sentence) do yield(e.c) end         -- 6. librime 自己拼出來的整句，固定墊在容錯之後（最後手段）
+  for _, c in ipairs(demoted) do yield(c) end            -- 7. 沒打 ` 前綴卻冒出來的部件字，壓到這
+  for _, e in ipairs(part) do yield(e.c) end             -- 8. 只吃前綴的切分候選，墊底
 end
 
 -- _USERFREQ／_bump／_EXACTFREQ／_exact_eff：只給 tests/run_tests.lua 用，不影響正式行為。

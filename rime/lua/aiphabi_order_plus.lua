@@ -187,7 +187,7 @@ local function filter(input, env)
   --     算 mover（pool／comp 沒有「原始順序」需要保護，是使用者自己選出來的訊號）。
   -- eu＝max(eff,floor) 這把尺不變，所以「選超過 9 次才壓得過簡碼、超過 6 次才壓得過
   -- exact」這個既有的爬升門檻也不變——只是「沒被選過的候選之間」不再無條件比常用度。
-  local top, pool, comp, typo, part = {}, {}, {}, {}, {}
+  local top, pool, comp, typo, sentence, part = {}, {}, {}, {}, {}, {}
   local pyRank = 0
   for i, c in ipairs(cands) do
     local form, st, en = info[i].form, info[i].st, info[i].en
@@ -205,14 +205,17 @@ local function filter(input, env)
       local isPool = c.type == "ap_pool"
       local isComp = c.type == "completion"
       local isTypo = c.type == "ap_typo"
-      -- 打滿整段、非容錯(ap_pool/ap_typo)／非補全(completion) 的也算 exact——碼表裡就有詞
-      -- 打滿這個碼（如 不要＝jqij），只是不在單字碼表 exactSet 裡，打中就是打中，不是猜的，
-      -- 不能跟 ap_pool／ap_typo 的容錯猜測同池比字頻（跟 aiphabi_order.lua 同一條修法，
-      -- 見那邊註解）；這種「不在 exactSet」的情況（isFallback）跟 ap_variant 一樣永遠算 mover。
+      local isSentence = c.type == "sentence"
+      -- 打滿整段、非容錯(ap_pool/ap_typo)／非補全(completion)／非拼句(sentence) 的也算
+      -- exact——碼表裡就有詞打滿這個碼（如 不要＝jqij），只是不在單字碼表 exactSet 裡，
+      -- 打中就是打中，不是猜的，不能跟 ap_pool／ap_typo／sentence 的猜測同池比字頻（跟
+      -- aiphabi_order.lua 同一條修法，見那邊註解）；這種「不在 exactSet」的情況
+      -- （isFallback）跟 ap_variant 一樣永遠算 mover。sentence 排除在外是因為它本來就該
+      -- 墊最底（見下面 comp/typo 之後另成一批），不能落進 isFallback 拿到 alwaysMover。
       local isFallback = (not isShort) and (not isVariant) and (not isSi4OrLeft)
-        and (not isPool) and (not isComp) and (not isTypo) and (not exactSet[c.text])
+        and (not isPool) and (not isComp) and (not isTypo) and (not isSentence) and (not exactSet[c.text])
       local isExactSetMember = (not isShort) and (not isVariant) and (not isSi4OrLeft)
-        and (not isPool) and (not isComp) and (not isTypo) and exactSet[c.text]
+        and (not isPool) and (not isComp) and (not isTypo) and (not isSentence) and exactSet[c.text]
       local alwaysMover = isVariant or isFallback
       local floor = isShort and S_FLOOR
         or ((isSi4OrLeft or isExactSetMember or alwaysMover) and E_FLOOR or 0)
@@ -232,6 +235,8 @@ local function filter(input, env)
           comp[#comp + 1] = { c = c, i = i, w = w }
         elseif isTypo then      -- 容錯猜測：不進 pool/comp，整批墊在 comp 之後
           typo[#typo + 1] = { c = c, i = i, w = w }
+        elseif isSentence then  -- librime 拼出來的整句：不進 pool/comp/typo，整批墊在 typo 之後
+          sentence[#sentence + 1] = { c = c, i = i, w = w }
         else
           pool[#pool + 1] = { c = c, i = i, w = w }
         end
@@ -306,6 +311,23 @@ local function filter(input, env)
       return a.i < b.i
     end)
   end
+  -- librime 拼出來的整句彼此照常用度；整批排在 typo 之後。同樣吃 MAX_SORT 上限（見上面）。
+  if #sentence > MAX_SORT then
+    local head, tail = {}, {}
+    for i = 1, MAX_SORT do head[i] = sentence[i] end
+    for i = MAX_SORT + 1, #sentence do tail[#tail + 1] = sentence[i] end
+    table.sort(head, function(a, b)
+      if a.w ~= b.w then return a.w > b.w end
+      return a.i < b.i
+    end)
+    for _, e in ipairs(tail) do head[#head + 1] = e end
+    sentence = head
+  else
+    table.sort(sentence, function(a, b)
+      if a.w ~= b.w then return a.w > b.w end
+      return a.i < b.i
+    end)
+  end
   table.sort(part, function(a, b)             -- 前綴候選：吃得越多越前，再比常用度
     if a.cov ~= b.cov then return a.cov > b.cov end
     if a.w ~= b.w then return a.w > b.w end
@@ -316,6 +338,7 @@ local function filter(input, env)
   for _, r in ipairs(pool) do yield(r.c) end
   for _, r in ipairs(comp) do yield(r.c) end
   for _, r in ipairs(typo) do yield(r.c) end
+  for _, r in ipairs(sentence) do yield(r.c) end
   for _, r in ipairs(part) do yield(r.c) end
 end
 

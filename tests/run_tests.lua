@@ -679,6 +679,32 @@ do
 end
 
 print()
+print("== librime 拼出來的整句（type=sentence）固定墊在容錯之後：查是不是詞？不是。查是不是")
+print("   打錯？也不是。才輪到切——不能因為湊出來的單字剛好常用，就贏過打滿的四碼快打 ==")
+do
+  -- 回報一：打 QQFL——容祖兒 的四碼快打（ap_si4，屬第 2 層 exact）曾被 librime 自己拼出來的
+  -- 「中中正」（中=Q、中=Q、正=FL，三個獨立單字湊成一句，剛好吃滿整段）蓋過去，因為湊出來
+  -- 的字都很常用，落進舊版「不在 exactSet 的一律當 exact」那條分支，跟真正的四碼快打同池
+  -- 比常用度。sentence 現在該固定墊在第 5 層（ap_typo）之後，不管湊出來的字多常用。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "qqfl", options = { aiphabi_phrase = true },
+      cands = { { text = "中中正", type = "sentence" } },
+    }
+    h.checkAt(schema .. " · QQFL：容祖兒（四碼快打）該排第一，不被拼句 中中正 蓋過", out, 1, "容祖兒")
+  end
+
+  -- 回報二：打 GJHH——劉德華 的四碼快打同理被拼句「鄉芈」蓋過。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "gjhh", options = { aiphabi_phrase = true },
+      cands = { { text = "鄉芈", type = "sentence" } },
+    }
+    h.checkAt(schema .. " · GJHH：劉德華（四碼快打）該排第一，不被拼句 鄉芈 蓋過", out, 1, "劉德華")
+  end
+end
+
+print()
 print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
 do
   local ac = require("aiphabi_autocommit")
