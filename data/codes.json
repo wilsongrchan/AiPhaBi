@@ -12929,10 +12929,10 @@
     "code": "NCY",
     "alts": [
       {
-        "code": "MJK",
+        "code": "NJK",
         "segments": [
           {
-            "letter": "M",
+            "letter": "N",
             "strokes": [
               0,
               1,
@@ -30574,11 +30574,12 @@
     "skipped": [
       11
     ],
+    "final": "NBMX",
     "variants": [
       {
         "display": "慢",
         "form": "tw",
-        "code": "MDMX",
+        "code": "NDMX",
         "segments": [
           {
             "strokes": [
@@ -30586,7 +30587,7 @@
               1,
               2
             ],
-            "letter": "M"
+            "letter": "N"
           },
           {
             "strokes": [
@@ -30618,8 +30619,7 @@
           11
         ]
       }
-    ],
-    "final": "NBMX"
+    ]
   },
   "操": {
     "segments": [
@@ -184836,7 +184836,52 @@
       }
     ],
     "code": "AANCY",
-    "final": "AANCY"
+    "final": "AANCY",
+    "alts": [
+      {
+        "code": "AANJK",
+        "segments": [
+          {
+            "letter": "A",
+            "strokes": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "letter": "A",
+            "strokes": [
+              3,
+              4,
+              5
+            ]
+          },
+          {
+            "letter": "N",
+            "strokes": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "letter": "J",
+            "strokes": [
+              9
+            ]
+          },
+          {
+            "letter": "K",
+            "strokes": [
+              10,
+              11,
+              12
+            ]
+          }
+        ]
+      }
+    ]
   },
   "峴": {
     "segments": [
@@ -436725,6 +436770,11 @@
   "潎": {
     "code": "ZVMVX",
     "final": "ZVMVX",
+    "manual": true
+  },
+  "漧": {
+    "code": "ZTBTYZ",
+    "final": "ZTBTZ",
     "manual": true
   }
 }
