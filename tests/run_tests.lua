@@ -630,12 +630,13 @@ do
 end
 
 print()
-print("== 多打一碼容錯：最後一鍵如果也是別的詞正在打到一半的合法前綴，別蓋過那些完成候選 ==")
+print("== 容錯猜測（ap_typo）固定墊在補全（completion）之後，不比常用度，正面假設優先 ==")
 do
-  -- 回報：打 NADNN——愉＝NADN，多打一碼容錯砍掉最後那個 N 就對得上；但 nadnn 剛好也是
+  -- 回報一：打 NADNN——愉＝NADN，多打一碼容錯砍掉最後那個 N 就對得上；但 nadnn 剛好也是
   -- 愉快（nadnncy）／愉悅（nadnnvl／nadnnvojl）正在打到一半的合法前綴，librime 自己就會
   -- 給出這兩個 completion 候選。連續打兩次同一鍵（打到一半、還沒來得及換下一碼）比「手滑
-  -- 多打一鍵」更常見，「最後這鍵是多打的」不該無條件蓋過詞頻更高、真的還在打的 愉快／愉悅。
+  -- 多打一鍵」更常見——「你可能還在打」該是預設假設，不是「你多打了一鍵」，兩者不比常用度，
+  -- ap_typo 固定墊在 completion 之後（規則本身，不是這兩個字剛好詞頻較高才贏）。
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     local out = h.run{
       schema = schema, code = "nadnn", options = { aiphabi_fuzzy = true },
@@ -646,10 +647,34 @@ do
     }
     local pos = {}
     for i, c in ipairs(out) do if not pos[c.text] then pos[c.text] = i end end
-    h.check(schema .. " · NADNN：愉（容錯，字頻 97019）排在 愉快（完成，149312）之後",
+    h.check(schema .. " · NADNN：愉（容錯）排在 愉快（完成）之後",
       pos["愉"] and pos["愉快"] and pos["愉快"] < pos["愉"], h.fmt(out))
-    h.check(schema .. " · NADNN：愉（容錯）也排在 愉悅（完成，127957）之後",
+    h.check(schema .. " · NADNN：愉（容錯）也排在 愉悅（完成）之後",
       pos["愉"] and pos["愉悅"] and pos["愉悅"] < pos["愉"], h.fmt(out))
+  end
+
+  -- 回報二：打 yhvy——供＝YHV，多打一碼容錯砍掉最後那個 y 就對得上；供 字頻 299392，
+  -- 本來就比 價位(260561)／供貨(120848)／價錢(172630) 這三個 completion 常用，舊規則
+  -- （同池比常用度）會讓 供 排到這三個之前，只有 價值(399330) 贏得過它——這正是「靠常用度
+  -- 決勝」systematically 錯的地方：常用度贏不代表你打錯了的可能性更大，「還在打一個更長
+  -- 的詞」該無條件優先於「猜你多打一碼」，供 該排在全部四個 completion 之後，不是只贏
+  -- 詞頻較低的那幾個。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "yhvy", options = { aiphabi_fuzzy = true },
+      cands = {
+        { text = "價位", type = "completion", comment = "- IV" },
+        { text = "價值", type = "completion", comment = "- TI" },
+        { text = "供貨", type = "completion", comment = "- CV" },
+        { text = "價錢", type = "completion", comment = "- VQ" },
+      },
+    }
+    local pos = {}
+    for i, c in ipairs(out) do if not pos[c.text] then pos[c.text] = i end end
+    for _, w in ipairs({ "價位", "價值", "供貨", "價錢" }) do
+      h.check(schema .. " · yhvy：供（容錯，字頻 299392）排在 " .. w .. "（完成）之後——即使 供 字頻更高",
+        pos["供"] and pos[w] and pos[w] < pos["供"], h.fmt(out))
+    end
   end
 end
 

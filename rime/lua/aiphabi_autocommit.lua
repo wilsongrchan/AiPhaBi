@@ -117,7 +117,7 @@ end
 --                 左簡碼補全／四碼前綴），沒有一個是「認定過就是這個字」。
 -- 剩下的（一般完整比對、ap_short 簡碼、ap_si4 打滿的四碼快打、ap_left 打滿的左簡碼）
 -- 才算「碼本身打完了」，可以上屏。
-local INCOMPLETE_TYPE = { completion = true, ap_pool = true }
+local INCOMPLETE_TYPE = { completion = true, ap_pool = true, ap_typo = true }
 local function is_complete_match(cand)
   return not INCOMPLETE_TYPE[cand.type]
 end

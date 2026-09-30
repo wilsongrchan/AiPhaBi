@@ -15,17 +15,18 @@
 --      補全常用，排前面。
 --   4. 補全（type=completion）—— 整批墊在第 3 層之後，內部也是照常用度排：
 --      a. librime 標的「碼還沒打完」（如打 QQ 冒出 中庸 的前綴）。
---      b. aiphabi_fuzzy 猜的「打錯了」（漏碼／多碼／隔壁鍵／打反）也併進這一級，不再
---         跟第 3 層的故意捷徑同池——猜你打錯了，終究是猜的，不該無條件蓋過「你可能
---         還在打一個更長的詞」；兩者一起比常用度，公平（回報：NADNN 打 愉[容錯，多打
---         一碼] 排第一，蓋過詞頻更高、真的還在打的 愉快／愉悅——Wilson 定案：容錯輸給
---         還沒打完，不只是剛好衝突才輸，是規則）。
---      c. 四碼快打還沒打滿（aiphabi_hint 的 si4 前綴，如打 QQ 冒出 容祖兒＝QQFL 的
+--      b. 四碼快打還沒打滿（aiphabi_hint 的 si4 前綴，如打 QQ 冒出 容祖兒＝QQFL 的
 --         前兩碼，標「四碼 - FL」）也是同一級——這也是「還沒打完」的一種，不能無條件
 --         贏過真的還沒打完、但可能更常用的字（回報：QQ 的 中庸 曾被四碼快打猜測擠到
 --         最後）。四碼快打「打滿」的（ap_si4）不算這裡，屬第 2 層，見上面。
 --      打滿的 碰巧（jovnvis，屬第 2 層）不該輸給還差一碼、但詞頻較高的 碰瓷（jovnvisq，第 4 層）。
---   5. 只吃前綴的切分候選，墊最底。
+--   5. 容錯猜測（type=ap_typo，aiphabi_fuzzy 標的「打錯了」：漏碼／多碼／隔壁鍵／打反）
+--      —— 整批墊在第 4 層之後，不跟它同池比常用度：猜你打錯了，終究是猜的，不該只因
+--      為猜到的字剛好比較常用，就蓋過「你可能還在打一個更長的詞」（回報一：NADNN 打
+--      愉[容錯，多打一碼] 曾蓋過詞頻更高、真的還在打的 愉快／愉悅；回報二：yhvy 打
+--      供[容錯，多打一碼] 曾蓋過連續打好幾碼、真的打到合法前綴的 價位／供貨／價值／
+--      價錢——這是規則，不是「兩者剛好衝突時比一次」）。第 5 層內部一樣照常用度排。
+--   6. 只吃前綴的切分候選，墊最底。
 -- 使用者選字次數只記在記憶體、純加分（重開歸零，不動碼表）；拿不到 commit_notifier
 -- 也沒關係，退回純常用度排序，候選照樣出得來。
 local data = require("aiphabi_data")
@@ -274,7 +275,7 @@ local function filter(input, env)
   -- code 不含 `（含 ` 的走上面萬用鍵分支了），卻還是冒出部件字，代表是舊碼表殘留或使用者
   -- 詞典學來的——不擋掉會怪，但也不必消失得無影無蹤：壓到補全之後、切分候選之前。
   local demoted = {}
-  local short, exact, pool, comp, part = {}, {}, {}, {}, {}
+  local short, exact, pool, comp, typo, part = {}, {}, {}, {}, {}, {}
   for _, c in ipairs(cands) do
     if data.component_chars and data.component_chars[c.text] then
       demoted[#demoted + 1] = c
@@ -284,6 +285,7 @@ local function filter(input, env)
     elseif c.type == "ap_si4" then exact[#exact + 1] = { c = c }   -- 打滿四碼詞＝exact 一級
     elseif c.type == "ap_left" then exact[#exact + 1] = { c = c }  -- 打滿的左簡碼＝exact 一級（推得出來的碼，不是猜的）
     elseif c.type == "completion" then comp[#comp + 1] = { c = c }  -- librime 標的「碼還沒打完」：整批排在打滿的候選之後（碰巧 jovnvis 不該輸給還差一碼的 碰瓷 jovnvisq）
+    elseif c.type == "ap_typo" then typo[#typo + 1] = { c = c }  -- aiphabi_fuzzy 猜的「打錯了」：固定墊在 completion 之後，不跟它同池比常用度（見上面第 5 層說明）
     elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, always_score = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
@@ -379,6 +381,23 @@ local function filter(input, env)
     for _, e in ipairs(compTail) do compHead[#compHead + 1] = e end
   end
   comp = compHead
+  -- 容錯猜測：整批墊在補全之後，彼此一樣照 選過→常用度、一樣吃 MAX_SORT 上限。
+  local typoHead, typoTail = typo, nil
+  if #typo > MAX_SORT then
+    typoHead, typoTail = {}, {}
+    for i = 1, MAX_SORT do typoHead[i] = typo[i] end
+    for i = MAX_SORT + 1, #typo do typoTail[#typoTail + 1] = typo[i] end
+  end
+  for i, e in ipairs(typoHead) do e.i = i end
+  table.sort(typoHead, function(a, b)
+    local sa, sb = score(a.c.text), score(b.c.text)
+    if sa ~= sb then return sa > sb end
+    return a.i < b.i
+  end)
+  if typoTail then
+    for _, e in ipairs(typoTail) do typoHead[#typoHead + 1] = e end
+  end
+  typo = typoHead
   for i, e in ipairs(part) do e.i = i end                -- 前綴候選：吃得越多越前
   table.sort(part, function(a, b)
     if a.cov ~= b.cov then return a.cov > b.cov end
@@ -389,8 +408,9 @@ local function filter(input, env)
   for _, e in ipairs(exact) do yield(e.c) end            -- 2. 主碼 exact（照 選過→常用度）
   for _, e in ipairs(pool) do yield(e.c) end             -- 3. 其餘打滿整段的（照 選過→常用度）
   for _, e in ipairs(comp) do yield(e.c) end             -- 4. 碼還沒打完的補全
-  for _, c in ipairs(demoted) do yield(c) end            -- 5. 沒打 ` 前綴卻冒出來的部件字，壓到這
-  for _, e in ipairs(part) do yield(e.c) end             -- 6. 只吃前綴的切分候選，墊底
+  for _, e in ipairs(typo) do yield(e.c) end             -- 5. 容錯猜測（打錯了），固定墊在補全之後
+  for _, c in ipairs(demoted) do yield(c) end            -- 6. 沒打 ` 前綴卻冒出來的部件字，壓到這
+  for _, e in ipairs(part) do yield(e.c) end             -- 7. 只吃前綴的切分候選，墊底
 end
 
 -- _USERFREQ／_bump／_EXACTFREQ／_exact_eff：只給 tests/run_tests.lua 用，不影響正式行為。

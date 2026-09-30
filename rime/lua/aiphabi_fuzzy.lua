@@ -71,18 +71,22 @@ return function(input, env)
   local n = #code
 
   -- 這整支模組猜的都是「你打錯了」（漏碼／多碼／隔壁鍵／打反），不是故意的捷徑（那是
-  -- aiphabi_hint 的偏旁碼／三簡碼／同類字，仍標 ap_pool、不受這裡影響）。標 completion
-  -- 而非 ap_pool：跟「還沒打完、繼續打下去」同一級，讓兩種解讀公平比常用度——別讓
-  -- 「猜你打錯了」無條件蓋過「你可能還在打一個更長、更常用的詞」（回報：NADNN 打
-  -- 愉[NADN，多打一碼容錯] 排第一，蓋過 愉快／愉悅 這種還在打、詞頻明明更高的候選；
-  -- Wilson 明講：容錯猜測該輸給「還沒打完」，不只是剛好兩者衝突的時候才輸）。
+  -- aiphabi_hint 的偏旁碼／三簡碼／同類字，仍標 ap_pool、不受這裡影響）。標 ap_typo，
+  -- 不是 completion——容錯猜測終究是猜的，不該跟「還沒打完、繼續打下去」（librime
+  -- 自己標的 completion、或 aiphabi_hint 的四碼前綴）同池比常用度：那樣只要猜到的字
+  -- 剛好比較常用就贏，蓋過真正還在打的詞（回報一：NADNN 打 愉[NADN，多打一碼容錯]
+  -- 排第一，蓋過 愉快／愉悅 這種還在打、詞頻明明更高的候選；回報二：yhvy 打
+  -- 供[YHV，多打一碼容錯] 排第一，蓋過 價位／供貨／價值／價錢 這些連續打好幾碼、真的
+  -- 打到合法前綴的詞——手滑多打一碼沒有「打到一半的合法詞前綴」常見）。ap_typo 在
+  -- aiphabi_order／aiphabi_order_plus 裡固定排在 completion 之後，不比常用度、是規則，
+  -- 不是「剛好兩者衝突時才輸」。
   local function emit(candidates, test)
     for _, c in ipairs(candidates or {}) do
       if test(c) then
         for _, ch in ipairs(data.code2chars[c] or {}) do
           if not seen[ch] then
             seen[ch] = true
-            yield(Candidate("completion", s, e, ch, "[ " .. c:upper() .. " ]"))
+            yield(Candidate("ap_typo", s, e, ch, "[ " .. c:upper() .. " ]"))
           end
         end
       end
