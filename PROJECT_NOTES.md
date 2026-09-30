@@ -888,6 +888,51 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged Wilson's next batch, 2026-09-30** — the first ranking-logic work (as opposed to pure
+  data pulls) in several merges: two new fixed tiers plus a wordfreq calibration fix, alongside a
+  small Side A character pull (字 11,884→12,013).
+  - **`aiphabi_fuzzy.lua`'s typo guesses split into their own `type=ap_typo`**, no longer sharing
+    `type=completion` with real "still typing" candidates. Sharing the type meant a typo guess
+    could win purely on frequency even when the alternative was a real longer word still being
+    typed (回報: `yhvy` 打 供[容錯，多打一碼] 蓋過 價位／供貨／價值／價錢 這些連續打好幾碼、
+    真的打到合法前綴的詞). Now its own tier, fixed after the completion tier — a positive
+    "still typing" reading always outranks a "you mistyped" reading, not just when they happen to
+    tie or clash.
+  - **librime's own auto-composed sentence candidates** (`type=sentence` — the "no word, no typo,
+    so split into individually-best-fit characters" last resort when `enable_sentence` is on) get
+    the same treatment: own tier, fixed after `ap_typo`, since it's an even weaker signal than a
+    typo guess (回報: `QQFL` 打滿的四碼快打 容祖兒 曾被拼出來的「中中正」蓋過去，三個常用單字
+    湊起來的組合本身沒有任何確定性可言，卻贏過真正一次到位的四碼詞).
+  - **`M.wordfreq` calibration now runs through PAVA** (pool-adjacent-violators / isotonic
+    regression) to force the essay-rank-to-score mapping non-increasing — fixes cases like
+    選擇/選擇題 where the raw rank-aligned lookup (last merge's fix) could still produce local
+    inversions.
+  - **`aiphabi_fuzzy.lua`'s typo candidates now always span `0..#code`** instead of copying the
+    first candidate's `start`/`_end` — under `enable_sentence` splitting, the first candidate may
+    only cover a partial segment, and copying its span made selecting a correct typo guess replace
+    only that segment, leaving the rest of the input sitting untouched in the composition.
+  - **Merge conflict confined entirely to `aiphabi_order.lua`'s tier restructuring** (threading the
+    two new buckets into the classification loop and yield sequence) — none of it touched this
+    branch's exact-tier customizations (primary-vs-si4 partition, backbone+movers insertion sort,
+    `origIdx` tiebreak, `MAX_SORT` windowing), since the new buckets live entirely after the exact
+    tier's own code in the file. `aiphabi_order_plus.lua` and `tests/run_tests.lua` merged with
+    zero conflicts.
+  - All 226 tests pass against a freshly rebuilt (non-essay) `aiphabi_data.lua`; also verified the
+    new `ap_typo` tier directly against the literal shipped bytes (a real completion beating a
+    typo guess), beyond what the offline suite covers.
+- **Cliff re-checked 2026-09-30**, after the above (字 11,884→12,013, plus the new `ap_typo`/
+  `sentence` tier logic — more Lua code in `aiphabi_order.lua`/`aiphabi_order_plus.lua`, no new
+  `aiphabi_data.lua` tables). `N=6000` (last ship) now **crashes**. Re-bisected: 5,875 passes,
+  5,937 fails — margin ~62, thin, another sizable drop. Shipped at **`N=5875`**. Same verification
+  pattern: `luajit` load check + end-to-end filter run against the literal bytes extracted from
+  the shipped zip.
+- **This session's container was fresh again** (as documented 2026-09-29) but this time landed
+  correctly — `git rev-parse HEAD` matched `origin/claude/project-code-completeness-qjk0wz` exactly
+  before any work began. `lua`/`luajit` were still missing (reinstalled via `apt-get`), and the
+  scratchpad bisection script/verification harness were gone (recreated again) — **worth treating
+  as the normal cold-start cost for this branch's sandbox now, not a one-off**: check branch state
+  first, then expect to reinstall the Lua toolchain and rebuild the scratchpad tooling every fresh
+  container.
 - **Merged Wilson's next batch, 2026-09-29** — a large Side A character/recode pull spanning 29
   commits (字 11,014→11,884, +870 in one sweep — the biggest single-merge jump this project has
   seen), plus 字根練習's "完整模式" (full-coverage practice mode, site-only). Pure data — none of
