@@ -968,9 +968,36 @@ def main():
         _single_by_essay = sorted(_single, key=lambda c: -_essay[c])
         _neg = sorted(-_essay[c] for c in _single)                 # 單字 essay 計次（升序負值，供 bisect）
         _fw_by_essay_rank = [freq_w(c) for c in _single_by_essay]  # 跟上面同一把尺，逐一對齊
+        # freq_w 不是 essay 排名的平滑函數——charfreq.json 只收 1645 字，剛好落在這張表
+        # 裡的字會被 ×10000，沒收進去的字（回報案例：爲，essay 排名 31 卻沒被 charfreq
+        # 收，因為 charfreq 只認 為）只剩 base 分數，兩種字交錯排列會讓這條「尺」自己
+        # 忽高忽低（實測 18202 個單字裡有 4417 處相鄰名次分數不降反升）。詞頻靠這條尺
+        # 換算，尺本身不是遞減的話，essay 計次差很多的兩個詞換算完名次可能整個反過來
+        # （回報案例：選擇 essay 216102 換算後 93589，選擇題 essay 只有 9792 換算後卻是
+        # 529762——換算時剛好各自撞到「有沒有被 charfreq 收」的字）。
+        # 修法：等式回歸（PAVA，pool adjacent violators）把這條尺壓成不遞增——不是簡單
+        # 由前往後取「目前為止最小值」（試過，反而更糟：一遇到 爲 這種被 charfreq 漏收
+        # 的高頻字，後面幾千個名次全部被那一個低點封頂，一路壓到只剩同一個值，常用字
+        # 之間的差距反而全部被抹平)。PAVA 只把「不遞增」擋不住的那幾段（後面比前面高）
+        # 就地拉出來一起取平均，平均完那一段自己是持平的一塊，不會拖著後面全部名次；
+        # 沒違規的名次完全不動。
+        def _isotonic_decreasing(ys):
+            stack = []  # [sum, weight] 由高名次到低名次
+            for y in ys:
+                s, w = float(y), 1
+                while stack and stack[-1][0] / stack[-1][1] < s / w:
+                    s2, w2 = stack.pop()
+                    s += s2
+                    w += w2
+                stack.append([s, w])
+            out = []
+            for s, w in stack:
+                out.extend([s / w] * w)
+            return out
+        _fw_by_essay_rank = _isotonic_decreasing(_fw_by_essay_rank)
         def _wscore(n):
             R = bisect.bisect_left(_neg, -n)                       # essay 計次 > n 的單字數
-            return _fw_by_essay_rank[min(R, len(_fw_by_essay_rank) - 1)] if _fw_by_essay_rank else 0
+            return round(_fw_by_essay_rank[min(R, len(_fw_by_essay_rank) - 1)]) if _fw_by_essay_rank else 0
         _words = [(_n, _w) for _w, _n in _essay.items() if 2 <= len(_w) <= 4]
         _words.sort(reverse=True)                                  # 依計次由高到低，取前 N
         for _n, _w in _words[:WORDFREQ_TOPN]:

@@ -115,9 +115,12 @@ end
 --   completion —— librime 自己標的，碼還沒打完的補全（含左簡碼／三簡碼還沒打完那段）。
 --   ap_pool    —— aiphabi_hint.lua 自己發的提示／猜測（同類字／偏旁碼／三簡碼／
 --                 左簡碼補全／四碼前綴），沒有一個是「認定過就是這個字」。
+--   ap_typo    —— aiphabi_fuzzy 猜的「打錯了」，一樣是猜的。
+--   sentence   —— librime 自己拼出來的整句（查無此詞、查無此形都失敗後的最後手段），
+--                 是好幾個獨立單字湊出來的，沒有一個字是「認定過就是這一串」。
 -- 剩下的（一般完整比對、ap_short 簡碼、ap_si4 打滿的四碼快打、ap_left 打滿的左簡碼）
 -- 才算「碼本身打完了」，可以上屏。
-local INCOMPLETE_TYPE = { completion = true, ap_pool = true }
+local INCOMPLETE_TYPE = { completion = true, ap_pool = true, ap_typo = true, sentence = true }
 local function is_complete_match(cand)
   return not INCOMPLETE_TYPE[cand.type]
 end
