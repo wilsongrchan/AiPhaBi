@@ -705,7 +705,7 @@ do
 end
 
 print()
-print("== Rime 內建使用者詞庫殘留的舊碼：不能跟真正的 exact 同池比選過次數 ==")
+print("== Rime 內建使用者詞庫殘留的舊碼：不是猜的，直接濾掉，連墊底都不留 ==")
 do
   -- 回報：打 WRFF，涯(ZRFF) 蓋過真正的 崖(WRFF)。查遍碼表／zigen／同類／偏旁／兼容表都
   -- 沒有「涯」的 wrff 這條——純粹是 Rime 自己的使用者詞庫（aiphabi.userdb，跟這支 Lua
@@ -713,7 +713,8 @@ do
   -- 手滑）。這種候選進 Lua 這層時長得跟真正的碼表候選一模一樣（type 是 nil，不是我們
   -- 自己標的任何 ap_* 類型），沒辦法從 type 分辨，只能用 data.char2code 反查：涯 自己的
   -- 正碼是 zrff，不是 wrff，也不是登記過的兼容碼／兼容字型，一查就知道這條是殘留碼。
-  -- 回報二：WWD 打 消(ZWD) 蓋過 峭(WWD)，同一個模式。
+  -- 這不是「排序該墊後面」的問題（容錯／拼句好歹是有根據的猜）——根本不該出現，整個
+  -- 濾掉，不進任何一層。回報二：WWD 打 消(ZWD) 蓋過 峭(WWD)，同一個模式。
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     local out = h.run{
       schema = schema, code = "wrff", options = {},
@@ -721,6 +722,7 @@ do
     }
     h.checkAt(schema .. " · WRFF：崖（真正 exact）排第一，不被使用者詞庫殘留的 涯(wrff) 蓋過",
       out, 1, "崖")
+    h.checkPresent(schema .. " · WRFF：涯(wrff) 殘留碼整個濾掉，不只是墊後面", out, "涯", false)
 
     local out2 = h.run{
       schema = schema, code = "wwd", options = {},
@@ -728,6 +730,7 @@ do
     }
     h.checkAt(schema .. " · WWD：峭（真正 exact）排第一，不被使用者詞庫殘留的 消(wwd) 蓋過",
       out2, 1, "峭")
+    h.checkPresent(schema .. " · WWD：消(wwd) 殘留碼整個濾掉，不只是墊後面", out2, "消", false)
   end
 end
 
@@ -1322,7 +1325,11 @@ do
 
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     -- 模擬：某段碼同時吐出一個常見字（森）跟一個生僻字（苤，GB 二級，沒被回填救到）。
-    local cands = { { text = "森" }, { text = "苤" } }
+    -- 標 ap_pool（跟上面 RAW_CAP 測試同理）：這裡要測的是 aiphabi_charset 的白名單
+    -- 邏輯，不是「打滿整段的字 code 該等於它自己的正碼」那條規則——code 是隨便編的
+    -- 測試用碼，不留 type 的話會被 aiphabi_order 當成 Rime 使用者詞庫殘留碼整個濾掉
+    -- （見 aiphabi_order.lua 的 isGhost 判斷），根本輪不到 aiphabi_charset。
+    local cands = { { text = "森", type = "ap_pool" }, { text = "苤", type = "ap_pool" } }
     local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
     h.checkPresent(schema .. " · 只打常用字關 → 苤 照常在", off, "苤", true)
 
@@ -1333,13 +1340,14 @@ do
 
     -- 回填的字（睇 粵語、裏 異體）開關開著也留下來
     local kept = h.run{ schema = schema, code = "buhn", options = { aiphabi_common_only = true },
-      cands = { { text = "睇" }, { text = "裏" } } }
+      cands = { { text = "睇", type = "ap_pool" }, { text = "裏", type = "ap_pool" } } }
     h.checkPresent(schema .. " · 只打常用字開 → 粵語字 睇 留著", kept, "睇", true)
     h.checkPresent(schema .. " · 只打常用字開 → 異體 裏 留著", kept, "裏", true)
 
-    -- 多字候選：一個字不在白名單，整條濾掉
+    -- 多字候選：一個字不在白名單，整條濾掉（多字詞 data.char2code 查不到，不會被
+    -- 當成殘留碼，不用特別標 type，但標著也無妨、跟上面一致）
     local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_common_only = true },
-      cands = { { text = "森林" }, { text = "苤苤" } } }
+      cands = { { text = "森林", type = "ap_pool" }, { text = "苤苤", type = "ap_pool" } } }
     h.checkPresent(schema .. " · 只打常用字開 → 乾淨的詞（森林）留著", ph, "森林", true)
     h.checkPresent(schema .. " · 只打常用字開 → 含生僻字的詞（苤苤）濾掉", ph, "苤苤", false)
 

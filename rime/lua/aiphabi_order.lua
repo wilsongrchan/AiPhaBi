@@ -306,15 +306,16 @@ local function filter(input, env)
       -- 真正的 崖——查遍碼表、zigen、同類／偏旁／兼容表都沒有 涯 的 wrff 這條，使用者
       -- 詞庫卻記了 3～4 次；wwd／消 同一個模式）。這種「殘留碼」只有單字查得出來
       -- （data.char2code 只收單字）：這個字有自己的正碼、且打的碼既不是正碼、也不是
-      -- 登記過的兼容碼／兼容字型，那就不是這個字「真的」打滿，別當 exact 信——併進
-      -- sentence 那層（反正都是「查無正解、最後才輪到」），不跟真正 exact 的 崖／峭
-      -- 比選過次數；殘留碼本身選幾次都翻不了身，不用使用者手動一個個 Ctrl+K 清。
+      -- 登記過的兼容碼／兼容字型，那就不是這個字「真的」打滿——不是猜的（連容錯／拼句
+      -- 那種「有根據的猜」都不是，純粹是殘留碼），直接濾掉、不進任何一層（回報：這種
+      -- 候選連墊底都不該留，不是「排序問題」，是「根本不該出現」；殘留碼選幾次都翻不了
+      -- 身，不用使用者手動一個個 Ctrl+K 清）。
       local mainCode = data.char2code[c.text]
       local isGhost = mainCode and mainCode ~= code
         and not (data.altcode[c.text] and data.altcode[c.text][code])
         and not (data.variant_code[c.text] and data.variant_code[c.text][code])
       if isGhost then
-        sentence[#sentence + 1] = { c = c }
+        -- 整個丟掉，什麼都不做
       else
         exact[#exact + 1] = { c = c, always_score = true }  -- 不能跟 ap_pool 的容錯猜測擠同一池
                                                                -- （回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面）

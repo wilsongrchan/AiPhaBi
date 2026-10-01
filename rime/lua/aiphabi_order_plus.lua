@@ -219,9 +219,9 @@ local function filter(input, env)
       -- zigen／同類／偏旁／兼容表都沒有這條，使用者詞庫卻記了好幾次；aiphabi_order.lua
       -- 同一次回報同一條修法）。只對形碼候選查得出來（data.char2code 只收形碼單字、不是
       -- 拼音）：這個字有自己的正碼、且打的碼既不是正碼、也不是登記過的兼容碼／兼容字型，
-      -- 那就不是這個字「真的」打滿，不能併進 isFallback 拿 alwaysMover——當 isSentence
-      -- 處理（反正都是「查無正解、最後才輪到」），殘留碼選幾次都翻不了身，不用使用者
-      -- 自己一個個 Ctrl+K 清。
+      -- 那就不是這個字「真的」打滿——不是猜的（連容錯／拼句那種「有根據的猜」都不是，
+      -- 純粹是殘留碼），直接濾掉、不進任何一層（連墊底都不留；殘留碼選幾次都翻不了身，
+      -- 不用使用者手動一個個 Ctrl+K 清）。
       -- 只有「不屬於任何已知類型」(跟下面 isFallback 同一批候選) 才需要查——已經歸類
       -- 成 ap_short／ap_variant／ap_si4／ap_left／ap_pool／completion／ap_typo／sentence
       -- 的候選不會落進這條（它們各自已經有該有的分層，殘留碼不會冒充這些類型）。
@@ -231,7 +231,7 @@ local function filter(input, env)
         and data.char2code[c.text] ~= code
         and not (data.altcode[c.text] and data.altcode[c.text][code])
         and not (data.variant_code[c.text] and data.variant_code[c.text][code])
-      if isGhost then isSentence = true end
+      if not isGhost then
       local isFallback = (not isShort) and (not isVariant) and (not isSi4OrLeft)
         and (not isPool) and (not isComp) and (not isTypo) and (not isSentence) and (not exactSet[c.text])
       local isExactSetMember = (not isShort) and (not isVariant) and (not isSi4OrLeft)
@@ -260,6 +260,7 @@ local function filter(input, env)
         else
           pool[#pool + 1] = { c = c, i = i, w = w }
         end
+      end
       end
     end
   end
