@@ -1062,6 +1062,50 @@ do
 end
 
 print()
+print("== 互斥開關不能把「引擎重開、整批重放選項值」誤判成「使用者剛打開」==")
+do
+  -- 實測回報的 bug（2026-10-01）：詞組連打設定每次重開 Squirrel 都不見了，預設
+  -- 變成自動上屏。根因：option_update_notifier 不是只在使用者真的點選單時才觸發——
+  -- 查 rime.squirrel.*.log，引擎每次重開都會把 user.yaml 存的每個選項整批重放
+  -- 一遍，每個選項不管值有沒有真的變，都各自觸發一次這個 notifier（十幾個選項的
+  -- updated option 一次全部印出來，不是使用者連點十幾下）。選項名字照字母序排，
+  -- aiphabi_autocommit 排在 aiphabi_phrase 前面——重放到 aiphabi_autocommit 時，
+  -- 舊版 enforce_mutex 只看名字就當作「這個剛被打開」，沒先查它重放後的值是不是
+  -- 真的 true，誤把 aiphabi_phrase 關掉、寫回 user.yaml，使用者本來設的 phrase=true
+  -- 就這樣每次重開都被洗回 false。這裡模擬重放：aiphabi_autocommit 的通知觸發時，
+  -- 它自己的值其實是 false（使用者從來沒真的開過），aiphabi_phrase 是 true
+  -- （使用者的真實設定）——不該被連帶關掉。
+  local ac = require("aiphabi_autocommit")
+  ac._set_user_yaml_path_for_tests("/tmp/aiphabi_test_user_" .. os.time() .. "_reload.yaml")
+
+  local state = { aiphabi_autocommit = false, aiphabi_phrase = true }
+  local notifier_cb
+  local fake_ctx = {
+    get_option = function(_, name) return state[name] or false end,
+    set_option = function(_, name, value)
+      state[name] = value
+      if notifier_cb then notifier_cb(fake_ctx, name) end
+    end,
+    option_update_notifier = { connect = function(_, cb) notifier_cb = cb; return { disconnect = function() end } end },
+    commit_notifier = { connect = function() return { disconnect = function() end } end },
+  }
+  ac.init({ engine = { context = fake_ctx } })
+
+  -- 模擬引擎重開時整批重放：aiphabi_autocommit 的通知觸發，但它現在的值是 false
+  -- （不是使用者打開它）。
+  notifier_cb(fake_ctx, "aiphabi_autocommit")
+  h.check("引擎重放 aiphabi_autocommit（值仍是 false）：aiphabi_phrase 不該被連帶關掉",
+    state.aiphabi_phrase == true, "expected true, got " .. tostring(state.aiphabi_phrase))
+
+  -- 同理反過來：aiphabi_phrase 的通知觸發，但它的值其實是 false，不該誤關 autocommit。
+  state.aiphabi_autocommit = true
+  state.aiphabi_phrase = false
+  notifier_cb(fake_ctx, "aiphabi_phrase")
+  h.check("引擎重放 aiphabi_phrase（值仍是 false）：aiphabi_autocommit 不該被連帶關掉",
+    state.aiphabi_autocommit == true, "expected true, got " .. tostring(state.aiphabi_autocommit))
+end
+
+print()
 print("== 互斥開關要把修正寫回 user.yaml，不能只改記憶體 ==")
 do
   -- 實測回報的 bug（2026-08-27）：user.yaml 同時存了 aiphabi_autocommit: true

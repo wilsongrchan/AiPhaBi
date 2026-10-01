@@ -258,8 +258,23 @@ end
 -- 繞不回來，才终于開成）。suppressing 擋住這個重入，讓「關另一個」的動作不會
 -- 再被自己的回呼解讀成一次新的切換。
 local suppressing = false
+-- option_update_notifier 這個名字是騙人的：它不是只在「使用者真的點了選單」才觸發——
+-- 引擎每次重開（部署／重啟 Squirrel）都會把 user.yaml 存的每個選項整批重放一次，
+-- 每個選項不管值有沒有真的變，都會各自觸發一次這個 notifier（回報：打開
+-- rime.squirrel.*.log 會看到同一次開機 aiphabi_autocommit／aiphabi_phrase 等十幾個
+-- 選項一起「updated option: X」，不是使用者連點十幾下）。這支函式原本只看
+-- just_turned_on 的「名字」就當作「這個剛被打開」，沒有先查它重新載入後的值是不是
+-- 真的 true——開機重放這批時，aiphabi_autocommit 的 notifier 先觸發（兩個選項名字
+-- 照字母序排，autocommit 排在 phrase 前面），這時如果 ctx:get_option("aiphabi_phrase")
+-- 當下讀到的還是舊的／上一輪殘留的 true，就會被當成「autocommit 剛打開，把 phrase
+-- 關掉」，連帶把這次開機原本該正常讀回 true 的 aiphabi_phrase 寫成 false 存回
+-- user.yaml——使用者看到的現象是「詞組連打設定每次重開都不見了」，跟使用者自己點了
+-- 什麼完全無關。修法：先確認「剛被回報的這個選項，它現在的值真的是 true」才繼續判斷
+-- 另一個要不要關掉——開機重放時 aiphabi_autocommit 自己的值通常是 false（除非使用者
+-- 真的留著開），這個防呆就會擋下來，不會誤動到 phrase。
 local function enforce_mutex(ctx, just_turned_on)
   if suppressing then return end
+  if not ctx:get_option(just_turned_on) then return end  -- 不是真的被打開（重放／關閉），不用管
   if just_turned_on == "aiphabi_autocommit" and ctx:get_option("aiphabi_phrase") then
     suppressing = true
     ctx:set_option("aiphabi_phrase", false)
