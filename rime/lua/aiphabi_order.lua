@@ -297,10 +297,29 @@ local function filter(input, env)
     elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, always_score = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
-    else exact[#exact + 1] = { c = c, always_score = true } end  -- 打滿整段、非容錯／非補全：碼表裡有詞打滿這個碼（如 不要＝jqij、碰巧＝jovnvis），
-                                                                   -- 不在 exactSet 只因那張表只收單字碼；打中就是打中，不是猜的，該跟單字 exact 同級，
-                                                                   -- 不能跟 ap_pool 的容錯猜測擠同一池（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯]
-                                                                   -- 擠到後面——exact 永遠先赢，同級內才比常用度，所以跟 ap_variant 一樣一律算分）
+    else
+      -- 打滿整段、不在 exactSet：通常是碼表真的有詞打滿這個碼（如 不要＝jqij、碰巧＝
+      -- jovnvis，不在 exactSet 只因那張表只收單字碼）——打中就是打中，不是猜的。但單字
+      -- 候選有另一種可能：Rime 內建使用者詞庫（aiphabi.userdb，跟這支 Lua 自己記的
+      -- USERFREQ／EXACTFREQ 是兩回事）會永久記住「這個碼＋這個字」選過，就算碼表／
+      -- zigen 從沒收過這條、純粹是以前手滑選到才留下的（回報：wrff 打出 涯[ZRFF] 蓋過
+      -- 真正的 崖——查遍碼表、zigen、同類／偏旁／兼容表都沒有 涯 的 wrff 這條，使用者
+      -- 詞庫卻記了 3～4 次；wwd／消 同一個模式）。這種「殘留碼」只有單字查得出來
+      -- （data.char2code 只收單字）：這個字有自己的正碼、且打的碼既不是正碼、也不是
+      -- 登記過的兼容碼／兼容字型，那就不是這個字「真的」打滿，別當 exact 信——併進
+      -- sentence 那層（反正都是「查無正解、最後才輪到」），不跟真正 exact 的 崖／峭
+      -- 比選過次數；殘留碼本身選幾次都翻不了身，不用使用者手動一個個 Ctrl+K 清。
+      local mainCode = data.char2code[c.text]
+      local isGhost = mainCode and mainCode ~= code
+        and not (data.altcode[c.text] and data.altcode[c.text][code])
+        and not (data.variant_code[c.text] and data.variant_code[c.text][code])
+      if isGhost then
+        sentence[#sentence + 1] = { c = c }
+      else
+        exact[#exact + 1] = { c = c, always_score = true }  -- 不能跟 ap_pool 的容錯猜測擠同一池
+                                                               -- （回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面）
+      end
+    end
   end
 
   -- exact 這一級也要讓「選過次數」慢慢管得到：同一碼底下兩個字都是主碼（重複碼組，

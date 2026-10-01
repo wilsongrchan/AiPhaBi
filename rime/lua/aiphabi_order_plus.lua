@@ -212,6 +212,26 @@ local function filter(input, env)
       -- aiphabi_order.lua 同一條修法，見那邊註解）；這種「不在 exactSet」的情況
       -- （isFallback）跟 ap_variant 一樣永遠算 mover。sentence 排除在外是因為它本來就該
       -- 墊最底（見下面 comp/typo 之後另成一批），不能落進 isFallback 拿到 alwaysMover。
+      --
+      -- 例外：Rime 內建使用者詞庫（aiphabi.userdb，跟這支 Lua 自己記的 USERFREQ／EXACTFREQ
+      -- 是兩回事）會永久記住「這個碼＋這個字」選過，就算碼表／zigen 從沒收過這條、純粹是
+      -- 以前手滑選到才留下的殘留碼（回報：wrff 打出 涯[ZRFF] 蓋過真正的 崖，查遍碼表／
+      -- zigen／同類／偏旁／兼容表都沒有這條，使用者詞庫卻記了好幾次；aiphabi_order.lua
+      -- 同一次回報同一條修法）。只對形碼候選查得出來（data.char2code 只收形碼單字、不是
+      -- 拼音）：這個字有自己的正碼、且打的碼既不是正碼、也不是登記過的兼容碼／兼容字型，
+      -- 那就不是這個字「真的」打滿，不能併進 isFallback 拿 alwaysMover——當 isSentence
+      -- 處理（反正都是「查無正解、最後才輪到」），殘留碼選幾次都翻不了身，不用使用者
+      -- 自己一個個 Ctrl+K 清。
+      -- 只有「不屬於任何已知類型」(跟下面 isFallback 同一批候選) 才需要查——已經歸類
+      -- 成 ap_short／ap_variant／ap_si4／ap_left／ap_pool／completion／ap_typo／sentence
+      -- 的候選不會落進這條（它們各自已經有該有的分層，殘留碼不會冒充這些類型）。
+      local notYetClassified = (not isShort) and (not isVariant) and (not isSi4OrLeft)
+        and (not isPool) and (not isComp) and (not isTypo) and (not isSentence)
+      local isGhost = notYetClassified and form and data.char2code[c.text]
+        and data.char2code[c.text] ~= code
+        and not (data.altcode[c.text] and data.altcode[c.text][code])
+        and not (data.variant_code[c.text] and data.variant_code[c.text][code])
+      if isGhost then isSentence = true end
       local isFallback = (not isShort) and (not isVariant) and (not isSi4OrLeft)
         and (not isPool) and (not isComp) and (not isTypo) and (not isSentence) and (not exactSet[c.text])
       local isExactSetMember = (not isShort) and (not isVariant) and (not isSi4OrLeft)

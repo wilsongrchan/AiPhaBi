@@ -705,6 +705,33 @@ do
 end
 
 print()
+print("== Rime 內建使用者詞庫殘留的舊碼：不能跟真正的 exact 同池比選過次數 ==")
+do
+  -- 回報：打 WRFF，涯(ZRFF) 蓋過真正的 崖(WRFF)。查遍碼表／zigen／同類／偏旁／兼容表都
+  -- 沒有「涯」的 wrff 這條——純粹是 Rime 自己的使用者詞庫（aiphabi.userdb，跟這支 Lua
+  -- 自己記的 USERFREQ／EXACTFREQ 是兩回事）記得這個字曾經在這個碼下被選過（很可能是
+  -- 手滑）。這種候選進 Lua 這層時長得跟真正的碼表候選一模一樣（type 是 nil，不是我們
+  -- 自己標的任何 ap_* 類型），沒辦法從 type 分辨，只能用 data.char2code 反查：涯 自己的
+  -- 正碼是 zrff，不是 wrff，也不是登記過的兼容碼／兼容字型，一查就知道這條是殘留碼。
+  -- 回報二：WWD 打 消(ZWD) 蓋過 峭(WWD)，同一個模式。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "wrff", options = {},
+      cands = { { text = "涯" }, { text = "崖" } },
+    }
+    h.checkAt(schema .. " · WRFF：崖（真正 exact）排第一，不被使用者詞庫殘留的 涯(wrff) 蓋過",
+      out, 1, "崖")
+
+    local out2 = h.run{
+      schema = schema, code = "wwd", options = {},
+      cands = { { text = "消" }, { text = "峭" } },
+    }
+    h.checkAt(schema .. " · WWD：峭（真正 exact）排第一，不被使用者詞庫殘留的 消(wwd) 蓋過",
+      out2, 1, "峭")
+  end
+end
+
+print()
 print("== 即時頂（規則頂屏）：這一鍵會不會把碼打死 ==")
 do
   local ac = require("aiphabi_autocommit")
