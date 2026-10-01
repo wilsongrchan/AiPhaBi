@@ -92,6 +92,31 @@ local function filter(input, env)
 
   -- 只處理純字母碼；萬用鍵那套交給 wildcard
   local ok = code and code ~= "" and not code:find("[^a-z]")
+
+  -- 補漏：librime 自己的 table_translator 偶爾打滿一碼卻完全不吐出那個字當候選
+  -- （回報：JYNX 打不出 役、ZGO 打不出 治、THEM 打不出 標、QZPPB 打不出 之間——四個
+  -- 都是「碼表明明有這條、字根拆解也查得到」，但打出來的候選欄連那個字的影子都沒有）。
+  -- 根因（已用 enable_sentence 開關關掉／打開反覆驗證過）：開了 enable_sentence，
+  -- 如果這組碼的每一碼剛好都各自對得到一個獨立字（這個方案裡 26 個字母每個都至少有
+  -- 一個對應的單碼字，幾乎所有碼都滿足這個前提），librime 的切分有時會選「拆成好幾個
+  -- 單碼字拼成一句」這條路，選了就不再同時吐出「當成一整串去查」這個候選——不是排序
+  -- 選得差，是那個候選從頭到尾沒被生出來，所以 aiphabi_order 收到的候選裡本來就沒有
+  -- 役，排序層再怎麼修都救不回來（今天稍早誤以為是候選排序的問題，後來才用
+  -- enable_sentence 開關／診斷 log 確認是上游候選根本沒生出來，見那次回報的完整過程）。
+  -- 修法：這張 data.code2chars 本來就是從碼表原始資料直接算出來的，跟 librime 用的
+  -- 是同一份真相——librime 吐的候選裡如果少了這個碼「應該」對到的字，直接比照
+  -- 四碼快打（data.si4，本來就是碼表以外、純 Lua 自己查表生出來的）這套做法，自己把
+  -- 正確答案補進候選，不管 librime 內部切分邏輯那一局到底選了哪條路。只在打純字母碼
+  -- （ok）時補，跟萬用鍵分開；s,e 固定覆蓋整串碼，理由跟檔案裡其餘補出來的候選一樣
+  -- （見下面 si4／family 那幾段同樣的 s,e 用法）。
+  if ok then
+    for _, ch in ipairs(data.code2chars[code] or {}) do
+      if not seen[ch] then
+        seen[ch] = true
+        cands[#cands + 1] = Candidate("aiphabi", 0, #code, ch, nil)
+      end
+    end
+  end
   local fam_on   = ok and ctx:get_option("aiphabi_family")
   local comp_on  = ok and ctx:get_option("aiphabi_comp")
   local t2s_on   = ok and ctx:get_option("aiphabi_t2s")

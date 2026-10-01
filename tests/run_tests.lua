@@ -180,14 +180,18 @@ end
 print()
 print("== 同一機制也管得到「撞的是別人的兼容碼」，不限於兩個字天生同一個主碼 ==")
 do
-  -- 家 主碼 QJK、有約定簡碼 QK；衣 主碼是 IJK，但另收了一條兼容碼 QJK——打 QJK
-  -- 兩個字都會冒出來（碼表「完整碼／兼容碼一律接受」）。這種撞法一樣該擠 家。
+  -- 家 主碼 QJK、有約定簡碼 QK；衣 主碼是 IJK，但另收了一條兼容碼 QJK；宎 主碼也是
+  -- QJK——打 QJK 三個字都會冒出來（碼表「完整碼／兼容碼一律接受」，data.code2chars
+  -- 查到的就是這三個，少放一個宎，aiphabi_hint.lua 現在會自己補回來，見「librime
+  -- 偶爾打滿一碼卻不吐出那個字」那次修法，所以這裡照實放齊三個，不要只放兩個）。
+  -- 這種撞法一樣該擠 家，且沒有簡碼的兩個字（衣／宎）之間維持原始順序。
   local out = h.run{
     schema = "aiphabi", code = "qjk", options = ALL_ON,
-    cands = { { text = "家" }, { text = "衣" } },
+    cands = { { text = "家" }, { text = "衣" }, { text = "宎" } },
   }
   h.checkAt("開約定簡碼 → 打 QJK：衣（撞碼、沒簡碼）排第一", out, 1, "衣")
-  h.checkAt("開約定簡碼 → 家（有簡碼 QK）擠到第二", out, 2, "家")
+  h.checkAt("開約定簡碼 → 打 QJK：宎（撞碼、沒簡碼）排第二", out, 2, "宎")
+  h.checkAt("開約定簡碼 → 家（有簡碼 QK）擠到第三", out, 3, "家")
 end
 
 print()
@@ -284,16 +288,20 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 兩萬個雜訊候選，混進三個真實字：「的」在第 10（兩層之內，該排到最前）；「是」在
   -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
   -- 「占16000」代表「超過 RAW_CAP」的候選，該整個消失，連補全都補不出來——這是刻意的
-  -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。（沒用「一」是因為它主碼剛好是 i，
-  -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西；標 ap_pool 是因為這裡要測的
-  -- 是池子的容量／排序上限，不是「打滿整段的字典詞一律 exact」那條規則——未標類型的
-  -- 候選現在也會被歸進 exact 一級，見 aiphabi_order.lua 該處註解，不再落進這個池子。）
+  -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。code 用「qqqqqqqq」這種碼表裡
+  -- 查不到任何字的假碼，不能用「i」這類真碼：一來「一」主碼剛好是 i，會被歸進 exact
+  -- 一級，不受這兩層上限影響，測不出東西；二來 aiphabi_hint.lua 現在會自己查
+  -- data.code2chars 補回 librime 漏吐的正解（見「librime 偶爾打滿一碼卻不吐出那個字」
+  -- 那次修法），只要 code 對得到真字，不管 cands 裡有沒有放，都會被自動補進候選，
+  -- 同樣會混進 exact 一級、干擾這裡要測的池子容量／排序上限。標 ap_pool 是因為這裡
+  -- 要測的是池子的容量／排序上限，不是「打滿整段的字典詞一律 exact」那條規則——未標
+  -- 類型的候選現在也會被歸進 exact 一級，見 aiphabi_order.lua 該處註解，不再落進這個池子。）
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
   cands[10] = { text = "的", type = "ap_pool" }
   cands[midPos] = { text = "是", type = "ap_pool" }
 
-  local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
+  local out = h.run{ schema = schema, code = "qqqqqqqq", options = {}, cands = cands }
 
   local posDe, posShi, has16000 = nil, nil, false
   for i, c in ipairs(out) do
@@ -324,7 +332,7 @@ do
 
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
-  local out = h.run{ schema = "aiphabi", code = "i", options = {}, cands = cands }
+  local out = h.run{ schema = "aiphabi", code = "qqqqqqqq", options = {}, cands = cands }
   order_mod._USERFREQ[key] = nil   -- 用完清掉，不要汙染其他測試
 
   h.checkAt("選過很多次的字（藏在第 " .. midPos .. " 個，RAW_CAP 之內）該排第一，不受排序上限擋住",
@@ -732,6 +740,38 @@ do
       out2, 1, "峭")
     h.checkPresent(schema .. " · WWD：消(wwd) 殘留碼整個濾掉，不只是墊後面", out2, "消", false)
   end
+end
+
+print()
+print("== librime 打滿一碼卻完全不吐出那個字時，自己補回來 ==")
+do
+  -- 回報（2026-10-01）：JYNX 打不出 役、ZGO 打不出 治、THEM 打不出 標、QZPPB 打不出
+  -- 之間——四個都是碼表／zigen 查得到這條、但 librime 自己完全不吐出那個候選，連
+  -- 影子都沒有。用 enable_sentence 開關／診斷 log 確認過根因：開了 enable_sentence，
+  -- 如果整組碼剛好可以拆成好幾個各自獨立成字的單碼（這個方案 26 個字母幾乎都有自己
+  -- 對應的單碼字），librime 的切分有時選了「拆開拼成一句」這條路，就不再同時吐出
+  -- 「當一整串查」那個候選——不是排序問題，是候選從頭到尾沒被生出來，aiphabi_order
+  -- 收到的候選裡本來就沒有它，排序層救不回來。這裡模擬 librime 漏吐的情況：cands
+  -- 只放切分湊出來的候選（type=sentence／沒放正解），不放 役，驗證 aiphabi_hint.lua
+  -- 會自己查 data.code2chars 把正解補回來、且補的候選排到最前面（跟真正的 exact
+  -- 候選同一級，不是補全也不是容錯）。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "jynx", options = { aiphabi_phrase = true },
+      cands = { { text = "彳几又", type = "sentence" } },  -- 模擬 librime 沒吐出 役
+    }
+    h.checkAt(schema .. " · JYNX：librime 沒吐出 役 時，自己查表補回來、排第一", out, 1, "役")
+  end
+
+  -- 已經有的候選不要補第二次（不然同一個字出現兩次）。
+  local out2 = h.run{
+    schema = "aiphabi", code = "jynx", options = { aiphabi_phrase = true },
+    cands = { { text = "役" }, { text = "彳几又", type = "sentence" } },
+  }
+  local count = 0
+  for _, c in ipairs(out2) do if c.text == "役" then count = count + 1 end end
+  h.check("JYNX：役本來就在候選裡時，不會補出重複的第二個", count == 1,
+    "expected exactly 1, got " .. tostring(count))
 end
 
 print()
