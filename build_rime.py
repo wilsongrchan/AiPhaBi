@@ -818,6 +818,18 @@ def main():
                           "    states: [ 詞組關, 詞組開 ]\n")
     # 四碼詞組（3+字詞壓成 4 碼）不另設開關——跟著詞組走：詞組開它就有，詞組關就沒。
     # （純愛發筆看 aiphabi_phrase；二合一詞組恆開，故恆有。判斷在 aiphabi_hint 裡做。）
+    # code2phrase：跟 code2chars 同一套「碼 → 應該對到的文字」，但給詞組用——librime
+    # 自己有時打滿一碼卻完全不吐出那個候選（見 aiphabi_hint.lua「librime 打滿一碼卻
+    # 不吐出那個字」那段的完整說明，根因在 enable_sentence 的切分、不在碼表本身）。
+    # 修法是查這張表、librime 漏吐就自己補——但這招先前只對單字（code2chars）做，詞組
+    # 完全沒有對應的表可查，回報過 QZPPB 打不出 之間，當時的修法救不到（之間是詞，
+    # code2chars 只收單字）。這張表補上同一條路給詞組走，來源就是 phrase_entries
+    # （前面已經算好、要寫進 dict.yaml 的詞組清單），不是另外重新收集一次。
+    code2phrase = defaultdict(list)
+    for _w, _code, _wt in sorted(phrase_entries, key=lambda e: (e[1], -e[2])):
+        if _w not in code2phrase[_code]:
+            code2phrase[_code].append(_w)
+
     def lua_str(x):
         return '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
     def lua_arr(xs):
@@ -826,6 +838,9 @@ def main():
     dl.append("M.code2chars = {")
     for code, chs in sorted(code2chars.items()):
         dl.append(f'  [{lua_str(code)}]={lua_arr(chs)},')
+    dl += ["}", "M.code2phrase = {"]
+    for code, ws in sorted(code2phrase.items()):
+        dl.append(f'  [{lua_str(code)}]={lua_arr(ws)},')
     dl += ["}", "M.family = {"]
     for c, sibs in family.items():
         dl.append(f'  [{lua_str(c)}]={lua_arr(sibs)},')

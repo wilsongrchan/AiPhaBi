@@ -745,16 +745,16 @@ end
 print()
 print("== librime 打滿一碼卻完全不吐出那個字時，自己補回來 ==")
 do
-  -- 回報（2026-10-01）：JYNX 打不出 役、ZGO 打不出 治、THEM 打不出 標、QZPPB 打不出
-  -- 之間——四個都是碼表／zigen 查得到這條、但 librime 自己完全不吐出那個候選，連
-  -- 影子都沒有。用 enable_sentence 開關／診斷 log 確認過根因：開了 enable_sentence，
-  -- 如果整組碼剛好可以拆成好幾個各自獨立成字的單碼（這個方案 26 個字母幾乎都有自己
-  -- 對應的單碼字），librime 的切分有時選了「拆開拼成一句」這條路，就不再同時吐出
-  -- 「當一整串查」那個候選——不是排序問題，是候選從頭到尾沒被生出來，aiphabi_order
-  -- 收到的候選裡本來就沒有它，排序層救不回來。這裡模擬 librime 漏吐的情況：cands
-  -- 只放切分湊出來的候選（type=sentence／沒放正解），不放 役，驗證 aiphabi_hint.lua
-  -- 會自己查 data.code2chars 把正解補回來、且補的候選排到最前面（跟真正的 exact
-  -- 候選同一級，不是補全也不是容錯）。
+  -- 回報（2026-10-01）：JYNX 打不出 役、ZGO 打不出 治、THEM 打不出 標——三個都是碼表／
+  -- zigen 查得到這條、但 librime 自己完全不吐出那個候選，連影子都沒有。用
+  -- enable_sentence 開關／診斷 log 確認過根因：開了 enable_sentence，如果整組碼剛好
+  -- 可以拆成好幾個各自獨立成字的單碼（這個方案 26 個字母幾乎都有自己對應的單碼字），
+  -- librime 的切分有時選了「拆開拼成一句」這條路，就不再同時吐出「當一整串查」那個
+  -- 候選——不是排序問題，是候選從頭到尾沒被生出來，aiphabi_order 收到的候選裡本來
+  -- 就沒有它，排序層救不回來。這裡模擬 librime 漏吐的情況：cands 只放切分湊出來的
+  -- 候選（type=sentence／沒放正解），不放 役，驗證 aiphabi_hint.lua 會自己查
+  -- data.code2chars 把正解補回來、且補的候選排到最前面（跟真正的 exact 候選同一級，
+  -- 不是補全也不是容錯）。
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     local out = h.run{
       schema = schema, code = "jynx", options = { aiphabi_phrase = true },
@@ -772,6 +772,27 @@ do
   for _, c in ipairs(out2) do if c.text == "役" then count = count + 1 end end
   h.check("JYNX：役本來就在候選裡時，不會補出重複的第二個", count == 1,
     "expected exactly 1, got " .. tostring(count))
+end
+
+print()
+print("== 同一個根因，詞組也會中——第一版修法漏了這塊 ==")
+do
+  -- 回報：QZPPB 打不出 之間，一開始誤以為上面單字那段（查 data.code2chars）也救得
+  -- 到，其實沒有——code2chars 只收單字，之間 是詞，從沒進過那張表，第一版等於沒修
+  -- 這塊（Wilson 回報「你的理論不成立」，一路追問到這裡才發現查的表根本是空的）。
+  -- 這裡用同一招但查新加的 data.code2phrase（來源跟 dict.yaml 寫進去的詞組同一份
+  -- phrase_entries）；關了詞組連打（aiphabi_phrase=false）時不該補，不然開關形同虛設。
+  local out = h.run{
+    schema = "aiphabi", code = "qzppb", options = { aiphabi_phrase = true },
+    cands = { { text = "之門日", type = "sentence" } },  -- 模擬 librime 沒吐出 之間
+  }
+  h.checkAt("QZPPB：librime 沒吐出 之間 時，自己查表補回來、排第一", out, 1, "之間")
+
+  local offOut = h.run{
+    schema = "aiphabi", code = "qzppb", options = { aiphabi_phrase = false },
+    cands = { { text = "之門日", type = "sentence" } },
+  }
+  h.checkPresent("QZPPB：詞組連打關掉時不補 之間（不然開關形同虛設）", offOut, "之間", false)
 end
 
 print()
