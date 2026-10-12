@@ -375,15 +375,26 @@ print("== 兩個字天生同一個主碼（重複碼組）時，選過次數也�
 do
   -- 回報過：母／红 天生都是主碼 gi（見 codes.json），一直選 母，還是排不到第一——
   -- 因為 exact 這一級（主碼 exact match）以前完全不排序，直接照 librime 給的原始順序
-  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 104772.5，
-  -- 红 是簡體字，常用度打過折），這裡的 bug 不是「母 要追過 红」，是「librime 給的
-  -- 原始順序恰好把常用度較低的 红 排第一」，選字次數只需要跨過「防手滑」這個下限
-  -- （min_eff()，見 aiphabi_order.lua 校準說明）就能把 母 拉回它本來就該有的第一名——
-  -- 不需要额外的加分去追差距，因為它從一開始就沒有落後。母（149276）離 min_eff() 的
-  -- 常用度基準（合 389799）不算太遠，門檻只略高於 1.5（~1.98），選兩次就跨得過去；
-  -- 志／忑、孑／孒 那種更冷僻的字（十萬上下）門檻更高（~2.2），選兩次還不夠，見下面。
-  -- 「差距越大，需要的次數越多」測的是另一種情況：選的字本身常用度真的比對手低，見
-  -- 下面 孑／子 那組。
+  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 104772，
+  -- 这裡的 bug 不是「母 要追過 红」，是「librime 給的原始順序恰好把常用度較低的 红
+  -- 排第一」。
+  --
+  -- 第一版修法：只讓「選字次數跨過 min_eff() 防手滑門檻」的字當 mover 去追，沒跨過
+  -- 的字維持 librime 給的原始順序不動——這只在「使用者多選幾次」時才救得回來，選不
+  -- 夠次數（或根本沒選過）還是看 librime 那個不可信的原始順序，等於沒修乾淨。
+  -- 回報二（2026-10-02）：OT 撞碼（田/呆/叶/毌）選過 毌 兩次（EXACTFREQ 還沒跨過
+  -- 毌 自己的 min_eff），毌 卻已經排到最前面，比三個更常用的字都前面——不是我們的
+  -- key() 把它排過去的（eff 沒跨過門檻，key() 早歸零），是 librime 自己內建的使用者
+  -- 詞庫（跟這支 Lua 自己記的 EXACTFREQ 是兩回事）先把原始順序弄亂，我們這裡誤信
+  -- 那是「可信的原始常用度順序」，没機會把它排回來。
+  -- 第二版修法：沒選過（或選不夠次數）的字，不是「維持原始順序不動」，是「照 log
+  -- 常用度自己該在的位置排好」——key() 本來就已經把選字次數不夠的情況歸零，所以把
+  -- 這些字也當 mover 丟給 key() 排序是安全的，不會讓選不夠次數的字贏過更常用的字，
+  -- 只是不再放任 librime 給的、可能被使用者詞庫污染的原始順序擺爛。約定簡碼刻意
+  -- demote 的那個字除外，見後面「不能矯枉過正」那條。
+  -- min_eff() 門檻本身依常用度校準：母（149276）離 min_eff() 的常用度基準（合
+  -- 389799）不算太遠，門檻只略高於 1.5（~1.98）；志／忑、孑／孒 那種更冷僻的字
+  -- （十萬上下）門檻更高（~2.2），見下面。
   local order_mod = require("aiphabi_order")
 
   local function reset(...)
@@ -393,15 +404,25 @@ do
     end
   end
 
-  -- 選一次不算：eff(1) < min_eff("母")（防手滑），排序完全不動，紅還在第一。
-  reset("母")
-  order_mod._bump("母")
+  -- 什麼都沒選過：現在直接照 log 常用度排，母本來就贏 红，不用等任何人選過才排對——
+  -- 這是第二版修法新增的保證，第一版只顧到「選夠次數能追過去」，沒顧到「完全沒選過
+  -- 時，base 順序本身也可能是錯的」。
+  local outNone = h.run{
+    schema = "aiphabi", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  h.checkAt("打 GI：誰都沒選過——直接照常用度排，母本來就贏 红", outNone, 1, "母")
+
+  -- 手滑不算：選常用度較低的 红 一次，eff(1) < min_eff("红")，key() 把這次選字歸零，
+  -- 母還是贏（它本來就比較常用，紅這次手滑不足以動搖）。
+  reset("红")
+  order_mod._bump("红")
   local out1 = h.run{
     schema = "aiphabi", code = "gi", options = {},
     cands = { { text = "红" }, { text = "母" } },
   }
-  h.checkAt("打 GI：只選 母 一次——手滑不算，紅還是排第一", out1, 1, "红")
-  reset("母")
+  h.checkAt("打 GI：只選 红 一次——手滑不算，母還是贏（本來就比較常用）", out1, 1, "母")
+  reset("红")
 
   -- 選兩次：跨過 min_eff("母") 下限，母本來常用度就贏 红，一跨過門檻就排回第一——
   -- 不需要額外加分去追差距，因為它從一開始就沒有落後（見上面說明）。
@@ -440,36 +461,64 @@ do
   -- 基準「合」389799 有 1.3+ 個 log 單位的距離），門檻本身被拉高到 ~2.2（見
   -- aiphabi_order.lua 的 min_eff() 校準說明），選兩次（eff=2.0）還跨不過，要選到
   -- 第三次（eff=3.0）才算數；門檻一跨過，差距小的話馬上就追過去，不用選到 15 次。
-  reset("孑")
-  order_mod._bump("孑"); order_mod._bump("孑")
+  -- 真碼 pi 在真實資料裡還有 子／卫 兩個撞碼成員，aiphabi_hint 現在會把 cands 沒放的
+  -- 撞碼成員自動補回來（見「librime 打滿一碼卻不吐出那個字」那次修法），子 常用度
+  -- 379935 遠高於孑／孒，補回來就會是真正的第一名——這裡只看「孑 相對 孒」的前後
+  -- 順序，不要求絕對排第一，一樣測得出門檻效果，不用另外找假碼閃開補回邏輯。
+  local function posOf(out, text)
+    for i, c in ipairs(out) do if c.text == text then return i end end
+  end
+  -- 孑（96322）常用度本來就比 孒（93037）略高一點，所以「選不夠次數」要測的是反過來
+  -- 這邊：選常用度較低的 孒 兩次，還不夠跨過門檻，孑 照舊贏（它本來就略高）。
+  reset("孒")
+  order_mod._bump("孒"); order_mod._bump("孒")
   local outClose2 = h.run{
     schema = "aiphabi", code = "pi", options = {},
     cands = { { text = "孒" }, { text = "孑" } },
   }
-  h.checkAt("打 PI：孑 跟 孒 常用度接近，但兩字都冷僻，選兩次還不夠跨過門檻", outClose2, 1, "孒")
-  reset("孑")
+  h.check("打 PI：孑 跟 孒 常用度接近，但兩字都冷僻，選孒兩次還不夠跨過門檻",
+    posOf(outClose2, "孑") < posOf(outClose2, "孒"), h.fmt(outClose2))
+  reset("孒")
 
-  order_mod._bump("孑"); order_mod._bump("孑"); order_mod._bump("孑")
+  -- 選孒三次，跨過門檻後，差距小馬上就追過去——孒本來略輸 孑，選夠次數後反超。
+  order_mod._bump("孒"); order_mod._bump("孒"); order_mod._bump("孒")
   local outClose3 = h.run{
     schema = "aiphabi", code = "pi", options = {},
     cands = { { text = "孒" }, { text = "孑" } },
   }
-  h.checkAt("打 PI：孑 跟 孒 常用度接近，選三次跨過門檻後，差距小馬上就追過去", outClose3, 1, "孑")
-  reset("孑")
+  h.check("打 PI：孑 跟 孒 常用度接近，選孒三次跨過門檻後，差距小馬上就反超",
+    posOf(outClose3, "孒") < posOf(outClose3, "孑"), h.fmt(outClose3))
+  reset("孒")
 
   -- 選過的分數會隨時間衰減：模擬「很久以前選過六次、後來都沒再選」——EXACTFREQ 直接
   -- 塞一個很舊的時間戳，過了好幾個半衰期，就算原始次數是 6，衰減後 eff 也該掉到
-  -- min_eff("母") 以下，回到跟沒選過一樣。
-  order_mod._EXACTFREQ["母"] = { score = 6, ts = os.time() - 20 * 24 * 3600 }  -- 20 天前，半衰期 2.5 天
-  local effOld = order_mod._exact_eff("母")
-  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 min_eff(\"母\") 以下",
-    effOld < order_mod._min_eff("母"), string.format("got eff=%.4f", effOld))
+  -- min_eff("红") 以下。紅（104772）比母（149276）冷僻，選 6 次原本足夠跨過 min_eff("红")
+  -- （~2.16）把紅拉到母前面——這裡要驗證的是「這個曾經夠格的加分，過了夠久會自然
+  -- 過期失效」，不是「母本來就贏」那條（baseline 測試已經覆蓋，這裡是衰減機制本身
+  -- 的回歸測試）：過期後紅的加分歸零，母（本來就比較常用）照舊贏回來。
+  order_mod._EXACTFREQ["红"] = { score = 6, ts = os.time() - 20 * 24 * 3600 }  -- 20 天前，半衰期 2.5 天
+  local effOld = order_mod._exact_eff("红")
+  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 min_eff(\"红\") 以下",
+    effOld < order_mod._min_eff("红"), string.format("got eff=%.4f", effOld))
   local outDecayed = h.run{
     schema = "aiphabi", code = "gi", options = {},
     cands = { { text = "红" }, { text = "母" } },
   }
-  h.checkAt("打 GI：20 天前選過 母 六次、之後沒再選——退回跟沒選過一樣，紅還是第一", outDecayed, 1, "红")
-  reset("母")
+  h.checkAt("打 GI：20 天前選過 红 六次、之後沒再選——加分過期，母照舊贏回來", outDecayed, 1, "母")
+  reset("红")
+
+  -- 回報原始案例（2026-10-02）：OT 撞碼（田 109220／呆 98564／叶 94372／毌 86749，
+  -- 由常用到冷僻排），選過 毌 兩次（eff≈2.0，還沒跨過 毌 自己的 min_eff≈2.25），
+  -- 毌 卻排到了最前面，蓋過三個更常用的字——這正是這次要修的 bug，拿真實資料、真實
+  -- 選字次數直接驗證，不只是驗證抽象的 母／红、孑／孒 關係。
+  reset("毌")
+  order_mod._bump("毌"); order_mod._bump("毌")
+  local outOT = h.run{
+    schema = "aiphabi", code = "ot", options = {},
+    cands = { { text = "田" }, { text = "呆" }, { text = "叶" }, { text = "毌" } },
+  }
+  h.checkAt("打 OT：毌 選兩次、還沒跨過自己的 min_eff——不該蓋過更常用的 田", outOT, 1, "田")
+  reset("毌")
 
   -- 不能矯枉過正：約定簡碼撞碼demote（這/記）不靠 USERFREQ，兩邊都沒選過時要維持
   -- aiphabi_hint 已經排好的相對順序，不能被這裡新加的 exact 排序打散——這個案例

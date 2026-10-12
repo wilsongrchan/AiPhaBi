@@ -331,15 +331,24 @@ local function filter(input, env)
   -- 也不是回報要的效果（見上面 EXACT_BOOST／min_eff() 的校準說明）。也不能整批照
   -- log 常用度重排——這樣會把 aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個字（這/記、
   -- 家/衣，兩個字都沒被選過）撈回最前面，等於廢掉那個機制。
-  -- 做法：插入排序，只移動「有算分」（eff ≥ min_eff(這個字)）的那些字，一個一個往前追——
-  -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
-  -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
-  -- ap_variant（打繁出簡／打簡出繁帶出來的字）永遠算「有算分」，不用先跨過 min_eff()
-  -- 那個防手滑門檻——它不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度
-  -- 插進正確位置（本來就不是這個碼的主碼，沒有「原始順序」這回事可以維持，插進去
-  -- 對的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
-  -- 選過的話一樣吃 USERFREQ 加分。
+  -- 做法：插入排序，key() 已經把「沒跨過 min_eff 門檻」的選字次數歸零（見下面
+  -- key()），所以沒選過的字一樣能當 mover——會乖乖照 log 常用度（跟其餘 exact 成員
+  -- 同一把尺）落在正確位置，不會因為「沒選過」就贏過更常用的字；真正該擋的是「選
+  -- 不夠次數就贏過更常用的字」，不是「字沒被選過就一律不准移動」。
+  -- 以前這裡只讓「eff ≥ min_eff」的字當 mover，沒選過的字一律原地不動、相信 librime
+  -- 給的原始順序就是碼表 weight 順序——但 librime 自己內建的使用者詞庫（跟這支 Lua
+  -- 自己記的 EXACTFREQ 是兩回事）一樣會悄悄把撞碼組重排，而且完全不過 min_eff 這關
+  -- （回報：OT 撞碼 田(109220)／呆(98564)／叶(94372)／毌(86749)，毌 選過 2 次，
+  -- EXACTFREQ 只有 1.9998，還沒跨過 毌 自己的 min_eff≈2.25——key() 早把這次選字歸零
+  -- 了，毌 卻還是排到最前面，比三個更常用的字都前面；不是我們的排序把它排過去的，
+  -- 是 librime 自己的使用者詞庫先把原始順序弄亂，這裡誤信那是「原始常用度順序」，
+  -- 沒機會排回來）。約定簡碼刻意demote 的那個字（這/記那組的 這）仍要排除在外，
+  -- 用跟 aiphabi_hint.lua 判斷「要不要demote」同一張 data.short_demote 表查，不是
+  -- 另外猜的；demote_set 查不到的就都當 mover，交給 key() 自己決定動不動。
   do
+    local ctx2 = env.engine.context
+    local short_on = ctx2 and ctx2:get_option("aiphabi_short100")
+    local demote_set = short_on and data.short_demote[code]
     local function logf(text) return math.log(cf(text) + 1) end
     local function key(e)
       local eff = exact_eff(e.c.text)
@@ -347,7 +356,8 @@ local function filter(input, env)
       return logf(e.c.text) + EXACT_BOOST * eff
     end
     for _, e in ipairs(exact) do
-      e.mover = e.always_score or exact_eff(e.c.text) >= min_eff(e.c.text)
+      local is_short_demoted = demote_set and demote_set[e.c.text]
+      e.mover = not is_short_demoted
     end
     for i = 2, #exact do
       if exact[i].mover then
