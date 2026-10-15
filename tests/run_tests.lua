@@ -258,14 +258,18 @@ end
 print()
 print("== 同一機制也管得到「撞的是別人的兼容碼」，不限於兩個字天生同一個主碼 ==")
 do
-  -- 家 主碼 QJK、有約定簡碼 QK；衣 主碼是 IJK，但另收了一條兼容碼 QJK——打 QJK
-  -- 兩個字都會冒出來（碼表「完整碼／兼容碼一律接受」）。這種撞法一樣該擠 家。
+  -- 家 主碼 QJK、有約定簡碼 QK；衣 主碼是 IJK，但另收了一條兼容碼 QJK；宎 主碼也是
+  -- QJK——打 QJK 三個字都會冒出來（碼表「完整碼／兼容碼一律接受」，data.code2chars
+  -- 查到的就是這三個，少放一個宎，aiphabi_hint.lua 現在會自己補回來，見「librime
+  -- 偶爾打滿一碼卻不吐出那個字」那次修法，所以這裡照實放齊三個，不要只放兩個）。
+  -- 這種撞法一樣該擠 家，且沒有簡碼的兩個字（衣／宎）之間維持原始順序。
   local out = h.run{
     schema = "aiphabi", code = "qjk", options = ALL_ON,
-    cands = { { text = "家" }, { text = "衣" } },
+    cands = { { text = "家" }, { text = "衣" }, { text = "宎" } },
   }
   h.checkAt("開約定簡碼 → 打 QJK：衣（撞碼、沒簡碼）排第一", out, 1, "衣")
-  h.checkAt("開約定簡碼 → 家（有簡碼 QK）擠到第二", out, 2, "家")
+  h.checkAt("開約定簡碼 → 打 QJK：宎（撞碼、沒簡碼）排第二", out, 2, "宎")
+  h.checkAt("開約定簡碼 → 家（有簡碼 QK）擠到第三", out, 3, "家")
 end
 
 print()
@@ -362,16 +366,20 @@ for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
   -- 兩萬個雜訊候選，混進三個真實字：「的」在第 10（兩層之內，該排到最前）；「是」在
   -- midPos（在 RAW_CAP 之內、但超過 MAX_SORT，該維持原位、不被拉到最前，但要還在）；
   -- 「占16000」代表「超過 RAW_CAP」的候選，該整個消失，連補全都補不出來——這是刻意的
-  -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。（沒用「一」是因為它主碼剛好是 i，
-  -- 會被歸進 exact 一級，不受這兩層上限影響，測不出東西；標 ap_pool 是因為這裡要測的
-  -- 是池子的容量／排序上限，不是「打滿整段的字典詞一律 exact」那條規則——未標類型的
-  -- 候選現在也會被歸進 exact 一級，見 aiphabi_order.lua 該處註解，不再落進這個池子。）
+  -- 取捨（見 aiphabi_hint.lua 開頭註解），不是漏洞。code 用「qqqqqqqq」這種碼表裡
+  -- 查不到任何字的假碼，不能用「i」這類真碼：一來「一」主碼剛好是 i，會被歸進 exact
+  -- 一級，不受這兩層上限影響，測不出東西；二來 aiphabi_hint.lua 現在會自己查
+  -- data.code2chars 補回 librime 漏吐的正解（見「librime 偶爾打滿一碼卻不吐出那個字」
+  -- 那次修法），只要 code 對得到真字，不管 cands 裡有沒有放，都會被自動補進候選，
+  -- 同樣會混進 exact 一級、干擾這裡要測的池子容量／排序上限。標 ap_pool 是因為這裡
+  -- 要測的是池子的容量／排序上限，不是「打滿整段的字典詞一律 exact」那條規則——未標
+  -- 類型的候選現在也會被歸進 exact 一級，見 aiphabi_order.lua 該處註解，不再落進這個池子。）
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
   cands[10] = { text = "的", type = "ap_pool" }
   cands[midPos] = { text = "是", type = "ap_pool" }
 
-  local out = h.run{ schema = schema, code = "i", options = {}, cands = cands }
+  local out = h.run{ schema = schema, code = "qqqqqqqq", options = {}, cands = cands }
 
   local posDe, posShi, has16000 = nil, nil, false
   for i, c in ipairs(out) do
@@ -402,7 +410,7 @@ do
 
   local cands = {}
   for i = 1, 20000 do cands[i] = { text = "占" .. i, type = "ap_pool" } end
-  local out = h.run{ schema = "aiphabi", code = "i", options = {}, cands = cands }
+  local out = h.run{ schema = "aiphabi", code = "qqqqqqqq", options = {}, cands = cands }
   order_mod._USERFREQ[key] = nil   -- 用完清掉，不要汙染其他測試
 
   h.checkAt("選過很多次的字（藏在第 " .. midPos .. " 個，RAW_CAP 之內）該排第一，不受排序上限擋住",
@@ -421,8 +429,10 @@ do
   -- 沒有 type，一樣落進 exact；exact 一級也吃 MAX_SORT 上限（同一套保護），但 大 本身
   -- 是 ap_pool（偏旁碼提示），落在 exact 之後的 pool 一級——真正的上限是 hint.lua 的
   -- RAW_CAP（進 order.lua 之前就砍到這個數字，見那邊定義），exact 一級最多吃滿 RAW_CAP
-  -- 個，大 落在 pool 第一個，位置頂多是 RAW_CAP + 1。跟這條回報原本要防的「1000+ 名、
-  -- 完全構不到」比，RAW_CAP+1（現在這個量級）還是很淺、滑一兩下就到，不是同一種故障。
+  -- 個；加上 hint.lua 另一條補漏邏輯（librime 打滿一碼卻不吐出那個字時自己補回候選，
+  -- 見那邊同名說明）會再補進 1 個「k」自己對應的真字，也落進 exact——大 落在 pool
+  -- 第一個，位置頂多是 RAW_CAP + 2。跟這條回報原本要防的「1000+ 名、完全構不到」比，
+  -- RAW_CAP+2（現在這個量級）還是很淺、滑一兩下就到，不是同一種故障。
   local hint_mod = require("aiphabi_hint")
   local RAW_CAP = hint_mod._RAW_CAP
   local cands = {}
@@ -432,8 +442,8 @@ do
   for i, c in ipairs(out) do
     if c.text == "大" then pos = i; break end
   end
-  h.check("K 打「大」的偏旁碼提示：混進 3000 個雜訊候選也該淺（不是第 1000+ 名，最深 RAW_CAP+1）",
-    pos ~= nil and pos <= RAW_CAP + 1,
+  h.check("K 打「大」的偏旁碼提示：混進 3000 個雜訊候選也該淺（不是第 1000+ 名，最深 RAW_CAP+2）",
+    pos ~= nil and pos <= RAW_CAP + 2,
     string.format("大 landed at #%s (RAW_CAP=%s)", tostring(pos), tostring(RAW_CAP)))
 end
 
@@ -473,15 +483,26 @@ print("== 兩個字天生同一個主碼（重複碼組）時，選過次數也�
 do
   -- 回報過：母／红 天生都是主碼 gi（見 codes.json），一直選 母，還是排不到第一——
   -- 因為 exact 這一級（主碼 exact match）以前完全不排序，直接照 librime 給的原始順序
-  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 104772.5，
-  -- 红 是簡體字，常用度打過折），這裡的 bug 不是「母 要追過 红」，是「librime 給的
-  -- 原始順序恰好把常用度較低的 红 排第一」，選字次數只需要跨過「防手滑」這個下限
-  -- （min_eff()，見 aiphabi_order.lua 校準說明）就能把 母 拉回它本來就該有的第一名——
-  -- 不需要额外的加分去追差距，因為它從一開始就沒有落後。母（149276）離 min_eff() 的
-  -- 常用度基準（合 389799）不算太遠，門檻只略高於 1.5（~1.98），選兩次就跨得過去；
-  -- 志／忑、孑／孒 那種更冷僻的字（十萬上下）門檻更高（~2.2），選兩次還不夠，見下面。
-  -- 「差距越大，需要的次數越多」測的是另一種情況：選的字本身常用度真的比對手低，見
-  -- 下面 孑／子 那組。
+  -- 出去，選字次數對它沒有作用。注意：母 常用度本來就比 红 高（149276 vs 104772，
+  -- 这裡的 bug 不是「母 要追過 红」，是「librime 給的原始順序恰好把常用度較低的 红
+  -- 排第一」。
+  --
+  -- 第一版修法：只讓「選字次數跨過 min_eff() 防手滑門檻」的字當 mover 去追，沒跨過
+  -- 的字維持 librime 給的原始順序不動——這只在「使用者多選幾次」時才救得回來，選不
+  -- 夠次數（或根本沒選過）還是看 librime 那個不可信的原始順序，等於沒修乾淨。
+  -- 回報二（2026-10-02）：OT 撞碼（田/呆/叶/毌）選過 毌 兩次（EXACTFREQ 還沒跨過
+  -- 毌 自己的 min_eff），毌 卻已經排到最前面，比三個更常用的字都前面——不是我們的
+  -- key() 把它排過去的（eff 沒跨過門檻，key() 早歸零），是 librime 自己內建的使用者
+  -- 詞庫（跟這支 Lua 自己記的 EXACTFREQ 是兩回事）先把原始順序弄亂，我們這裡誤信
+  -- 那是「可信的原始常用度順序」，没機會把它排回來。
+  -- 第二版修法：沒選過（或選不夠次數）的字，不是「維持原始順序不動」，是「照 log
+  -- 常用度自己該在的位置排好」——key() 本來就已經把選字次數不夠的情況歸零，所以把
+  -- 這些字也當 mover 丟給 key() 排序是安全的，不會讓選不夠次數的字贏過更常用的字，
+  -- 只是不再放任 librime 給的、可能被使用者詞庫污染的原始順序擺爛。約定簡碼刻意
+  -- demote 的那個字除外，見後面「不能矯枉過正」那條。
+  -- min_eff() 門檻本身依常用度校準：母（149276）離 min_eff() 的常用度基準（合
+  -- 389799）不算太遠，門檻只略高於 1.5（~1.98）；志／忑、孑／孒 那種更冷僻的字
+  -- （十萬上下）門檻更高（~2.2），見下面。
   local order_mod = require("aiphabi_order")
 
   local function reset(...)
@@ -491,15 +512,25 @@ do
     end
   end
 
-  -- 選一次不算：eff(1) < min_eff("母")（防手滑），排序完全不動，紅還在第一。
-  reset("母")
-  order_mod._bump("母")
+  -- 什麼都沒選過：現在直接照 log 常用度排，母本來就贏 红，不用等任何人選過才排對——
+  -- 這是第二版修法新增的保證，第一版只顧到「選夠次數能追過去」，沒顧到「完全沒選過
+  -- 時，base 順序本身也可能是錯的」。
+  local outNone = h.run{
+    schema = "aiphabi", code = "gi", options = {},
+    cands = { { text = "红" }, { text = "母" } },
+  }
+  h.checkAt("打 GI：誰都沒選過——直接照常用度排，母本來就贏 红", outNone, 1, "母")
+
+  -- 手滑不算：選常用度較低的 红 一次，eff(1) < min_eff("红")，key() 把這次選字歸零，
+  -- 母還是贏（它本來就比較常用，紅這次手滑不足以動搖）。
+  reset("红")
+  order_mod._bump("红")
   local out1 = h.run{
     schema = "aiphabi", code = "gi", options = {},
     cands = { { text = "红" }, { text = "母" } },
   }
-  h.checkAt("打 GI：只選 母 一次——手滑不算，紅還是排第一", out1, 1, "红")
-  reset("母")
+  h.checkAt("打 GI：只選 红 一次——手滑不算，母還是贏（本來就比較常用）", out1, 1, "母")
+  reset("红")
 
   -- 選兩次：跨過 min_eff("母") 下限，母本來常用度就贏 红，一跨過門檻就排回第一——
   -- 不需要額外加分去追差距，因為它從一開始就沒有落後（見上面說明）。
@@ -538,36 +569,64 @@ do
   -- 基準「合」389799 有 1.3+ 個 log 單位的距離），門檻本身被拉高到 ~2.2（見
   -- aiphabi_order.lua 的 min_eff() 校準說明），選兩次（eff=2.0）還跨不過，要選到
   -- 第三次（eff=3.0）才算數；門檻一跨過，差距小的話馬上就追過去，不用選到 15 次。
-  reset("孑")
-  order_mod._bump("孑"); order_mod._bump("孑")
+  -- 真碼 pi 在真實資料裡還有 子／卫 兩個撞碼成員，aiphabi_hint 現在會把 cands 沒放的
+  -- 撞碼成員自動補回來（見「librime 打滿一碼卻不吐出那個字」那次修法），子 常用度
+  -- 379935 遠高於孑／孒，補回來就會是真正的第一名——這裡只看「孑 相對 孒」的前後
+  -- 順序，不要求絕對排第一，一樣測得出門檻效果，不用另外找假碼閃開補回邏輯。
+  local function posOf(out, text)
+    for i, c in ipairs(out) do if c.text == text then return i end end
+  end
+  -- 孑（96322）常用度本來就比 孒（93037）略高一點，所以「選不夠次數」要測的是反過來
+  -- 這邊：選常用度較低的 孒 兩次，還不夠跨過門檻，孑 照舊贏（它本來就略高）。
+  reset("孒")
+  order_mod._bump("孒"); order_mod._bump("孒")
   local outClose2 = h.run{
     schema = "aiphabi", code = "pi", options = {},
     cands = { { text = "孒" }, { text = "孑" } },
   }
-  h.checkAt("打 PI：孑 跟 孒 常用度接近，但兩字都冷僻，選兩次還不夠跨過門檻", outClose2, 1, "孒")
-  reset("孑")
+  h.check("打 PI：孑 跟 孒 常用度接近，但兩字都冷僻，選孒兩次還不夠跨過門檻",
+    posOf(outClose2, "孑") < posOf(outClose2, "孒"), h.fmt(outClose2))
+  reset("孒")
 
-  order_mod._bump("孑"); order_mod._bump("孑"); order_mod._bump("孑")
+  -- 選孒三次，跨過門檻後，差距小馬上就追過去——孒本來略輸 孑，選夠次數後反超。
+  order_mod._bump("孒"); order_mod._bump("孒"); order_mod._bump("孒")
   local outClose3 = h.run{
     schema = "aiphabi", code = "pi", options = {},
     cands = { { text = "孒" }, { text = "孑" } },
   }
-  h.checkAt("打 PI：孑 跟 孒 常用度接近，選三次跨過門檻後，差距小馬上就追過去", outClose3, 1, "孑")
-  reset("孑")
+  h.check("打 PI：孑 跟 孒 常用度接近，選孒三次跨過門檻後，差距小馬上就反超",
+    posOf(outClose3, "孒") < posOf(outClose3, "孑"), h.fmt(outClose3))
+  reset("孒")
 
   -- 選過的分數會隨時間衰減：模擬「很久以前選過六次、後來都沒再選」——EXACTFREQ 直接
   -- 塞一個很舊的時間戳，過了好幾個半衰期，就算原始次數是 6，衰減後 eff 也該掉到
-  -- min_eff("母") 以下，回到跟沒選過一樣。
-  order_mod._EXACTFREQ["母"] = { score = 6, ts = os.time() - 20 * 24 * 3600 }  -- 20 天前，半衰期 2.5 天
-  local effOld = order_mod._exact_eff("母")
-  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 min_eff(\"母\") 以下",
-    effOld < order_mod._min_eff("母"), string.format("got eff=%.4f", effOld))
+  -- min_eff("红") 以下。紅（104772）比母（149276）冷僻，選 6 次原本足夠跨過 min_eff("红")
+  -- （~2.16）把紅拉到母前面——這裡要驗證的是「這個曾經夠格的加分，過了夠久會自然
+  -- 過期失效」，不是「母本來就贏」那條（baseline 測試已經覆蓋，這裡是衰減機制本身
+  -- 的回歸測試）：過期後紅的加分歸零，母（本來就比較常用）照舊贏回來。
+  order_mod._EXACTFREQ["红"] = { score = 6, ts = os.time() - 20 * 24 * 3600 }  -- 20 天前，半衰期 2.5 天
+  local effOld = order_mod._exact_eff("红")
+  h.check("選過 6 次但是 20 天前的事——衰減後 eff 該掉到 min_eff(\"红\") 以下",
+    effOld < order_mod._min_eff("红"), string.format("got eff=%.4f", effOld))
   local outDecayed = h.run{
     schema = "aiphabi", code = "gi", options = {},
     cands = { { text = "红" }, { text = "母" } },
   }
-  h.checkAt("打 GI：20 天前選過 母 六次、之後沒再選——退回跟沒選過一樣，紅還是第一", outDecayed, 1, "红")
-  reset("母")
+  h.checkAt("打 GI：20 天前選過 红 六次、之後沒再選——加分過期，母照舊贏回來", outDecayed, 1, "母")
+  reset("红")
+
+  -- 回報原始案例（2026-10-02）：OT 撞碼（田 109220／呆 98564／叶 94372／毌 86749，
+  -- 由常用到冷僻排），選過 毌 兩次（eff≈2.0，還沒跨過 毌 自己的 min_eff≈2.25），
+  -- 毌 卻排到了最前面，蓋過三個更常用的字——這正是這次要修的 bug，拿真實資料、真實
+  -- 選字次數直接驗證，不只是驗證抽象的 母／红、孑／孒 關係。
+  reset("毌")
+  order_mod._bump("毌"); order_mod._bump("毌")
+  local outOT = h.run{
+    schema = "aiphabi", code = "ot", options = {},
+    cands = { { text = "田" }, { text = "呆" }, { text = "叶" }, { text = "毌" } },
+  }
+  h.checkAt("打 OT：毌 選兩次、還沒跨過自己的 min_eff——不該蓋過更常用的 田", outOT, 1, "田")
+  reset("毌")
 
   -- 不能矯枉過正：約定簡碼撞碼demote（這/記）不靠 USERFREQ，兩邊都沒選過時要維持
   -- aiphabi_hint 已經排好的相對順序，不能被這裡新加的 exact 排序打散——這個案例
@@ -657,12 +716,14 @@ do
     cmt4 == "四碼", string.format("got comment=%s", tostring(cmt4)))
 
   -- 真的有字的完整碼剛好是這兩三碼時，那個字（exact 一級）要贏過四碼補全（pool 一級）——
-  -- 真實案例：汏 的主碼就是 ZY，剛好也是「沒什麼」等一串四碼快打詞的前兩碼。
+  -- 真實案例：外 的主碼就是 AQ（乾淨無撞碼），剛好也是「会计师」等一串四碼快打詞的前兩碼。
+  -- （原本這裡用 汏/ZY，但 2026-10-13 汏 改碼成 ZK，而 ZK 現在是飞/氹/汏/沜 的撞碼組，
+  --   不再是乾淨的單字碼，所以換一個現在還是乾淨單字碼的真實例子，不要釘死會變動的舊碼。）
   local outReal = h.run{
-    schema = "aiphabi", code = "zy", options = { aiphabi_phrase = true },
-    cands = { { text = "汏" } },
+    schema = "aiphabi", code = "aq", options = { aiphabi_phrase = true },
+    cands = { { text = "外" } },
   }
-  h.checkAt("打 ZY：汏（真的主碼就是 ZY）該贏過 沒什麼 等四碼補全", outReal, 1, "汏")
+  h.checkAt("打 AQ：外（真的主碼就是 AQ）該贏過 会计师 等四碼補全", outReal, 1, "外")
 end
 
 print()
@@ -818,6 +879,89 @@ do
     }
     h.checkAt(schema .. " · GJHH：劉德華（四碼快打）該排第一，不被拼句 鄉芈 蓋過", out, 1, "劉德華")
   end
+end
+
+print()
+print("== Rime 內建使用者詞庫殘留的舊碼：不是猜的，直接濾掉，連墊底都不留 ==")
+do
+  -- 回報：打 WRFF，涯(ZRFF) 蓋過真正的 崖(WRFF)。查遍碼表／zigen／同類／偏旁／兼容表都
+  -- 沒有「涯」的 wrff 這條——純粹是 Rime 自己的使用者詞庫（aiphabi.userdb，跟這支 Lua
+  -- 自己記的 USERFREQ／EXACTFREQ 是兩回事）記得這個字曾經在這個碼下被選過（很可能是
+  -- 手滑）。這種候選進 Lua 這層時長得跟真正的碼表候選一模一樣（type 是 nil，不是我們
+  -- 自己標的任何 ap_* 類型），沒辦法從 type 分辨，只能用 data.char2code 反查：涯 自己的
+  -- 正碼是 zrff，不是 wrff，也不是登記過的兼容碼／兼容字型，一查就知道這條是殘留碼。
+  -- 這不是「排序該墊後面」的問題（容錯／拼句好歹是有根據的猜）——根本不該出現，整個
+  -- 濾掉，不進任何一層。回報二：WWD 打 消(ZWD) 蓋過 峭(WWD)，同一個模式。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "wrff", options = {},
+      cands = { { text = "涯" }, { text = "崖" } },
+    }
+    h.checkAt(schema .. " · WRFF：崖（真正 exact）排第一，不被使用者詞庫殘留的 涯(wrff) 蓋過",
+      out, 1, "崖")
+    h.checkPresent(schema .. " · WRFF：涯(wrff) 殘留碼整個濾掉，不只是墊後面", out, "涯", false)
+
+    local out2 = h.run{
+      schema = schema, code = "wwd", options = {},
+      cands = { { text = "消" }, { text = "峭" } },
+    }
+    h.checkAt(schema .. " · WWD：峭（真正 exact）排第一，不被使用者詞庫殘留的 消(wwd) 蓋過",
+      out2, 1, "峭")
+    h.checkPresent(schema .. " · WWD：消(wwd) 殘留碼整個濾掉，不只是墊後面", out2, "消", false)
+  end
+end
+
+print()
+print("== librime 打滿一碼卻完全不吐出那個字時，自己補回來 ==")
+do
+  -- 回報（2026-10-01）：JYNX 打不出 役、ZGO 打不出 治、THEM 打不出 標——三個都是碼表／
+  -- zigen 查得到這條、但 librime 自己完全不吐出那個候選，連影子都沒有。用
+  -- enable_sentence 開關／診斷 log 確認過根因：開了 enable_sentence，如果整組碼剛好
+  -- 可以拆成好幾個各自獨立成字的單碼（這個方案 26 個字母幾乎都有自己對應的單碼字），
+  -- librime 的切分有時選了「拆開拼成一句」這條路，就不再同時吐出「當一整串查」那個
+  -- 候選——不是排序問題，是候選從頭到尾沒被生出來，aiphabi_order 收到的候選裡本來
+  -- 就沒有它，排序層救不回來。這裡模擬 librime 漏吐的情況：cands 只放切分湊出來的
+  -- 候選（type=sentence／沒放正解），不放 役，驗證 aiphabi_hint.lua 會自己查
+  -- data.code2chars 把正解補回來、且補的候選排到最前面（跟真正的 exact 候選同一級，
+  -- 不是補全也不是容錯）。
+  for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
+    local out = h.run{
+      schema = schema, code = "jynx", options = { aiphabi_phrase = true },
+      cands = { { text = "彳几又", type = "sentence" } },  -- 模擬 librime 沒吐出 役
+    }
+    h.checkAt(schema .. " · JYNX：librime 沒吐出 役 時，自己查表補回來、排第一", out, 1, "役")
+  end
+
+  -- 已經有的候選不要補第二次（不然同一個字出現兩次）。
+  local out2 = h.run{
+    schema = "aiphabi", code = "jynx", options = { aiphabi_phrase = true },
+    cands = { { text = "役" }, { text = "彳几又", type = "sentence" } },
+  }
+  local count = 0
+  for _, c in ipairs(out2) do if c.text == "役" then count = count + 1 end end
+  h.check("JYNX：役本來就在候選裡時，不會補出重複的第二個", count == 1,
+    "expected exactly 1, got " .. tostring(count))
+end
+
+print()
+print("== 同一個根因，詞組也會中——第一版修法漏了這塊 ==")
+do
+  -- 回報：QZPPB 打不出 之間，一開始誤以為上面單字那段（查 data.code2chars）也救得
+  -- 到，其實沒有——code2chars 只收單字，之間 是詞，從沒進過那張表，第一版等於沒修
+  -- 這塊（Wilson 回報「你的理論不成立」，一路追問到這裡才發現查的表根本是空的）。
+  -- 這裡用同一招但查新加的 data.code2phrase（來源跟 dict.yaml 寫進去的詞組同一份
+  -- phrase_entries）；關了詞組連打（aiphabi_phrase=false）時不該補，不然開關形同虛設。
+  local out = h.run{
+    schema = "aiphabi", code = "qzppb", options = { aiphabi_phrase = true },
+    cands = { { text = "之門日", type = "sentence" } },  -- 模擬 librime 沒吐出 之間
+  }
+  h.checkAt("QZPPB：librime 沒吐出 之間 時，自己查表補回來、排第一", out, 1, "之間")
+
+  local offOut = h.run{
+    schema = "aiphabi", code = "qzppb", options = { aiphabi_phrase = false },
+    cands = { { text = "之門日", type = "sentence" } },
+  }
+  h.checkPresent("QZPPB：詞組連打關掉時不補 之間（不然開關形同虛設）", offOut, "之間", false)
 end
 
 print()
@@ -1148,6 +1292,50 @@ do
 end
 
 print()
+print("== 互斥開關不能把「引擎重開、整批重放選項值」誤判成「使用者剛打開」==")
+do
+  -- 實測回報的 bug（2026-10-01）：詞組連打設定每次重開 Squirrel 都不見了，預設
+  -- 變成自動上屏。根因：option_update_notifier 不是只在使用者真的點選單時才觸發——
+  -- 查 rime.squirrel.*.log，引擎每次重開都會把 user.yaml 存的每個選項整批重放
+  -- 一遍，每個選項不管值有沒有真的變，都各自觸發一次這個 notifier（十幾個選項的
+  -- updated option 一次全部印出來，不是使用者連點十幾下）。選項名字照字母序排，
+  -- aiphabi_autocommit 排在 aiphabi_phrase 前面——重放到 aiphabi_autocommit 時，
+  -- 舊版 enforce_mutex 只看名字就當作「這個剛被打開」，沒先查它重放後的值是不是
+  -- 真的 true，誤把 aiphabi_phrase 關掉、寫回 user.yaml，使用者本來設的 phrase=true
+  -- 就這樣每次重開都被洗回 false。這裡模擬重放：aiphabi_autocommit 的通知觸發時，
+  -- 它自己的值其實是 false（使用者從來沒真的開過），aiphabi_phrase 是 true
+  -- （使用者的真實設定）——不該被連帶關掉。
+  local ac = require("aiphabi_autocommit")
+  ac._set_user_yaml_path_for_tests("/tmp/aiphabi_test_user_" .. os.time() .. "_reload.yaml")
+
+  local state = { aiphabi_autocommit = false, aiphabi_phrase = true }
+  local notifier_cb
+  local fake_ctx = {
+    get_option = function(_, name) return state[name] or false end,
+    set_option = function(_, name, value)
+      state[name] = value
+      if notifier_cb then notifier_cb(fake_ctx, name) end
+    end,
+    option_update_notifier = { connect = function(_, cb) notifier_cb = cb; return { disconnect = function() end } end },
+    commit_notifier = { connect = function() return { disconnect = function() end } end },
+  }
+  ac.init({ engine = { context = fake_ctx } })
+
+  -- 模擬引擎重開時整批重放：aiphabi_autocommit 的通知觸發，但它現在的值是 false
+  -- （不是使用者打開它）。
+  notifier_cb(fake_ctx, "aiphabi_autocommit")
+  h.check("引擎重放 aiphabi_autocommit（值仍是 false）：aiphabi_phrase 不該被連帶關掉",
+    state.aiphabi_phrase == true, "expected true, got " .. tostring(state.aiphabi_phrase))
+
+  -- 同理反過來：aiphabi_phrase 的通知觸發，但它的值其實是 false，不該誤關 autocommit。
+  state.aiphabi_autocommit = true
+  state.aiphabi_phrase = false
+  notifier_cb(fake_ctx, "aiphabi_phrase")
+  h.check("引擎重放 aiphabi_phrase（值仍是 false）：aiphabi_autocommit 不該被連帶關掉",
+    state.aiphabi_autocommit == true, "expected true, got " .. tostring(state.aiphabi_autocommit))
+end
+
+print()
 print("== 互斥開關要把修正寫回 user.yaml，不能只改記憶體 ==")
 do
   -- 實測回報的 bug（2026-08-27）：user.yaml 同時存了 aiphabi_autocommit: true
@@ -1411,7 +1599,11 @@ do
 
   for _, schema in ipairs({ "aiphabi", "aiphabi_plus" }) do
     -- 模擬：某段碼同時吐出一個常見字（森）跟一個生僻字（苤，GB 二級，沒被回填救到）。
-    local cands = { { text = "森" }, { text = "苤" } }
+    -- 標 ap_pool（跟上面 RAW_CAP 測試同理）：這裡要測的是 aiphabi_charset 的白名單
+    -- 邏輯，不是「打滿整段的字 code 該等於它自己的正碼」那條規則——code 是隨便編的
+    -- 測試用碼，不留 type 的話會被 aiphabi_order 當成 Rime 使用者詞庫殘留碼整個濾掉
+    -- （見 aiphabi_order.lua 的 isGhost 判斷），根本輪不到 aiphabi_charset。
+    local cands = { { text = "森", type = "ap_pool" }, { text = "苤", type = "ap_pool" } }
     local off = h.run{ schema = schema, code = "wwwd", options = ALL_ON, cands = cands }
     h.checkPresent(schema .. " · 只打常用字關 → 苤 照常在", off, "苤", true)
 
@@ -1422,13 +1614,14 @@ do
 
     -- 回填的字（睇 粵語、裏 異體）開關開著也留下來
     local kept = h.run{ schema = schema, code = "buhn", options = { aiphabi_common_only = true },
-      cands = { { text = "睇" }, { text = "裏" } } }
+      cands = { { text = "睇", type = "ap_pool" }, { text = "裏", type = "ap_pool" } } }
     h.checkPresent(schema .. " · 只打常用字開 → 粵語字 睇 留著", kept, "睇", true)
     h.checkPresent(schema .. " · 只打常用字開 → 異體 裏 留著", kept, "裏", true)
 
-    -- 多字候選：一個字不在白名單，整條濾掉
+    -- 多字候選：一個字不在白名單，整條濾掉（多字詞 data.char2code 查不到，不會被
+    -- 當成殘留碼，不用特別標 type，但標著也無妨、跟上面一致）
     local ph = h.run{ schema = schema, code = "xxxx", options = { aiphabi_common_only = true },
-      cands = { { text = "森林" }, { text = "苤苤" } } }
+      cands = { { text = "森林", type = "ap_pool" }, { text = "苤苤", type = "ap_pool" } } }
     h.checkPresent(schema .. " · 只打常用字開 → 乾淨的詞（森林）留著", ph, "森林", true)
     h.checkPresent(schema .. " · 只打常用字開 → 含生僻字的詞（苤苤）濾掉", ph, "苤苤", false)
 

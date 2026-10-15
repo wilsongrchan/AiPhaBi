@@ -316,10 +316,30 @@ local function filter(input, env)
     elseif c.type == "ap_variant" then exact[#exact + 1] = { c = c, always_score = true }  -- 打繁出簡／打簡出繁：跟這個碼 exact 撞碼的字一樣確定，只是剛好不是這個碼的主碼；併進 exact 一級照常用度排，不該無條件墊在所有 exact 之後（回報：汎[exact] 排在 泛[simp,freq 較高] 前面）
     elseif c.type == "ap_pool" then pool[#pool + 1] = { c = c }
     elseif exactSet[c.text] then exact[#exact + 1] = { c = c }
-    else exact[#exact + 1] = { c = c, always_score = true } end  -- 打滿整段、非容錯／非補全：碼表裡有詞打滿這個碼（如 不要＝jqij、碰巧＝jovnvis），
-                                                                   -- 不在 exactSet 只因那張表只收單字碼；打中就是打中，不是猜的，該跟單字 exact 同級，
-                                                                   -- 不能跟 ap_pool 的容錯猜測擠同一池（回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯]
-                                                                   -- 擠到後面——exact 永遠先赢，同級內才比常用度，所以跟 ap_variant 一樣一律算分）
+    else
+      -- 打滿整段、不在 exactSet：通常是碼表真的有詞打滿這個碼（如 不要＝jqij、碰巧＝
+      -- jovnvis，不在 exactSet 只因那張表只收單字碼）——打中就是打中，不是猜的。但單字
+      -- 候選有另一種可能：Rime 內建使用者詞庫（aiphabi.userdb，跟這支 Lua 自己記的
+      -- USERFREQ／EXACTFREQ 是兩回事）會永久記住「這個碼＋這個字」選過，就算碼表／
+      -- zigen 從沒收過這條、純粹是以前手滑選到才留下的（回報：wrff 打出 涯[ZRFF] 蓋過
+      -- 真正的 崖——查遍碼表、zigen、同類／偏旁／兼容表都沒有 涯 的 wrff 這條，使用者
+      -- 詞庫卻記了 3～4 次；wwd／消 同一個模式）。這種「殘留碼」只有單字查得出來
+      -- （data.char2code 只收單字）：這個字有自己的正碼、且打的碼既不是正碼、也不是
+      -- 登記過的兼容碼／兼容字型，那就不是這個字「真的」打滿——不是猜的（連容錯／拼句
+      -- 那種「有根據的猜」都不是，純粹是殘留碼），直接濾掉、不進任何一層（回報：這種
+      -- 候選連墊底都不該留，不是「排序問題」，是「根本不該出現」；殘留碼選幾次都翻不了
+      -- 身，不用使用者手動一個個 Ctrl+K 清）。
+      local mainCode = data.char2code[c.text]
+      local isGhost = mainCode and mainCode ~= code
+        and not (data.altcode[c.text] and data.altcode[c.text][code])
+        and not (data.variant_code[c.text] and data.variant_code[c.text][code])
+      if isGhost then
+        -- 整個丟掉，什麼都不做
+      else
+        exact[#exact + 1] = { c = c, always_score = true }  -- 不能跟 ap_pool 的容錯猜測擠同一池
+                                                               -- （回報：不要[jqij,98959] 曾被 手/丕[ap_pool 容錯] 擠到後面）
+      end
+    end
   end
 
   -- exact 這一級也要讓「選過次數」慢慢管得到：同一碼底下兩個字都是主碼（重複碼組，
@@ -330,16 +350,28 @@ local function filter(input, env)
   -- 也不是回報要的效果（見上面 EXACT_BOOST／min_eff() 的校準說明）。也不能整批照
   -- log 常用度重排——這樣會把 aiphabi_hint 的約定簡碼撞碼機制刻意擠到後面那個字（這/記、
   -- 家/衣，兩個字都沒被選過）撈回最前面，等於廢掉那個機制。
-  -- 做法：插入排序，只移動「有算分」（eff ≥ min_eff(這個字)）的那些字，一個一個往前追——
-  -- 每次只跟正前方比，比贏才往前挪一位，比輸就停；追不過的字之間相對順序完全不碰，
-  -- 這/記那種兩個都沒算分的撞碼案例，這裡完全不會去動它們。
+  -- 做法：插入排序，key() 已經把「沒跨過 min_eff 門檻」的選字次數歸零（見下面
+  -- key()），所以沒選過的字一樣能當 mover——會乖乖照 log 常用度（跟其餘 exact 成員
+  -- 同一把尺）落在正確位置，不會因為「沒選過」就贏過更常用的字；真正該擋的是「選
+  -- 不夠次數就贏過更常用的字」，不是「字沒被選過就一律不准移動」。
+  -- 以前這裡只讓「eff ≥ min_eff」的字當 mover，沒選過的字一律原地不動、相信 librime
+  -- 給的原始順序就是碼表 weight 順序——但 librime 自己內建的使用者詞庫（跟這支 Lua
+  -- 自己記的 EXACTFREQ 是兩回事）一樣會悄悄把撞碼組重排，而且完全不過 min_eff 這關
+  -- （回報：OT 撞碼 田(109220)／呆(98564)／叶(94372)／毌(86749)，毌 選過 2 次，
+  -- EXACTFREQ 只有 1.9998，還沒跨過 毌 自己的 min_eff≈2.25——key() 早把這次選字歸零
+  -- 了，毌 卻還是排到最前面，比三個更常用的字都前面；不是我們的排序把它排過去的，
+  -- 是 librime 自己的使用者詞庫先把原始順序弄亂，這裡誤信那是「原始常用度順序」，
+  -- 沒機會排回來）。約定簡碼刻意demote 的那個字（這/記那組的 這）仍要排除在外，
+  -- 用跟 aiphabi_hint.lua 判斷「要不要demote」同一張 data.short_demote 表查，不是
+  -- 另外猜的；demote_set 查不到的就都當 mover，交給 key() 自己決定動不動。
   --
   -- 插入排序前先把「主碼真的打中的字」（含 ap_left／ap_variant 推出來的）跟「四碼快打
-  -- 湊巧撞同簽名的詞」（ap_si4）分兩批、前者在前，兩批各自維持原序——不然常用單字會被
-  -- 候選來源剛好先吐出來的生僻四碼詞蓋過（回報：jwej 打「爭」被地名「万山群島」蓋過，
-  -- 兩邊都沒被選過，插入排序不會動它們，得靠這個分批墊底）。跟 comp 那一級「真正的
-  -- 詞組補全該贏四碼前三碼補全」（上面 pa/pb 那段）同一個道理：四碼快打是撞出來的巧合，
-  -- 不該蓋過真的打中主碼的字，哪個更常用才追得動之後那個插入排序。
+  -- 湊巧撞同簽名的詞」（ap_si4）分兩批、前者在前，兩批各自維持原序——現在幾乎每個
+  -- 候選都當 mover，純比 log 常用度通常已經夠分出 jwej/爭 這種案例的勝負（爭 常用度
+  -- 真的比地名高），但常用度打平（這個沙盒常見，essay.txt 缺席時 wordfreq 退回地板值）
+  -- 時插入排序的 key() 也會打平，退回靠 origIdx 決勝負（見下面）——這個分批保證「打平
+  -- 時」也是主碼真的打中的字贏，不會讓撞出來的四碼巧合反而優先。跟 comp 那一級「真正
+  -- 的詞組補全該贏四碼前三碼補全」（上面 pa/pb 那段）同一個道理。
   do
     local primary, si4Group = {}, {}
     for _, e in ipairs(exact) do
@@ -362,13 +394,10 @@ local function filter(input, env)
     for i = MAX_SORT + 1, #exact do exactTail[#exactTail + 1] = exact[i] end
   end
   exact = exactHead
-  -- always_score（ap_variant 打繁出簡／打簡出繁帶出來的字，以及碼表裡打滿這整段但不在
-  -- exactSet 的多字詞，如 不要／碰巧）永遠算「有算分」，不用先跨過 min_eff() 那個
-  -- 防手滑門檻——它們不是靠選字次數才慢慢起作用，是打從冒出來那一刻就該照常用度插進
-  -- 正確位置（本來就不是這個碼的單字主碼，沒有「原始順序」這回事可以維持，插進去對
-  -- 的位置才有意義）；沒被個人選過的話純比 log 常用度（跟其餘 exact 成員同一把尺），
-  -- 選過的話一樣吃 USERFREQ 加分。
   do
+    local ctx2 = env.engine.context
+    local short_on = ctx2 and ctx2:get_option("aiphabi_short100")
+    local demote_set = short_on and data.short_demote[code]
     local function logf(text) return math.log(cf(text) + 1) end
     local function key(e)
       local eff = exact_eff(e.c.text)
@@ -376,13 +405,15 @@ local function filter(input, env)
       return logf(e.c.text) + EXACT_BOOST * eff
     end
     for i, e in ipairs(exact) do
-      e.mover = e.always_score or exact_eff(e.c.text) >= min_eff(e.c.text)
+      local is_short_demoted = demote_set and demote_set[e.c.text]
+      e.mover = not is_short_demoted
       e.origIdx = i    -- 原始相對順序（含上面主碼／si4 分批的結果），打平分數時當决勝負
     end
-    -- 不能只跟插入點當下的正前方比、贏了就停：always_score 的成員一律是 mover，但它在
-    -- 候選陣列裡的起始位置是「hint 那邊湊巧排第幾個」（extra 系列——偏旁碼／同類／簡繁——
-    -- 先於主迴圈 yield，見上面 MAX_SORT 視窗那個理由），不是「已經跟其他 exact 成員比過」，
-    -- 可能天生就卡在很前面。只跟正前方比、贏了就停的寫法，遇到 mover 一開始就排在最前面
+    -- 不能只跟插入點當下的正前方比、贏了就停：現在幾乎每個候選都是 mover（見上面
+    -- demote_set 的說明），但它在候選陣列裡的起始位置是「hint 那邊湊巧排第幾個」
+    -- （extra 系列——偏旁碼／同類／簡繁——先於主迴圈 yield，見上面 MAX_SORT 視窗那個
+    -- 理由），不是「已經跟其他 exact 成員比過」，可能天生就卡在很前面。只跟正前方比、
+    -- 贏了就停的寫法，遇到 mover 一開始就排在最前面
     -- 時完全沒有機會被拉回它真正該在的位置（回報：ZA 撞碼 导/汐/汎，泛(ap_variant，
     -- 常用度其實比 汐/汎 高、但比 导 低) 湊巧排第一，卻贏不了正前方——因為它前面沒有
     -- 東西可比，永遠卡在第一名，蓋過真的更常用的 导）。
@@ -402,8 +433,16 @@ local function filter(input, env)
       local mk = key(m)
       local pos = #backbone + 1
       for i, e in ipairs(backbone) do
+        -- demote_set 擠到最後的字（這/記那組的 這）是硬底線，不是靠常用度比出來的
+        -- 名次——它不是 mover（上面已經確保不會自己往前追），但這裡也不能讓它反過來
+        -- 擋住任何 mover：mover 跟它比常用度，常用度較低的 這 反而贏，demote 等於
+        -- 被 key() 蓋掉（回報：開約定簡碼、打主碼 IOZ，記 沒追過demote 的 這，因為
+        -- 這 常用度 489985 比 記 219687 高，記 當 mover 插入時「輸」給 這，被排到
+        -- 這 後面——跟 demote 要的效果完全相反）。demote 的字一律當場「輸」給任何
+        -- mover，不比 key()，保證所有 mover 都排在它前面。
+        local ed = demote_set and demote_set[e.c.text]
         local ek = key(e)
-        if ek < mk or (ek == mk and e.origIdx > m.origIdx) then pos = i; break end
+        if ed or ek < mk or (ek == mk and e.origIdx > m.origIdx) then pos = i; break end
       end
       table.insert(backbone, pos, m)
     end
