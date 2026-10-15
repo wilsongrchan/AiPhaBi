@@ -888,6 +888,61 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **Merged Wilson's next batch, 2026-10-15** — `ab3b42b`'s collision-group reordering fix
+  (撞碼組排序：沒選過的字不再盲信 librime 的原始順序，改照常用度排) for `aiphabi_order.lua`,
+  `8a5fab2`/`5f69bb0`'s librime candidate-gap self-supply (single-char and phrase versions), an
+  autocommit/phrase mutex fix, plus a large Side A character pull (字 12,013→12,321).
+  - **Conflict in `aiphabi_order.lua`**: combined this branch's existing backbone+movers
+    insertion sort (`origIdx` tiebreak, primary-vs-si4 partition) with `ab3b42b`'s broader mover
+    rule (every non-`short_demote`'d exact-tier candidate is now a mover, sorted by frequency
+    instead of trusting librime's own — possibly userdb-polluted — arrival order; root bug: OT
+    collision group 田/呆/叶/毌, 毌 selected twice yet still below its own `min_eff`, outranking
+    three more common characters because nothing re-sorted the "never selected" majority).
+  - **Naively combining the two reintroduced a demote-defeating bug**, not present upstream: a
+    mover (記) could lose a pure `key()`/frequency comparison against its own demoted
+    collision-group-mate (這 — whose raw frequency is *why* it needs demoting) during the
+    insertion-position search, landing after it and inverting the whole point of
+    `short_demote`/約定簡碼撞碼demote (開簡碼、打主碼 IOZ should put 記 first, pushing you to the
+    IZ shortcut for 這; 這's higher raw frequency was winning the slot back). Fixed by making a
+    demoted backbone entry an unconditional loss against any mover in that search, regardless of
+    `key()` — confirmed against Wilson's unmodified upstream file (which doesn't need this,
+    since it still uses the old "climb past immediate left neighbor" algorithm this branch
+    replaced), then re-verified via the full test suite (6 failures → 0).
+  - **`aiphabi_order_plus.lua` needed no equivalent port.** It was never touched by `ab3b42b`
+    because it already takes a different, more conservative approach to the same tension
+    (documented inline, lines ~170-189): only candidates *actually selected* ≥`PROMOTE_MIN` times
+    become movers; everything else — including unselected exact/si4/left members — keeps
+    `aiphabi_hint`'s original order untouched, which is what protects `short_demote` here. The
+    trade-off is the OT-style bug stays theoretically possible on this schema (an unselected
+    collision-group member can't climb past another on frequency alone), but that's Wilson's own
+    deliberate choice for this file, not an oversight — leaving it as-is.
+  - **`tests/run_tests.lua`**: the "K 打「大」的偏旁碼提示" bound moved from `RAW_CAP+1` to
+    `RAW_CAP+2` — `8a5fab2`'s self-supply fix adds one extra genuine exact-tier candidate in that
+    test's synthetic scenario (the real character for code "k"), which is a correct side effect,
+    not a regression.
+  - All 244 tests pass against a freshly rebuilt (non-essay) `aiphabi_data.lua`.
+- **New mobile-stripping requirement found while re-bisecting, 2026-10-15: `M.code2phrase`.**
+  `5f69bb0` ("補上詞組版的自動補回候選：之前只顧到單字，詞組完全沒修到") added `M.code2phrase` —
+  the phrase-level counterpart to the existing `M.code2chars` self-supply table, built from the
+  *entire* uncapped `phrase_entries` list (115,551 phrases). Unlike `M.si4`, it isn't gated by
+  `AIPHABI_MOBILE_SI4_TOPN` at all, and unlike `M.wordfreq` it sits *early* in the generated file
+  (right after `M.code2chars`, long before `M.freq`/`M.wordfreq`) — so the existing mobile-strip
+  step, which only truncates the file from `M.wordfreq` onward, never touched it. Confirmed via
+  `luajit`: even with `M.si4`/`si4_rev`/`si4_full` forced empty (`AIPHABI_MOBILE_SI4_TOPN=1`) and
+  `M.wordfreq` stripped as usual, the build still crashed over the 65,536-constant cap purely from
+  `M.code2phrase`, before ever reaching the si4 tables. **Fix: mobile packaging must now also
+  empty `M.code2phrase` to `{}`**, same reasoning as `wordfreq`/`suppcode` before it — it only
+  backs `aiphabi_hint.lua`'s phrase self-supply fallback (`data.code2phrase[code] or {}`, already
+  defensive against an empty table), a rare librime-gap patch, not core ranking. This is exactly
+  the "whenever a new large `M.*` table gets added, assume it needs the same mobile-stripping
+  treatment" warning from the *mobile packaging quirk* section above, now cashed in again —
+  **the next new `M.*` table should be assumed guilty until `luajit -e "dofile(...)"` proves it
+  isn't.**
+- **Cliff re-bisected 2026-10-15**, after the above (字 12,013→12,321, plus the new `code2phrase`
+  strip). `N=5875` (last ship) now **crashes** even with `code2phrase` stripped. Re-bisected:
+  5,365 passes, 5,370 fails — margin ~5, essentially none. Shipped at **`N=5300`** for real
+  headroom. Same verification pattern: `luajit` load check + full `require()` of all 8
+  `rime/lua/*.lua` modules against the literal bytes extracted from the shipped zip.
 - **Merged Wilson's next batch, 2026-09-30** — the first ranking-logic work (as opposed to pure
   data pulls) in several merges: two new fixed tiers plus a wordfreq calibration fix, alongside a
   small Side A character pull (字 11,884→12,013).
