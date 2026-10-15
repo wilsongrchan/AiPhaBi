@@ -608,12 +608,14 @@ do
     cmt4 == "四碼", string.format("got comment=%s", tostring(cmt4)))
 
   -- 真的有字的完整碼剛好是這兩三碼時，那個字（exact 一級）要贏過四碼補全（pool 一級）——
-  -- 真實案例：汏 的主碼就是 ZY，剛好也是「沒什麼」等一串四碼快打詞的前兩碼。
+  -- 真實案例：外 的主碼就是 AQ（乾淨無撞碼），剛好也是「会计师」等一串四碼快打詞的前兩碼。
+  -- （原本這裡用 汏/ZY，但 2026-10-13 汏 改碼成 ZK，而 ZK 現在是飞/氹/汏/沜 的撞碼組，
+  --   不再是乾淨的單字碼，所以換一個現在還是乾淨單字碼的真實例子，不要釘死會變動的舊碼。）
   local outReal = h.run{
-    schema = "aiphabi", code = "zy", options = { aiphabi_phrase = true },
-    cands = { { text = "汏" } },
+    schema = "aiphabi", code = "aq", options = { aiphabi_phrase = true },
+    cands = { { text = "外" } },
   }
-  h.checkAt("打 ZY：汏（真的主碼就是 ZY）該贏過 沒什麼 等四碼補全", outReal, 1, "汏")
+  h.checkAt("打 AQ：外（真的主碼就是 AQ）該贏過 会计师 等四碼補全", outReal, 1, "外")
 end
 
 print()
