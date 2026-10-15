@@ -161,6 +161,14 @@ local function filter(input, env)
   local extraL = {}        -- 左簡碼命中的字：同三簡碼道理（自動配對、沒認定過「就這個字」），墊底
   local extra4 = {}        -- 四碼快打命中的詞：同三簡碼道理，墊底、依詞頻排（order 再處理）
   local short_hit = nil    -- 約定簡碼命中的字：排最前面，不跟其他提示混在一起
+  -- 三簡碼簽名剛好也是這個字自己主碼的字面前綴（如 勉 SOJLJ 打 soj：三碼同時是
+  -- 「三簡簽名」跟「主碼前綴」兩條路，純粹碼表巧合，不是每個三簡字都這樣）時，這個
+  -- 字早被 markHints 標成「還差幾碼」的一般補全提示，short3_on 那段的 seen[ch] 已經
+  -- 是 true，不會再加第二個候選（會重複）。但原本的「- LJ」提示沒講到「這三碼本身就
+  -- 是條捷徑、現在就能選」這件事，跟同一份候選列表裡其他三簡字的提示不一致（回報：
+  -- 同是三簡字，勉 沒標三簡，劬／鳓 有標，使用者看不出三者命中的是同一條機制）。這裡
+  -- 記下來，讓 markHints 把這個字的提示換成「三簡」，不是另開一條路。
+  local short3Tag = {}
   if fam_on or comp_on or t2s_on or s2t_on or short_on or short3_on or left_on or si4_on then
     -- 這些提示（同類／偏旁／簡碼／三簡碼／四碼…）都是查「整串輸入的碼」得來的，覆蓋 0..#code。
     -- 不能抄 cands[1] 的範圍——開了 enable_sentence 後 cands[1] 常常只吃前段（水 只吃 K），
@@ -215,10 +223,14 @@ local function filter(input, env)
     if short3_on then                    -- 三簡碼：打了 3 碼，當「頭兩碼+末一碼」查（相當於 AB`C）；
                                           -- 提示一律秀主碼，不是比對到的那個碼（可能是完整碼，太長）
       for _, ch in ipairs(data.short3[code] or {}) do
+        local sc = data.char2code[ch]
         if not seen[ch] then
           seen[ch] = true
-          local sc = data.char2code[ch]
           extra3[#extra3 + 1] = Candidate("ap_pool", s, e, ch, refMark("三簡", sc))
+        else
+          -- 已經是候選了（見上面 short3Tag 宣告處的註解）：不加第二個候選，改記
+          -- 下來讓 markHints 把它現有的提示換成「三簡」。
+          short3Tag[ch] = sc
         end
       end
     end
@@ -301,7 +313,10 @@ local function filter(input, env)
   -- 但這個字剛好有約定簡碼可以打——附「簡碼 XX」提醒，教下次可以少打幾碼。
   -- 兩種提示互斥、兼容碼優先（你正在繞路，比「其實有更快的路」更該先知道）。
   -- 跟同類／偏旁碼等提示不一樣，這個只標正常候選（cands），不標 extra 那批 hint
-  -- （它們各自已有自己的標籤）；三簡碼那套太模糊，不比照辦理。
+  -- （它們各自已有自己的標籤）；三簡碼那套太模糊，不比照辦理——這裡講的是「任意
+  -- 候選反查有沒有三簡捷徑」這種一般性提醒（一個簽名常對到好幾個字，講不出「你這個
+  -- 字有捷徑」）。下面的 short3Tag 查表是另一回事：那是當前這幾碼本身就卡進了
+  -- short3_on 那段的正向查表、已經確定命中哪個字，不是反查、沒有新的模糊。
   local function markHints(cand)
     local acs = data.altcode[cand.text]
     local vcs = data.variant_code[cand.text]
@@ -310,6 +325,15 @@ local function filter(input, env)
     -- 不分是退一步的拆法還是地區正式寫法，反正括號裡的主碼才是重點。
     if ((acs and acs[code]) or (vcs and vcs[code])) and main then
       cand.comment = refMark("兼容", main)
+      return cand
+    end
+    -- 現在這幾碼剛好同時是三簡簽名、也是這個字自己主碼的字面前綴（short3_on 那段
+    -- 已經正向查過、確定命中），原本會落進下面「還差幾碼」的補全提示——這三碼本身
+    -- 就是一步到位的捷徑，照實講「三簡」，不要被完全是巧合的字面前綴蓋過去。排在
+    -- 兼容碼之後——跟簡碼／左簡碼／四碼一樣，兼容碼優先（你正在繞路，比「其實有
+    -- 更快的路」更該先知道）。
+    if short3Tag[cand.text] then
+      cand.comment = refMark("三簡", short3Tag[cand.text])
       return cand
     end
     if short_on then

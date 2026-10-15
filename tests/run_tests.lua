@@ -1657,4 +1657,32 @@ do
   end
 end
 
+print()
+print("== 三簡碼簽名剛好也是主碼字面前綴時，提示該換成「三簡」，不是卡在「還差幾碼」==")
+do
+  -- 回報：打 soj，候選裡 劬／鳓 都標「三簡」，勉 卻標「- LJ」（一般補全提示）——三者
+  -- 命中的是同一個 data.short3["soj"] 查表，勉 只是剛好主碼 SOJLJ 自己的前 3 碼就是
+  -- "soj"（純粹碼表巧合），所以 soj 同時是「三簡簽名」跟「主碼字面前綴」兩條路。
+  -- short3_on 那段的 seen[ch] 早被 markHints 要處理的那顆候選佔走，以前直接跳過，
+  -- 讓 markHints 照它自己「還差幾碼」的規則蓋掉；現在改記進 short3Tag，讓 markHints
+  -- 把提示換成「三簡 (SOJLJ)」，跟 劬／鳓 一致。
+  local out = h.run{
+    schema = "aiphabi", code = "soj", options = { aiphabi_short3 = true },
+    cands = { { text = "勉", type = "completion", comment = "- LJ" } },
+  }
+  h.checkComment("打 soj：勉（主碼 SOJLJ 剛好以 soj 開頭）該標「三簡 (SOJLJ)」，不是「- LJ」",
+    out, "勉", "三簡 (SOJLJ)")
+
+  -- 劬／鳓 沒有這個巧合（不是任何候選的字面前綴），走原本 short3_on 的新增候選那條
+  -- 路，標法不該被這次改動動到。
+  local out2 = h.run{
+    schema = "aiphabi", code = "soj", options = { aiphabi_short3 = true },
+    cands = {},
+  }
+  h.checkComment("打 soj：劬（新增三簡候選，沒有字面前綴巧合）維持標「三簡 (SOCJ)」",
+    out2, "劬", "三簡 (SOCJ)")
+  h.checkComment("打 soj：鳓（新增三簡候選，沒有字面前綴巧合）維持標「三簡 (SOTHJ)」",
+    out2, "鳓", "三簡 (SOTHJ)")
+end
+
 os.exit(h.report() == 0 and 0 or 1)
