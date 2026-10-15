@@ -888,6 +888,16 @@ load failure.
   few months of character/phrase growth before this needs revisiting. If this cap needs
   loosening later, **bisect again with `luajit`, don't reuse this number blindly** — the cliff
   moves every time the base character/phrase count grows.
+- **三簡碼標籤不一致，2026-10-15**（回報：打 soj 的候選裡，劬／鳓 標「三簡」，勉 卻標
+  「- LJ」）——三者都命中 `data.short3["soj"]`，但 勉 的主碼 SOJLJ 剛好以 "soj" 開頭
+  （純碼表巧合），已經以 `type=completion` 候選的身分佔走 `aiphabi_hint.lua` 的
+  `seen[勉]`；`short3_on` 那段原本直接跳過已 seen 的字，讓 `markHints` 的「還差幾碼」
+  fallback（`cand.comment = "- " .. main:sub(#code+1):upper()`）蓋掉，兩個其實命中
+  同一條機制的字，標籤卻看起來像兩種不同的東西。修法：`short3_on` 命中但已 seen 時
+  記進新的 `short3Tag` 表，`markHints` 查到就把提示換成「三簡 (主碼)」而不是新增
+  重複候選；插在既有的兼容碼檢查之後、簡碼檢查之前，維持「兼容碼最優先」的既有順序
+  不變。純 `aiphabi_hint.lua` 的提示邏輯，不影響候選實際排序或可選中性——選中 勉
+  本來就是 3 個鍵，標籤改了之後也還是 3 個鍵。新增 3 項回歸測試，全部 247 項通過。
 - **Merged Wilson's next batch, 2026-10-15** — `ab3b42b`'s collision-group reordering fix
   (撞碼組排序：沒選過的字不再盲信 librime 的原始順序，改照常用度排) for `aiphabi_order.lua`,
   `8a5fab2`/`5f69bb0`'s librime candidate-gap self-supply (single-char and phrase versions), an
