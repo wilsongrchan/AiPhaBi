@@ -852,6 +852,13 @@ const rule = id => {
   const r = rules && rules.rules.find(x => x.id === id);
   return r && r.enabled && r.kind === 'enforced' ? r : null;
 };
+/* kind=manual 的原則不會被 rule() 放行（那個 helper 故意只認 enforced），
+   但部件套用想主動套用的「手動」原則（目前只有 mu_left_no_skip）要繞過這道
+   enforced-only 的篩選，直接查 enabled，不管 kind。 */
+const manualRule = id => {
+  const r = rules && rules.rules.find(x => x.id === id);
+  return r && r.enabled ? r : null;
+};
 const maxLen = () => (rule('max_code_length')?.params?.max) || zigen.meta.max_code_length || 4;
 
 /* ---------- 畫字 ---------- */
@@ -3298,7 +3305,10 @@ async function pruneEdge(ch, segs, atStart, atEnd) {
   let out = segs;
   if (!atStart && await edgeIsSkippable(ch, out[0]))
     out = out.slice(1);
-  if (!atEnd && out.length > 1 && await edgeIsSkippable(ch, out[out.length - 1]))
+  /* 目字旁例外（mu_left_no_skip）凌駕孤筆略過：目在字的最左方時，DI 的 I 不略過，
+     即使目不在字尾——跟 componentPredict 的 expected() 同一條例外。 */
+  const muException = ch === '目' && atStart && manualRule('mu_left_no_skip');
+  if (!atEnd && !muException && out.length > 1 && await edgeIsSkippable(ch, out[out.length - 1]))
     out = out.slice(0, -1);
   return out.length ? out : segs;   /* 修剪到空就當沒修剪過，別留下空碼部件 */
 }
@@ -3445,9 +3455,12 @@ function componentPredict(CH, MED, restSet) {
   const sk = rule('skip_isolated_hv');
   const lastLetters = sk ? (sk.params.last_stroke_letters ||
     (sk.params.last_stroke_letter ? { 橫: sk.params.last_stroke_letter } : {})) : {};
-  /* 部件的碼隨位置變（畫 末筆取 I → EFOTI；劃 裡的畫不在字尾 → 那一橫略過 → EFOT）*/
-  const expected = (c, atEnd) => {
+  /* 部件的碼隨位置變（畫 末筆取 I → EFOTI；劃 裡的畫不在字尾 → 那一橫略過 → EFOT）。
+     目字旁例外（mu_left_no_skip）凌駕這個略過：目在字的最左方時，DI 的 I 不略過，
+     即使目不在字尾。 */
+  const expected = (c, atEnd, leftmost) => {
     if (atEnd || c.convComp || !c.segs || !c.segs.length || !sk) return c.code;
+    if (c.ch === '目' && leftmost && manualRule('mu_left_no_skip')) return c.code;
     const tail = c.segs[c.segs.length - 1];
     const tn = Math.max(...c.segs.flatMap(s => s.strokes), ...(c.skipped || [])) + 1;
     const tailMed = glyphCacheMedians(c.ch, tn - 1);
@@ -3473,7 +3486,8 @@ function componentPredict(CH, MED, restSet) {
         .sort((a, b) => a.d - b.d)[0];
       if (!hit) continue;
       const atEnd = idx[idx.length - 1] === n - 1;
-      chosen.push({ i, c: hit.c, want: expected(hit.c, atEnd) });
+      const leftmost = idx[0] === 0;
+      chosen.push({ i, c: hit.c, want: expected(hit.c, atEnd, leftmost) });
       usedRanges.push(idx);
     }
   }
