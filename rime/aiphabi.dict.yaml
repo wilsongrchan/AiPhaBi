@@ -3,7 +3,7 @@
 # 完整碼一律接受；alts 是手動收的兼容碼。
 ---
 name: aiphabi
-version: "2026.10.14"
+version: "2026.10.16"
 sort: by_weight
 columns:
   - text
@@ -375,6 +375,7 @@ columns:
 戣	ajriq	100091706
 癸	ajriy	100096124
 戣	ajriyxq	100091706
+癹	ajrnx	100088793
 凳	ajron	100096906
 鄧	ajrop	100097845
 登	ajrov	100139106
@@ -408,6 +409,7 @@ columns:
 盒	aomi	100118578
 龠	aoooh	100093983
 龠	aooouh	100093983
+畣	aoot	100087719
 劒	aooyj	100090982
 劍	aooyn	100098946
 劎	aooyp	100084345
@@ -913,8 +915,10 @@ columns:
 醫	cykni	100159268
 毉	cykni	100087361
 嫛	cyknj	100087431
+瑿	cyknq	100086472
 殹	cyknx	100090990
 翳	cyknxee	100095576
+瑿	cyknxeq	100086472
 醫	cyknxhi	100159268
 嫛	cyknxlj	100087431
 毉	cyknxtyyi	100087361
@@ -1010,6 +1014,8 @@ columns:
 瞼	diaooyy	100095970
 瞼	diaoy	100095970
 睑	diaw	100084141
+睅	dibf	100083385
+眒	dibj	100086688
 瞋	dicdlv	100095008
 瞋	dicdv	100095008
 眶	dice	100096190
@@ -1020,6 +1026,7 @@ columns:
 瞘	dicooo	100093201
 眍	dicx	100084153
 眀	did	100092329
+睍	didjl	100079995
 膩	didvq	100117937
 眼	diek	100119641
 睫	diely	100096298
@@ -1079,10 +1086,13 @@ columns:
 眇	dimj	100094840
 肼	din	100094205
 肮	din	100087250
+睊	diod	100084670
 膻	dioobi	100093882
 膻	diooi	100093882
 睏	diot	100096294
 瞎	diqeo	100098130
+瞎	diqjfo	100098130
+瞎	diqjo	100098130
 睚	dirff	100094203
 瞩	dirjg	100084134
 眽	dirjk	100092818
@@ -1092,6 +1102,7 @@ columns:
 眅	dirx	100086063
 肪	dis	100096941
 肟	dis	100094398
+眴	disb	100090066
 睁	disej	100084147
 瞻	disro	100096904
 瞻	disrvio	100096904
@@ -1109,6 +1120,7 @@ columns:
 朧	divde	100096109
 朧	divdsle	100096109
 盼	divp	100127733
+盻	divs	100090466
 睇	divsj	100097349
 眯	divt	100096714
 睐	divt	100084144
@@ -1277,7 +1289,9 @@ columns:
 嬰	dvdvj	100097569
 嬰	dvdvlj	100097569
 鸚	dvdvljjsem	100095584
+甖	dvdvlzq	100082116
 鸚	dvdvm	100095584
+甖	dvdvq	100082116
 贔	dvdvv	100094023
 罌	dvdvw	100095251
 罌	dvdvyw	100095251
@@ -1455,7 +1469,10 @@ columns:
 鷫	ehjsem	100092488
 鷫	ehjsm	100092488
 肅	ehkk	100097594
+璊	ehmyy	100087235
 瑾	ehof	100096072
+瓘	ehoof	100091646
+瓘	ehooyif	100091646
 璜	ehufv	100095328
 瑛	ehuk	100095887
 珙	ehv	100094458
@@ -1477,6 +1494,8 @@ columns:
 璋	eivbt	100096419
 瓏	eivde	100096225
 瓏	eivdsle	100096225
+瓋	eivutoz	100080813
+瓋	eivuz	100080813
 珓	eivx	100089114
 玟	eix	100094968
 斑	eixe	100098259
@@ -1554,6 +1573,8 @@ columns:
 琡	elmx	100085738
 玷	elo	100094613
 璩	elrjk	100093980
+瓛	elroq	100089348
+瓛	elrouvtkq	100089348
 璿	eluvi	100091296
 璿	eluvydi	100091296
 耒	em	100095200
@@ -1564,6 +1585,8 @@ columns:
 耤	emhb	100087314
 耩	emhuf	100093570
 耘	emig	100096070
+瓀	emiijm	100085215
+瓀	emiim	100085215
 耕	emin	100097873
 環	emiojk	100309398
 環	emiok	100309398
@@ -1599,6 +1622,9 @@ columns:
 印	ep	100099285
 絜	epgm	100093417
 挈	epjij	100095119
+璚	epjjmo	100091840
+璚	epjjo	100091840
+璚	epjjuvo	100091840
 契	epk	100107669
 栔	ept	100087804
 齧	eptlu	100095036
@@ -1646,6 +1672,7 @@ columns:
 兲	ev	100093031
 瑳	eveji	100089211
 珜	evf	100088281
+璲	evjkz	100088044
 玢	evp	100094136
 珶	evsj	100088794
 灵	evy	100111478.5
@@ -1663,6 +1690,7 @@ columns:
 玫	ex	100097196
 珑	excq	100084306
 珞	exo	100095753
+瑵	exqog	100085426
 琖	exqxq	100087035
 春	eyb	100109357
 蠢	eybog	100097477
@@ -2327,6 +2355,8 @@ columns:
 慹	fvfaw	100090253
 勎	fvfcj	100080546
 報	fvfpx	100739722
+瓡	fvfrgr	100085907
+瓡	fvfrr	100085907
 燅	fvfvy	100088282
 燅	fvfvyvy	100088282
 盩	fvfxi	100089693
@@ -4166,6 +4196,7 @@ columns:
 杗	ilt	100083446
 忘	ilw	100099045
 瓦	ilzq	100108908
+瓨	ilzq	100089890
 市	im	101159887
 示	im	100638997
 巿	im	100094627
@@ -4627,6 +4658,7 @@ columns:
 凴	ishmn	100091681
 憑	ishmw	100098801
 堃	isisf	100094279
+瓬	islzq	100088996
 虿	isog	100082988
 凂	isojl	100088065
 趸	isoly	100082089
@@ -4834,8 +4866,10 @@ columns:
 帝	ivum	100099007
 啻	ivumo	100095021
 啇	ivuto	100093399
+甋	ivutolzq	100083823
 敵	ivutox	100118762
 適	ivutoz	100129074
+甋	ivutq	100083823
 敵	ivutx	100118762
 適	ivutz	100129074
 商	ivuvo	100369677
@@ -5035,10 +5069,13 @@ columns:
 白	jb	100199810
 旧	jb	100085028
 的	jba	102770000
+皊	jbap	100090212
 皀	jbc	100088388
 劰	jbcj	100081833
 皅	jbdl	100092947
 皇	jbe	100198834
+皝	jbewjl	100090989
+皝	jbewl	100090989
 遑	jbez	100095539
 重	jbf	100869839
 皂	jbf	100096979
@@ -5047,6 +5084,8 @@ columns:
 樂	jbggt	100289674
 皐	jbiit	100089992
 楽	jbikt	100093032
+皜	jbioo	100090359
+皜	jbiouo	100090359
 敫	jbisx	100093741
 邀	jbisxz	100108273
 邀	jbisz	100108273
@@ -5058,6 +5097,8 @@ columns:
 皦	jbjbisx	100093164
 皛	jbjbjb	100091993
 魄	jbjbjlg	100097203
+皞	jbjbkt	100091635
+皞	jbjbt	100091635
 皦	jbjbx	100093164
 皓	jbjfo	100097153
 皒	jbjkq	100095144
@@ -5103,6 +5144,8 @@ columns:
 畠	jbot	100091186
 皖	jbqijl	100096345
 皖	jbqil	100096345
+皫	jbqrhccm	100083173
+皫	jbqrm	100083173
 皈	jbrx	100094707
 阜	jbt	100097249
 皁	jbt	100092336
@@ -5142,6 +5185,8 @@ columns:
 臱	jdqvs	100093272
 邊	jdqvz	100139708
 臬	jdt	100094096
+甈	jdtlq	100084461
+甈	jdtlzq	100084461
 憂	jduwx	100148330
 頁	jdv	100459303
 息	jdw	100209206
@@ -5189,6 +5234,7 @@ columns:
 眚	jfdi	100093502
 丟	jfg	100098709
 丢	jfg	100086440
+甡	jfjf	100091880
 幷	jfjf	100000001
 先	jfjl	100239851
 兟	jfjljfjl	100093128
@@ -5280,6 +5326,7 @@ columns:
 鵠	jhojsem	100096181
 郜	jhop	100094508
 造	jhoz	100229543
+邦	jhp	100168563
 牣	jhpj	100088390
 牠	jhpl	100096719
 犗	jhqeo	100086415
@@ -5493,6 +5540,7 @@ columns:
 硼	jodd	100095903
 硯	jodjl	100097071
 碌	joek	100097021
+硍	joek	100087132
 砡	joeq	100089304
 矸	jof	100095087
 磧	jofdv	100092780
@@ -5516,6 +5564,7 @@ columns:
 碜	jogkjj	100084064
 硫	jognl	100097724
 面	joh	100239848
+碏	johb	100090140
 勔	johcj	100089820
 礡	johda	100080247
 靦	johdjl	100094532
@@ -5541,7 +5590,9 @@ columns:
 揅	joinj	100088136
 揅	joinjij	100088136
 硎	joinn	100094770
+碻	joioo	100086685
 礅	joiopx	100093309
+碻	joiouo	100086685
 礅	joiox	100093309
 砖	joisq	100084112
 砬	joiv	100095449
@@ -5554,7 +5605,9 @@ columns:
 碲	joivum	100093806
 碎	joiyt	100098576
 碎	joiyyt	100098576
+磈	jojbg	100085341
 礫	jojbggt	100102894
+磈	jojbjlg	100085341
 碑	jojbjt	100097988
 礫	jojbt	100102894
 碑	jojbt	100097988
@@ -5575,6 +5628,8 @@ columns:
 硕	jojuy	100089748.4
 粵	jojvs	100097519
 粵	jojvts	100097519
+磎	jojwgk	100086986
+磎	jojwk	100086986
 泵	jok	100097363
 砟	joki	100094236
 硖	jokv	100084082
@@ -5591,6 +5646,7 @@ columns:
 碗	joqar	100098325
 碹	joqbi	100093259
 砣	joqc	100095609
+磍	joqeo	100085787
 碇	joqfy	100095488
 矿	joqr	100084122
 碥	joqrh	100093279
@@ -5618,6 +5674,7 @@ columns:
 砍	josy	100098309
 砲	josz	100087601
 碴	jotbi	100095471
+砵	joti	100091938
 鬼	jotjg	100139166
 魖	jotji	100092593
 鬼	jotjlg	100139166
@@ -5626,6 +5683,7 @@ columns:
 魎	jotjlgmyy	100094845
 魆	jotjq	100093364
 魎	jotjy	100094845
+碄	jott	100085612
 礎	jottfy	100108019
 礎	jotty	100108019
 碉	joufo	100094816
@@ -5665,6 +5723,7 @@ columns:
 碓	joyif	100094963
 礁	joyifm	100096649
 礁	joyim	100096649
+砎	joyn	100083689
 矻	joyz	100093845
 乭	joz	100086445
 磲	jozgt	100093383
@@ -5790,7 +5849,9 @@ columns:
 私	jtg	100228916
 乗	jth	100092087
 垂	jthi	100098296
+甀	jthilzq	100085214
 郵	jthip	100098603
+甀	jthiq	100085214
 穫	jthyifx	100097416
 穫	jthyx	100097416
 穰	jtiok	100094542
@@ -5836,6 +5897,8 @@ columns:
 犩	jtljh	100086893
 魏	jtljjbjlg	100098203
 犩	jtljjbjlgjh	100086893
+瓾	jtljlzq	100080621
+瓾	jtljq	100080621
 逶	jtljz	100094193
 穢	jtllq	100096705
 穢	jtllrmxq	100096705
@@ -7454,6 +7517,7 @@ columns:
 颅	lrjuy	100080666
 虖	lrjvt	100092503
 虎	lrn	100099062
+甝	lrnhi	100083954
 彪	lrnjj	100097194
 虚	lrnv	100082997
 觑	lrnvl	100082813
@@ -7472,9 +7536,11 @@ columns:
 慮	lrotw	100118512
 勴	lrotwcj	100088255
 獻	lrouq	100098562
+甗	lrouq	100089889
 鬳	lrout	100091248
 鬳	lrouvt	100091248
 獻	lrouvtkq	100098562
+甗	lrouvtlzq	100089889
 戲	lrovq	100099581
 戲	lrovxq	100099581
 虘	lrue	100090381
@@ -7757,6 +7823,8 @@ columns:
 幅	moot	100168468
 幗	mooxq	100094946
 甾	mot	100095297
+疀	motely	100080698
+疀	motey	100080698
 帜	mov	100085488
 巤	moxlilil	100090270
 邋	moxlililz	100095179
@@ -9234,6 +9302,7 @@ columns:
 嘂	oonoo	100091813
 品	ooo	100239734
 嘽	ooobt	100094087
+碞	ooojo	100089178
 噪	oooot	100097342
 喿	ooot	100092462
 鼉	ooote	100094196
@@ -9394,6 +9463,7 @@ columns:
 疇	otfja	100107105
 疇	otfjioa	100107105
 累	otgm	100139284
+畯	otgvx	100090092
 噴	othdv	100128645
 畢	othh	100099067
 喷	othuy	100090051.5
@@ -9403,6 +9473,7 @@ columns:
 疃	otivf	100094466
 团	otj	100132718.6
 町	otj	100095948
+畽	otjbf	100083244
 躍	otjcf	100098098
 躍	otjciciyqf	100098098
 甽	otjn	100090467
@@ -9448,6 +9519,7 @@ columns:
 贯	otuy	100082266
 畔	otvh	100096627
 界	otvn	100189583
+畟	otvx	100091586
 思	otw	100099607
 吱	otx	100096761
 畋	otx	100094348
@@ -10047,6 +10119,10 @@ columns:
 宁	qj	100104456.1
 宅	qjf	100128145
 宪	qjfjl	100117441.1
+害	qjfo	100249229
+割	qjfon	100098679
+豁	qjfoo	100096971
+豁	qjfovyo	100096971
 牢	qjh	100098035
 害	qjho	100249229
 割	qjhon	100098679
@@ -10372,12 +10448,19 @@ columns:
 慶	qrhwx	100098852
 度	qrhx	100569836
 剫	qrhxn	100088946
+痑	qriaa	100084532
+癤	qriaaegp	100092426
+癐	qriab	100088994
 瘉	qriadn	100080131
 癒	qriadnw	100096840
+癈	qriajrsnx	100091217
 瘉	qrian	100080131
 瘡	qriao	100097331
+癤	qriap	100092426
 瘡	qriaro	100097331
+癐	qriavb	100088994
 癒	qriaw	100096840
+癈	qriax	100091217
 瘟	qribi	100096480
 疸	qribi	100094569
 瘍	qribj	100092594
@@ -10392,16 +10475,20 @@ columns:
 瘸	qricjouyy	100095767
 痂	qrico	100095624
 癲	qricv	100096928
+疧	qricx	100091118
 痻	qricxb	100080347
 癡	qricy	100097841
 瘸	qricy	100095767
 癡	qricykpfy	100097841
 癯	qriddyif	100094076
 癯	qridf	100094076
+癭	qridj	100092372
 疤	qridl	100096685
 瘵	qridm	100093276
 痦	qrido	100093725
+痡	qridq	100086569
 瘵	qridrim	100093276
+癭	qridvdvlj	100092372
 疟	qrie	100084255
 痱	qriee	100094991
 癍	qriee	100093578
@@ -10409,14 +10496,18 @@ columns:
 癍	qrieixe	100093578
 瘳	qriej	100093422
 痕	qriek	100097970
+瘈	qriek	100089179
+瘈	qriepk	100089179
 瘛	qriepw	100093767
 瘛	qriew	100093767
 痔	qrifa	100096131
+癙	qrifelilil	100090017
 瘐	qrifey	100093605
 瘐	qriffk	100093605
 瘦	qrifftx	100098508
 瘐	qrifk	100093605
 症	qrifl	100139061
+癙	qrifl	100090017
 痣	qrifw	100096028
 瘦	qrifx	100098508
 瘐	qrify	100093605
@@ -10441,28 +10532,38 @@ columns:
 痨	qrihucj	100084225
 癀	qrihufv	100093558
 癀	qrihv	100093558
+瘖	qriib	100090091
 瘠	qriid	100095321
+癠	qriid	100085847
 疰	qriif	100093327
 痃	qriig	100093255
 痎	qriigy	100086890
 瘀	qriii	100096266
+瘯	qriik	100090360
 瘠	qriikyd	100095321
+癵	qriiogmgmuyy	100085613
 瘀	qriiq	100096266
 瘀	qriisaq	100096266
 瘀	qriisyi	100096266
+瘯	qriisyyk	100090360
 瘁	qriit	100095689
 瘴	qriit	100095511
+瘖	qriivb	100090091
 瘴	qriivbt	100095511
 癔	qriivbw	100093634
 癔	qriiw	100093634
 痎	qriiy	100086890
+癵	qriiy	100085613
+癠	qriiypkd	100085847
 瘁	qriiyyt	100095689
 疔	qrij	100094422
+瘣	qrijbjlg	100085733
 痺	qrijbjt	100087675
 瘪	qrijc	100084206
 癟	qrijdauh	100096229
 瘜	qrijdw	100093030
 瘪	qrijdyc	100084206
+瘣	qrijg	100085733
 癟	qrijh	100096229
 痉	qriji	100084232
 痸	qrijimn	100082883
@@ -10479,21 +10580,33 @@ columns:
 痞	qrijqo	100096264
 疚	qrijr	100095996
 痺	qrijt	100087675
+癪	qrijtfdv	100083623
 痿	qrijtlj	100095014
 痢	qrijtn	100096163
 瘢	qrijuinx	100094795
+癪	qrijv	100083623
 瘜	qrijw	100093030
 癥	qrijx	100096855
 瘢	qrijx	100094795
+癓	qrijx	100088467
 瘲	qrijy	100092915
 癥	qrijywex	100096855
+癓	qrijywnx	100088467
 瘲	qrijyyyly	100092915
 宸	qrik	100095699
+痷	qrikbl	100087716
+瘞	qrikf	100092024
 瘗	qrikf	100084213
 痄	qriki	100092936
+痷	qrikl	100087716
 療	qrikm	100098513
 療	qrikvbm	100098513
 瘗	qrikvf	100084213
+瘱	qrikw	100080536
+㾜	qriky	100000001
+㾜	qrikyy	100000001
+瘞	qrikyyf	100092024
+瘱	qrikyyw	100080536
 疵	qrilc	100096285
 瘧	qrile	100095742
 疵	qrillc	100096285
@@ -10501,6 +10614,8 @@ columns:
 瘧	qrilre	100095742
 癰	qrimf	100095411
 痙	qrimi	100095460
+瘝	qrimi	100089695
+瘝	qrimji	100089695
 癰	qrimodlyif	100095411
 瘋	qring	100098621
 瘋	qrinjog	100098621
@@ -10544,6 +10659,7 @@ columns:
 瘾	qripw	100084199
 疲	qripx	100127577
 癃	qripxjf	100093657
+痯	qriqb	100082176
 痫	qriqct	100084218
 痫	qriqt	100084218
 疬	qrircj	100084248
@@ -10574,18 +10690,26 @@ columns:
 痍	qrisy	100094505
 疱	qrisz	100089455
 戽	qrit	100093521
+瘏	qritb	100087033
+痚	qriti	100080697
 瘌	qritn	100094412
 瘌	qriton	100094412
 癩	qritopdv	100096010
 癞	qritosuy	100084193
 痲	qritt	100087584
+痳	qritt	100079885
 癫	qrituevjuy	100084186
 癩	qritv	100096010
+瘏	qritxb	100087033
+痚	qritxpi	100080697
 癞	qrity	100084193
 癫	qrity	100084186
 疽	qriue	100095671
 痈	qriuh	100084235
 瘿	qriuj	100084196
+痌	qriuo	100092158
+瘑	qriuo	100090192
+瘑	qriuuo	100090192
 病	qriuy	100139649
 瘿	qriuyuylj	100084196
 瘅	qrivbt	100084216
@@ -10612,13 +10736,17 @@ columns:
 瘫	qrixf	100084203
 瘙	qrixg	100094616
 疼	qrixi	100118615
+痝	qrixj	100081913
 疣	qrixlq	100096090
+痝	qrixlqjj	100081913
 疣	qrixq	100096090
 瘙	qrixqog	100094616
 瘫	qrixyif	100084203
 瘊	qriycyk	100093464
 痊	qriye	100094793
 痤	qriyf	100094537
+痗	qriygi	100087607
+痗	qriyi	100087607
 疹	qriyj	100097065
 疹	qriyjj	100097065
 疾	qriyk	100138428
@@ -11098,6 +11226,8 @@ columns:
 扁	rcuh	100118013
 翩	rcuhcici	100096509
 翩	rcuhi	100096509
+甂	rcuhlzq	100083956
+甂	rcuhq	100083956
 遍	rcuhz	100099021
 扃	rcuo	100093510
 扊	rcvyvy	100086754
@@ -11148,7 +11278,9 @@ columns:
 剭	rgfn	100086020
 瓜	rgr	100108668
 瓝	rgra	100082287
+瓥	rgrjg	100088610
 瓞	rgrjiy	100093676
+瓥	rgrjkogog	100088610
 瓞	rgrjy	100093676
 瓟	rgrsz	100090093
 厝	rhb	100095376
@@ -11517,6 +11649,7 @@ columns:
 匆	sjq	100096807
 弪	sjqi	100085422
 怱	sjqw	100093622
+甮	sjuh	100088278
 忽	sjw	100098541
 匆	sjx	100096807
 怱	sjxw	100093622
@@ -11844,6 +11977,8 @@ columns:
 弧	srgr	100207080
 危	srr	100208500
 詹	srvio	100357345
+甔	srviolzq	100083496
+甔	srviq	100083496
 卐	ss	100092838
 乌	ssi	100237161.4
 弥	ssm	100085425
@@ -13231,7 +13366,9 @@ columns:
 粼	vtahl	100095093
 亃	vtahl	100086959
 粼	vtahll	100095093
+甐	vtahlzq	100080875
 鄰	vtahp	100128037
+甐	vtahq	100080875
 遴	vtahz	100104695
 糧	vtbbf	100098342
 粿	vtbt	100092447
@@ -13923,6 +14060,8 @@ columns:
 掌	wuojij	100128792
 掌	wuojj	100128792
 党	wuojl	100349511.4
+瓽	wuolq	100085557
+瓽	wuolzq	100085557
 常	wuom	100259789
 営	wuoo	100091888
 當	wuoot	100519921
@@ -15115,6 +15254,8 @@ columns:
 舞	ymjah	100109101
 偗	ymjdi	100089562
 無	ymm	100369924
+甒	ymmlq	100086892
+甒	ymmlzq	100086892
 儠	ymoxl	100088486
 儠	ymoxlilil	100088486
 儠	ymoyl	100088486
@@ -15927,8 +16068,10 @@ columns:
 湿	zbnv	100084555
 漊	zbqlj	100083966
 湯	zbsj	100109022
+璗	zbsjeq	100088468
 盪	zbsji	100187856
 盪	zbsjmi	100187856
+璗	zbsjq	100088468
 燙	zbsjvy	100097934
 燙	zbsjy	100097934
 渴	zbsyl	100097797
@@ -26120,9 +26263,11 @@ columns:
 巴西利亚	dlihijtnnv	12000
 巴西聯邦共和國	dlihinegghejphvjtoooxq	12000
 巴西聯邦共和國	dlihinegghejphvjtooq	12000
+巴西聯邦共和國	dlihinegghjhphvjtoooxq	12000
 巴西聯邦共和國	dlihinehejphvjtooq	12000
 巴西联邦共和国	dlihinekejphvjtooeq	12000
 巴西联邦共和国	dlihinevkejphvjtooeq	12000
+巴西联邦共和国	dlihinevkjhphvjtooeq	12000
 巴西隊	dlihipvjk	920
 巴西隊	dlihipvk	920
 巴士	dlil	1501
@@ -29035,7 +29180,9 @@ columns:
 瑞麗	ewjmiac	956
 瑞士	ewjmil	12000
 瑞士聯邦	ewjmilnegghejp	12000
+瑞士聯邦	ewjmilnegghjhp	12000
 瑞士联邦	ewjmilnevkejp	12000
+瑞士联邦	ewjmilnevkjhp	12000
 瑞士法郎	ewjmilzfgqegp	12000
 瑞秋	ewjmjtvy	12000
 瑞秋	ewjmjty	12000
@@ -33060,6 +33207,7 @@ columns:
 城裏	frcqjik	2141
 城市	frcqjim	38332
 城大	frcqjiy	12000
+城邦	frcqjjhp	1798
 城北	frcqjjic	966
 城牆	frcqjkto	2570
 城牆	frcqjktyyo	2570
@@ -33130,6 +33278,7 @@ columns:
 城市獵人	frcxqimxjmoly	12000
 城市化	frcxqimyc	1285
 城大	frcxqiy	12000
+城邦	frcxqjhp	1798
 城北	frcxqjic	966
 城牆	frcxqkto	2570
 城牆	frcxqktyyo	2570
@@ -33263,6 +33412,7 @@ columns:
 城市獵人	frqimxjly	12000
 城市化	frqimyc	1285
 城大	frqiy	12000
+城邦	frqjhp	1798
 城北	frqjic	966
 城牆	frqkto	2570
 城牆	frqktyyo	2570
@@ -35922,6 +36072,7 @@ columns:
 缅因州	gjohoknnn	12000
 缅甸	gjohsot	12000
 缅甸联邦共和国	gjohsotnevkejphvjtooeq	12000
+缅甸联邦共和国	gjohsotnevkjhphvjtooeq	12000
 嚮往	gjojyf	4959
 嚮往	gjojyif	4959
 嚮往	gjojyqe	4959
@@ -36785,6 +36936,7 @@ columns:
 緬甸	gmjohsot	12000
 緬甸聯邦共和國	gmjohsotnegghejphvjtoooxq	12000
 緬甸聯邦共和國	gmjohsotnegghejphvjtooq	12000
+緬甸聯邦共和國	gmjohsotnegghjhphvjtoooxq	12000
 總管	gmjowaab	994
 總算	gmjowaadh	2854
 總算	gmjowaah	2854
@@ -38689,6 +38841,7 @@ columns:
 劉亞仁	gpnihiyi	12000
 劉亦菲	gpninvhee	12000
 劉先生	gpnjfljf	1056
+劉邦	gpnjhp	12000
 劉禹錫	gpnjogyvj	12000
 劉秀	gpnjtp	12000
 劉徹	gpnjyigx	12000
@@ -38824,6 +38977,7 @@ columns:
 劉亞仁	gpyvnihiyi	12000
 劉亦菲	gpyvninvhee	12000
 劉先生	gpyvnjfjljf	1056
+劉邦	gpyvnjhp	12000
 劉禹錫	gpyvnjougyvbsj	12000
 劉秀	gpyvnjtp	12000
 劉徹	gpyvnjyigx	12000
@@ -39786,6 +39940,7 @@ columns:
 蕭敬騰	hehhsxdvm	12000
 蕭亞軒	hehihiibf	12000
 蕭亞軒	hehihiibtf	12000
+蕭邦	hehjhp	12000
 蕭條	hehnxt	947
 蕭美琴	hehvekeeaj	12000
 蕭美琴	hehvekeej	12000
@@ -39886,6 +40041,7 @@ columns:
 勘查	hejtbi	935
 萧邦	hejvejp	12000
 萧敬腾	hejvhsoxdviji	12000
+萧邦	hejvjhp	12000
 萧亚轩	hejvnvftf	12000
 萧美琴	hejvvekeeaj	12000
 萧兹	hejvvgg	12000
@@ -39895,6 +40051,7 @@ columns:
 蕭蕭	hekkhekk	956
 蕭蕭	hekkhetkk	956
 蕭茲	hekkhgg	12000
+蕭邦	hekkjhp	12000
 蕭條	hekknxt	947
 蕭山	hekkw	1096
 蕭峯	hekkwxej	885
@@ -39929,6 +40086,7 @@ columns:
 藉着	hemhbvejdi	2993
 萧邦	henvejp	12000
 萧敬腾	henvhsoxdviji	12000
+萧邦	henvjhp	12000
 萧亚轩	henvnvftf	12000
 萧美琴	henvvekeeaj	12000
 萧兹	henvvgg	12000
@@ -39966,6 +40124,7 @@ columns:
 蕭茲	hetkkhgg	12000
 蕭敬騰	hetkkhsoxdviym	12000
 蕭亞軒	hetkkihiibtf	12000
+蕭邦	hetkkjhp	12000
 蕭條	hetkknxt	947
 蕭美琴	hetkkvekeeaj	12000
 蕭山	hetkkw	1096
@@ -40114,6 +40273,7 @@ columns:
 其次	hevisy	31600
 其次是	hevisybfy	5850
 其次是	hevisyby	5850
+萧邦	hevjhp	12000
 其後	hevjygx	1846
 其後	hevjyx	1846
 甚是	hevlbfy	966
@@ -59448,6 +59608,7 @@ columns:
 刘亦菲	ixninvhee	12000
 齐天大圣	ixnixriyxf	12000
 文風	ixnjg	1078
+刘邦	ixnjhp	12000
 文風	ixnjog	1078
 刘禹锡	ixnjogyej	12000
 刘禹锡	ixnjougyebsj	12000
@@ -70830,6 +70991,7 @@ columns:
 烏龜	jscmjleex	1744
 烏拉圭	jscmkivff	12000
 烏托邦	jscmkjfejp	1337
+烏托邦	jscmkjfjhp	1337
 烏雲	jscmmig	1275
 烏雲	jscmmiiig	1275
 烏龜	jscmsleei	1744
@@ -75302,7 +75464,9 @@ columns:
 德意志	jytmwivbwfw	12000
 德意志聯邦共和國	jytmwivbwfwnegghejphvjtoooxq	12000
 德意志聯邦共和國	jytmwivbwfwnegghejphvjtooq	12000
+德意志聯邦共和國	jytmwivbwfwnegghjhphvjtoooxq	12000
 德意志联邦共和国	jytmwivbwfwnevkejphvjtooeq	12000
+德意志联邦共和国	jytmwivbwfwnevkjhphvjtooeq	12000
 德文	jytmwix	12000
 德岛	jytmwjasw	12000
 德岛县	jytmwjaswueg	12000
@@ -77743,10 +77907,12 @@ columns:
 奈及利亞	kimjxjtnihi	12000
 奈及利亞聯邦共和國	kimjxjtnihinegghejphvjtoooxq	12000
 奈及利亞聯邦共和國	kimjxjtnihinegghejphvjtooq	12000
+奈及利亞聯邦共和國	kimjxjtnihinegghjhphvjtoooxq	12000
 奈及利亞聯邦共和國	kimjxjtnihinehejphvjtooq	12000
 奈及利亚	kimjxjtnnv	12000
 奈及利亚联邦共和国	kimjxjtnnvnekejphvjtooeq	12000
 奈及利亚联邦共和国	kimjxjtnnvnevkejphvjtooeq	12000
+奈及利亚联邦共和国	kimjxjtnnvnevkjhphvjtooeq	12000
 掠奪	kimkya	1814
 掠奪	kimkyifa	1814
 奈良	kimqek	12000
@@ -87419,6 +87585,7 @@ columns:
 聯誼會	negghioqueavb	925
 聯動	negghjbfcj	3639
 聯動	negghjbj	3639
+聯邦	negghjhp	3158
 聯手	negghjij	2441
 聯衆	negghjmk	987
 聯衆	negghjmyjk	987
@@ -87500,6 +87667,7 @@ columns:
 聯誼	nehioque	954
 聯動	nehjbfcj	3639
 聯動	nehjbj	3639
+聯邦	nehjhp	3158
 聯手	nehjij	2441
 聯衆	nehjmk	987
 聯衆	nehjmyjk	987
@@ -99162,9 +99330,9 @@ columns:
 衣櫥	qjktqa	893
 衣櫥	qjktqrfa	893
 衣索比亞	qjktugmccihi	12000
-衣索比亞聯邦民主共和國	qjktugmccihinegghejpclxqehvjtoooxq	12000
+衣索比亞聯邦民主共和國	qjktugmccihinegghjhpclxqehvjtoooxq	12000
 衣索比亚	qjktugmccnv	12000
-衣索比亚联邦民主共和国	qjktugmccnvnevkejpclxqehvjtooeq	12000
+衣索比亚联邦民主共和国	qjktugmccnvnevkjhpclxqehvjtooeq	12000
 家教	qjktxpx	2583
 家教	qjktxx	2583
 家具	qjkuev	15510
@@ -105527,13 +105695,13 @@ columns:
 尼泊尔	rczjbsm	12000
 尼泊尔联邦民主共和国	rczjbsmnekejpclxifhvjtooeq	12000
 尼泊尔联邦民主共和国	rczjbsmnevkejpclxifhvjtooeq	12000
-尼泊尔联邦民主共和国	rczjbsmnevkejpclxqehvjtooeq	12000
+尼泊尔联邦民主共和国	rczjbsmnevkjhpclxqehvjtooeq	12000
 尼泊爾	rczjbvmx	12000
 尼泊爾聯邦民主共和國	rczjbvmxnehejpclxifhvjtooq	12000
 尼泊爾	rczjbvmxxx	12000
 尼泊爾聯邦民主共和國	rczjbvmxxxnegghejpclxifhvjtoooxq	12000
 尼泊爾聯邦民主共和國	rczjbvmxxxnegghejpclxifhvjtooq	12000
-尼泊爾聯邦民主共和國	rczjbvmxxxnegghejpclxqehvjtoooxq	12000
+尼泊爾聯邦民主共和國	rczjbvmxxxnegghjhpclxqehvjtoooxq	12000
 遍及	rczjx	978
 遍歷	rczrjl	970
 遍歷	rczrjtjl	970
@@ -121494,6 +121662,7 @@ columns:
 肖龍	wdivdse	12000
 肖龍	wdive	12000
 肖牛	wdjh	12000
+肖邦	wdjhp	2283
 肖豬	wdjkb	12000
 肖豬	wdjkfjb	12000
 肖豬	wdjktxb	12000
@@ -128820,10 +128989,11 @@ columns:
 俄文	yjkxqix	12000
 俄罗斯	yjkxqmahevrt	16452
 俄罗斯卢布	yjkxqmahevrtlrxm	12000
-俄罗斯联邦	yjkxqmahevrtnevkejp	12000
+俄罗斯联邦	yjkxqmahevrtnevkjhp	12000
 俄羅斯	yjkxqmgmyfhevrt	16452
 俄羅斯盧布	yjkxqmgmyfhevrtlrotixm	12000
 俄羅斯聯邦	yjkxqmgmyfhevrtnegghejp	12000
+俄羅斯聯邦	yjkxqmgmyfhevrtnegghjhp	12000
 俄羅斯人	yjkxqmgmyfhevrty	1046
 俄罗斯	yjkxqmjahevrt	16452
 俄罗斯卢布	yjkxqmjahevrtlrxm	12000
@@ -135964,8 +136134,10 @@ columns:
 澳元	zjuvkijl	12000
 澳大利亞	zjuvkiyjtnihi	12000
 澳大利亞聯邦	zjuvkiyjtnihinegghejp	12000
+澳大利亞聯邦	zjuvkiyjtnihinegghjhp	12000
 澳大利亚	zjuvkiyjtnnv	12000
 澳大利亚联邦	zjuvkiyjtnnvnevkejp	12000
+澳大利亚联邦	zjuvkiyjtnnvnevkjhp	12000
 澳币	zjuvkjm	12000
 澳門	zjuvkpp	12000
 澳門特別行政區	zjuvkppjhfaosnjyijflxcooo	12000
